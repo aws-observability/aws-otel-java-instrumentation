@@ -32,7 +32,7 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-sdk")
     compileOnly("org.slf4j:slf4j-api:1.7.30")
 
-    implementation("io.opentelemetry:opentelemetry-sdk-contrib-aws-v1-support")
+    implementation("io.opentelemetry:opentelemetry-sdk-extension-aws-v1-support")
 
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 }

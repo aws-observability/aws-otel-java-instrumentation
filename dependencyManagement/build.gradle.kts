@@ -32,13 +32,8 @@ val DEPENDENCY_BOMS = listOf(
 
 val DEPENDENCY_SETS = listOf(
         DependencySet(
-                "io.lettuce",
-                "5.3.1.RELEASE",
-                listOf("lettuce-core")
-        ),
-        DependencySet(
                 "io.opentelemetry.instrumentation.auto",
-                "0.5.0-20200715.035014-47",
+                "0.7.0-20200804.063403-83",
                 listOf(
                         "opentelemetry-javaagent",
                         "opentelemetry-auto-exporter-otlp"
@@ -46,14 +41,13 @@ val DEPENDENCY_SETS = listOf(
         ),
         DependencySet(
                 "io.opentelemetry",
-                "0.5.0",
+                "0.7.0",
                 listOf(
                         "opentelemetry-api",
-                        "opentelemetry-contrib-trace-propagators",
+                        "opentelemetry-extension-trace-propagators",
                         "opentelemetry-exporters-otlp",
                         "opentelemetry-sdk",
-                        "opentelemetry-sdk-contrib-auto-config",
-                        "opentelemetry-sdk-contrib-aws-v1-support"
+                        "opentelemetry-sdk-extension-aws-v1-support"
                 )
         )
 )

@@ -15,9 +15,8 @@
 
 package com.softwareaws.xray.opentelemetry.exporters;
 
-import io.opentelemetry.sdk.contrib.trace.aws.AwsXRayIdsGenerator;
-import io.opentelemetry.sdk.contrib.trace.aws.resource.AwsResource;
-import io.opentelemetry.sdk.resources.EnvVarResource;
+import io.opentelemetry.sdk.extensions.trace.aws.AwsXRayIdsGenerator;
+import io.opentelemetry.sdk.extensions.trace.aws.resource.AwsResource;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.TracerSdkProvider;
 import io.opentelemetry.trace.TracerProvider;
@@ -27,7 +26,7 @@ public class AwsTracerProviderFactory implements TracerProviderFactory {
 
     private static final TracerSdkProvider TRACER_PROVIDER;
     static {
-        Resource resource = EnvVarResource.getResource().merge(AwsResource.create());
+        Resource resource = Resource.getDefault().merge(AwsResource.create());
 
         TRACER_PROVIDER = TracerSdkProvider.builder()
                                            .setIdsGenerator(new AwsXRayIdsGenerator())
