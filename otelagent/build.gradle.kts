@@ -15,12 +15,17 @@
 
 plugins {
     java
+    `maven-publish`
     id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_7
     targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+base {
+    archivesBaseName = "aws-opentelemetry-agent"
 }
 
 dependencies {
@@ -52,3 +57,23 @@ tasks {
         }
     }
 }
+
+val shadowJar = tasks.named("shadowJar")
+tasks {
+    named("jar") {
+        enabled = false
+        dependsOn("shadowJar")
+    }
+
+    named<Jar>("shadowJar") {
+        publishing {
+            publications {
+                named<MavenPublication>("maven") {
+                    artifact(archiveFile)
+                }
+            }
+        }
+    }
+}
+
+

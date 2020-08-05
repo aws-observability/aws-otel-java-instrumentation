@@ -23,6 +23,10 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_7
 }
 
+base {
+    archivesBaseName = "aws-opentelemetry-agent-customizer"
+}
+
 dependencies {
     compileOnly("io.opentelemetry.instrumentation.auto", "opentelemetry-javaagent", classifier = "all")
     compileOnly("io.opentelemetry:opentelemetry-sdk")

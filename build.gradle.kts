@@ -14,30 +14,94 @@
  */
 
 plugins {
-    java
+  java
 }
 
 allprojects {
-    repositories {
-        jcenter()
-        mavenCentral()
-        mavenLocal()
+  repositories {
+    jcenter()
+    mavenCentral()
+    mavenLocal()
 
-        maven {
-            setUrl("https://oss.jfrog.org/libs-snapshot")
-        }
+    maven {
+      setUrl("https://oss.jfrog.org/libs-snapshot")
+    }
+  }
+
+  project.group = "software.amazon.awsobservability"
+
+  plugins.withId("java") {
+    java {
+      sourceCompatibility = JavaVersion.VERSION_1_7
+      targetCompatibility = JavaVersion.VERSION_1_7
     }
 
-    plugins.withId("java") {
-        java {
-            sourceCompatibility = JavaVersion.VERSION_1_7
-            targetCompatibility = JavaVersion.VERSION_1_7
-        }
+    dependencies {
+      configurations.configureEach {
+        add(name, enforcedPlatform(project(":dependencyManagement")))
+      }
+    }
+  }
 
-        dependencies {
-            configurations.configureEach {
-                add(name, enforcedPlatform(project(":dependencyManagement")))
+  plugins.withId("maven-publish") {
+    configure<PublishingExtension> {
+      publications {
+        register<MavenPublication>("maven") {
+          afterEvaluate {
+            artifactId = project.findProperty("archivesBaseName") as String
+          }
+
+          plugins.withId("java-platform") {
+            from(components["javaPlatform"])
+          }
+          plugins.withId("java-library") {
+            from(components["java"])
+          }
+          plugins.withId("java") {
+            from(components["java"])
+          }
+
+          versionMapping {
+            allVariants {
+              fromResolutionResult()
             }
+          }
+
+          pom {
+            description.set(
+                "The Amazon Web Services distribution of the OpenTelemetry Java Instrumentation.")
+
+            licenses {
+              license {
+                name.set("Apache License, Version 2.0")
+                url.set("https://aws.amazon.com/apache2.0")
+                distribution.set("repo")
+              }
+            }
+
+            developers {
+              developer {
+                id.set("amazonwebservices")
+                organization.set("Amazon Web Services")
+                organizationUrl.set("https://aws.amazon.com")
+                roles.add("developer")
+              }
+            }
+          }
         }
+      }
+
+      repositories {
+        // For now, we only publish to GitHub Packages
+        maven {
+          name = "GitHubPackages"
+          url = uri("https://maven.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation")
+          credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+            password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+          }
+        }
+      }
     }
+  }
 }
