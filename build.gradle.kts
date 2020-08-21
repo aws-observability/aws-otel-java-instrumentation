@@ -18,6 +18,9 @@ plugins {
   id("nebula.release") version "15.1.0"
 }
 
+val releaseTask = tasks.named("release")
+val postReleaseTask = tasks.named("release")
+
 allprojects {
   repositories {
     jcenter()
@@ -30,6 +33,15 @@ allprojects {
   }
 
   project.group = "software.amazon.awsobservability"
+
+  plugins.withType(BasePlugin::class) {
+    val assemble = tasks.named("assemble")
+    val check = tasks.named("check")
+
+    releaseTask.configure {
+      dependsOn(assemble, check)
+    }
+  }
 
   plugins.withId("java") {
     java {
@@ -45,6 +57,12 @@ allprojects {
   }
 
   plugins.withId("maven-publish") {
+    val publishTask = tasks.named("publish")
+
+    postReleaseTask.configure {
+      dependsOn(publishTask)
+    }
+
     configure<PublishingExtension> {
       publications {
         register<MavenPublication>("maven") {
