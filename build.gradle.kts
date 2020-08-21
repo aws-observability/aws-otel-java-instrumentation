@@ -15,6 +15,7 @@
 
 plugins {
   java
+  id("nebula.release") version "15.1.0"
 }
 
 allprojects {
