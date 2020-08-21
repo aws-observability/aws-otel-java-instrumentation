@@ -18,6 +18,8 @@ jobs:
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GRGIT_USER: ${{ github.actor }}
+          GRGIT_PASS: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
