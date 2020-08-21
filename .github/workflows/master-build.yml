@@ -11,10 +11,8 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: 14
-      - name: Build with Gradle
-        run: ./gradlew build
-      - name: Publish to GitHub Packages
-        run: ./gradlew publish
+      - name: Build snapshot with Gradle
+        run: ./gradlew build snapshot
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
