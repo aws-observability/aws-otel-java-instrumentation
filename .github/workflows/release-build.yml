@@ -14,7 +14,8 @@ jobs:
         with:
           java-version: 14
       - name: Build release with Gradle
-        run: ./gradlew build final -Prelease.version=${{ github.event.inputs.version }}
+        uses: burrunan/gradle-cache-action@v1
+        arguments: build final -Prelease.version=${{ github.event.inputs.version }}
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
