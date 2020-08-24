@@ -77,7 +77,6 @@ tasks {
   }
 }
 
-
 jib {
   to {
     image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master"
@@ -88,7 +87,7 @@ jib {
   container {
     appRoot = "/aws-observability"
     setEntrypoint("INHERIT")
-    environment = mapOf("JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-${version}.jar")
+    environment = mapOf("JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar")
   }
   containerizingMode = "packaged"
 }
