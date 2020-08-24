@@ -39,6 +39,6 @@ jib {
     image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/smoke-tests-spring-boot:master"
   }
   from {
-    image = "FROM docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master"
+    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master"
   }
 }

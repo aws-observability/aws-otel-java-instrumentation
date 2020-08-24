@@ -34,3 +34,21 @@ jobs:
         run: docker build -t docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master .
       - name: Push docker image
         run: docker push docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master
+  build-smoke-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dorny/paths-filter@v2.2.1
+        id: filter
+        with:
+          filters: |
+            spring-boot:
+              - 'smoke-tests/spring-boot/**/*'
+      - name: Login to GitHub Package Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+      - name: Build and push spring-boot smoke-tests
+        uses: burrunan/gradle-cache-action@v1
+        if: steps.filter.outputs.spring-boot == 'true'
+        with:
+          arguments: :smoke-tests:spring-boot:jib
