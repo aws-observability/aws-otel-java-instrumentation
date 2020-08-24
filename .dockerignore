@@ -1,4 +1,4 @@
-Dockerfile
+scripts/docker/corretto-slim/Dockerfile
 .dockerignore
 README.md
 **/.DS_Store

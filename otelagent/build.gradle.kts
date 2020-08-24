@@ -16,6 +16,7 @@
 plugins {
   java
   `maven-publish`
+  id("com.google.cloud.tools.jib") version "2.5.0"
   id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
@@ -74,4 +75,20 @@ tasks {
       }
     }
   }
+}
+
+
+jib {
+  to {
+    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master"
+  }
+  from {
+    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master"
+  }
+  container {
+    appRoot = "/aws-observability"
+    setEntrypoint("INHERIT")
+    environment = mapOf("JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-${version}.jar")
+  }
+  containerizingMode = "packaged"
 }

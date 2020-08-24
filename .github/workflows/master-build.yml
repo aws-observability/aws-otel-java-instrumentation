@@ -23,17 +23,12 @@ jobs:
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
-  build-docker:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
       - name: Login to GitHub Package Registry
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
-      - name: Build docker image
-        run: docker build -t docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master .
-      - name: Push docker image
-        run: docker push docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master
+      - name: Build and push agent docker image with Gradle
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          arguments: :otelagent:jib
   build-smoke-tests:
     needs: build
     runs-on: ubuntu-latest

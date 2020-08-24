@@ -1,0 +1,20 @@
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - scripts/docker/corretto-slim/**
+
+jobs:
+  build-corretto:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to GitHub Package Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+      - name: Build docker image
+        run: docker build -t docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master .
+        working-directory: scripts/docker/corretto-slim
+      - name: Push docker image
+        run: docker push docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master

@@ -55,12 +55,6 @@ jdk.unsupported,\
 jdk.xml.dom,\
 jdk.zipfs
 
-FROM azul/zulu-openjdk:14 as build
-
-ADD . /workspace
-WORKDIR /workspace
-RUN ./gradlew assemble && cp otelagent/build/libs/aws-opentelemetry-agent-*.jar otelagent/build/libs/aws-opentelemetry-agent.jar
-
 FROM gcr.io/distroless/java:11-debug AS deps
 
 FROM gcr.io/distroless/cc:debug
@@ -72,11 +66,8 @@ COPY --from=deps /lib/x86_64-linux-gnu/libz.so.1.2.8 /lib/x86_64-linux-gnu/libz.
 RUN ln -s /lib/x86_64-linux-gnu/libz.so.1.2.8 /lib/x86_64-linux-gnu/libz.so.1
 
 COPY --from=jrebuild /jvm /usr/lib/jvm/java-11-amazon-corretto
-COPY --from=build /workspace/otelagent/build/libs/aws-opentelemetry-agent.jar /aws-observability/
 
 ENV JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto
 RUN ln -s ${JAVA_HOME}/bin/java /usr/bin/java
-
-ENV JAVA_TOOL_OPTIONS=-javaagent:/aws-observability/aws-opentelemetry-agent.jar
 
 ENTRYPOINT ["/usr/bin/java", "-jar"]
