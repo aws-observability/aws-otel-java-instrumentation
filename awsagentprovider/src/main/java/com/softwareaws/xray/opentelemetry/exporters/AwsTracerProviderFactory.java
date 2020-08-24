@@ -24,19 +24,21 @@ import io.opentelemetry.trace.spi.TracerProviderFactory;
 
 public class AwsTracerProviderFactory implements TracerProviderFactory {
 
-    private static final TracerSdkProvider TRACER_PROVIDER;
-    static {
-        Resource resource = Resource.getDefault().merge(AwsResource.create());
+  private static final TracerSdkProvider TRACER_PROVIDER;
 
-        TRACER_PROVIDER = TracerSdkProvider.builder()
-                                           .setIdsGenerator(new AwsXRayIdsGenerator())
-                                           .setResource(resource)
-                                           .build();
-    }
+  static {
+    Resource resource = Resource.getDefault().merge(AwsResource.create());
 
-    @Override
-    public TracerProvider create() {
-        System.out.println("AwsTraceProvider");
-        return TRACER_PROVIDER;
-    }
+    TRACER_PROVIDER =
+        TracerSdkProvider.builder()
+            .setIdsGenerator(new AwsXRayIdsGenerator())
+            .setResource(resource)
+            .build();
+  }
+
+  @Override
+  public TracerProvider create() {
+    System.out.println("AwsTraceProvider");
+    return TRACER_PROVIDER;
+  }
 }

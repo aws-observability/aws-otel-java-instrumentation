@@ -14,66 +14,64 @@
  */
 
 plugins {
-    java
-    `maven-publish`
-    id("com.github.johnrengelman.shadow") version "5.2.0"
+  java
+  `maven-publish`
+  id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+  sourceCompatibility = JavaVersion.VERSION_1_7
+  targetCompatibility = JavaVersion.VERSION_1_7
 }
 
 base {
-    archivesBaseName = "aws-opentelemetry-agent"
+  archivesBaseName = "aws-opentelemetry-agent"
 }
 
 dependencies {
-    implementation("io.opentelemetry.instrumentation.auto", "opentelemetry-javaagent", classifier = "all")
+  implementation("io.opentelemetry.instrumentation.auto", "opentelemetry-javaagent", classifier = "all")
 }
 
 val agentProviderShadowJarTask = project(":awsagentprovider").tasks.named<Jar>("shadowJar")
 tasks {
-    processResources {
-        val providerArchive = agentProviderShadowJarTask.get().archiveFile
-        from(zipTree(providerArchive)) {
-            into("inst")
-            rename("(^.*)\\.class$", "$1.classdata")
-        }
-        dependsOn(agentProviderShadowJarTask)
+  processResources {
+    val providerArchive = agentProviderShadowJarTask.get().archiveFile
+    from(zipTree(providerArchive)) {
+      into("inst")
+      rename("(^.*)\\.class$", "$1.classdata")
     }
+    dependsOn(agentProviderShadowJarTask)
+  }
 
-    shadowJar {
-        archiveClassifier.set("")
+  shadowJar {
+    archiveClassifier.set("")
 
-        exclude("**/module-info.class")
+    exclude("**/module-info.class")
 
-        manifest {
-            attributes.put("Main-Class", "io.opentelemetry.auto.bootstrap.AgentBootstrap")
-            attributes.put("Agent-Class", "com.softwareaws.xray.opentelemetry.agentbootstrap.AwsAgentBootstrap")
-            attributes.put("Premain-Class", "com.softwareaws.xray.opentelemetry.agentbootstrap.AwsAgentBootstrap")
-            attributes.put("Can-Redefine-Classes", "true")
-            attributes.put("Can-Retransform-Classes", "true")
-        }
+    manifest {
+      attributes.put("Main-Class", "io.opentelemetry.auto.bootstrap.AgentBootstrap")
+      attributes.put("Agent-Class", "com.softwareaws.xray.opentelemetry.agentbootstrap.AwsAgentBootstrap")
+      attributes.put("Premain-Class", "com.softwareaws.xray.opentelemetry.agentbootstrap.AwsAgentBootstrap")
+      attributes.put("Can-Redefine-Classes", "true")
+      attributes.put("Can-Retransform-Classes", "true")
     }
+  }
 }
 
 val shadowJar = tasks.named("shadowJar")
 tasks {
-    named("jar") {
-        enabled = false
-        dependsOn("shadowJar")
-    }
+  named("jar") {
+    enabled = false
+    dependsOn("shadowJar")
+  }
 
-    named<Jar>("shadowJar") {
-        publishing {
-            publications {
-                named<MavenPublication>("maven") {
-                    artifact(archiveFile)
-                }
-            }
+  named<Jar>("shadowJar") {
+    publishing {
+      publications {
+        named<MavenPublication>("maven") {
+          artifact(archiveFile)
         }
+      }
     }
+  }
 }
-
-

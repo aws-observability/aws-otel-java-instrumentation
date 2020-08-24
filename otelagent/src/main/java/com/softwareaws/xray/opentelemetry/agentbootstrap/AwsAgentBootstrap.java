@@ -20,14 +20,15 @@ import java.lang.instrument.Instrumentation;
 
 public class AwsAgentBootstrap {
 
-    public static void premain(final String agentArgs, final Instrumentation inst) {
-        agentmain(agentArgs, inst);
-    }
+  public static void premain(final String agentArgs, final Instrumentation inst) {
+    agentmain(agentArgs, inst);
+  }
 
-    public static void agentmain(final String agentArgs, final Instrumentation inst) {
-        System.setProperty("io.opentelemetry.auto.shaded.io.opentelemetry.trace.spi.TracerProviderFactory",
-                           "com.softwareaws.xray.opentelemetry.exporters.AwsTracerProviderFactory");
-        System.setProperty("otel.propagators", "tracecontext,b3single,b3,jaeger,xray,ottracer");
-        AgentBootstrap.agentmain(agentArgs, inst);
-    }
+  public static void agentmain(final String agentArgs, final Instrumentation inst) {
+    System.setProperty(
+        "io.opentelemetry.auto.shaded.io.opentelemetry.trace.spi.TracerProviderFactory",
+        "com.softwareaws.xray.opentelemetry.exporters.AwsTracerProviderFactory");
+    System.setProperty("otel.propagators", "tracecontext,b3single,b3,jaeger,xray,ottracer");
+    AgentBootstrap.agentmain(agentArgs, inst);
+  }
 }

@@ -16,6 +16,7 @@
 plugins {
   java
   id("nebula.release") version "15.1.0"
+  id("com.diffplug.spotless") version "5.1.2"
 }
 
 val releaseTask = tasks.named("release")
@@ -34,12 +35,20 @@ allprojects {
 
   project.group = "software.amazon.awsobservability"
 
+  plugins.apply("com.diffplug.spotless")
+
   plugins.withType(BasePlugin::class) {
     val assemble = tasks.named("assemble")
     val check = tasks.named("check")
 
     releaseTask.configure {
       dependsOn(assemble, check)
+    }
+  }
+
+  spotless {
+    kotlinGradle {
+      ktlint("0.38.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
     }
   }
 
@@ -52,6 +61,12 @@ allprojects {
     dependencies {
       configurations.configureEach {
         add(name, enforcedPlatform(project(":dependencyManagement")))
+      }
+    }
+
+    spotless {
+      java {
+        googleJavaFormat("1.8")
       }
     }
   }
@@ -88,7 +103,8 @@ allprojects {
 
           pom {
             description.set(
-                "The Amazon Web Services distribution of the OpenTelemetry Java Instrumentation.")
+              "The Amazon Web Services distribution of the OpenTelemetry Java Instrumentation."
+            )
 
             licenses {
               license {
