@@ -4,6 +4,7 @@ on:
       - master
     paths:
       - scripts/docker/corretto-slim/**
+      - .github/workflows/docker-build-corretto-slim.yml
 
 jobs:
   build-corretto:
