@@ -26,7 +26,6 @@ val DEPENDENCY_BOMS = listOf(
   "io.zipkin.brave:brave-bom:5.12.3",
   "io.zipkin.reporter2:zipkin-reporter-bom:2.15.0",
   "org.apache.logging.log4j:log4j-bom:2.13.3",
-  "org.springframework.boot:spring-boot-dependencies:2.2.7.RELEASE",
   "software.amazon.awssdk:bom:2.13.17"
 )
 
@@ -48,6 +47,13 @@ val DEPENDENCY_SETS = listOf(
       "opentelemetry-exporters-otlp",
       "opentelemetry-sdk",
       "opentelemetry-sdk-extension-aws-v1-support"
+    )
+  ),
+  DependencySet(
+    "org.slf4j",
+    "1.7.30",
+    listOf(
+      "slf4j-api"
     )
   )
 )

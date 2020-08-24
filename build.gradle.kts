@@ -60,7 +60,9 @@ allprojects {
 
     dependencies {
       configurations.configureEach {
-        add(name, enforcedPlatform(project(":dependencyManagement")))
+        if (name.endsWith("Classpath")) {
+          add(name, enforcedPlatform(project(":dependencyManagement")))
+        }
       }
     }
 
