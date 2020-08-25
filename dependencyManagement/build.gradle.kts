@@ -22,10 +22,14 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val DEPENDENCY_BOMS = listOf(
   "com.amazonaws:aws-xray-recorder-sdk-bom:2.6.1",
   "com.fasterxml.jackson:jackson-bom:2.11.0",
+  "com.google.protobuf:protobuf-bom:3.13.0",
+  "com.linecorp.armeria:armeria-bom:1.0.0",
   "io.grpc:grpc-bom:1.29.0",
   "io.zipkin.brave:brave-bom:5.12.3",
   "io.zipkin.reporter2:zipkin-reporter-bom:2.15.0",
   "org.apache.logging.log4j:log4j-bom:2.13.3",
+  "org.junit:junit-bom:5.7.0-RC1",
+  "org.testcontainers:testcontainers-bom:1.14.3",
   "software.amazon.awssdk:bom:2.13.17"
 )
 
@@ -45,15 +49,22 @@ val DEPENDENCY_SETS = listOf(
       "opentelemetry-api",
       "opentelemetry-extension-trace-propagators",
       "opentelemetry-exporters-otlp",
+      "opentelemetry-proto",
       "opentelemetry-sdk",
       "opentelemetry-sdk-extension-aws-v1-support"
     )
   ),
   DependencySet(
+    "org.assertj",
+    "3.17.0",
+    listOf("assertj-core")
+  ),
+  DependencySet(
     "org.slf4j",
     "1.7.30",
     listOf(
-      "slf4j-api"
+      "slf4j-api",
+      "slf4j-simple"
     )
   )
 )

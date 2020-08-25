@@ -16,4 +16,5 @@
 include(":awsagentprovider")
 include(":dependencyManagement")
 include(":otelagent")
+include(":smoke-tests:runner")
 include(":smoke-tests:spring-boot")

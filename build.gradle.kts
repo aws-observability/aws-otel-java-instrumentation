@@ -64,11 +64,26 @@ allprojects {
           add(name, enforcedPlatform(project(":dependencyManagement")))
         }
       }
+
+      testImplementation("org.assertj:assertj-core")
+      testImplementation("org.junit.jupiter:junit-jupiter-api")
+      testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     }
 
     spotless {
       java {
         googleJavaFormat("1.8")
+      }
+    }
+
+    tasks {
+      withType<Test> {
+        useJUnitPlatform()
+      }
+
+      named<JavaCompile>("compileTestJava") {
+        sourceCompatibility = JavaVersion.VERSION_11.toString()
+        targetCompatibility = JavaVersion.VERSION_11.toString()
       }
     }
   }
