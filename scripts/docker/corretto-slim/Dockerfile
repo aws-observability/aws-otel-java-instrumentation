@@ -55,15 +55,15 @@ jdk.unsupported,\
 jdk.xml.dom,\
 jdk.zipfs
 
-FROM gcr.io/distroless/java:11-debug AS deps
+FROM gcr.io/distroless/java-debian10:11-debug AS deps
 
-FROM gcr.io/distroless/cc:debug
+FROM gcr.io/distroless/cc-debian10:debug
 
 RUN ["/busybox/sh", "-c", "ln -s /busybox/sh /bin/sh"]
 
 COPY --from=deps /etc/ssl/certs/java /etc/ssl/certs/java
-COPY --from=deps /lib/x86_64-linux-gnu/libz.so.1.2.8 /lib/x86_64-linux-gnu/libz.so.1.2.8
-RUN ln -s /lib/x86_64-linux-gnu/libz.so.1.2.8 /lib/x86_64-linux-gnu/libz.so.1
+COPY --from=deps /lib/x86_64-linux-gnu/libz.so.1.2.11 /lib/x86_64-linux-gnu/libz.so.1.2.11
+RUN ln -s /lib/x86_64-linux-gnu/libz.so.1.2.11 /lib/x86_64-linux-gnu/libz.so.1
 
 COPY --from=jrebuild /jvm /usr/lib/jvm/java-11-amazon-corretto
 

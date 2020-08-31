@@ -15,6 +15,9 @@ jobs:
           - windows-latest
     steps:
       - uses: actions/checkout@v2
+      # Safe to run on PR builds since only has read permissions.
+      - name: Login to GitHub Package Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin || echo "Docker not present"
       - uses: actions/setup-java@v1
         with:
           java-version: 14

@@ -11,6 +11,8 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: 14
+      - name: Login to GitHub Package Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
       - name: Build snapshot with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
@@ -23,8 +25,6 @@ jobs:
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
-      - name: Login to GitHub Package Registry
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
       - name: Build and push agent docker image with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:

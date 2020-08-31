@@ -1,0 +1,21 @@
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - smoke-tests/fakebackend/**
+      - dependencyManagement/**
+      - gradle/**
+      - .github/workflows/docker-build-smoke-tests-fake-backend.yml
+
+jobs:
+  build-corretto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to GitHub Package Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+      - name: Build and push docker image
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          arguments: :smoke-tests:fakebackend:jib

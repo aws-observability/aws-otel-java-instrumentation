@@ -17,10 +17,17 @@ plugins {
   java
 }
 
+java {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+}
+
 dependencies {
-  testImplementation("com.google.protobuf:protobuf-java-util")
+  testImplementation("com.google.guava:guava")
   testImplementation("com.linecorp.armeria:armeria")
+  testImplementation("io.opentelemetry:opentelemetry-api")
   testImplementation("io.opentelemetry:opentelemetry-proto")
+  testImplementation("org.curioswitch.curiostack:protobuf-jackson")
   testImplementation("org.slf4j:slf4j-simple")
   testImplementation("org.testcontainers:junit-jupiter")
 }
@@ -30,9 +37,9 @@ project.evaluationDependsOn(":otelagent")
 val otelAgentJarTask = project(":otelagent").tasks.named<Jar>("shadowJar")
 tasks {
   named<Test>("test") {
-    enabled = findProperty("io.awsobservability.smoketests") == "true"
-
     dependsOn(otelAgentJarTask)
+
+    enabled = System.getenv("CI") != null
 
     jvmArgs(
       "-Dio.awsobservability.instrumentation.smoketests.runner.agentPath=${otelAgentJarTask.get().archiveFile.get()
