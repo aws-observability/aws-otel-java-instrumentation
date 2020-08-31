@@ -16,7 +16,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
-          arguments: build snapshot
+          arguments: build snapshot --stacktrace
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}

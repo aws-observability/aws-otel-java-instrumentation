@@ -13,9 +13,3 @@
  * permissions and limitations under the License.
  */
 
-include(":awsagentprovider")
-include(":dependencyManagement")
-include(":otelagent")
-include(":smoke-tests:fakebackend")
-include(":smoke-tests:runner")
-include(":smoke-tests:spring-boot")

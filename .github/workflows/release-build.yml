@@ -16,7 +16,7 @@ jobs:
       - name: Build release with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
-          arguments: build final -Prelease.version=${{ github.event.inputs.version }}
+          arguments: build final -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
