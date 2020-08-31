@@ -9,10 +9,13 @@ on:
       - .github/workflows/docker-build-smoke-tests-fake-backend.yml
 
 jobs:
-  build-corretto:
+  build-docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: 14
       - name: Login to GitHub Package Registry
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
       - name: Build and push docker image
