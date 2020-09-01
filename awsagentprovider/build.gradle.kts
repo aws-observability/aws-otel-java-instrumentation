@@ -33,6 +33,8 @@ dependencies {
 
   implementation("io.opentelemetry:opentelemetry-sdk-extension-aws-v1-support")
 
+  testImplementation("com.google.guava:guava")
+
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 }
 

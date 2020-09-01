@@ -31,7 +31,6 @@ public class AwsTracerProviderFactory implements TracerProviderFactory {
 
   @Override
   public TracerProvider create() {
-    System.out.println("AwsTraceProvider");
     return TRACER_PROVIDER;
   }
 }

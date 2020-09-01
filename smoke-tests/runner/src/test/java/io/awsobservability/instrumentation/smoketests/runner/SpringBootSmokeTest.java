@@ -189,7 +189,7 @@ class SpringBootSmokeTest {
               int epoch =
                   Ints.fromBytes(
                       traceId.byteAt(0), traceId.byteAt(1), traceId.byteAt(2), traceId.byteAt(3));
-              assertThat(epoch).isGreaterThan(START_TIME_SECS);
+              assertThat(epoch).isGreaterThanOrEqualTo(START_TIME_SECS);
             });
   }
 

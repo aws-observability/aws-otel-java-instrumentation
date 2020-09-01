@@ -82,6 +82,24 @@ allprojects {
       }
     }
 
+    val enableCoverage: String? by project
+    if (enableCoverage == "true") {
+      plugins.apply("jacoco")
+
+      tasks {
+        val build by named("build")
+        withType<JacocoReport> {
+          build.dependsOn(this)
+
+          reports {
+            xml.isEnabled = true
+            html.isEnabled = true
+            csv.isEnabled = false
+          }
+        }
+      }
+    }
+
     tasks {
       withType<Test> {
         useJUnitPlatform()
