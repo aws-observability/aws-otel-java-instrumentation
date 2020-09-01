@@ -170,7 +170,7 @@ allprojects {
 }
 
 tasks.named<Wrapper>("wrapper") {
-  version = "6.6.1"
+  gradleVersion = "6.6.1"
   distributionType = Wrapper.DistributionType.ALL
   distributionSha256Sum = "11657af6356b7587bfb37287b5992e94a9686d5c8a0a1b60b87b9928a2decde5"
 }

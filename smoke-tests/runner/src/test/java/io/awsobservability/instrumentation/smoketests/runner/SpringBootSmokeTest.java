@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.module.SimpleDeserializers;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.linecorp.armeria.client.WebClient;
@@ -193,7 +194,7 @@ class SpringBootSmokeTest {
   }
 
   private List<Span> getExported() {
-    List<ExportTraceServiceRequest> exported = null;
+    List<ExportTraceServiceRequest> exported = ImmutableList.of();
     for (int i = 0; i < 20; i++) {
       try (var content =
           backendClient
@@ -201,11 +202,12 @@ class SpringBootSmokeTest {
               .aggregateWithPooledObjects(ByteBufAllocator.DEFAULT)
               .join()
               .content()) {
-        exported =
+        List<ExportTraceServiceRequest> currentExported =
             OBJECT_MAPPER.readValue(content.toInputStream(), EXPORT_TRACE_SERVICE_REQUEST_LIST);
-        if (!exported.isEmpty()) {
+        if (!exported.isEmpty() && currentExported.size() == exported.size()) {
           break;
         }
+        exported = currentExported;
       } catch (IOException e) {
         logger.warn("Error reading JSON response.", e);
       }
