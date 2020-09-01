@@ -93,7 +93,8 @@ class SpringBootSmokeTest {
   @Container
   private static final GenericContainer<?> backend =
       new GenericContainer<>(
-              "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/smoke-tests-fake-backend:master")
+              "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/"
+                  + "smoke-tests-fake-backend:master")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
           .withNetwork(network)
@@ -102,7 +103,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> collector =
-      new GenericContainer<>("otel/opentelemetry-collector-dev")
+      new GenericContainer<>("otel/opentelemetry-collector-contrib-dev")
           .withExposedPorts(13133)
           .waitingFor(Wait.forHttp("/").forPort(13133))
           .withNetwork(network)
@@ -115,7 +116,8 @@ class SpringBootSmokeTest {
   @Container
   private static final GenericContainer<?> application =
       new GenericContainer<>(
-              "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/smoke-tests-spring-boot:master")
+              "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/"
+                  + "smoke-tests-spring-boot:master")
           .dependsOn(backend, collector)
           .withExposedPorts(8080)
           .withNetwork(network)
@@ -145,11 +147,13 @@ class SpringBootSmokeTest {
   }
 
   @Test
-  void sendRequest() {
+  void hello() {
     var response = appClient.get("/hello").aggregate().join();
 
     assertThat(response.status().isSuccess()).isTrue();
-    assertThat(response.contentUtf8()).isEqualTo("Hi there!");
+    assertThat(response.headers())
+        .extracting(e -> e.getKey().toString())
+        .contains("received-x-amzn-trace-id", "received-x-b3-traceid", "received-traceparent");
 
     var exported = getExported();
     assertThat(exported)
@@ -157,14 +161,27 @@ class SpringBootSmokeTest {
             span -> {
               assertThat(span.getKind()).isEqualTo(Span.SpanKind.SERVER);
               assertThat(span.getName()).isEqualTo("/hello");
-            });
-    assertThat(exported)
+            })
+        .anySatisfy(
+            span -> {
+              assertThat(span.getKind()).isEqualTo(Span.SpanKind.SERVER);
+              assertThat(span.getName()).isEqualTo("/backend");
+            })
+        .anySatisfy(
+            span -> {
+              assertThat(span.getKind()).isEqualTo(Span.SpanKind.CLIENT);
+              assertThat(span.getName()).isEqualTo("HTTP GET");
+            })
         .anySatisfy(
             span -> {
               assertThat(span.getKind()).isEqualTo(Span.SpanKind.INTERNAL);
               assertThat(span.getName()).isEqualTo("AppController.hello");
-            });
-    assertThat(exported)
+            })
+        .anySatisfy(
+            span -> {
+              assertThat(span.getKind()).isEqualTo(Span.SpanKind.INTERNAL);
+              assertThat(span.getName()).isEqualTo("AppController.backend");
+            })
         .allSatisfy(
             span -> {
               var traceId = span.getTraceId();

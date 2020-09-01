@@ -15,16 +15,33 @@
 
 package io.awsobservability.instrumentation.smoketests.springboot;
 
+import java.util.Map;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.client.RestTemplate;
 
 @Controller
 public class AppController {
 
+  private final RestTemplate client = new RestTemplate();
+
   @GetMapping("/hello")
   @ResponseBody
-  public String hello() {
-    return "Hi there!";
+  public ResponseEntity<String> hello() {
+    var backendResponse = client.getForEntity("http://localhost:8080/backend", String.class);
+    var response = ResponseEntity.ok();
+    backendResponse.getHeaders().forEach((name, values) -> response.header(name, values.get(0)));
+    return response.build();
+  }
+
+  @GetMapping("/backend")
+  @ResponseBody
+  public ResponseEntity<String> backend(@RequestHeader Map<String, String> headers) {
+    var response = ResponseEntity.ok();
+    headers.forEach((name, value) -> response.header("received-" + name, value));
+    return response.build();
   }
 }

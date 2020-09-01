@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
   java
   id("nebula.release") version "15.1.0"
@@ -50,7 +52,7 @@ allprojects {
     kotlinGradle {
       ktlint("0.38.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
 
-      licenseHeaderFile("${rootProject.projectDir}/config/license/header.java", "plugins|include")
+      licenseHeaderFile("${rootProject.projectDir}/config/license/header.java", "plugins|include|import")
     }
   }
 
@@ -83,6 +85,11 @@ allprojects {
     tasks {
       withType<Test> {
         useJUnitPlatform()
+
+        testLogging {
+          exceptionFormat = TestExceptionFormat.FULL
+          showStackTraces = true
+        }
       }
 
       named<JavaCompile>("compileTestJava") {

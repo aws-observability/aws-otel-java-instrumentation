@@ -28,7 +28,7 @@ public class AwsAgentBootstrap {
     System.setProperty(
         "io.opentelemetry.javaagent.shaded.io.opentelemetry.trace.spi.TracerProviderFactory",
         "com.softwareaws.xray.opentelemetry.exporters.AwsTracerProviderFactory");
-    System.setProperty("otel.propagators", "tracecontext,b3single,b3,jaeger,xray,ottracer");
+    System.setProperty("otel.propagators", "xray,tracecontext,b3");
     OpenTelemetryAgent.agentmain(agentArgs, inst);
   }
 }
