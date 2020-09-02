@@ -41,7 +41,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry.javaagent",
-    "0.8.0-20200830.052917-76",
+    "0.8.0-20200901.194129-86",
     listOf(
       "opentelemetry-javaagent"
     )
