@@ -14,7 +14,7 @@ jobs:
       - name: Login to GitHub Package Registry
         run: echo ${{ secrets.CONTAINER_REGISTRY_TOKEN }} | docker login ghcr.io -u anuraaga --password-stdin
       - name: Build docker image
-        run: docker build -t ghcr.io/amazoncorretto-distroless:alpha .
+        run: docker build -t ghcr.io/anuraaga/amazoncorretto-distroless:alpha .
         working-directory: scripts/docker/corretto-slim
       - name: Push docker image
         run: docker push ghcr.io/anuraaga/amazoncorretto-distroless:alpha
