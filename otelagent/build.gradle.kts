@@ -80,10 +80,10 @@ tasks {
 
 jib {
   to {
-    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master"
+    image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
   }
   from {
-    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master"
+    image = "ghcr.io/anuraaga/amazoncorretto-distroless:alpha"
   }
   container {
     appRoot = "/aws-observability"

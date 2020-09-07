@@ -19,9 +19,6 @@ jobs:
         with:
           java-version: 14
       - uses: gradle/wrapper-validation-action@v1
-      # Safe to run on PR builds since only has read permissions.
-      - name: Login to GitHub Package Registry
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin || echo "Docker not present"
       - name: Build with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:

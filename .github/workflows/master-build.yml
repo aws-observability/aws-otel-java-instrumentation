@@ -13,7 +13,7 @@ jobs:
           java-version: 14
       - uses: gradle/wrapper-validation-action@v1
       - name: Login to GitHub Package Registry
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+        run: echo ${{ secrets.CONTAINER_REGISTRY_TOKEN }} | docker login ghcr.io -u anuraaga --password-stdin
       - name: Build snapshot with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:

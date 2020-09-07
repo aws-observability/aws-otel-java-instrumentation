@@ -16,6 +16,9 @@
 package io.awsobservability.instrumentation.smoketests.runner;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_CLIENT;
+import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_INTERNAL;
+import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_SERVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.core.JsonParser;
@@ -93,9 +96,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> backend =
-      new GenericContainer<>(
-              "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/"
-                  + "smoke-tests-fake-backend:master")
+      new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-fake-backend")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
           .withNetwork(network)
@@ -103,23 +104,9 @@ class SpringBootSmokeTest {
           .withLogConsumer(new Slf4jLogConsumer(logger));
 
   @Container
-  private static final GenericContainer<?> collector =
-      new GenericContainer<>("otel/opentelemetry-collector-contrib-dev")
-          .withExposedPorts(13133)
-          .waitingFor(Wait.forHttp("/").forPort(13133))
-          .withNetwork(network)
-          .withNetworkAliases("collector")
-          .withLogConsumer(new Slf4jLogConsumer(logger))
-          .withCopyFileToContainer(
-              MountableFile.forClasspathResource("/otel.yaml"), "/etc/otel.yaml")
-          .withCommand("--config /etc/otel.yaml");
-
-  @Container
   private static final GenericContainer<?> application =
-      new GenericContainer<>(
-              "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/"
-                  + "smoke-tests-spring-boot:master")
-          .dependsOn(backend, collector)
+      new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-spring-boot")
+          .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
           .withLogConsumer(new Slf4jLogConsumer(logger))
@@ -128,7 +115,7 @@ class SpringBootSmokeTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
-          .withEnv("OTEL_OTLP_ENDPOINT", "collector:55680");
+          .withEnv("OTEL_OTLP_ENDPOINT", "backend:8080");
 
   private static final TypeReference<List<ExportTraceServiceRequest>>
       EXPORT_TRACE_SERVICE_REQUEST_LIST = new TypeReference<>() {};
@@ -160,27 +147,27 @@ class SpringBootSmokeTest {
     assertThat(exported)
         .anySatisfy(
             span -> {
-              assertThat(span.getKind()).isEqualTo(Span.SpanKind.SERVER);
+              assertThat(span.getKind()).isEqualTo(SPAN_KIND_SERVER);
               assertThat(span.getName()).isEqualTo("/hello");
             })
         .anySatisfy(
             span -> {
-              assertThat(span.getKind()).isEqualTo(Span.SpanKind.SERVER);
+              assertThat(span.getKind()).isEqualTo(SPAN_KIND_SERVER);
               assertThat(span.getName()).isEqualTo("/backend");
             })
         .anySatisfy(
             span -> {
-              assertThat(span.getKind()).isEqualTo(Span.SpanKind.CLIENT);
+              assertThat(span.getKind()).isEqualTo(SPAN_KIND_CLIENT);
               assertThat(span.getName()).isEqualTo("HTTP GET");
             })
         .anySatisfy(
             span -> {
-              assertThat(span.getKind()).isEqualTo(Span.SpanKind.INTERNAL);
+              assertThat(span.getKind()).isEqualTo(SPAN_KIND_INTERNAL);
               assertThat(span.getName()).isEqualTo("AppController.hello");
             })
         .anySatisfy(
             span -> {
-              assertThat(span.getKind()).isEqualTo(Span.SpanKind.INTERNAL);
+              assertThat(span.getKind()).isEqualTo(SPAN_KIND_INTERNAL);
               assertThat(span.getName()).isEqualTo("AppController.backend");
             })
         .allSatisfy(

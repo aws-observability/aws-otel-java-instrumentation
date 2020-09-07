@@ -17,7 +17,7 @@ jobs:
         with:
           java-version: 14
       - name: Login to GitHub Package Registry
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+        run: echo ${{ secrets.CONTAINER_REGISTRY_TOKEN }} | docker login ghcr.io -u anuraaga --password-stdin
       - name: Build and push docker image
         uses: burrunan/gradle-cache-action@v1
         with:

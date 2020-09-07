@@ -33,9 +33,9 @@ dependencies {
 
 jib {
   to {
-    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/smoke-tests-fake-backend:master"
+    image = "ghcr.io/anuraaga/smoke-tests-fake-backend"
   }
   from {
-    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master"
+    image = "ghcr.io/anuraaga/amazoncorretto-distroless:alpha"
   }
 }

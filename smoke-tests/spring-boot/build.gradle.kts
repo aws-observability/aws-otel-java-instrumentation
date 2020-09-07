@@ -36,9 +36,9 @@ dependencies {
 
 jib {
   to {
-    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/smoke-tests-spring-boot:master"
+    image = "ghcr.io/anuraaga/smoke-tests-spring-boot"
   }
   from {
-    image = "docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/aws-opentelemetry-java-base:master"
+    image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
   }
 }

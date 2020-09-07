@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Login to GitHub Package Registry
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+        run: echo ${{ secrets.CONTAINER_REGISTRY_TOKEN }} | docker login ghcr.io -u anuraaga --password-stdin
       - name: Build docker image
-        run: docker build -t docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master .
+        run: docker build -t ghcr.io/amazoncorretto-distroless:alpha .
         working-directory: scripts/docker/corretto-slim
       - name: Push docker image
-        run: docker push docker.pkg.github.com/anuraaga/aws-opentelemetry-java-instrumentation/amazoncorretto-slim:master
+        run: docker push ghcr.io/amazoncorretto-distroless:alpha
