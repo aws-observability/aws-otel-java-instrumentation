@@ -30,7 +30,7 @@ base {
 }
 
 dependencies {
-  implementation("io.opentelemetry.javaagent", "opentelemetry-javaagent", classifier = "all")
+  implementation("io.opentelemetry.instrumentation.auto", "opentelemetry-javaagent", classifier = "all")
 }
 
 val agentProviderShadowJarTask = project(":awsagentprovider").tasks.named<Jar>("shadowJar")
