@@ -15,46 +15,9 @@ data from a Java application without any code changes.
 
 ## Getting Started
 
-Download the [latest version](https://github.com/anuraaga/aws-opentelemetry-java-instrumentation/releases/download/0.7.0-alpha.4/aws-opentelemetry-agent-0.7.0-alpha.4.jar).
+Check out the getting started [docs](docs/getting-started.md).
 
-This package includes the instrumentation agent,
-instrumentations for all supported libraries and all available data exporters.
-This provides completely automatic out of the box experience.
-The agent is preconfigured to generate trace IDs compatible with [AWS X-Ray](https://aws.amazon.com/xray/)
-and enables trace propagation using W3C Trace Context, B3, Jaeger, X-Ray, and OpenTracing.
-
-The instrumentation agent is enabled using the `-javaagent` flag to the JVM.
-```
-java -javaagent:path/to/aws-opentelemetry-agent.jar \
-     -jar myapp.jar
-```
-By default OpenTelemetry Java agent uses
-[OTLP exporter](https://github.com/open-telemetry/opentelemetry-java/tree/master/exporters/otlp)
-configured to send data to
-[OpenTelemetry collector](https://github.com/open-telemetry/opentelemetry-collector/blob/master/receiver/otlpreceiver/README.md)
-at `localhost:55680`.
-
-Configuration parameters are passed as Java system properties (`-D` flags) or
-as environment variables (see below for full list). For example:
-```
-java -javaagent:path/to/opentelemetry-javaagent-all.jar \
-     -Dotel.exporter=zipkin \
-     -jar myapp.jar
-```
-
-External exporter jar can be specified via `otel.exporter.jar` system property:
-```
-java -javaagent:path/to/opentelemetry-javaagent-all.jar \
-     -Dotel.exporter.jar=path/to/external-exporter.jar \
-     -jar myapp.jar
-```
-
-### Configuration
-
-For the complete list of configuration parameters, please refer to the upstream documentation
-[here](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/master/README.md#configuration-parameters-subject-to-change)
-
-### Supported Java libraries and frameworks
+## Supported Java libraries and frameworks
 
 For the complete list of supported frameworks, please refer to the upstream documentation
 [here](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/master/README.md#supported-java-libraries-and-frameworks)
