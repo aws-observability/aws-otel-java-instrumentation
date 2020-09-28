@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+import com.github.jk1.license.LicenseReportExtension
+
 plugins {
   `java-platform`
 }
@@ -109,6 +111,17 @@ dependencies {
       for (module in set.modules) {
         api("${set.group}:$module:${set.version}")
       }
+    }
+  }
+}
+
+rootProject.allprojects {
+  plugins.withId("com.github.jk1.dependency-license-report") {
+    configure<LicenseReportExtension> {
+      val bomExcludes = DEPENDENCY_BOMS.stream()
+        .map { it.substring(0, it.lastIndexOf(':')) }
+        .toArray { length -> arrayOfNulls<String>(length) }
+      excludes = bomExcludes
     }
   }
 }
