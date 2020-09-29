@@ -57,6 +57,8 @@ import org.testcontainers.utility.MountableFile;
 class SpringBootSmokeTest {
 
   private static final Logger logger = LoggerFactory.getLogger(SpringBootSmokeTest.class);
+  private static final Logger backendLogger = LoggerFactory.getLogger("backend");
+  private static final Logger applicationLogger = LoggerFactory.getLogger("application");
 
   private static final String AGENT_PATH =
       System.getProperty("io.awsobservability.instrumentation.smoketests.runner.agentPath");
@@ -99,9 +101,9 @@ class SpringBootSmokeTest {
       new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-fake-backend")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
+          .withLogConsumer(new Slf4jLogConsumer(backendLogger))
           .withNetwork(network)
-          .withNetworkAliases("backend")
-          .withLogConsumer(new Slf4jLogConsumer(logger));
+          .withNetworkAliases("backend");
 
   @Container
   private static final GenericContainer<?> application =
@@ -109,13 +111,13 @@ class SpringBootSmokeTest {
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
-          .withLogConsumer(new Slf4jLogConsumer(logger))
+          .withLogConsumer(new Slf4jLogConsumer(applicationLogger))
           .withCopyFileToContainer(
               MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
-          .withEnv("OTEL_OTLP_ENDPOINT", "backend:8080");
+          .withEnv("OTEL_EXPORTER_OTLP_SPAN_ENDPOINT", "backend:8080");
 
   private static final TypeReference<List<ExportTraceServiceRequest>>
       EXPORT_TRACE_SERVICE_REQUEST_LIST = new TypeReference<>() {};
@@ -182,7 +184,7 @@ class SpringBootSmokeTest {
 
   private List<Span> getExported() {
     List<ExportTraceServiceRequest> exported = ImmutableList.of();
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 100; i++) {
       try (var content =
           backendClient
               .get("/get-requests")

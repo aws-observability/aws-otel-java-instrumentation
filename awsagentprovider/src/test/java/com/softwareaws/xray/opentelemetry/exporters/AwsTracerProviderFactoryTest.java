@@ -18,7 +18,6 @@ package com.softwareaws.xray.opentelemetry.exporters;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.primitives.Ints;
-import io.opentelemetry.trace.TraceId;
 import io.opentelemetry.trace.TracerProvider;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.RepeatedTest;
@@ -32,8 +31,7 @@ class AwsTracerProviderFactoryTest {
   void providerGeneratesXrayIds() {
     int startTimeSecs = (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
     var span = TRACER_PROVIDER.get("test").spanBuilder("test").startSpan();
-    byte[] traceId = new byte[TraceId.getSize()];
-    span.getContext().getTraceId().copyBytesTo(traceId, 0);
+    byte[] traceId = span.getContext().getTraceIdBytes();
     int epoch = Ints.fromBytes(traceId[0], traceId[1], traceId[2], traceId[3]);
     assertThat(epoch).isGreaterThanOrEqualTo(startTimeSecs);
   }

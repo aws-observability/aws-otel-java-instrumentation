@@ -18,11 +18,6 @@ plugins {
   id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_7
-  targetCompatibility = JavaVersion.VERSION_1_7
-}
-
 base {
   archivesBaseName = "aws-opentelemetry-agent-customizer"
 }
