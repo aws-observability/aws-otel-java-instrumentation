@@ -31,7 +31,7 @@ val DEPENDENCY_BOMS = listOf(
   "io.zipkin.reporter2:zipkin-reporter-bom:2.15.0",
   "org.apache.logging.log4j:log4j-bom:2.13.3",
   "org.junit:junit-bom:5.7.0-RC1",
-  "org.testcontainers:testcontainers-bom:1.14.3",
+  "org.testcontainers:testcontainers-bom:1.15.0-rc2",
   "software.amazon.awssdk:bom:2.13.17"
 )
 
@@ -43,14 +43,14 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry.instrumentation.auto",
-    "0.9.0-20200927.201622-41",
+    "0.9.0-20201007.190139-71",
     listOf(
       "opentelemetry-javaagent"
     )
   ),
   DependencySet(
     "io.opentelemetry",
-    "0.9.0-20200925.025016-49",
+    "0.9.1",
     listOf(
       "opentelemetry-api",
       "opentelemetry-exporters-logging",
@@ -59,7 +59,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry",
-    "0.9.0-20200925.025016-49",
+    "0.9.1",
     listOf(
       "opentelemetry-context-prop",
       "opentelemetry-extension-trace-propagators",
@@ -70,8 +70,9 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry",
-    "0.9.0-20200925.025016-49",
+    "0.9.1",
     listOf(
+      "opentelemetry-sdk-baggage",
       "opentelemetry-sdk-common",
       "opentelemetry-sdk-correlation-context",
       "opentelemetry-sdk-metrics",
