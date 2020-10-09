@@ -34,3 +34,5 @@ jobs:
         uses: burrunan/gradle-cache-action@v1
         with:
           arguments: :smoke-tests:spring-boot:jib
+      - uses: codecov/codecov-action@v1
+
