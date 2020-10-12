@@ -19,8 +19,7 @@ Check out the getting started [docs](docs/getting-started.md).
 
 ## Supported Java libraries and frameworks
 
-For the complete list of supported frameworks, please refer to the upstream documentation
-[here](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/master/README.md#supported-java-libraries-and-frameworks)
+For the complete list of supported frameworks, please refer to the [OpenTelemetry for Java documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/master/README.md#supported-java-libraries-and-frameworks).
 
 ## How it works
 
