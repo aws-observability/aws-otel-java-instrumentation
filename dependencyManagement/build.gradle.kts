@@ -42,8 +42,8 @@ val DEPENDENCY_SETS = listOf(
     listOf("guava", "guava-testlib")
   ),
   DependencySet(
-    "io.opentelemetry.instrumentation.auto",
-    "0.9.0-20201007.190139-71",
+    "io.opentelemetry.javaagent",
+    "0.9.0",
     listOf(
       "opentelemetry-javaagent"
     )

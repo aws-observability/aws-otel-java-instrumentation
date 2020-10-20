@@ -33,6 +33,10 @@ allprojects {
     mavenLocal()
 
     maven {
+      setUrl("https://dl.bintray.com/open-telemetry/maven")
+    }
+
+    maven {
       setUrl("https://oss.jfrog.org/libs-snapshot")
     }
   }
