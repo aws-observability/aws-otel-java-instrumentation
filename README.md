@@ -15,7 +15,7 @@ data from a Java application without any code changes.
 
 ## Getting Started
 
-Check out the getting started [docs](https://aws-otel.github.io/docs/tracing-with-java).
+Check out the getting started [docs](https://aws-otel.github.io/docs/tracing-in-java).
 
 ## Supported Java libraries and frameworks
 
