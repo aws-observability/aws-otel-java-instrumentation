@@ -219,3 +219,7 @@ tasks {
     finalizedBy(copyLicenses)
   }
 }
+
+nebulaRelease {
+  addReleaseBranchPattern("main")
+}
