@@ -1,0 +1,28 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+exporters:
+  logging:
+    loglevel: info
+  awsxray:
+    region: us-west-2
+    local_mode: true
+    no_verify_ssl: true
+
+processors:
+  memory_limiter:
+    limit_mib: 100
+    check_interval: 5s
+
+service:
+  pipelines:
+    traces:
+      processors:
+        - memory_limiter
+      receivers:
+        - otlp
+      exporters:
+        - logging
+        - awsxray
