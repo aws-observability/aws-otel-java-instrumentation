@@ -15,7 +15,7 @@ data from a Java application without any code changes.
 
 ## Getting Started
 
-Check out the getting started [docs](https://aws-otel.github.io/docs/tracing-in-java).
+Check out the [getting started documentation](https://aws-otel.github.io/docs/getting-started/java-auto-instrumentation-agent).
 
 ## Supported Java libraries and frameworks
 
