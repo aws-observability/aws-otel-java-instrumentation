@@ -54,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: springapp.jar
-          path: sample-apps/trace/otel-java-sample-apps/springboot/build/libs/springboot-1.0.jar
+          path: sample-apps/sdk/otel-java-sample-apps/springboot/build/libs/springboot-1.0.jar
 
   deploy_Test_Java_Agent:
     name: Deploy and Test AWS OTel Java agent
