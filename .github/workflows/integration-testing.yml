@@ -38,9 +38,6 @@ jobs:
           repository: aws-observability/aws-otel-test-framework-sample-apps
           token: ${{  secrets.PAT }}
 
-      - name: view fs
-        run: ls
-
       - uses: actions/setup-java@v1
         with:
           java-version: 14
@@ -51,7 +48,7 @@ jobs:
         uses: burrunan/gradle-cache-action@v1
         with:
           arguments: build --stacktrace -PenableCoverage=true
-          build-root-directory: sample-apps/trace/otel-java-sample-apps/springboot
+          build-root-directory: sample-apps/sdk/otel-java-sample-apps/springboot
 
       - name: Upload web app build artifact
         uses: actions/upload-artifact@v2
