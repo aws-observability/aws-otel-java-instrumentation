@@ -1,7 +1,7 @@
 version: "3.2"
 services:
   otel:
-    image: otel/opentelemetry-collector-contrib-dev:latest
+    image: amazon/aws-otel-collector:latest
     command: --config /config/collector-config.yml --log-level debug
     volumes:
       - ./otel:/config
