@@ -66,11 +66,12 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
-      - name: Build Spring boot web app with Gradle
+      - name: Build Spark web app with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
           arguments: build --stacktrace -PenableCoverage=true
           build-root-directory: sample-apps/spark
+          gradle-version: 6.5.1
 
       - name: Upload web app build artifact
         uses: actions/upload-artifact@v2
