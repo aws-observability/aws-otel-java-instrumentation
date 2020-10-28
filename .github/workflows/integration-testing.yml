@@ -123,8 +123,8 @@ jobs:
       - name: Checkout test framework
         uses: actions/checkout@v2
         with:
-          repository: aws-observability/aws-otel-test-framework
-          ref: terraform
+          repository: bhautikpip/aws-otel-test-framework
+          ref: merge-conflict-trace-validator
           path: test-framework
 
       - name: Run testing suite
@@ -179,12 +179,12 @@ jobs:
       - name: Checkout test framework
         uses: actions/checkout@v2
         with:
-          repository: aws-observability/aws-otel-test-framework
-          ref: terraform
+          repository: bhautikpip/aws-otel-test-framework
+          ref: merge-conflict-trace-validator
           path: test-framework
 
       - name: Run testing suite
-        run: ./gradlew :validator:run --args='-c default-otel-trace-validation.yml --endpoint http://127.0.0.1:4567'
+        run: ./gradlew :validator:run --args='-c spark-otel-trace-validation.yml --endpoint http://127.0.0.1:4567'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
