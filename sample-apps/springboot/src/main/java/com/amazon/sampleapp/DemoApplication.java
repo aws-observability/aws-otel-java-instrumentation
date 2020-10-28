@@ -33,7 +33,7 @@ public class DemoApplication {
         String listenAddress = System.getenv("LISTEN_ADDRESS");
 
         if (listenAddress == null) {
-            host = "127.0.0.1";
+            host = "0.0.0.0";
             port = "8080";
         } else {
             String[] splitAddress = listenAddress.split(":");

@@ -1,5 +1,5 @@
 name: Integration Testing
-on: [push, pull_request]
+on: push
 
 jobs:
   build_Java_Agent:
@@ -26,8 +26,8 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
-  build_Web_App:
-    name: Build Spring Web Application
+  build_Spring_App:
+    name: Build Spring App
     needs: build_Java_Agent
     runs-on: ubuntu-latest
 
@@ -52,9 +52,9 @@ jobs:
           name: springapp.jar
           path: sample-apps/springboot/build/libs/springboot-1.0.jar
 
-  deploy_Test_Java_Agent:
-    name: Deploy and Test AWS OTel Java agent
-    needs: build_Web_App
+  test_Spring_With_Java_Agent:
+    name: Test Spring App with AWS OTel Java agent
+    needs: build_Spring_App
     runs-on: ubuntu-latest
 
     steps:
