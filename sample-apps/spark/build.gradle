@@ -27,7 +27,7 @@ configurations {
 
 jar {
     manifest {
-        attributes 'Main-Class': 'com.amazon.aocagent.App'
+        attributes 'Main-Class': 'com.amazon.sampleapp.App'
     }
 
     from {
@@ -49,5 +49,5 @@ compileJava {
 
 application {
     // Define the main class for the application.
-    mainClassName = 'com.amazon.aocagent.App'
+    mainClassName = 'com.amazon.sampleapp.App'
 }

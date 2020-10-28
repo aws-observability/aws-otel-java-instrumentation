@@ -52,6 +52,32 @@ jobs:
           name: springapp.jar
           path: sample-apps/springboot/build/libs/springboot-1.0.jar
 
+  build_Spark_App:
+    name: Build Spark App
+    needs: build_Java_Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-java@v1
+        with:
+          java-version: 14
+
+      - uses: gradle/wrapper-validation-action@v1
+
+      - name: Build Spring boot web app with Gradle
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          arguments: build --stacktrace -PenableCoverage=true
+          build-root-directory: sample-apps/spark
+
+      - name: Upload web app build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: sparkapp.jar
+          path: sample-apps/spark/build/libs/sparkapp.jar
+
   test_Spring_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
     needs: build_Spring_App
@@ -96,12 +122,68 @@ jobs:
       - name: Checkout test framework
         uses: actions/checkout@v2
         with:
-          repository: bhautikpip/aws-otel-test-framework
-          ref: merge-conflict-trace-validator
+          repository: aws-observability/aws-otel-test-framework
+          ref: terraform
           path: test-framework
 
       - name: Run testing suite
-        run: ./gradlew :validator:run --args='-c default-otel-trace-validation.yml --endpoint http://127.0.0.1:8080 --metric-namespace default'
+        run: ./gradlew :validator:run --args='-c default-otel-trace-validation.yml --endpoint http://127.0.0.1:8080'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-west-2
+        working-directory: test-framework
+
+  test_Spark_With_Java_Agent:
+    name: Test Spark App with AWS OTel Java agent
+    needs: build_Spark_App
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download AWS OTel Jave agent jar
+        uses: actions/download-artifact@v2
+        with:
+          name: aws-opentelemetry-agent.jar
+
+      - name: Download Spring Boot App jar
+        uses: actions/download-artifact@v2
+        with:
+          name: sparkapp.jar
+
+      - uses: actions/setup-java@v1
+        with:
+          java-version: 14
+
+      - name: Setup and Run OTel Collector
+        run: |
+          docker-compose -f .github/collector/docker-compose.yml up &
+        env:
+          ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Run Spark App with AWS Java agent
+        run: |
+          agent_jar_name=`ls aws-opentelemetry-agent-*`
+          java -javaagent:$agent_jar_name -jar sparkapp.jar &
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-west-2
+
+      - name: Directory to checkout test framework
+        run: mkdir test-framework
+
+      - name: Checkout test framework
+        uses: actions/checkout@v2
+        with:
+          repository: aws-observability/aws-otel-test-framework
+          ref: terraform
+          path: test-framework
+
+      - name: Run testing suite
+        run: ./gradlew :validator:run --args='-c default-otel-trace-validation.yml --endpoint http://127.0.0.1:4567'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
