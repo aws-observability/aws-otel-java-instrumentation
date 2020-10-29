@@ -11,7 +11,7 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 14
 
       - uses: gradle/wrapper-validation-action@v1
 
@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 14
 
       - uses: gradle/wrapper-validation-action@v1
 
@@ -62,7 +62,7 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 14
 
       - uses: gradle/wrapper-validation-action@v1
 
@@ -99,7 +99,7 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 14
 
       - name: Setup and Run OTel Collector
         run: |
@@ -156,7 +156,7 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 14
 
       - name: Setup and Run OTel Collector
         run: |
