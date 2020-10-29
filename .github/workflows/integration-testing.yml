@@ -116,6 +116,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-west-2
+          INSTANCE_ID: '${{ github.run_id }}-${{ github.run_number }}'
 
       - name: Directory to checkout test framework
         run: mkdir test-framework
@@ -128,7 +129,7 @@ jobs:
           path: test-framework
 
       - name: Run testing suite
-        run: ./gradlew :validator:run --args='-c default-otel-trace-validation.yml --endpoint http://127.0.0.1:8080'
+        run: ./gradlew :validator:run --args='-c default-otel-trace-metric-validation.yml --endpoint http://127.0.0.1:8080 --metric-namespace default -t ${{ github.run_id }}-${{ github.run_number }}'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -172,6 +173,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-west-2
+          INSTANCE_ID: '${{ github.run_id }}-${{ github.run_number }}'
 
       - name: Directory to checkout test framework
         run: mkdir test-framework
@@ -184,7 +186,7 @@ jobs:
           path: test-framework
 
       - name: Run testing suite
-        run: ./gradlew :validator:run --args='-c spark-otel-trace-validation.yml --endpoint http://127.0.0.1:4567'
+        run: ./gradlew :validator:run --args='-c spark-otel-trace-metric-validation.yml --endpoint http://127.0.0.1:4567 --metric-namespace default -t ${{ github.run_id }}-${{ github.run_number }}'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
