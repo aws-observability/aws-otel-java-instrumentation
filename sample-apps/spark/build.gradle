@@ -5,7 +5,8 @@ plugins {
     id 'application'
 }
 
-applicationName = "TraceEmitter"
+group 'com.amazon.sampleapp'
+version '1.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -43,11 +44,8 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
-compileJava {
-    options.compilerArgs += ["-Aproject=${project.group}/${project.name}"]
-}
-
 application {
     // Define the main class for the application.
     mainClassName = 'com.amazon.sampleapp.App'
 }
+

@@ -1,9 +1,18 @@
 plugins {
     id 'java'
     id("org.springframework.boot") version "2.3.4.RELEASE"
+
+    // Apply the application plugin to add support for building a CLI application.
+    id 'application'
 }
+
 group 'com.amazon.sampleapp'
 version '1.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 repositories {
     jcenter()
@@ -36,4 +45,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:3.14.8")
     implementation("software.amazon.awssdk:s3:2.14.26")
     implementation("io.opentelemetry:opentelemetry-api:0.9.1")
+}
+
+application {
+    // Define the main class for the application.
+    mainClassName = 'com.amazon.sampleapp.DemoApplication'
 }
