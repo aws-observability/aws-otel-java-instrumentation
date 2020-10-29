@@ -168,7 +168,7 @@ jobs:
       - name: Run Spark App with AWS Java agent
         run: |
           agent_jar_name=`ls aws-opentelemetry-agent-*`
-          java -javaagent:$agent_jar_name -jar sparkapp.jar &
+          java -javaagent:$agent_jar_name -jar spark-1.0.jar &
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
