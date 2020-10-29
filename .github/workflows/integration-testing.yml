@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: sparkapp.jar
-          path: sample-apps/spark/build/libs/sparkapp.jar
+          path: sample-apps/spark/build/libs/spark-1.0.jar
 
   test_Spring_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
