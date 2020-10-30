@@ -36,8 +36,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: sampleappimages
         run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:springboot-with-released-agent:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:spark-with-released-agent:latest
+          docker images
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:springboot-with-released-agent
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:spark-with-released-agent
 
       - name: Upload agent artifact
         uses: actions/upload-artifact@v2
