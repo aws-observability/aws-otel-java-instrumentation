@@ -148,6 +148,7 @@ jobs:
           INSTANCE_ID: '${{ github.run_id }}-${{ github.run_number }}'
           LISTEN_ADDRESS: 0.0.0.0:8080
           OTEL_EXPORTER_OTLP_ENDPOINT: 172.17.0.1:55680
+          AWS_REGION: us-west-2
 
       #      - name: Run Spring Boot App with AWS Java agent
 #        run: |
