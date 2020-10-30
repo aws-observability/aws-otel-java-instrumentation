@@ -35,6 +35,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
+          docker images
           docker push $ECR_REGISTRY/springboot-with-released-agent:latest
           docker push $ECR_REGISTRY/spark-with-released-agent:latest
 

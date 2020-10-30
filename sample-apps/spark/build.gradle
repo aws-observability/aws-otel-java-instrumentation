@@ -52,7 +52,7 @@ application {
 
 jib {
     to {
-        image = "spark-with-released-agent:latest"
+        image = "836082170990.dkr.ecr.us-west-2.amazonaws.com/spark-with-released-agent:latest"
     }
     from {
         image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"

@@ -55,7 +55,7 @@ application {
 
 jib {
     to {
-        image = "springboot-with-released-agent:latest"
+        image = "836082170990.dkr.ecr.us-west-2.amazonaws.com/springboot-with-released-agent:latest"
     }
     from {
         image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
