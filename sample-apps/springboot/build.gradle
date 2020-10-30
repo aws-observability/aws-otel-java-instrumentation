@@ -55,7 +55,7 @@ application {
 
 jib {
     to {
-        image = "836082170990.dkr.ecr.us-west-2.amazonaws.com/springboot-with-released-agent:latest"
+        image = System.getenv("AWS_REGISTERY_ACCOUNT")+ ".dkr.ecr.us-west-2.amazonaws.com/springboot-with-released-agent:" + System.getenv("COMMIT_HASH")
     }
     from {
         image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"

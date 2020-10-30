@@ -19,6 +19,9 @@ jobs:
         uses: burrunan/gradle-cache-action@v1
         with:
           arguments: build jibDockerBuild --stacktrace -PenableCoverage=true
+        env:
+          AWS_REGISTERY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+          COMMIT_HASH: ${{ github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -35,7 +38,6 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker images
           docker push $ECR_REGISTRY/springboot-with-released-agent:latest
           docker push $ECR_REGISTRY/spark-with-released-agent:latest
 
