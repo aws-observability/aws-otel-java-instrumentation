@@ -4,6 +4,7 @@ plugins {
 
     // Apply the application plugin to add support for building a CLI application.
     id 'application'
+    id 'com.google.cloud.tools.jib' version '2.5.0'
 }
 
 group 'com.amazon.sampleapp'
@@ -51,3 +52,13 @@ application {
     // Define the main class for the application.
     mainClassName = 'com.amazon.sampleapp.DemoApplication'
 }
+
+jib {
+    to {
+        image = "springboot-with-released-agent:latest"
+    }
+    from {
+        image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
+    }
+}
+
