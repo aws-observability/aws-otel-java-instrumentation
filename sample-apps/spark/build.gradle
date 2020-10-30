@@ -27,14 +27,9 @@ configurations {
     extraLibs
 }
 
-jar {
-    manifest {
-        attributes 'Main-Class': 'com.amazon.sampleapp.App'
-    }
-
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+application {
+    // Define the main class for the application.
+    mainClassName = 'com.amazon.sampleapp.DemoApplication'
 }
 
 dependencies {
