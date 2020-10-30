@@ -38,8 +38,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker push $ECR_REGISTRY/springboot-with-released-agent:latest
-          docker push $ECR_REGISTRY/spark-with-released-agent:latest
+          docker push $ECR_REGISTRY/springboot-with-released-agent:${{ github.sha }}
+          docker push $ECR_REGISTRY/spark-with-released-agent:${{ github.sha }}
 
       - name: Upload agent artifact
         uses: actions/upload-artifact@v2
