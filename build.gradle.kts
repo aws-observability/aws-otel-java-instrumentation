@@ -83,8 +83,6 @@ allprojects {
     spotless {
       java {
         googleJavaFormat("1.8")
-
-        licenseHeaderFile("${rootProject.projectDir}/config/license/header.java")
       }
     }
 
