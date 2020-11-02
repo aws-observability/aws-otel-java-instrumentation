@@ -74,7 +74,7 @@ jobs:
 
       - name: Run Springboot App with Java agent
         run: |
-          docker run --env-file .github/env.list -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/springboot-with-released-agent:${{ github.sha }}
+          docker run --env-file .github/env.list -e LISTEN_ADDRESS=0.0.0.0:8080 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680 -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/springboot-with-released-agent:${{ github.sha }}
 
       - name: Directory to checkout test framework
         run: mkdir test-framework
