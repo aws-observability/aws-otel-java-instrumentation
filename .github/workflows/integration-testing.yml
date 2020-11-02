@@ -74,12 +74,11 @@ jobs:
 
       - name: Run Springboot App with Java agent
         run: |
-          docker run --env-file .github/env.list -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/springboot-with-released-agent:${{ github.sha }}
+          docker run --env-file .github/env.list -e LISTEN_ADDRESS=0.0.0.0:8080 -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/springboot-with-released-agent:${{ github.sha }}
         env:
           ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
-          LISTEN_ADDRESS: 0.0.0.0:8080
+          INSTANCE_ID: '${{ github.run_id }}-${{ github.run_number }}'
 
       - name: Directory to checkout test framework
         run: mkdir test-framework
