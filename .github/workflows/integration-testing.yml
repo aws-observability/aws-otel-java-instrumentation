@@ -82,8 +82,8 @@ jobs:
       - name: Checkout test framework
         uses: actions/checkout@v2
         with:
-          repository: bhautikpip/aws-otel-test-framework
-          ref: merge-conflict-trace-validator
+          repository: aws-observability/aws-otel-test-framework
+          ref: terraform
           path: test-framework
 
       - name: Run testing suite
@@ -134,8 +134,8 @@ jobs:
       - name: Checkout test framework
         uses: actions/checkout@v2
         with:
-          repository: bhautikpip/aws-otel-test-framework
-          ref: merge-conflict-trace-validator
+          repository: aws-observability/aws-otel-test-framework
+          ref: terraform
           path: test-framework
 
       - name: Run testing suite
