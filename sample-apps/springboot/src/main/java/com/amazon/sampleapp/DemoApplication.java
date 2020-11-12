@@ -37,13 +37,9 @@ public class DemoApplication {
       port = splitAddress[1];
     }
 
-    Map<String, Object> config =
-        new HashMap<String, Object>() {
-          {
-            put("server.address", host);
-            put("server.port", port);
-          }
-        };
+    Map<String, Object> config = new HashMap<String, Object>();
+    config.put("server.address", host);
+    config.put("server.port", port);
 
     SpringApplication app = new SpringApplication(DemoApplication.class);
     app.setDefaultProperties(config);
