@@ -13,12 +13,12 @@
  * permissions and limitations under the License.
  */
 
-package com.softwareaws.xray.opentelemetry.exporters;
+package com.softwareaws.xray.opentelemetry.providers;
 
-import io.opentelemetry.sdk.extensions.trace.aws.AwsXRayIdsGenerator;
+import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.api.trace.spi.TracerProviderFactory;
+import io.opentelemetry.sdk.extension.trace.aws.AwsXrayIdGenerator;
 import io.opentelemetry.sdk.trace.TracerSdkProvider;
-import io.opentelemetry.trace.TracerProvider;
-import io.opentelemetry.trace.spi.TracerProviderFactory;
 
 public class AwsTracerProviderFactory implements TracerProviderFactory {
 
@@ -32,8 +32,7 @@ public class AwsTracerProviderFactory implements TracerProviderFactory {
       }
     }
 
-    TRACER_PROVIDER =
-        TracerSdkProvider.builder().setIdsGenerator(new AwsXRayIdsGenerator()).build();
+    TRACER_PROVIDER = TracerSdkProvider.builder().setIdsGenerator(new AwsXrayIdGenerator()).build();
   }
 
   @Override

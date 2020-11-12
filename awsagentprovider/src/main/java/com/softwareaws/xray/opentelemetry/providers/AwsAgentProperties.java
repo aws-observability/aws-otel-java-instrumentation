@@ -13,18 +13,15 @@
  * permissions and limitations under the License.
  */
 
-package com.softwareaws.xray.opentelemetry.agentbootstrap;
+package com.softwareaws.xray.opentelemetry.providers;
 
-import io.opentelemetry.javaagent.OpenTelemetryAgent;
-import java.lang.instrument.Instrumentation;
+import io.opentelemetry.javaagent.spi.config.PropertySource;
+import java.util.Collections;
+import java.util.Map;
 
-public class AwsAgentBootstrap {
-
-  public static void premain(final String agentArgs, final Instrumentation inst) {
-    agentmain(agentArgs, inst);
-  }
-
-  public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    OpenTelemetryAgent.agentmain(agentArgs, inst);
+public class AwsAgentProperties implements PropertySource {
+  @Override
+  public Map<String, String> getProperties() {
+    return Collections.singletonMap("otel.propagators", "xray,tracecontext,b3");
   }
 }
