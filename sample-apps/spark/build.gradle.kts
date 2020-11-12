@@ -22,15 +22,16 @@ repositories {
   mavenLocal()
 }
 
-application {
-  mainClassName = "com.amazon.sampleapp.App"
-}
-
 dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("software.amazon.awssdk:s3")
+  implementation("commons-logging:commons-logging:1.1.1")
+}
+
+application {
+  mainClass.set("com.amazon.sampleapp.App")
 }
 
 jib {
