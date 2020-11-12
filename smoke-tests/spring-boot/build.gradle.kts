@@ -25,12 +25,6 @@ java {
 }
 
 dependencies {
-  configurations.configureEach {
-    if (name.endsWith("Classpath")) {
-      add(name, enforcedPlatform("org.springframework.boot:spring-boot-dependencies:2.3.3.RELEASE"))
-    }
-  }
-
   implementation("org.springframework.boot:spring-boot-starter-web")
 }
 
