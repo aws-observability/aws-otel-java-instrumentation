@@ -13,12 +13,12 @@
  * permissions and limitations under the License.
  */
 
-package com.softwareaws.xray.opentelemetry.exporters;
+package com.softwareaws.xray.opentelemetry.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.primitives.Ints;
-import io.opentelemetry.trace.TracerProvider;
+import io.opentelemetry.api.trace.TracerProvider;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.RepeatedTest;
 
@@ -31,7 +31,7 @@ class AwsTracerProviderFactoryTest {
   void providerGeneratesXrayIds() {
     int startTimeSecs = (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
     var span = TRACER_PROVIDER.get("test").spanBuilder("test").startSpan();
-    byte[] traceId = span.getContext().getTraceIdBytes();
+    byte[] traceId = span.getSpanContext().getTraceIdBytes();
     int epoch = Ints.fromBytes(traceId[0], traceId[1], traceId[2], traceId[3]);
     assertThat(epoch).isGreaterThanOrEqualTo(startTimeSecs);
   }

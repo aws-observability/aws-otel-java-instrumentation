@@ -13,4 +13,4 @@
 # permissions and limitations under the License.
 #
 
-com.softwareaws.xray.opentelemetry.exporters.AwsTracerProviderFactory
+com.softwareaws.xray.opentelemetry.providers.AwsTracerProviderFactory
