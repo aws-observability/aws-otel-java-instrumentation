@@ -39,8 +39,8 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker images
-          docker push $ECR_REGISTRY/springboot:${{ github.sha }}
-          docker push $ECR_REGISTRY/spark:${{ github.sha }}
+          docker push $ECR_REGISTRY/otel-test/springboot:${{ github.sha }}
+          docker push $ECR_REGISTRY/otel-test/spark:${{ github.sha }}
 
   test_Spring_App_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
@@ -74,7 +74,7 @@ jobs:
 
       - name: Run Springboot App with Java agent
         run: |
-          docker run -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_REGION=us-west-2 -e INSTANCE_ID=${{ github.run_id }}-${{ github.run_number }} -e LISTEN_ADDRESS=0.0.0.0:8080 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680 -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/springboot:${{ github.sha }} &
+          docker run -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_REGION=us-west-2 -e INSTANCE_ID=${{ github.run_id }}-${{ github.run_number }} -e LISTEN_ADDRESS=0.0.0.0:8080 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680 -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/otel-test/springboot:${{ github.sha }} &
 
       - name: Directory to checkout test framework
         run: mkdir test-framework
@@ -126,7 +126,7 @@ jobs:
 
       - name: Run Spark App with Java agent
         run: |
-          docker run -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_REGION=us-west-2 -e INSTANCE_ID=${{ github.run_id }}-${{ github.run_number }} -e LISTEN_ADDRESS=0.0.0.0:4567 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680 -p 4567:4567 ${{ steps.login-ecr.outputs.registry }}/spark:${{ github.sha }} &
+          docker run -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_REGION=us-west-2 -e INSTANCE_ID=${{ github.run_id }}-${{ github.run_number }} -e LISTEN_ADDRESS=0.0.0.0:4567 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680 -p 4567:4567 ${{ steps.login-ecr.outputs.registry }}/otel-test/spark:${{ github.sha }} &
 
       - name: Directory to checkout test framework
         run: mkdir test-framework
