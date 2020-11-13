@@ -36,7 +36,7 @@ application {
 
 jib {
   to {
-    image = "${System.getenv("AWS_REGISTRY_ACCOUNT")}.dkr.ecr.us-west-2.amazonaws.com/spark:${System.getenv("COMMIT_HASH")}"
+    image = "${System.getenv("AWS_REGISTRY_ACCOUNT")}.dkr.ecr.us-west-2.amazonaws.com/otel-test/spark:${System.getenv("COMMIT_HASH")}"
   }
   from {
     image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
