@@ -1,5 +1,5 @@
 name: Integration Testing
-on: [push, pull_request]
+on: push
 
 jobs:
   build_Apps_With_Java_Agent:
