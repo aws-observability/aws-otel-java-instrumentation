@@ -1,6 +1,6 @@
 package com.amazon.sampleapp;
 
-import io.opentelemetry.trace.TracingContextUtils;
+import io.opentelemetry.api.trace.Span;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import okhttp3.Call;
@@ -54,7 +54,7 @@ public class DemoController {
 
   // get x-ray trace id
   private String getXrayTraceId() {
-    String traceId = TracingContextUtils.getCurrentSpan().getContext().getTraceIdAsHexString();
+    String traceId = Span.current().getSpanContext().getTraceIdAsHexString();
     String xrayTraceId = "1-" + traceId.substring(0, 8) + "-" + traceId.substring(8);
 
     return String.format("{\"traceId\": \"%s\"}", xrayTraceId);

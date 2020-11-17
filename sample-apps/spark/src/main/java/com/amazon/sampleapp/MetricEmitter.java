@@ -1,10 +1,10 @@
 package com.amazon.sampleapp;
 
-import io.opentelemetry.OpenTelemetry;
-import io.opentelemetry.common.Labels;
-import io.opentelemetry.metrics.LongCounter;
-import io.opentelemetry.metrics.LongValueRecorder;
-import io.opentelemetry.metrics.Meter;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.Labels;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.LongValueRecorder;
+import io.opentelemetry.api.metrics.Meter;
 
 public class MetricEmitter {
 
@@ -18,7 +18,7 @@ public class MetricEmitter {
   LongValueRecorder apiLatencyRecorder;
 
   public MetricEmitter() {
-    Meter meter = OpenTelemetry.getMeter("cloudwatch-otel", "1.0");
+    Meter meter = OpenTelemetry.getGlobalMeter("cloudwatch-otel", "1.0");
 
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
