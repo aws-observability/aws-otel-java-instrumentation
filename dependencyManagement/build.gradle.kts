@@ -32,6 +32,7 @@ val DEPENDENCY_BOMS = listOf(
   "io.zipkin.reporter2:zipkin-reporter-bom:2.15.0",
   "org.apache.logging.log4j:log4j-bom:2.13.3",
   "org.junit:junit-bom:5.7.0-RC1",
+  "org.springframework.boot:spring-boot-dependencies:2.3.3.RELEASE",
   "org.testcontainers:testcontainers-bom:1.15.0-rc2",
   "software.amazon.awssdk:bom:2.13.17"
 )
@@ -70,6 +71,11 @@ val DEPENDENCY_SETS = listOf(
   )
 )
 
+val DEPENDENCIES = listOf(
+  "com.sparkjava:spark-core:2.9.3",
+  "com.squareup.okhttp3:okhttp:3.14.9"
+)
+
 javaPlatform {
   allowDependencies()
 }
@@ -83,6 +89,10 @@ dependencies {
       for (module in set.modules) {
         api("${set.group}:$module:${set.version}")
       }
+    }
+
+    for (dependency in DEPENDENCIES) {
+      api(dependency)
     }
   }
 }

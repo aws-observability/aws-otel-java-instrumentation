@@ -1,0 +1,12 @@
+version: "3.2"
+services:
+  otel:
+    image: amazon/aws-otel-collector:latest
+    command: --config /config/collector-config.yml --log-level debug
+    volumes:
+      - ./otel:/config
+    environment:
+      AWS_ACCESS_KEY_ID: ${ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${SECRET_ACCESS_KEY}
+    ports:
+      - '55680:55680'
