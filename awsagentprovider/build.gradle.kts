@@ -38,8 +38,6 @@ tasks {
   shadowJar {
     archiveClassifier.set("")
 
-    mergeServiceFiles()
-
     exclude("**/module-info.class")
 
     // rewrite dependencies calling Logger.getLogger
