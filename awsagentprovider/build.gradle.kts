@@ -38,8 +38,6 @@ tasks {
   shadowJar {
     archiveClassifier.set("")
 
-    mergeServiceFiles()
-
     exclude("**/module-info.class")
 
     // rewrite dependencies calling Logger.getLogger
@@ -51,5 +49,6 @@ tasks {
     // relocate OpenTelemetry API usage
     relocate("io.opentelemetry.api", "io.opentelemetry.javaagent.shaded.io.opentelemetry.api")
     relocate("io.opentelemetry.context", "io.opentelemetry.javaagent.shaded.io.opentelemetry.context")
+    relocate("io.opentelemetry.spi", "io.opentelemetry.javaagent.shaded.io.opentelemetry.spi")
   }
 }

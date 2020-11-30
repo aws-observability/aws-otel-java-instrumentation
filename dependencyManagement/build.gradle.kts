@@ -27,7 +27,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.google.protobuf:protobuf-bom:3.13.0",
   "com.linecorp.armeria:armeria-bom:1.0.0",
   "io.grpc:grpc-bom:1.30.2",
-  "io.opentelemetry:opentelemetry-bom:0.10.0",
+  "io.opentelemetry:opentelemetry-bom:0.11.0",
   "io.zipkin.brave:brave-bom:5.12.3",
   "io.zipkin.reporter2:zipkin-reporter-bom:2.15.0",
   "org.apache.logging.log4j:log4j-bom:2.13.3",
@@ -45,7 +45,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry.javaagent",
-    "0.10.1",
+    "0.11.0",
     listOf(
       "opentelemetry-javaagent",
       "opentelemetry-javaagent-spi"
