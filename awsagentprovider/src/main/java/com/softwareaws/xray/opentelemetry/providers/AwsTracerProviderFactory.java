@@ -16,9 +16,9 @@
 package com.softwareaws.xray.opentelemetry.providers;
 
 import io.opentelemetry.api.trace.TracerProvider;
-import io.opentelemetry.api.trace.spi.TracerProviderFactory;
 import io.opentelemetry.sdk.extension.trace.aws.AwsXrayIdGenerator;
 import io.opentelemetry.sdk.trace.TracerSdkProvider;
+import io.opentelemetry.spi.trace.TracerProviderFactory;
 
 public class AwsTracerProviderFactory implements TracerProviderFactory {
 
