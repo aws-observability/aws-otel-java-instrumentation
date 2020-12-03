@@ -19,7 +19,7 @@ plugins {
 }
 
 base {
-  archivesBaseName = "aws-opentelemetry-agent-customizer"
+  archivesBaseName = "aws-opentelemetry-agent-providers"
 }
 
 dependencies {

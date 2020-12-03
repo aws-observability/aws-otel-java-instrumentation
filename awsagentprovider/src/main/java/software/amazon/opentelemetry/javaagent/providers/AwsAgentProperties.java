@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package com.softwareaws.xray.opentelemetry.providers;
+package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.javaagent.spi.config.PropertySource;
 import java.util.Collections;
