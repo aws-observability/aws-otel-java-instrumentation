@@ -22,6 +22,6 @@ import java.util.Map;
 public class AwsAgentProperties implements PropertySource {
   @Override
   public Map<String, String> getProperties() {
-    return Collections.singletonMap("otel.propagators", "xray,tracecontext,b3");
+    return Collections.singletonMap("otel.propagators", "xray,tracecontext,b3,b3multi");
   }
 }
