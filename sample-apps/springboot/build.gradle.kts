@@ -37,3 +37,9 @@ jib {
     image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
   }
 }
+
+tasks {
+  named("jib") {
+    dependsOn(":otelagent:jib")
+  }
+}
