@@ -29,7 +29,7 @@ jobs:
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           GRGIT_USER: ${{ github.actor }}
           GRGIT_PASS: ${{ secrets.GITHUB_TOKEN }}
-          AWS_REGISTERY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+          AWS_REGISTRY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
           COMMIT_HASH: ${{ github.event.inputs.version }}
 
       - name: Configure AWS credentials

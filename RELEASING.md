@@ -15,7 +15,7 @@ a git tag with the version number, and drafts a release with the agent artifact 
    
 Once the GitHub workflow completes, go to Github [release
 page](https://github.com/aws-observability/aws-otel-java-instrumentation/releases), and find the
-generated draft release to write release notes about the new release and add release notes.
+generated draft release to write release notes about the new release.
 
 You can use `git log upstream/v$MAJOR.$((MINOR-1)).x..upstream/v$MAJOR.$MINOR.x --graph --first-parent`
 or the Github [compare tool](https://github.com/open-telemetry/opentelemetry-java/compare/)
