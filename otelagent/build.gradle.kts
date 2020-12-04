@@ -51,8 +51,8 @@ tasks {
 
     manifest {
       attributes.put("Main-Class", "io.opentelemetry.javaagent.OpenTelemetryAgent")
-      attributes.put("Agent-Class", "com.softwareaws.xray.opentelemetry.agentbootstrap.AwsAgentBootstrap")
-      attributes.put("Premain-Class", "com.softwareaws.xray.opentelemetry.agentbootstrap.AwsAgentBootstrap")
+      attributes.put("Agent-Class", "software.amazon.opentelemetry.javaagent.bootstrap.AwsAgentBootstrap")
+      attributes.put("Premain-Class", "software.amazon.opentelemetry.javaagent.bootstrap.AwsAgentBootstrap")
       attributes.put("Can-Redefine-Classes", "true")
       attributes.put("Can-Retransform-Classes", "true")
       attributes.put("Implementation-Version", archiveVersion)
