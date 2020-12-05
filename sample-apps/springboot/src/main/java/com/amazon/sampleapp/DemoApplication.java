@@ -1,5 +1,6 @@
 package com.amazon.sampleapp;
 
+import io.opentelemetry.instrumentation.oshi.ProcessMetrics;
 import java.util.HashMap;
 import java.util.Map;
 import okhttp3.Call;
@@ -23,6 +24,9 @@ public class DemoApplication {
   }
 
   public static void main(String[] args) {
+    // register process metric for cpu and memory data
+    ProcessMetrics.registerObservers();
+
     // listenAddress should consist host + port (e.g. 127.0.0.1:5000)
     String port;
     String host;
