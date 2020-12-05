@@ -1,1 +1,1 @@
-com.softwareaws.xray.opentelemetry.providers.AwsAgentProperties
+software.amazon.opentelemetry.javaagent.providers.AwsAgentProperties

@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package com.softwareaws.xray.opentelemetry.agentbootstrap;
+package software.amazon.opentelemetry.javaagent.bootstrap;
 
 import io.opentelemetry.javaagent.OpenTelemetryAgent;
 import java.lang.instrument.Instrumentation;

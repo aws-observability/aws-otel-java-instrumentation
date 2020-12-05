@@ -41,7 +41,7 @@ allprojects {
     }
   }
 
-  project.group = "software.amazon.awsobservability"
+  project.group = "software.amazon.opentelemetry"
 
   plugins.apply("com.diffplug.spotless")
 
