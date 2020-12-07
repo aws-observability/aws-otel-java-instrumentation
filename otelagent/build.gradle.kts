@@ -16,8 +16,9 @@
 plugins {
   java
   `maven-publish`
-  id("com.google.cloud.tools.jib") version "2.5.0"
-  id("com.github.johnrengelman.shadow") version "5.2.0"
+
+  id("com.google.cloud.tools.jib")
+  id("com.github.johnrengelman.shadow")
 }
 
 java {
