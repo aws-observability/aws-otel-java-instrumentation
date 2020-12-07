@@ -29,8 +29,10 @@ jobs:
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           GRGIT_USER: ${{ github.actor }}
           GRGIT_PASS: ${{ secrets.GITHUB_TOKEN }}
-          AWS_REGISTERY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+          AWS_REGISTRY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
           COMMIT_HASH: ${{ github.event.inputs.version }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1

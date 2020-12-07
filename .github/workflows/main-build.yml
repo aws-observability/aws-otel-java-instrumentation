@@ -27,6 +27,8 @@ jobs:
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v2
         with:
