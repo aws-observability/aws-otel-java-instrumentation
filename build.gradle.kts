@@ -128,6 +128,8 @@ allprojects {
   }
 
   plugins.withId("maven-publish") {
+    plugins.apply("signing")
+
     val publishTask = tasks.named("publish")
 
     postReleaseTask.configure {
@@ -193,6 +195,17 @@ allprojects {
           }
         }
       }
+    }
+
+    tasks.withType<Sign>().configureEach {
+      onlyIf { System.getenv("CI") == "true" }
+    }
+
+    configure<SigningExtension> {
+      val signingKey = System.getenv("GPG_PRIVATE_KEY")
+      val signingPassword = System.getenv("GPG_PASSPHRASE")
+      useInMemoryPgpKeys(signingKey, signingPassword)
+      sign(the<PublishingExtension>().publications["maven"])
     }
   }
 }
