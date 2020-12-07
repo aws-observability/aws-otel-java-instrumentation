@@ -25,33 +25,14 @@ jobs:
         with:
           arguments: build jibDockerBuild final -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:
-          PUBLISH_USERNAME: ${{ github.actor }}
-          PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
+          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
           GRGIT_USER: ${{ github.actor }}
           GRGIT_PASS: ${{ secrets.GITHUB_TOKEN }}
           AWS_REGISTRY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
           COMMIT_HASH: ${{ github.event.inputs.version }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker images
-          docker push $ECR_REGISTRY/springboot:${{ github.event.inputs.version }}
-          docker push $ECR_REGISTRY/spark:${{ github.event.inputs.version }}
 
       - name: Create Release
         id: create_release
@@ -74,3 +55,22 @@ jobs:
           asset_path: otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar
           asset_name: aws-opentelemetry-agent.jar
           asset_content_type: application/java-archive
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker images
+          docker push $ECR_REGISTRY/springboot:${{ github.event.inputs.version }}
+          docker push $ECR_REGISTRY/spark:${{ github.event.inputs.version }}
