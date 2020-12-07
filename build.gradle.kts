@@ -188,7 +188,6 @@ allprojects {
       val isSnapshot = version.toString().endsWith("SNAPSHOT")
 
       repositories {
-        // For now, we only publish to GitHub Packages
         maven {
           name = "Sonatype"
           url = uri(
