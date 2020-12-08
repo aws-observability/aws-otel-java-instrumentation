@@ -22,6 +22,7 @@ plugins {
   id("com.diffplug.spotless")
   id("com.github.ben-manes.versions")
   id("com.github.jk1.dependency-license-report")
+  id("io.codearte.nexus-staging")
   id("nebula.release")
 }
 
@@ -189,14 +190,18 @@ allprojects {
         }
       }
 
+      val isSnapshot = version.toString().endsWith("SNAPSHOT")
+
       repositories {
-        // For now, we only publish to GitHub Packages
         maven {
-          name = "GitHubPackages"
-          url = uri("https://maven.pkg.github.com/aws-observability/aws-otel-java-instrumentation")
+          name = "Sonatype"
+          url = uri(
+            if (isSnapshot) "https://aws.oss.sonatype.org/content/repositories/snapshots/"
+            else "https://aws.oss.sonatype.org/service/local/staging/deploy/maven2"
+          )
           credentials {
-            username = project.findProperty("gpr.user") as String? ?: System.getenv("PUBLISH_USERNAME")
-            password = project.findProperty("gpr.key") as String? ?: System.getenv("PUBLISH_PASSWORD")
+            username = System.getenv("PUBLISH_USERNAME")
+            password = System.getenv("PUBLISH_PASSWORD")
           }
         }
       }
