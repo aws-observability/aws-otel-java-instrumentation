@@ -2,7 +2,7 @@ plugins {
   java
 
   application
-  id("com.google.cloud.tools.jib") version "2.5.0"
+  id("com.google.cloud.tools.jib")
 }
 
 java {
@@ -20,11 +20,11 @@ repositories {
 }
 
 dependencies {
+  implementation("commons-logging:commons-logging")
   implementation("com.sparkjava:spark-core")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("software.amazon.awssdk:s3")
-  implementation("commons-logging:commons-logging:1.1.1")
 }
 
 application {

@@ -16,7 +16,7 @@
 plugins {
   application
   java
-  id("com.google.cloud.tools.jib") version "2.5.0"
+  id("com.google.cloud.tools.jib")
 }
 
 java {
