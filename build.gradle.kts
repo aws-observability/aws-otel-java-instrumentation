@@ -19,6 +19,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 plugins {
   java
   id("nebula.release") version "15.1.0"
+  id("io.codearte.nexus-staging") version "0.22.0"
   id("com.diffplug.spotless") version "5.1.2"
   id("com.github.jk1.dependency-license-report") version "1.14"
 }
@@ -184,14 +185,18 @@ allprojects {
         }
       }
 
+      val isSnapshot = version.toString().endsWith("SNAPSHOT")
+
       repositories {
-        // For now, we only publish to GitHub Packages
         maven {
-          name = "GitHubPackages"
-          url = uri("https://maven.pkg.github.com/aws-observability/aws-otel-java-instrumentation")
+          name = "Sonatype"
+          url = uri(
+            if (isSnapshot) "https://aws.oss.sonatype.org/content/repositories/snapshots/"
+            else "https://aws.oss.sonatype.org/service/local/staging/deploy/maven2"
+          )
           credentials {
-            username = project.findProperty("gpr.user") as String? ?: System.getenv("PUBLISH_USERNAME")
-            password = project.findProperty("gpr.key") as String? ?: System.getenv("PUBLISH_PASSWORD")
+            username = System.getenv("PUBLISH_USERNAME")
+            password = System.getenv("PUBLISH_PASSWORD")
           }
         }
       }
