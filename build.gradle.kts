@@ -14,6 +14,7 @@
  */
 
 import com.github.jk1.license.render.InventoryMarkdownReportRenderer
+import nebula.plugin.release.git.opinion.Strategies
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
@@ -21,6 +22,10 @@ plugins {
   id("nebula.release") version "15.1.0"
   id("com.diffplug.spotless") version "5.1.2"
   id("com.github.jk1.dependency-license-report") version "1.14"
+}
+
+release {
+  defaultVersionStrategy = Strategies.getSNAPSHOT()
 }
 
 val releaseTask = tasks.named("release")
