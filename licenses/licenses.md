@@ -1,7 +1,7 @@
 
 #aws-otel-java-instrumentation
 ##Dependency License Report
-_2020-12-07 17:59:59 JST_
+_2020-12-08 15:13:17 JST_
 ## 3-Clause BSD License
 
 **1** **Group:** `com.google.protobuf` **Name:** `protobuf-java` **Version:** `3.14.0` 

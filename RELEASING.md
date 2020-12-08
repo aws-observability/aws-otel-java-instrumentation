@@ -1,5 +1,15 @@
 # AWS OpenTelemetry Java Instrumentation Release Process
 
+## Preparing for a release
+
+Before beginning a release, make sure dependencies are updated.
+
+Run `./gradlew dependencyUpdates` to get a report on what dependencies have updates and apply them to
+`dependencyManagement` and `settings.gradle.kts`.
+
+Then, run `./gradlew generateLicenseReport` to update our licenses to reflect the update. Send a PR
+and merge.
+
 ## Starting the Release
 
 Open the release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Release+Build%22).
