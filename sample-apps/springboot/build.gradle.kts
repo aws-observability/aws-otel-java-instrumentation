@@ -1,7 +1,7 @@
 plugins {
   java
-  id("org.springframework.boot") version "2.3.4.RELEASE"
-  id("com.google.cloud.tools.jib") version "2.5.0"
+  id("org.springframework.boot")
+  id("com.google.cloud.tools.jib")
 }
 
 java {

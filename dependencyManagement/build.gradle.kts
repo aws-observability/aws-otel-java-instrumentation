@@ -22,19 +22,16 @@ plugins {
 data class DependencySet(val group: String, val version: String, val modules: List<String>)
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-xray-recorder-sdk-bom:2.6.1",
-  "com.fasterxml.jackson:jackson-bom:2.11.0",
-  "com.google.protobuf:protobuf-bom:3.13.0",
-  "com.linecorp.armeria:armeria-bom:1.0.0",
-  "io.grpc:grpc-bom:1.30.2",
+  "com.fasterxml.jackson:jackson-bom:2.12.0",
+  "com.google.protobuf:protobuf-bom:3.14.0",
+  "com.linecorp.armeria:armeria-bom:1.3.0",
+  "io.grpc:grpc-bom:1.34.0",
   "io.opentelemetry:opentelemetry-bom:0.11.0",
-  "io.zipkin.brave:brave-bom:5.12.3",
-  "io.zipkin.reporter2:zipkin-reporter-bom:2.15.0",
-  "org.apache.logging.log4j:log4j-bom:2.13.3",
-  "org.junit:junit-bom:5.7.0-RC1",
-  "org.springframework.boot:spring-boot-dependencies:2.3.3.RELEASE",
-  "org.testcontainers:testcontainers-bom:1.15.0-rc2",
-  "software.amazon.awssdk:bom:2.15.39"
+  "org.apache.logging.log4j:log4j-bom:2.14.0",
+  "org.junit:junit-bom:5.7.0",
+  "org.springframework.boot:spring-boot-dependencies:2.4.0",
+  "org.testcontainers:testcontainers-bom:1.15.0",
+  "software.amazon.awssdk:bom:2.15.40"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -72,6 +69,7 @@ val DEPENDENCY_SETS = listOf(
 )
 
 val DEPENDENCIES = listOf(
+  "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:3.14.9"
 )

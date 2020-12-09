@@ -16,13 +16,14 @@
 plugins {
   java
   `maven-publish`
-  id("com.google.cloud.tools.jib") version "2.5.0"
-  id("com.github.johnrengelman.shadow") version "5.2.0"
+
+  id("com.google.cloud.tools.jib")
+  id("com.github.johnrengelman.shadow")
 }
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_1_7
-  targetCompatibility = JavaVersion.VERSION_1_7
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 base {

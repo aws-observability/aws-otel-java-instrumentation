@@ -14,13 +14,21 @@
  */
 
 import com.github.jk1.license.render.InventoryMarkdownReportRenderer
+import nebula.plugin.release.git.opinion.Strategies
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
   java
-  id("nebula.release") version "15.1.0"
-  id("com.diffplug.spotless") version "5.1.2"
-  id("com.github.jk1.dependency-license-report") version "1.14"
+
+  id("com.diffplug.spotless")
+  id("com.github.ben-manes.versions")
+  id("com.github.jk1.dependency-license-report")
+  id("io.codearte.nexus-staging")
+  id("nebula.release")
+}
+
+release {
+  defaultVersionStrategy = Strategies.getSNAPSHOT()
 }
 
 val releaseTask = tasks.named("release")
@@ -56,7 +64,10 @@ allprojects {
 
   spotless {
     kotlinGradle {
-      ktlint("0.38.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
+      ktlint("0.40.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
+
+      // Doesn't support pluginManagement block
+      targetExclude("settings.gradle.kts")
 
       if (!project.path.startsWith(":sample-apps:")) {
         licenseHeaderFile("${rootProject.projectDir}/config/license/header.java", "plugins|include|import")
@@ -128,6 +139,8 @@ allprojects {
   }
 
   plugins.withId("maven-publish") {
+    plugins.apply("signing")
+
     val publishTask = tasks.named("publish")
 
     postReleaseTask.configure {
@@ -182,25 +195,49 @@ allprojects {
         }
       }
 
+      val isSnapshot = version.toString().endsWith("SNAPSHOT")
+
       repositories {
-        // For now, we only publish to GitHub Packages
         maven {
-          name = "GitHubPackages"
-          url = uri("https://maven.pkg.github.com/aws-observability/aws-otel-java-instrumentation")
+          name = "Sonatype"
+          url = uri(
+            if (isSnapshot) "https://aws.oss.sonatype.org/content/repositories/snapshots/"
+            else "https://aws.oss.sonatype.org/service/local/staging/deploy/maven2"
+          )
           credentials {
-            username = project.findProperty("gpr.user") as String? ?: System.getenv("PUBLISH_USERNAME")
-            password = project.findProperty("gpr.key") as String? ?: System.getenv("PUBLISH_PASSWORD")
+            username = System.getenv("PUBLISH_USERNAME")
+            password = System.getenv("PUBLISH_PASSWORD")
           }
         }
       }
     }
+
+    tasks.withType<Sign>().configureEach {
+      onlyIf { System.getenv("CI") == "true" }
+    }
+
+    configure<SigningExtension> {
+      val signingKey = System.getenv("GPG_PRIVATE_KEY")
+      val signingPassword = System.getenv("GPG_PASSPHRASE")
+      useInMemoryPgpKeys(signingKey, signingPassword)
+      sign(the<PublishingExtension>().publications["maven"])
+    }
   }
 }
 
-tasks.named<Wrapper>("wrapper") {
-  gradleVersion = "6.6.1"
-  distributionType = Wrapper.DistributionType.ALL
-  distributionSha256Sum = "11657af6356b7587bfb37287b5992e94a9686d5c8a0a1b60b87b9928a2decde5"
+tasks {
+  named<Wrapper>("wrapper") {
+    gradleVersion = "6.7.1"
+    distributionSha256Sum = "3239b5ed86c3838a37d983ac100573f64c1f3fd8e1eb6c89fa5f9529b5ec091d"
+  }
+
+  val cleanLicenseReport by registering(Delete::class) {
+    delete("licenses")
+  }
+
+  named("generateLicenseReport") {
+    dependsOn(cleanLicenseReport)
+  }
 }
 
 licenseReport {
