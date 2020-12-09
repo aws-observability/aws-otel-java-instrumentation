@@ -21,11 +21,11 @@ repositories {
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter")
+  runtimeOnly("com.github.oshi:oshi-core:5.3.6")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("software.amazon.awssdk:s3")
-  implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry.instrumentation:opentelemetry-oshi:0.11.0")
-  implementation("com.github.oshi:oshi-core:5.3.6")
+  implementation("io.opentelemetry:opentelemetry-api")
 }
 
 jib {
