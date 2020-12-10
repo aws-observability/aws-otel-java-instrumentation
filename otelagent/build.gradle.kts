@@ -56,7 +56,7 @@ tasks {
       attributes.put("Premain-Class", "software.amazon.opentelemetry.javaagent.bootstrap.AwsAgentBootstrap")
       attributes.put("Can-Redefine-Classes", "true")
       attributes.put("Can-Retransform-Classes", "true")
-      attributes.put("Implementation-Version", archiveVersion)
+      attributes.put("Implementation-Version", project.version)
     }
   }
 }
