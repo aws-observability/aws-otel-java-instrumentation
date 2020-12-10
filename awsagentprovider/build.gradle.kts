@@ -27,7 +27,7 @@ dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-spi")
   compileOnly("org.slf4j:slf4j-api")
 
-  implementation("io.opentelemetry:opentelemetry-sdk-extension-aws-v1-support")
+  implementation("io.opentelemetry:opentelemetry-sdk-extension-aws")
 
   testImplementation("com.google.guava:guava")
 
