@@ -42,6 +42,11 @@ tasks {
       into("inst")
       rename("(^.*)\\.class$", "$1.classdata")
     }
+    // Temporarily include AwsXrayPropagator in bootstrap classloader to resolve issue with
+    // agent injection of extension modules.
+    from(zipTree(providerArchive)) {
+      include("io/opentelemetry/extension/trace/propagation/AwsXRayPropagator.class")
+    }
     dependsOn(agentProviderShadowJarTask)
   }
 
