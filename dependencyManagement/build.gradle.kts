@@ -21,12 +21,14 @@ plugins {
 
 data class DependencySet(val group: String, val version: String, val modules: List<String>)
 
+val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
+
 val DEPENDENCY_BOMS = listOf(
   "com.fasterxml.jackson:jackson-bom:2.12.0",
   "com.google.protobuf:protobuf-bom:3.14.0",
   "com.linecorp.armeria:armeria-bom:1.3.0",
   "io.grpc:grpc-bom:1.34.0",
-  "io.opentelemetry:opentelemetry-bom:0.12.0",
+  "io.opentelemetry:opentelemetry-bom:${if (!TEST_SNAPSHOTS) "0.12.0" else "0.12.0"}",
   "org.apache.logging.log4j:log4j-bom:2.14.0",
   "org.junit:junit-bom:5.7.0",
   "org.springframework.boot:spring-boot-dependencies:2.4.0",
@@ -42,7 +44,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry.javaagent",
-    "0.12.1",
+    if (!TEST_SNAPSHOTS) "0.12.1" else "0.13.0-SNAPSHOT",
     listOf(
       "opentelemetry-javaagent",
       "opentelemetry-javaagent-spi"
