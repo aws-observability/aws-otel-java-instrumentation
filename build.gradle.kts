@@ -170,9 +170,11 @@ allprojects {
           }
 
           pom {
+            name.set("AWS Distro for OpenTelemetry Java Agent")
             description.set(
               "The Amazon Web Services distribution of the OpenTelemetry Java Instrumentation."
             )
+            url.set("https:/github.com/aws-observability/aws-otel-java-instrumentation")
 
             licenses {
               license {
@@ -189,6 +191,12 @@ allprojects {
                 organizationUrl.set("https://aws.amazon.com")
                 roles.add("developer")
               }
+            }
+
+            scm {
+              connection.set("scm:git:git@github.com:aws-observability/aws-otel-java-instrumentation.git")
+              developerConnection.set("scm:git:git@github.com:aws-observability/aws-otel-java-instrumentation.git")
+              url.set("https://github.com/aws-observability/aws-otel-java-instrumentation.git")
             }
           }
         }
