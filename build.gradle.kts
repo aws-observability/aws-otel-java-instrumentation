@@ -196,7 +196,7 @@ allprojects {
             scm {
               connection.set("scm:git:git@github.com:aws-observability/aws-otel-java-instrumentation.git")
               developerConnection.set("scm:git:git@github.com:aws-observability/aws-otel-java-instrumentation.git")
-              url.set("git@github.com:aws-observability/aws-otel-java-instrumentation.git")
+              url.set("https://github.com/aws-observability/aws-otel-java-instrumentation.git")
             }
           }
         }
