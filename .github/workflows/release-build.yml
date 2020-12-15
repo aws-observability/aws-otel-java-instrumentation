@@ -72,5 +72,5 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker images
-          docker push $ECR_REGISTRY/springboot:${{ github.event.inputs.version }}
-          docker push $ECR_REGISTRY/spark:${{ github.event.inputs.version }}
+          docker push $ECR_REGISTRY/otel-test/springboot:${{ github.event.inputs.version }}
+          docker push $ECR_REGISTRY/otel-test/spark:${{ github.event.inputs.version }}
