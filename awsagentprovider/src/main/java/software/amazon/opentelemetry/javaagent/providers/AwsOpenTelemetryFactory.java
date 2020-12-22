@@ -18,12 +18,12 @@ package software.amazon.opentelemetry.javaagent.providers;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.extension.aws.trace.AwsXrayIdGenerator;
-import io.opentelemetry.sdk.trace.TracerSdkProvider;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.spi.OpenTelemetryFactory;
 
 public class AwsOpenTelemetryFactory implements OpenTelemetryFactory {
 
-  private static final TracerSdkProvider TRACER_PROVIDER;
+  private static final SdkTracerProvider TRACER_PROVIDER;
 
   static {
     if (System.getProperty("otel.aws.imds.endpointOverride") == null) {
@@ -33,7 +33,7 @@ public class AwsOpenTelemetryFactory implements OpenTelemetryFactory {
       }
     }
 
-    TRACER_PROVIDER = TracerSdkProvider.builder().setIdGenerator(new AwsXrayIdGenerator()).build();
+    TRACER_PROVIDER = SdkTracerProvider.builder().setIdGenerator(new AwsXrayIdGenerator()).build();
   }
 
   @Override
