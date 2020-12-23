@@ -28,7 +28,6 @@ dependencies {
   compileOnly("org.slf4j:slf4j-api")
 
   implementation("io.opentelemetry:opentelemetry-sdk-extension-aws")
-  implementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
 
   testImplementation("com.google.guava:guava")
 
