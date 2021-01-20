@@ -1,6 +1,5 @@
 package com.amazon.sampleapp;
 
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.api.metrics.GlobalMetricsProvider;
 import io.opentelemetry.api.metrics.LongCounter;
