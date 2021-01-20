@@ -18,19 +18,19 @@ package software.amazon.opentelemetry.javaagent.providers;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.primitives.Ints;
-import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.TracerProvider;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.RepeatedTest;
 
-class AwsOpenTelemetryFactoryTest {
+class AwsTracerProviderFactoryTest {
 
-  private static final OpenTelemetry openTelemetry = new AwsOpenTelemetryFactory().create();
+  private static final TracerProvider tracerProvider = new AwsTracerProviderFactory().create();
 
   // The probability of this passing once without correct IDs is low, 20 times is inconceivable.
   @RepeatedTest(20)
   void providerGeneratesXrayIds() {
     int startTimeSecs = (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
-    var span = openTelemetry.getTracer("test").spanBuilder("test").startSpan();
+    var span = tracerProvider.get("test").spanBuilder("test").startSpan();
     byte[] traceId = span.getSpanContext().getTraceIdBytes();
     int epoch = Ints.fromBytes(traceId[0], traceId[1], traceId[2], traceId[3]);
     assertThat(epoch).isGreaterThanOrEqualTo(startTimeSecs);
