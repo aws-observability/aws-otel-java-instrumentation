@@ -98,7 +98,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> backend =
-      new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-fake-backend:latest")
+      new GenericContainer<>("public.ecr.aws/u0d6r4y4/aws-otel-java-test-fakebackend:latest")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
           .withLogConsumer(new Slf4jLogConsumer(backendLogger))
@@ -107,7 +107,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> application =
-      new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-spring-boot:latest")
+      new GenericContainer<>("public.ecr.aws/u0d6r4y4/aws-otel-java-smoketests-springboot:latest")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)

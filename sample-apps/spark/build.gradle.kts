@@ -34,10 +34,10 @@ application {
 
 jib {
   to {
-    image = "${System.getenv("AWS_REGISTRY_ACCOUNT")}.dkr.ecr.us-west-2.amazonaws.com/otel-test/spark:${System.getenv("COMMIT_HASH")}"
+    image = "public.ecr.aws/u0d6r4y4/aws-otel-java-test-spark:${System.getenv("COMMIT_HASH")}"
   }
   from {
-    image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
+    image = "public.ecr.aws/u0d6r4y4/aws-opentelemetry-java-base:alpha"
   }
 }
 

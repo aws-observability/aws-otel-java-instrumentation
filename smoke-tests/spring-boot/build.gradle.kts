@@ -30,10 +30,10 @@ dependencies {
 
 jib {
   to {
-    image = "ghcr.io/anuraaga/smoke-tests-spring-boot"
+    image = "public.ecr.aws/u0d6r4y4/aws-otel-java-smoketests-springboot"
   }
   from {
-    image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
+    image = "public.ecr.aws/u0d6r4y4/aws-opentelemetry-java-base:alpha"
   }
 }
 

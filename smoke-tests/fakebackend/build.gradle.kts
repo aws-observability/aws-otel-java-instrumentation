@@ -33,9 +33,9 @@ dependencies {
 
 jib {
   to {
-    image = "ghcr.io/anuraaga/smoke-tests-fake-backend"
+    image = "public.ecr.aws/u0d6r4y4/aws-otel-java-test-fakebackend:alpha"
   }
   from {
-    image = "ghcr.io/anuraaga/amazoncorretto-distroless:alpha"
+    image = "public.ecr.aws/u0d6r4y4/amazoncorretto-distroless:alpha"
   }
 }
