@@ -15,13 +15,12 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.api.trace.TracerProvider;
 import io.opentelemetry.sdk.extension.aws.trace.AwsXrayIdGenerator;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.spi.OpenTelemetryFactory;
+import io.opentelemetry.spi.trace.TracerProviderFactory;
 
-public class AwsOpenTelemetryFactory implements OpenTelemetryFactory {
+public class AwsTracerProviderFactory implements TracerProviderFactory {
 
   private static final SdkTracerProvider TRACER_PROVIDER;
 
@@ -33,11 +32,12 @@ public class AwsOpenTelemetryFactory implements OpenTelemetryFactory {
       }
     }
 
-    TRACER_PROVIDER = SdkTracerProvider.builder().setIdGenerator(new AwsXrayIdGenerator()).build();
+    TRACER_PROVIDER =
+        SdkTracerProvider.builder().setIdGenerator(AwsXrayIdGenerator.getInstance()).build();
   }
 
   @Override
-  public OpenTelemetry create() {
-    return OpenTelemetrySdk.builder().setTracerProvider(TRACER_PROVIDER).build();
+  public TracerProvider create() {
+    return TRACER_PROVIDER;
   }
 }

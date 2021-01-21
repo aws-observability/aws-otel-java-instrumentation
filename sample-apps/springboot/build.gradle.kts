@@ -24,6 +24,7 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp")
   implementation("software.amazon.awssdk:s3")
   implementation("io.opentelemetry:opentelemetry-api")
+  implementation("io.opentelemetry:opentelemetry-api-metrics")
 }
 
 jib {

@@ -24,6 +24,7 @@ dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("io.opentelemetry:opentelemetry-api")
+  implementation("io.opentelemetry:opentelemetry-api-metrics")
   implementation("software.amazon.awssdk:s3")
 }
 
