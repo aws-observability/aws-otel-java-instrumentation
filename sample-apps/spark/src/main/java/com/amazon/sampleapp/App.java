@@ -5,7 +5,7 @@ import static spark.Spark.*;
 import io.opentelemetry.api.trace.Span;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 public class App {
   static final String REQUEST_START_TIME = "requestStartTime";
+  static int mimicQueueSize;
 
   private static MetricEmitter buildMetricEmitter() {
     return new MetricEmitter();
@@ -87,8 +88,13 @@ public class App {
                 System.currentTimeMillis() - requestStartTime, req.pathInfo(), statusCode);
 
             // emit http request load size
-            metricEmitter.emitBytesSentMetric(
-                req.contentLength() + mimicPayloadSize(), req.pathInfo(), statusCode);
+            int loadSize = req.contentLength() + mimicPayloadSize();
+            metricEmitter.emitBytesSentMetric(loadSize, req.pathInfo(), statusCode);
+            metricEmitter.updateTotalBytesSentMetric(loadSize, req.pathInfo(), statusCode);
+            // mimic a queue size reporter
+            int queueSizeChange = mimicQueueSizeChange();
+            metricEmitter.emitQueueSizeChangeMetric(queueSizeChange, req.pathInfo(), statusCode);
+            metricEmitter.updateActualQueueSizeMetric(queueSizeChange, req.pathInfo(), statusCode);
           }
         });
 
@@ -109,7 +115,13 @@ public class App {
   }
 
   private static int mimicPayloadSize() {
-    Random randomGenerator = new Random();
-    return randomGenerator.nextInt(1000);
+    return ThreadLocalRandom.current().nextInt(100);
+  }
+
+  private static int mimicQueueSizeChange() {
+    int newQueueSize = ThreadLocalRandom.current().nextInt(100);
+    int queueSizeChange = newQueueSize - mimicQueueSize;
+    mimicQueueSize = newQueueSize;
+    return queueSizeChange;
   }
 }
