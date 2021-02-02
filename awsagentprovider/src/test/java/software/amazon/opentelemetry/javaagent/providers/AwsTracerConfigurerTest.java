@@ -19,12 +19,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.primitives.Ints;
 import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.RepeatedTest;
 
-class AwsTracerProviderFactoryTest {
+class AwsTracerConfigurerTest {
 
-  private static final TracerProvider tracerProvider = new AwsTracerProviderFactory().create();
+  private static final TracerProvider tracerProvider;
+
+  static {
+    SdkTracerProviderBuilder builder = SdkTracerProvider.builder();
+    new AwsTracerConfigurer().configure(builder);
+    tracerProvider = builder.build();
+  }
 
   // The probability of this passing once without correct IDs is low, 20 times is inconceivable.
   @RepeatedTest(20)

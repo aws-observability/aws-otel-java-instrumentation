@@ -26,7 +26,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.google.protobuf:protobuf-bom:3.14.0",
   "com.linecorp.armeria:armeria-bom:1.3.0",
   "io.grpc:grpc-bom:1.34.0",
-  "io.opentelemetry:opentelemetry-bom:0.14.1",
+  "io.opentelemetry:opentelemetry-bom:0.15.0",
   "org.apache.logging.log4j:log4j-bom:2.14.0",
   "org.junit:junit-bom:5.7.0",
   "org.springframework.boot:spring-boot-dependencies:2.4.0",
@@ -42,14 +42,15 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "io.opentelemetry",
-    "0.14.1-alpha",
+    "0.15.0-alpha",
     listOf(
-      "opentelemetry-api-metrics"
+      "opentelemetry-api-metrics",
+      "opentelemetry-sdk-extension-autoconfigure"
     )
   ),
   DependencySet(
     "io.opentelemetry.javaagent",
-    "0.14.0",
+    "0.15.0",
     listOf(
       "opentelemetry-javaagent",
       "opentelemetry-javaagent-spi"
