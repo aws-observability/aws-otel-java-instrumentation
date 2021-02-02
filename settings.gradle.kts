@@ -25,6 +25,18 @@ pluginManagement {
   }
 }
 
+dependencyResolutionManagement {
+  repositories {
+    mavenCentral()
+    jcenter()
+    mavenLocal()
+
+    maven {
+      setUrl("https://oss.sonatype.org/content/repositories/snapshots")
+    }
+  }
+}
+
 include(":awsagentprovider")
 include(":dependencyManagement")
 include(":otelagent")
