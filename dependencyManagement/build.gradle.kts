@@ -13,33 +13,32 @@
  * permissions and limitations under the License.
  */
 
+import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import com.github.jk1.license.LicenseReportExtension
 
 plugins {
   `java-platform`
+
+  id("com.github.ben-manes.versions")
 }
 
 data class DependencySet(val group: String, val version: String, val modules: List<String>)
 
 val DEPENDENCY_BOMS = listOf(
-  "com.fasterxml.jackson:jackson-bom:2.12.0",
+  "com.fasterxml.jackson:jackson-bom:2.12.1",
+  "com.google.guava:guava-bom:30.1-jre",
   "com.google.protobuf:protobuf-bom:3.14.0",
-  "com.linecorp.armeria:armeria-bom:1.3.0",
-  "io.grpc:grpc-bom:1.34.0",
+  "com.linecorp.armeria:armeria-bom:1.4.0",
+  "io.grpc:grpc-bom:1.35.0",
   "io.opentelemetry:opentelemetry-bom:0.14.1",
   "org.apache.logging.log4j:log4j-bom:2.14.0",
   "org.junit:junit-bom:5.7.0",
-  "org.springframework.boot:spring-boot-dependencies:2.4.0",
-  "org.testcontainers:testcontainers-bom:1.15.0",
-  "software.amazon.awssdk:bom:2.15.40"
+  "org.springframework.boot:spring-boot-dependencies:2.4.2",
+  "org.testcontainers:testcontainers-bom:1.15.1",
+  "software.amazon.awssdk:bom:2.15.73"
 )
 
 val DEPENDENCY_SETS = listOf(
-  DependencySet(
-    "com.google.guava",
-    "29.0-jre",
-    listOf("guava", "guava-testlib")
-  ),
   DependencySet(
     "io.opentelemetry",
     "0.14.1-alpha",
@@ -57,12 +56,12 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "org.assertj",
-    "3.17.0",
+    "3.19.0",
     listOf("assertj-core")
   ),
   DependencySet(
     "org.curioswitch.curiostack",
-    "1.1.0",
+    "1.2.0",
     listOf("protobuf-jackson")
   ),
   DependencySet(
@@ -78,7 +77,7 @@ val DEPENDENCY_SETS = listOf(
 val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
-  "com.squareup.okhttp3:okhttp:3.14.9"
+  "com.squareup.okhttp3:okhttp:4.9.1"
 )
 
 javaPlatform {
@@ -109,6 +108,25 @@ rootProject.allprojects {
         .map { it.substring(0, it.lastIndexOf(':')) }
         .toArray { length -> arrayOfNulls<String>(length) }
       excludes = bomExcludes
+    }
+  }
+}
+
+fun isNonStable(version: String): Boolean {
+  val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.toUpperCase().contains(it) }
+  val regex = "^[0-9,.v-]+(-r)?$".toRegex()
+  val isGuava = version.endsWith("-jre")
+  val isStable = stableKeyword || regex.matches(version) || isGuava
+  return isStable.not()
+}
+
+tasks {
+  named<DependencyUpdatesTask>("dependencyUpdates") {
+    revision = "release"
+    checkConstraints = true
+
+    rejectVersionIf {
+      isNonStable(candidate.version)
     }
   }
 }
