@@ -33,6 +33,7 @@ jobs:
       - name: Build docker image
         uses: docker/build-push-action@v2
         with:
+          push: true
           context: scripts/docker/corretto-slim
           tags: |
             public.ecr.aws/u0d6r4y4/amazoncorretto-distroless:alpha
