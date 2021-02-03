@@ -23,11 +23,13 @@ base {
 }
 
 dependencies {
-  compileOnly("io.opentelemetry:opentelemetry-sdk")
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-spi")
+  compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   compileOnly("org.slf4j:slf4j-api")
 
   implementation("io.opentelemetry:opentelemetry-sdk-extension-aws")
+
+  testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
 
   testImplementation("com.google.guava:guava")
 

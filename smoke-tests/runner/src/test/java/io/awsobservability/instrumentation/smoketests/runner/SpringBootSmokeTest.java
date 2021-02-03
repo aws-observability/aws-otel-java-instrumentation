@@ -117,7 +117,7 @@ class SpringBootSmokeTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
-          .withEnv("OTEL_EXPORTER_OTLP_SPAN_ENDPOINT", "backend:8080");
+          .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080");
 
   private static final TypeReference<List<ExportTraceServiceRequest>>
       EXPORT_TRACE_SERVICE_REQUEST_LIST = new TypeReference<>() {};

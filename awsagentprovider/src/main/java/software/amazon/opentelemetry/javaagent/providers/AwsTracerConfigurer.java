@@ -15,14 +15,11 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import io.opentelemetry.api.trace.TracerProvider;
+import io.opentelemetry.sdk.autoconfigure.spi.SdkTracerProviderConfigurer;
 import io.opentelemetry.sdk.extension.aws.trace.AwsXrayIdGenerator;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.spi.trace.TracerProviderFactory;
+import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 
-public class AwsTracerProviderFactory implements TracerProviderFactory {
-
-  private static final SdkTracerProvider TRACER_PROVIDER;
+public class AwsTracerConfigurer implements SdkTracerProviderConfigurer {
 
   static {
     if (System.getProperty("otel.aws.imds.endpointOverride") == null) {
@@ -31,13 +28,10 @@ public class AwsTracerProviderFactory implements TracerProviderFactory {
         System.setProperty("otel.aws.imds.endpointOverride", overrideFromEnv);
       }
     }
-
-    TRACER_PROVIDER =
-        SdkTracerProvider.builder().setIdGenerator(AwsXrayIdGenerator.getInstance()).build();
   }
 
   @Override
-  public TracerProvider create() {
-    return TRACER_PROVIDER;
+  public void configure(SdkTracerProviderBuilder sdkTracerProviderBuilder) {
+    sdkTracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance());
   }
 }
