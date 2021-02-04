@@ -9,23 +9,12 @@ exporters:
     loglevel: info
   awsxray:
     region: us-west-2
-    local_mode: true
-    no_verify_ssl: true
   awsemf:
     region: us-west-2
-
-processors:
-  memory_limiter:
-    limit_mib: 100
-    check_interval: 5s
-  batch:
-  queued_retry:
 
 service:
   pipelines:
     traces:
-      processors:
-        - memory_limiter
       receivers:
         - otlp
       exporters:
