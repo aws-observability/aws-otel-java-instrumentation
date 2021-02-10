@@ -6,9 +6,6 @@ services:
     volumes:
       - .:/config
       - ~/.aws:/root/.aws
-    environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
     ports:
       - '4317:4317'
 
@@ -19,6 +16,9 @@ services:
       - LISTEN_ADDRESS
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
+      - AWS_REGION=us-west-2
+    volumes:
+      - ~/.aws:/root/.aws
     ports:
       - '4567:4567'
       - '8080:8080'
