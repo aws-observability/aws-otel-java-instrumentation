@@ -5,6 +5,7 @@ services:
     command: --config /config/collector-config.yml --log-level debug
     volumes:
       - .:/config
+      - ~/.aws:/root/.aws
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -14,11 +15,8 @@ services:
   app:
     image: ${APP_IMAGE}
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - INSTANCE_ID
       - LISTEN_ADDRESS
-      - AWS_REGION=us-west-2
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
     ports:
@@ -31,7 +29,7 @@ services:
     depends_on:
       - otel
       - app
+    volumes:
+      - ~/.aws:/root/.aws
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - AWS_REGION=us-west-2

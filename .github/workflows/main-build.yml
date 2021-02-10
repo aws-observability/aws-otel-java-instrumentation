@@ -78,8 +78,6 @@ jobs:
         run: docker-compose up --abort-on-container-exit
         working-directory: .github/collector
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
           LISTEN_ADDRESS: 0.0.0.0:8080
           APP_IMAGE: public.ecr.aws/u0d6r4y4/aws-otel-java-test-springboot:${{ github.sha }}
@@ -114,8 +112,6 @@ jobs:
         run: docker-compose up --abort-on-container-exit
         working-directory: .github/collector
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
           LISTEN_ADDRESS: 0.0.0.0:4567
           APP_IMAGE: public.ecr.aws/u0d6r4y4/aws-otel-java-test-spark:${{ github.sha }}
