@@ -98,7 +98,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> backend =
-      new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-fake-backend:latest")
+      new GenericContainer<>("public.ecr.aws/u0d6r4y4/aws-otel-java-test-fakebackend:alpha")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
           .withLogConsumer(new Slf4jLogConsumer(backendLogger))
@@ -107,7 +107,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> application =
-      new GenericContainer<>("ghcr.io/anuraaga/smoke-tests-spring-boot:latest")
+      new GenericContainer<>("public.ecr.aws/u0d6r4y4/aws-otel-java-smoketests-springboot:latest")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
@@ -117,7 +117,7 @@ class SpringBootSmokeTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
-          .withEnv("OTEL_EXPORTER_OTLP_SPAN_ENDPOINT", "backend:8080");
+          .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080");
 
   private static final TypeReference<List<ExportTraceServiceRequest>>
       EXPORT_TRACE_SERVICE_REQUEST_LIST = new TypeReference<>() {};

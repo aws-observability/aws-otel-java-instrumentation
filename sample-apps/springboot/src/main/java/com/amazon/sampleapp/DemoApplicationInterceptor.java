@@ -1,6 +1,6 @@
 package com.amazon.sampleapp;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -10,6 +10,7 @@ import org.springframework.web.servlet.ModelAndView;
 @Component
 public class DemoApplicationInterceptor implements HandlerInterceptor {
   static final String REQUEST_START_TIME = "requestStartTime";
+  static int mimicQueueSize;
 
   private static MetricEmitter buildMetricEmitter() {
     return new MetricEmitter();
@@ -41,8 +42,15 @@ public class DemoApplicationInterceptor implements HandlerInterceptor {
             System.currentTimeMillis() - requestStartTime, request.getServletPath(), statusCode);
 
         // emit http request load size
-        metricEmitter.emitBytesSentMetric(
-            request.getContentLength() + mimicPayloadSize(), request.getServletPath(), statusCode);
+        int loadSize = request.getContentLength() + mimicPayloadSize();
+        metricEmitter.emitBytesSentMetric(loadSize, request.getServletPath(), statusCode);
+        metricEmitter.updateTotalBytesSentMetric(loadSize, request.getServletPath(), statusCode);
+        // mimic a queue size reporter
+        int queueSizeChange = mimicQueueSizeChange();
+        metricEmitter.emitQueueSizeChangeMetric(
+            queueSizeChange, request.getServletPath(), statusCode);
+        metricEmitter.updateActualQueueSizeMetric(
+            queueSizeChange, request.getServletPath(), statusCode);
       } catch (Exception e) {
         e.printStackTrace();
       }
@@ -50,7 +58,13 @@ public class DemoApplicationInterceptor implements HandlerInterceptor {
   }
 
   private static int mimicPayloadSize() {
-    Random randomGenerator = new Random();
-    return randomGenerator.nextInt(1000);
+    return ThreadLocalRandom.current().nextInt(1000);
+  }
+
+  private static int mimicQueueSizeChange() {
+    int newQueueSize = ThreadLocalRandom.current().nextInt(100);
+    int queueSizeChange = newQueueSize - mimicQueueSize;
+    mimicQueueSize = newQueueSize;
+    return queueSizeChange;
   }
 }

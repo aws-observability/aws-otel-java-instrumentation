@@ -21,7 +21,6 @@ plugins {
   java
 
   id("com.diffplug.spotless")
-  id("com.github.ben-manes.versions")
   id("com.github.jk1.dependency-license-report")
   id("nebula.release")
 }
@@ -34,15 +33,6 @@ val releaseTask = tasks.named("release")
 val postReleaseTask = tasks.named("release")
 
 allprojects {
-  repositories {
-    jcenter()
-    mavenCentral()
-    mavenLocal()
-
-    maven {
-      setUrl("https://oss.sonatype.org/content/repositories/snapshots/")
-    }
-  }
 
   project.group = "software.amazon.opentelemetry"
 
@@ -229,11 +219,6 @@ allprojects {
 }
 
 tasks {
-  named<Wrapper>("wrapper") {
-    gradleVersion = "6.7.1"
-    distributionSha256Sum = "3239b5ed86c3838a37d983ac100573f64c1f3fd8e1eb6c89fa5f9529b5ec091d"
-  }
-
   val cleanLicenseReport by registering(Delete::class) {
     delete("licenses")
   }

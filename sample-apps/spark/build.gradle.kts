@@ -24,6 +24,7 @@ dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("io.opentelemetry:opentelemetry-api")
+  implementation("io.opentelemetry:opentelemetry-api-metrics")
   implementation("software.amazon.awssdk:s3")
 }
 
@@ -33,10 +34,10 @@ application {
 
 jib {
   to {
-    image = "${System.getenv("AWS_REGISTRY_ACCOUNT")}.dkr.ecr.us-west-2.amazonaws.com/otel-test/spark:${System.getenv("COMMIT_HASH")}"
+    image = "public.ecr.aws/u0d6r4y4/aws-otel-java-test-spark:${System.getenv("COMMIT_HASH")}"
   }
   from {
-    image = "ghcr.io/anuraaga/aws-opentelemetry-java-base:alpha"
+    image = "public.ecr.aws/u0d6r4y4/aws-opentelemetry-java-base:alpha"
   }
 }
 

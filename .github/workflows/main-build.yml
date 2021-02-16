@@ -14,14 +14,18 @@ jobs:
         with:
           java-version: 14
       - uses: gradle/wrapper-validation-action@v1
-      - name: Login to GitHub Package Registry
-        run: echo ${{ secrets.CONTAINER_REGISTRY_TOKEN }} | docker login ghcr.io -u anuraaga --password-stdin
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          role-duration-seconds: 1200
+          aws-region: us-east-1
       - name: Login to ECR
         uses: docker/login-action@v1
         with:
-          registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.us-west-2.amazonaws.com
-          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          registry: public.ecr.aws
       - name: Build snapshot with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
@@ -41,7 +45,6 @@ jobs:
         with:
           arguments: jib
         env:
-          AWS_REGISTRY_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
           COMMIT_HASH: ${{ github.sha }}
       - uses: codecov/codecov-action@v1
 
@@ -62,40 +65,23 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          role-duration-seconds: 1200
+          aws-region: us-east-1
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Setup and Run OTel Collector
-        run: |
-          docker-compose -f .github/collector/docker-compose.yml up &
-        env:
-          ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Run Springboot App with Java agent
-        run: |
-          docker run -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_REGION=us-west-2 -e INSTANCE_ID=${{ github.run_id }}-${{ github.run_number }} -e LISTEN_ADDRESS=0.0.0.0:8080 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680  -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/otel-test/springboot:${{ github.sha }} &
-
-      - name: Directory to checkout test framework
-        run: mkdir test-framework
-
-      - name: Checkout test framework
-        uses: actions/checkout@v2
+      - name: Login to ECR
+        uses: docker/login-action@v1
         with:
-          repository: aws-observability/aws-otel-test-framework
-          ref: terraform
-          path: test-framework
+          registry: public.ecr.aws
 
-      - name: Run testing suite
-        run: ./gradlew :validator:run --args='-c springboot-otel-trace-metric-validation.yml --endpoint http://127.0.0.1:8080 --metric-namespace default -t ${{ github.run_id }}-${{ github.run_number }}'
+      - name: Run test containers
+        run: docker-compose up --abort-on-container-exit
+        working-directory: .github/collector
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-west-2
-        working-directory: test-framework
+          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
+          LISTEN_ADDRESS: 0.0.0.0:8080
+          APP_IMAGE: public.ecr.aws/u0d6r4y4/aws-otel-java-test-springboot:${{ github.sha }}
+          VALIDATOR_COMMAND: -c springboot-otel-trace-metric-validation.yml --endpoint http://app:8080 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
 
   test_Spark_App_With_Java_Agent:
     name: Test Spark App with AWS OTel Java agent
@@ -114,37 +100,20 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          role-duration-seconds: 1200
+          aws-region: us-east-1
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Setup and Run OTel Collector
-        run: |
-          docker-compose -f .github/collector/docker-compose.yml up &
-        env:
-          ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Run Spark App with Java agent
-        run: |
-          docker run -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_REGION=us-west-2 -e INSTANCE_ID=${{ github.run_id }}-${{ github.run_number }} -e LISTEN_ADDRESS=0.0.0.0:4567 -e OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:55680 -e OTEL_RESOURCE_ATTRIBUTES="service.name=aws-otel-integ-test" -p 4567:4567 ${{ steps.login-ecr.outputs.registry }}/otel-test/spark:${{ github.sha }} &
-
-      - name: Directory to checkout test framework
-        run: mkdir test-framework
-
-      - name: Checkout test framework
-        uses: actions/checkout@v2
+      - name: Login to ECR
+        uses: docker/login-action@v1
         with:
-          repository: aws-observability/aws-otel-test-framework
-          ref: terraform
-          path: test-framework
+          registry: public.ecr.aws
 
-      - name: Run testing suite
-        run: ./gradlew :validator:run --args='-c spark-otel-trace-metric-validation.yml --endpoint http://127.0.0.1:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}'
+      - name: Run test containers
+        run: docker-compose up --abort-on-container-exit
+        working-directory: .github/collector
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-west-2
-        working-directory: test-framework
+          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
+          LISTEN_ADDRESS: 0.0.0.0:4567
+          APP_IMAGE: public.ecr.aws/u0d6r4y4/aws-otel-java-test-spark:${{ github.sha }}
+          VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
