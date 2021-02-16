@@ -33,6 +33,7 @@ val releaseTask = tasks.named("release")
 val postReleaseTask = tasks.named("release")
 
 allprojects {
+
   project.group = "software.amazon.opentelemetry"
 
   plugins.apply("com.diffplug.spotless")
