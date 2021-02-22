@@ -32,7 +32,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.google.protobuf:protobuf-bom:3.14.0",
   "com.linecorp.armeria:armeria-bom:1.4.0",
   "io.grpc:grpc-bom:1.35.0",
-  "io.opentelemetry:opentelemetry-bom:${if (!TEST_SNAPSHOTS) "0.15.0" else "0.16.0"}",
+  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "0.17.0-alpha" else "0.18.0-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.14.0",
   "org.junit:junit-bom:5.7.0",
   "org.springframework.boot:spring-boot-dependencies:2.4.2",
@@ -41,22 +41,6 @@ val DEPENDENCY_BOMS = listOf(
 )
 
 val DEPENDENCY_SETS = listOf(
-  DependencySet(
-    "io.opentelemetry",
-    "0.15.0-alpha",
-    listOf(
-      "opentelemetry-api-metrics",
-      "opentelemetry-sdk-extension-autoconfigure"
-    )
-  ),
-  DependencySet(
-    "io.opentelemetry.javaagent",
-    if (!TEST_SNAPSHOTS) "0.15.0" else "0.17.0-SNAPSHOT",
-    listOf(
-      "opentelemetry-javaagent",
-      "opentelemetry-javaagent-spi"
-    )
-  ),
   DependencySet(
     "org.assertj",
     "3.19.0",
@@ -80,7 +64,8 @@ val DEPENDENCY_SETS = listOf(
 val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
-  "com.squareup.okhttp3:okhttp:4.9.1"
+  "com.squareup.okhttp3:okhttp:4.9.1",
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "0.17.0" else "0.18.0-SNAPSHOT"}"
 )
 
 javaPlatform {
