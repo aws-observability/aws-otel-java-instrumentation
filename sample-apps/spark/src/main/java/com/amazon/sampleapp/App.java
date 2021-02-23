@@ -108,7 +108,7 @@ public class App {
 
   // get x-ray trace id
   private static String getXrayTraceId() {
-    String traceId = Span.current().getSpanContext().getTraceIdAsHexString();
+    String traceId = Span.current().getSpanContext().getTraceId();
     String xrayTraceId = "1-" + traceId.substring(0, 8) + "-" + traceId.substring(8);
 
     return String.format("{\"traceId\": \"%s\"}", xrayTraceId);
