@@ -43,7 +43,6 @@ nexusPublishing {
 
 val releaseTask = tasks.named("release")
 val postReleaseTask = tasks.named("release")
-val closeAndReleaseTask = tasks.named("closeAndReleaseSonatypeStagingRepository")
 
 allprojects {
 
