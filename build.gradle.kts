@@ -22,11 +22,23 @@ plugins {
 
   id("com.diffplug.spotless")
   id("com.github.jk1.dependency-license-report")
+  id("io.github.gradle-nexus.publish-plugin")
   id("nebula.release")
 }
 
 release {
   defaultVersionStrategy = Strategies.getSNAPSHOT()
+}
+
+nexusPublishing {
+  repositories {
+    sonatype {
+      nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2"))
+      snapshotRepositoryUrl.set(uri("https://aws.oss.sonatype.org/content/repositories/snapshots/"))
+      username.set(System.getenv("PUBLISH_USERNAME"))
+      password.set(System.getenv("PUBLISH_PASSWORD"))
+    }
+  }
 }
 
 val releaseTask = tasks.named("release")
@@ -126,10 +138,12 @@ allprojects {
   plugins.withId("maven-publish") {
     plugins.apply("signing")
 
-    val publishTask = tasks.named("publish")
+    afterEvaluate {
+      val publishTask = tasks.named("publishToSonatype")
 
-    postReleaseTask.configure {
-      dependsOn(publishTask)
+      postReleaseTask.configure {
+        dependsOn(publishTask)
+      }
     }
 
     configure<PublishingExtension> {
@@ -184,22 +198,6 @@ allprojects {
               developerConnection.set("scm:git:git@github.com:aws-observability/aws-otel-java-instrumentation.git")
               url.set("https://github.com/aws-observability/aws-otel-java-instrumentation.git")
             }
-          }
-        }
-      }
-
-      val isSnapshot = version.toString().endsWith("SNAPSHOT")
-
-      repositories {
-        maven {
-          name = "Sonatype"
-          url = uri(
-            if (isSnapshot) "https://aws.oss.sonatype.org/content/repositories/snapshots/"
-            else "https://aws.oss.sonatype.org/service/local/staging/deploy/maven2"
-          )
-          credentials {
-            username = System.getenv("PUBLISH_USERNAME")
-            password = System.getenv("PUBLISH_PASSWORD")
           }
         }
       }
