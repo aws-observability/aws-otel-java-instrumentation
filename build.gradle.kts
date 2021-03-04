@@ -33,7 +33,7 @@ release {
 nexusPublishing {
   repositories {
     sonatype {
-      nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2"))
+      nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/"))
       snapshotRepositoryUrl.set(uri("https://aws.oss.sonatype.org/content/repositories/snapshots/"))
       username.set(System.getenv("PUBLISH_USERNAME"))
       password.set(System.getenv("PUBLISH_PASSWORD"))
