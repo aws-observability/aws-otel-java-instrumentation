@@ -87,7 +87,7 @@ jobs:
       - name: Build release with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
-          arguments: build jib final -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build jib final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:
           PUBLISH_USERNAME: ${{ github.actor }}
           PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
