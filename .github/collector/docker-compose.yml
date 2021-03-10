@@ -23,6 +23,7 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
       - AWS_REGION=us-west-2
+      - OTEL_JAVAAGENT_DEBUG=true
     ports:
       - '4567:4567'
       - '8080:8080'
