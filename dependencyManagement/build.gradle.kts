@@ -33,7 +33,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.google.protobuf:protobuf-bom:3.14.0",
   "com.linecorp.armeria:armeria-bom:1.4.0",
   "io.grpc:grpc-bom:1.35.0",
-  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "0.17.0-alpha" else "0.18.0-alpha-SNAPSHOT"}",
+  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "1.0.0-alpha" else "1.1.0-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.14.0",
   "org.junit:junit-bom:5.7.0",
   "org.springframework.boot:spring-boot-dependencies:2.4.2",
@@ -66,7 +66,7 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.1",
-  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "0.17.0" else "0.18.0-SNAPSHOT"}"
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.0.0" else "1.1.0-SNAPSHOT"}"
 )
 
 javaPlatform {
