@@ -27,6 +27,7 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 val DEPENDENCY_BOMS = listOf(
+  "com.amazonaws:aws-java-sdk-bom:1.11.971",
   "com.fasterxml.jackson:jackson-bom:2.12.1",
   "com.google.guava:guava-bom:30.1-jre",
   "com.google.protobuf:protobuf-bom:3.14.0",
