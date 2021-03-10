@@ -119,7 +119,7 @@ jobs:
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
 
   test_Spark_AWS_SDK_V1_App_With_Java_Agent:
-    name: Test Spark App with AWS OTel Java agent
+    name: Test Spark App (AWS SDK v1) with AWS OTel Java agent
     needs: build
     runs-on: ubuntu-latest
 
