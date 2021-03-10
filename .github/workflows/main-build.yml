@@ -150,5 +150,5 @@ jobs:
         env:
           INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
           LISTEN_ADDRESS: 0.0.0.0:4567
-          APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-test-spark-awssdkv1:${{ github.sha }}
+          APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1:${{ github.sha }}
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
