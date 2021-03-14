@@ -16,12 +16,15 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.javaagent.spi.config.PropertySource;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 public class AwsAgentProperties implements PropertySource {
   @Override
   public Map<String, String> getProperties() {
-    return Collections.singletonMap("otel.propagators", "xray,tracecontext,b3,b3multi");
+    Map<String, String> properties = new HashMap<>();
+    properties.put("otel.propagators", "xray,tracecontext,b3,b3multi");
+    properties.put("otel.instrumentation.aws-sdk.experimental-span-attributes", "true");
+    return properties;
   }
 }
