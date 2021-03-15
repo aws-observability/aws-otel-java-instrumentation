@@ -27,18 +27,18 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.11.971",
-  "com.fasterxml.jackson:jackson-bom:2.12.1",
+  "com.amazonaws:aws-java-sdk-bom:1.11.974",
+  "com.fasterxml.jackson:jackson-bom:2.12.2",
   "com.google.guava:guava-bom:30.1-jre",
-  "com.google.protobuf:protobuf-bom:3.14.0",
-  "com.linecorp.armeria:armeria-bom:1.4.0",
-  "io.grpc:grpc-bom:1.35.0",
+  "com.google.protobuf:protobuf-bom:3.15.6",
+  "com.linecorp.armeria:armeria-bom:1.5.0",
+  "io.grpc:grpc-bom:1.36.0",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "1.0.1-alpha" else "1.1.0-alpha-SNAPSHOT"}",
-  "org.apache.logging.log4j:log4j-bom:2.14.0",
-  "org.junit:junit-bom:5.7.0",
-  "org.springframework.boot:spring-boot-dependencies:2.4.2",
-  "org.testcontainers:testcontainers-bom:1.15.1",
-  "software.amazon.awssdk:bom:2.15.73"
+  "org.apache.logging.log4j:log4j-bom:2.14.1",
+  "org.junit:junit-bom:5.7.1",
+  "org.springframework.boot:spring-boot-dependencies:2.4.3",
+  "org.testcontainers:testcontainers-bom:1.15.2",
+  "software.amazon.awssdk:bom:2.16.18"
 )
 
 val DEPENDENCY_SETS = listOf(
