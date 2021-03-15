@@ -29,7 +29,6 @@ pluginManagement {
 dependencyResolutionManagement {
   repositories {
     mavenCentral()
-    jcenter()
     mavenLocal()
 
     maven {

@@ -4,20 +4,6 @@ plugins {
   id("com.google.cloud.tools.jib")
 }
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-repositories {
-  jcenter()
-  mavenCentral()
-  maven {
-    setUrl("https://oss.jfrog.org/libs-snapshot")
-  }
-  mavenLocal()
-}
-
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter")
