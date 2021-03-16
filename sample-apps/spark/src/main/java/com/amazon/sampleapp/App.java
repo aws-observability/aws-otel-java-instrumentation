@@ -10,9 +10,13 @@ import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import software.amazon.awssdk.services.s3.S3Client;
 
 public class App {
+  private static final Logger logger = LogManager.getLogger();
+
   static final String REQUEST_START_TIME = "requestStartTime";
   static int mimicQueueSize;
 
@@ -51,6 +55,8 @@ public class App {
     get(
         "/outgoing-http-call",
         (req, res) -> {
+          logger.info("Executing outgoing-http-call");
+
           try (Response response =
               httpClient
                   .newCall(new Request.Builder().url("https://aws.amazon.com").build())
@@ -66,6 +72,8 @@ public class App {
     get(
         "/aws-sdk-call",
         (req, res) -> {
+          logger.info("Executing aws-sdk-all");
+
           s3.listBuckets();
 
           return getXrayTraceId();

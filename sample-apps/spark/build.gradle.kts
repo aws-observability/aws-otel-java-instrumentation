@@ -11,7 +11,10 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp")
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-api-metrics")
+  implementation("org.apache.logging.log4j:log4j-core")
   implementation("software.amazon.awssdk:s3")
+
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl")
 }
 
 application {

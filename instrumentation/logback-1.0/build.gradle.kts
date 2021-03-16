@@ -18,26 +18,14 @@ plugins {
   id("com.github.johnrengelman.shadow")
 }
 
-base {
-  archivesBaseName = "aws-opentelemetry-agent-providers"
-}
+base.archivesBaseName = "aws-instrumentation-logback-1.0"
 
 dependencies {
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-spi")
-  compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
-  compileOnly("org.slf4j:slf4j-api")
+  compileOnly("io.opentelemetry:opentelemetry-api")
+  compileOnly("io.opentelemetry.instrumentation:opentelemetry-logback-1.0")
+  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-api")
+  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-tooling")
+  compileOnly("net.bytebuddy:byte-buddy")
 
-  implementation("io.opentelemetry:opentelemetry-sdk-extension-aws")
-
-  testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
-
-  testImplementation("com.google.guava:guava")
-
-  compileOnly("com.google.code.findbugs:jsr305:3.0.2")
-}
-
-tasks {
-  shadowJar {
-    archiveClassifier.set("")
-  }
+  compileOnly("ch.qos.logback:logback-classic:1.0.0")
 }
