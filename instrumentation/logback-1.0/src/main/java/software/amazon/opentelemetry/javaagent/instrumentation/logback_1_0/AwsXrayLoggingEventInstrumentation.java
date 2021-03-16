@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.instrumentation.logback_1_0;
 
 import static io.opentelemetry.javaagent.tooling.bytebuddy.matcher.AgentElementMatchers.implementsInterface;
+import static io.opentelemetry.javaagent.tooling.bytebuddy.matcher.ClassLoaderMatcher.hasClassesNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -38,6 +39,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
   private static final String TRACE_ID_KEY = "AWS-XRAY-TRACE-ID";
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderOptimization() {
+    return hasClassesNamed("ch.qos.logback.classic.spi.ILoggingEvent");
+  }
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
