@@ -37,8 +37,7 @@ public class AwsXrayContextDataProvider implements ContextDataProvider {
     }
 
     String value =
-        TRACE_ID_KEY
-            + ": 1-"
+        "1-"
             + spanContext.getTraceId().substring(0, 8)
             + "-"
             + spanContext.getTraceId().substring(8)
