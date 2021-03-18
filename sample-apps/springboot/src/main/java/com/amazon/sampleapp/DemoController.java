@@ -6,6 +6,8 @@ import java.io.UncheckedIOException;
 import okhttp3.Call;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 @Controller
 public class DemoController {
+  private static final Logger logger = LoggerFactory.getLogger(DemoController.class);
+
   private final Call.Factory httpClient;
   private final S3Client s3;
 
@@ -34,6 +38,8 @@ public class DemoController {
   @GetMapping("/outgoing-http-call")
   @ResponseBody
   public String httpCall() {
+    logger.info("Executing outgoing-http-call");
+
     try (Response response =
         httpClient.newCall(new Request.Builder().url("https://aws.amazon.com").build()).execute()) {
     } catch (IOException e) {
@@ -47,6 +53,8 @@ public class DemoController {
   @GetMapping("/aws-sdk-call")
   @ResponseBody
   public String awssdkCall() {
+    logger.info("Executing aws-sdk-all");
+
     s3.listBuckets();
 
     return getXrayTraceId();

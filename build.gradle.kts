@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jk1.license.render.InventoryMarkdownReportRenderer
 import nebula.plugin.release.git.opinion.Strategies
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -24,6 +25,8 @@ plugins {
   id("com.github.jk1.dependency-license-report")
   id("io.github.gradle-nexus.publish-plugin")
   id("nebula.release")
+
+  id("com.github.johnrengelman.shadow") apply false
 }
 
 release {
@@ -131,6 +134,32 @@ allprojects {
       named<JavaCompile>("compileTestJava") {
         sourceCompatibility = JavaVersion.VERSION_11.toString()
         targetCompatibility = JavaVersion.VERSION_11.toString()
+      }
+    }
+  }
+
+  plugins.withId("com.github.johnrengelman.shadow") {
+    tasks {
+      named<ShadowJar>("shadowJar") {
+        exclude("**/module-info.class")
+
+        // rewrite library instrumentation dependencies
+        relocate("io.opentelemetry.instrumentation", "io.opentelemetry.javaagent.shaded.instrumentation")
+
+        // rewrite dependencies calling Logger.getLogger
+        relocate("java.util.logging.Logger", "io.opentelemetry.javaagent.bootstrap.PatchLogger")
+
+        // relocate OpenTelemetry API usage
+        relocate("io.opentelemetry.api", "io.opentelemetry.javaagent.shaded.io.opentelemetry.api")
+        relocate("io.opentelemetry.semconv", "io.opentelemetry.javaagent.shaded.io.opentelemetry.semconv")
+        relocate("io.opentelemetry.spi", "io.opentelemetry.javaagent.shaded.io.opentelemetry.spi")
+        relocate("io.opentelemetry.context", "io.opentelemetry.javaagent.shaded.io.opentelemetry.context")
+
+        // relocate the OpenTelemetry extensions that are used by instrumentation modules)
+        // these extensions live in the AgentClassLoader, and are injected into the user's class loader
+        // by the instrumentation modules that use them
+        relocate("io.opentelemetry.extension.aws", "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.aws")
+        relocate("io.opentelemetry.extension.kotlin", "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.kotlin")
       }
     }
   }

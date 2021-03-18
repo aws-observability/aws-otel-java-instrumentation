@@ -39,6 +39,8 @@ dependencyResolutionManagement {
 
 include(":awsagentprovider")
 include(":dependencyManagement")
+include(":instrumentation:logback-1.0")
+include(":instrumentation:log4j-2.13.2")
 include(":otelagent")
 include(":smoke-tests:fakebackend")
 include(":smoke-tests:runner")

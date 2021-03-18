@@ -34,21 +34,35 @@ dependencies {
   implementation("io.opentelemetry.javaagent", "opentelemetry-javaagent", classifier = "all")
 }
 
-val agentProviderShadowJarTask = project(":awsagentprovider").tasks.named<Jar>("shadowJar")
+val bundledProjects = listOf(
+  project(":awsagentprovider"),
+  project(":instrumentation:log4j-2.13.2"),
+  project(":instrumentation:logback-1.0")
+)
+
+for (bundled in bundledProjects) {
+  evaluationDependsOn(bundled.path)
+}
+
 tasks {
   processResources {
-    val providerArchive = agentProviderShadowJarTask.get().archiveFile
-    from(zipTree(providerArchive)) {
-      into("inst")
-      rename("(^.*)\\.class$", "$1.classdata")
+    for (bundled in bundledProjects) {
+      val task = bundled.tasks.named<Jar>("shadowJar").get()
+      val providerArchive = task.archiveFile
+      from(zipTree(providerArchive)) {
+        into("inst")
+        rename("(^.*)\\.class$", "$1.classdata")
+      }
+      dependsOn(task)
     }
-    dependsOn(agentProviderShadowJarTask)
   }
 
   shadowJar {
     archiveClassifier.set("")
 
     exclude("**/module-info.class")
+
+    mergeServiceFiles("inst/META-INF/services")
 
     manifest {
       attributes.put("Main-Class", "io.opentelemetry.javaagent.OpenTelemetryAgent")

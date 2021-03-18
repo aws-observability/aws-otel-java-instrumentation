@@ -66,7 +66,8 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.1",
-  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.0.1" else "1.1.0-SNAPSHOT"}"
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.0.1" else "1.1.0-SNAPSHOT"}",
+  "net.bytebuddy:byte-buddy:1.10.22"
 )
 
 javaPlatform {
