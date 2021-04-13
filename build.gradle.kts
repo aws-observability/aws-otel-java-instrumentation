@@ -186,9 +186,6 @@ allprojects {
           plugins.withId("java-platform") {
             from(components["javaPlatform"])
           }
-          plugins.withId("java-library") {
-            from(components["java"])
-          }
           plugins.withId("java") {
             from(components["java"])
           }
