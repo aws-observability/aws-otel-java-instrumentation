@@ -1,6 +1,6 @@
 package com.amazon.sampleapp;
 
-import io.opentelemetry.api.metrics.GlobalMetricsProvider;
+import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongSumObserver;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
@@ -39,7 +39,7 @@ public class MetricEmitter {
   String statusCodeValue = "";
 
   public MetricEmitter() {
-    Meter meter = GlobalMetricsProvider.getMeter("aws-otel", "1.0");
+    Meter meter = GlobalMeterProvider.getMeter("aws-otel", "1.0");
 
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
