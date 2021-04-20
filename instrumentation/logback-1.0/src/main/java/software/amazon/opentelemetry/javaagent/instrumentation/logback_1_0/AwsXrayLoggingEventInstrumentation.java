@@ -46,7 +46,7 @@ public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("ch.qos.logback.classic.spi.ILoggingEvent"));
   }
 

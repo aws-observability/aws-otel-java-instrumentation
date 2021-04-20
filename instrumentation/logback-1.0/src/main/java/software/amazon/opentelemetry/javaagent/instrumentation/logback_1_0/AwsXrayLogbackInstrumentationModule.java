@@ -33,7 +33,7 @@ public class AwsXrayLogbackInstrumentationModule extends InstrumentationModule {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> getMuzzleContextStoreClasses() {
     return Collections.singletonMap(
         "ch.qos.logback.classic.spi.ILoggingEvent", Span.class.getName());
   }
