@@ -7,7 +7,7 @@ preconfigured for use with AWS services. Please check out that project too to ge
 understanding of the underlying internals. You won't see much code in this repository since we only
 apply some small configuration changes, and our OpenTelemetry friends takes care of the rest.
 
-We provided a Java agent JAR that can be attached to any Java 7+ application and dynamically injects 
+We provided a Java agent JAR that can be attached to any Java 8+ application and dynamically injects 
 bytecode to capture telemetry from a number of popular libraries and frameworks. The telemetry data 
 can be exported in a variety of formats. In addition, the agent and exporter can be configured via 
 command line arguments or environment variables. The net result is the ability to gather telemetry
