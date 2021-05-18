@@ -23,7 +23,7 @@ base {
 }
 
 dependencies {
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-spi")
+  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   compileOnly("org.slf4j:slf4j-api")
 
