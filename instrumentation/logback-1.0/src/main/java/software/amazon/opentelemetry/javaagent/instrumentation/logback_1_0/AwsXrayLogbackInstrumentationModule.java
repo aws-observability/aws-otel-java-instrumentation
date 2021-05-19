@@ -16,8 +16,8 @@
 package software.amazon.opentelemetry.javaagent.instrumentation.logback_1_0;
 
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.javaagent.tooling.InstrumentationModule;
-import io.opentelemetry.javaagent.tooling.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;

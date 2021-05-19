@@ -27,18 +27,18 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.11.1001",
+  "com.amazonaws:aws-java-sdk-bom:1.11.1020",
   "com.fasterxml.jackson:jackson-bom:2.12.3",
   "com.google.guava:guava-bom:30.1.1-jre",
-  "com.google.protobuf:protobuf-bom:3.15.8",
-  "com.linecorp.armeria:armeria-bom:1.6.0",
-  "io.grpc:grpc-bom:1.37.0",
-  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "1.1.0-alpha" else "1.2.0-alpha-SNAPSHOT"}",
+  "com.google.protobuf:protobuf-bom:3.17.0",
+  "com.linecorp.armeria:armeria-bom:1.7.2",
+  "io.grpc:grpc-bom:1.37.1",
+  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "1.2.0-alpha" else "1.3.0-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.14.1",
-  "org.junit:junit-bom:5.7.1",
+  "org.junit:junit-bom:5.7.2",
   "org.springframework.boot:spring-boot-dependencies:2.4.5",
   "org.testcontainers:testcontainers-bom:1.15.3",
-  "software.amazon.awssdk:bom:2.16.44"
+  "software.amazon.awssdk:bom:2.16.64"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -66,7 +66,7 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.1",
-  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.1.0" else "1.2.0-SNAPSHOT"}",
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.2.0" else "1.3.0-SNAPSHOT"}",
   "net.bytebuddy:byte-buddy:1.11.0"
 )
 

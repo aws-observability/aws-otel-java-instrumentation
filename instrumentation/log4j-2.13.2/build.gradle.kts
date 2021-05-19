@@ -22,7 +22,7 @@ base.archivesBaseName = "aws-instrumentation-log4j-2.13.2"
 
 dependencies {
   compileOnly("io.opentelemetry:opentelemetry-api")
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-tooling")
+  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("net.bytebuddy:byte-buddy")
 
   compileOnly("org.apache.logging.log4j:log4j-core:2.13.2")

@@ -15,11 +15,11 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2;
 
-import static io.opentelemetry.javaagent.tooling.bytebuddy.matcher.ClassLoaderMatcher.hasClassesNamed;
+import static io.opentelemetry.javaagent.extension.matcher.ClassLoaderMatcher.hasClassesNamed;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
-import io.opentelemetry.javaagent.tooling.InstrumentationModule;
-import io.opentelemetry.javaagent.tooling.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,7 @@ public class AwsXrayLog4jInstrumentationModule extends InstrumentationModule {
   // The SPI will be merged with what's in the agent so we don't need to inject it, only our
   // provider implementation.
   @Override
-  protected String[] additionalHelperClassNames() {
+  public String[] helperResourceNames() {
     return new String[] {
       "software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2."
           + "AwsXrayContextDataProvider"
