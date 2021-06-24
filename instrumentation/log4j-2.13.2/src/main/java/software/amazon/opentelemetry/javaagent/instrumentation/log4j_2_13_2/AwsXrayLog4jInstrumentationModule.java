@@ -20,10 +20,9 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -36,11 +35,10 @@ public class AwsXrayLog4jInstrumentationModule extends InstrumentationModule {
   // The SPI will be merged with what's in the agent so we don't need to inject it, only our
   // provider implementation.
   @Override
-  public String[] helperResourceNames() {
-    return new String[] {
-      "software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2."
-          + "AwsXrayContextDataProvider"
-    };
+  public List<String> helperResourceNames() {
+    return Collections.singletonList(
+        "software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2."
+            + "AwsXrayContextDataProvider");
   }
 
   @Override
@@ -65,9 +63,8 @@ public class AwsXrayLog4jInstrumentationModule extends InstrumentationModule {
     }
 
     @Override
-    public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+    public void transform(TypeTransformer transformer) {
       // Nothing to instrument, no methods to match
-      return Collections.emptyMap();
     }
   }
 }
