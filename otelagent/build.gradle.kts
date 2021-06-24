@@ -41,7 +41,7 @@ val shadowClasspath by configurations.creating {
 dependencies {
   // Ensure dependency doesn't leak into POMs by using compileOnly and shadow-specific configuration.
   val agentDep = create("io.opentelemetry.javaagent", "opentelemetry-javaagent", classifier = "all")
-  add(shadowClasspath.name, agentDep)
+  shadowClasspath(agentDep)
   compileOnly(agentDep)
 }
 
