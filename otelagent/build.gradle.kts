@@ -30,8 +30,19 @@ base {
   archivesBaseName = "aws-opentelemetry-agent"
 }
 
+val shadowClasspath by configurations.creating {
+  isCanBeConsumed = false
+  isCanBeResolved = true
+  attributes {
+    attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))
+  }
+}
+
 dependencies {
-  implementation("io.opentelemetry.javaagent", "opentelemetry-javaagent", classifier = "all")
+  // Ensure dependency doesn't leak into POMs by using compileOnly and shadow-specific configuration.
+  val agentDep = create("io.opentelemetry.javaagent", "opentelemetry-javaagent", classifier = "all")
+  shadowClasspath(agentDep)
+  compileOnly(agentDep)
 }
 
 val bundledProjects = listOf(
@@ -59,6 +70,8 @@ tasks {
 
   shadowJar {
     archiveClassifier.set("")
+
+    configurations = listOf(shadowClasspath)
 
     exclude("**/module-info.class")
 
