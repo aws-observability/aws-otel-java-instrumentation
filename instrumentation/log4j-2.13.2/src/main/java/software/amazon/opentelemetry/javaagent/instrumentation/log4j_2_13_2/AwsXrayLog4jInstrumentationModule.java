@@ -15,7 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2;
 
-import static io.opentelemetry.javaagent.extension.matcher.ClassLoaderMatcher.hasClassesNamed;
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;

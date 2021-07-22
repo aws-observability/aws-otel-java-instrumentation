@@ -15,11 +15,11 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import io.opentelemetry.javaagent.spi.config.PropertySource;
+import io.opentelemetry.javaagent.extension.config.ConfigPropertySource;
 import java.util.HashMap;
 import java.util.Map;
 
-public class AwsAgentProperties implements PropertySource {
+public class AwsAgentProperties implements ConfigPropertySource {
   @Override
   public Map<String, String> getProperties() {
     Map<String, String> properties = new HashMap<>();
