@@ -33,6 +33,10 @@ release {
   defaultVersionStrategy = Strategies.getSNAPSHOT()
 }
 
+nebulaRelease {
+  addReleaseBranchPattern("""v\d+\.\d+\.x""")
+}
+
 nexusPublishing {
   repositories {
     sonatype {
