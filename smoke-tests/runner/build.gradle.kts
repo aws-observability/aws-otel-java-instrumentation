@@ -36,7 +36,7 @@ project.evaluationDependsOn(":otelagent")
 
 val otelAgentJarTask = project(":otelagent").tasks.named<Jar>("shadowJar")
 tasks {
-  named<Test>("test") {
+  withType<Test>().configureEach {
     dependsOn(otelAgentJarTask)
 
     jvmArgs(

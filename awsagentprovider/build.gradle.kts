@@ -28,6 +28,7 @@ dependencies {
   compileOnly("org.slf4j:slf4j-api")
 
   implementation("io.opentelemetry:opentelemetry-sdk-extension-aws")
+  implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
 

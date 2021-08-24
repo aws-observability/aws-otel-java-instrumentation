@@ -119,6 +119,21 @@ class SpringBootSmokeTest {
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
           .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080");
 
+  @Container
+  private static final GenericContainer<?> applicationXraySampler =
+      new GenericContainer<>("public.ecr.aws/u0d6r4y4/aws-otel-java-smoketests-springboot:latest")
+          .dependsOn(backend)
+          .withExposedPorts(8080)
+          .withNetwork(network)
+          .withLogConsumer(new Slf4jLogConsumer(applicationLogger))
+          .withCopyFileToContainer(
+              MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
+          .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
+          .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
+          .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
+          .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080")
+          .withEnv("OTEL_TRACES_SAMPLER", "xray");
+
   private static final TypeReference<List<ExportTraceServiceRequest>>
       EXPORT_TRACE_SERVICE_REQUEST_LIST = new TypeReference<>() {};
 
@@ -184,6 +199,35 @@ class SpringBootSmokeTest {
                       traceId.byteAt(0), traceId.byteAt(1), traceId.byteAt(2), traceId.byteAt(3));
               assertThat(epoch).isGreaterThanOrEqualTo(START_TIME_SECS);
             });
+  }
+
+  @Test
+  void defaultSamplingRate() {
+    int numRequests = 100;
+    for (int i = 0; i < numRequests; i++) {
+      appClient.get("/hello").aggregate().join();
+    }
+
+    var exported = getExported();
+    // 5 spans per request (1 CLIENT, 2 SERVER, 2 INTERNAL)
+    assertThat(exported).hasSize(numRequests * 5);
+  }
+
+  @Test
+  void remoteSamplingRate() {
+    // We just want to make sure OTEL_TRACES_SAMPLER=xray is using the XRay sampler. It will fail to
+    // fetch rules and fallback to the default, which will not sample all requests.
+    WebClient client =
+        WebClient.of("http://localhost:" + applicationXraySampler.getMappedPort(8080));
+    int numRequests = 100;
+    for (int i = 0; i < numRequests; i++) {
+      client.get("/hello").aggregate().join();
+    }
+
+    var exported = getExported();
+    // 5 spans per request (1 CLIENT, 2 SERVER, 2 INTERNAL) if sampled. The default sampler is
+    // around 5%, we do a very rough check that there are no more than 10% sampled.
+    assertThat(exported).hasSizeLessThanOrEqualTo(numRequests * 5 / 10);
   }
 
   private List<Span> getExported() {
