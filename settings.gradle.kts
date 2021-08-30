@@ -15,14 +15,14 @@
 
 pluginManagement {
   plugins {
-    id("com.diffplug.spotless") version "5.8.2"
-    id("com.github.ben-manes.versions") version "0.38.0"
-    id("com.github.jk1.dependency-license-report") version "1.16"
+    id("com.diffplug.spotless") version "5.14.3"
+    id("com.github.ben-manes.versions") version "0.39.0"
+    id("com.github.jk1.dependency-license-report") version "1.17"
     id("com.github.johnrengelman.shadow") version "7.0.0"
-    id("com.google.cloud.tools.jib") version "2.8.0"
-    id("io.github.gradle-nexus.publish-plugin") version "1.0.0"
-    id("nebula.release") version "15.3.0"
-    id("org.springframework.boot") version "2.4.0"
+    id("com.google.cloud.tools.jib") version "3.1.4"
+    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
+    id("nebula.release") version "15.3.1"
+    id("org.springframework.boot") version "2.5.4"
   }
 }
 

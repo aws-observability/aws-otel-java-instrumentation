@@ -88,10 +88,19 @@ allprojects {
       withSourcesJar()
     }
 
+    val dependencyManagement by configurations.creating {
+      isCanBeConsumed = false
+      isCanBeResolved = false
+      isVisible = false
+    }
+
     dependencies {
-      configurations.configureEach {
-        if (name.endsWith("Classpath")) {
-          add(name, enforcedPlatform(project(":dependencyManagement")))
+      dependencyManagement(platform(project(":dependencyManagement")))
+      afterEvaluate {
+        configurations.configureEach {
+          if (isCanBeResolved && !isCanBeConsumed) {
+            extendsFrom(dependencyManagement)
+          }
         }
       }
 
