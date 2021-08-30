@@ -57,6 +57,8 @@ for (bundled in bundledProjects) {
 
 tasks {
   processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     for (bundled in bundledProjects) {
       val task = bundled.tasks.named<Jar>("shadowJar").get()
       val providerArchive = task.archiveFile
