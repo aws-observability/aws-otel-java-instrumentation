@@ -69,7 +69,7 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.1",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.4.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.5.0-SNAPSHOT",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.5.2" else "$otelSnapshotVersion-SNAPSHOT"}",
   "net.bytebuddy:byte-buddy:1.11.13"
 )
