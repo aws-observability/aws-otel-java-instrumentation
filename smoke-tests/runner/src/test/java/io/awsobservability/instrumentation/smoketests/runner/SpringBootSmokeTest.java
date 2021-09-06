@@ -227,7 +227,7 @@ class SpringBootSmokeTest {
     var exported = getExported();
     // 5 spans per request (1 CLIENT, 2 SERVER, 2 INTERNAL) if sampled. The default sampler is
     // around 5%, we do a very rough check that there are no more than 10% sampled.
-    assertThat(exported).hasSizeLessThanOrEqualTo(numRequests * 5 / 10);
+    assertThat(exported).isNotEmpty().hasSizeLessThanOrEqualTo(numRequests * 5 / 10);
   }
 
   private List<Span> getExported() {
