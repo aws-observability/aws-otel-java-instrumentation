@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v2
         with:
@@ -17,7 +20,6 @@ jobs:
 
       - run: sleep 5 # there's still a race condition for now
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
         run: |
           export AWS_ROLE_ARN=${{ secrets.AWS_ASSUME_ROLE_ARN }}
           export AWS_WEB_IDENTITY_TOKEN_FILE=/tmp/awscreds
