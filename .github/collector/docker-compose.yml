@@ -11,6 +11,7 @@ services:
       - AWS_WEB_IDENTITY_TOKEN_FILE
     volumes:
       - .:/config
+      - /tmp/awscreds:/tmp/awscreds
     ports:
       - '4317:4317'
 
@@ -28,6 +29,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
       - AWS_REGION=us-west-2
       - OTEL_JAVAAGENT_DEBUG=true
+    volumes:
+      - /tmp/awscreds:/tmp/awscreds
     ports:
       - '4567:4567'
       - '8080:8080'
@@ -45,3 +48,5 @@ services:
       - AWS_ROLE_ARN
       - AWS_WEB_IDENTITY_TOKEN_FILE
       - AWS_REGION=us-west-2
+    volumes:
+      - /tmp/awscreds:/tmp/awscreds
