@@ -30,6 +30,7 @@ jobs:
           echo AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION >> $GITHUB_ENV
 
           curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+      - run: aws sts get-caller-identity # just an example. why not deploy something?
 
       - name: Login to ECR
         uses: docker/login-action@v1
