@@ -33,9 +33,7 @@ jobs:
       - run: aws sts get-caller-identity # just an example. why not deploy something?
 
       - name: Login to ECR
-        uses: docker/login-action@v1
-        with:
-          registry: public.ecr.aws
+        run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
       - name: Build snapshot with Gradle
         uses: burrunan/gradle-cache-action@v1
         with:
