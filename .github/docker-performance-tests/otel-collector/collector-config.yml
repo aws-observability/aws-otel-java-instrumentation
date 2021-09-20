@@ -1,0 +1,83 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+  hostmetrics:
+    collection_interval: ${HOSTMETRICS_INTERVAL_SECS}s
+    scrapers:
+      process:
+        include:
+          match_type: strict
+          names:
+            - ${APP_PROCESS_EXECUTABLE_NAME}
+
+processors:
+  filter:
+    metrics:
+      include:
+        match_type: strict
+        metric_names:
+          - process.cpu.time
+          # TODO: Add this if we want Disk stats in the future
+          # - process.disk.io
+          - process.memory.physical_usage
+          - process.memory.virtual_usage
+        resource_attributes:
+          - Key: process.command_line
+            Value: ${APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE}
+  metricstransform:
+    transforms:
+      - include: process.*
+        match_type: regexp
+        action: update
+        operations:
+          - action: add_label
+            new_label: commit_sha
+            new_value: ${TARGET_SHA}
+          - action: add_label
+            new_label: github_run_id
+            new_value: ${GITHUB_RUN_ID}
+
+exporters:
+  logging:
+    loglevel: error
+  awsemf:
+    region: ${AWS_DEFAULT_REGION}
+    namespace: ${LOGS_NAMESPACE}
+    log_group_name: ${LOG_GROUP_NAME}
+    log_stream_name: sample-app-${MATRIX_COMMIT_COMBO}
+    resource_to_telemetry_conversion:
+      enabled: true
+    dimension_rollup_option: NoDimensionRollup
+    metric_declarations:
+      - dimensions: [
+          [
+            process.command_line,
+            commit_sha,
+            github_run_id
+          ]
+        ]
+        metric_name_selectors:
+          - process.cpu.time
+          # - process.disk.io
+          - process.memory.physical_usage
+          - process.memory.virtual_usage
+
+service:
+  pipelines:
+    traces:
+      receivers:
+        - otlp
+      exporters:
+        - logging
+    metrics:
+      receivers:
+        - hostmetrics
+        # Metrics not yet available
+        # - otlp
+      processors:
+        - filter
+        - metricstransform
+      exporters:
+        - awsemf

@@ -1,0 +1,262 @@
+# Pre-requisites:
+# - AWS Account with correct permissions
+# - `gh-pages` branch
+# - AWS Account needs to add the LOG_GROUP_NAME defined below
+
+name: Soak Testing
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit_sha:
+        description: 'The commit SHA on this repo to use for the Soak Tests.'
+        required: true
+      test_duration_minutes:
+        description: 'The duration of the Soak Tests in minutes.'
+        required: true
+        default: 300
+  schedule:
+    - cron: '0 15 * * *'
+env:
+  # NOTE: The configuration of `APP_PROCESS_EXECUTABLE_NAME` is repo dependent
+  APP_PROCESS_EXECUTABLE_NAME: python3
+  AWS_DEFAULT_REGION: us-east-1
+  DEFAULT_TEST_DURATION_MINUTES: 300
+  HOSTMETRICS_INTERVAL_SECS: 600
+  CPU_LOAD_THRESHOLD: 71
+  TOTAL_MEMORY_THRESHOLD: 2147483648
+  MAX_BENCHMARKS_TO_KEEP: 100
+  # TODO: We might be able to adapt the "Soak Tests" to be "Overhead Tests".
+  # This means monitoring the Sample App's performance using high levels of TPS
+  # for the Load Generator over a shorter period of testing time. For example:
+  # https://github.com/aws-observability/aws-otel-collector/blob/main/docs/performance_model.md
+  # THROUGHPUT_PER_SECOND: TBD?
+
+jobs:
+  test_apps_and_publish_results:
+    name: Publish app and Soak Performance Test - (${{ matrix.app-platform }}, ${{ matrix.instrumentation-type }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app-platform: [ flask ]
+        instrumentation-type: [ auto, manual, none ]
+    env:
+      # NOTE: The configuration of `APP_PATH` is repo dependent
+      APP_PATH: integration-test-apps/${{ matrix.instrumentation-type}}-instrumentation/${{ matrix.app-platform }}
+      LOGS_NAMESPACE: ${{ github.repository }}/soak-tests-${{ matrix.app-platform }}-${{ matrix.instrumentation-type }}
+    steps:
+    # MARK: - GitHub Workflow Event Type Specific Values
+
+      - name: Use INPUT as commit SHA
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "TARGET_SHA=${{ github.event.inputs.target_commit_sha }}" | tee --append $GITHUB_ENV;
+      - name: Use LATEST as commit SHA
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          echo "TARGET_SHA=${{ github.sha }}" | tee --append $GITHUB_ENV;
+      - name: Configure Performance Test Duration
+        run: |
+          echo "TEST_DURATION_MINUTES=${{ github.event.inputs.test_duration_minutes || env.DEFAULT_TEST_DURATION_MINUTES }}" | tee --append $GITHUB_ENV;
+      - name: Clone This Repo @ ${{ env.TARGET_SHA }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+    # MARK: - Instrumentation-Type Specific Values
+
+      # NOTE: The configuration of `APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE` is
+      # repo dependent
+      - name: Configure Auto Instrumentation-Type Specific Values
+        if: ${{ matrix.instrumentation-type == 'auto' }}
+        run: |
+          echo 'APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE<<EOF' >> $GITHUB_ENV
+          echo '/usr/local/bin/python3 application.py' | tee --append $GITHUB_ENV;
+          echo 'EOF' >> $GITHUB_ENV
+      - name: Configure Manual Instrumentation-Type Specific Values
+        if: ${{ matrix.instrumentation-type == 'manual' ||
+          matrix.instrumentation-type == 'none' }}
+        run: |
+          echo 'APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE<<EOF' >> $GITHUB_ENV
+          echo '/usr/local/bin/python3 /app/application.py' | tee --append $GITHUB_ENV;
+          echo 'EOF' >> $GITHUB_ENV
+      # FIXME: This uses the latest Commit SHA of the upstream Core repo. We
+      # should provide it as an input to consider the edge case where we want to
+      # run against a specific Core repo change. For the manual
+      # instrumentation app.
+      # FIXME: We might also consider making this configurable for the
+      # Auto-Instrumentation app.
+      - name: Clone OpenTelemetry Core Repo
+        uses: actions/checkout@v2
+        if: ${{ matrix.instrumentation-type == 'manual' }}
+        with:
+          repository: open-telemetry/opentelemetry-python
+          path: ${{ env.APP_PATH }}/opentelemetry-python-core
+      # FIXME: This uses the latest Commit SHA of the upstream Contrib repo. We
+      # should provide it as an input to consider the edge case where we want to
+      # run against a specific Contrib repo change. For the manual
+      # instrumentation app.
+      - name: Clone OpenTelemetry Contrib Repo
+        uses: actions/checkout@v2
+        if: ${{ matrix.instrumentation-type == 'manual' }}
+        with:
+          repository: open-telemetry/opentelemetry-python-contrib
+          path: ${{ env.APP_PATH }}/opentelemetry-python-contrib
+
+    # MARK: - Uniquely identify this Sample App environment
+
+      - name: Create unique combination using matrix + commit parameters
+        run: |
+          echo "MATRIX_COMMIT_COMBO=${{ matrix.app-platform }}-${{ matrix.instrumentation-type }}-${{ env.TARGET_SHA }}" | tee --append $GITHUB_ENV;
+
+    # MARK: - Run Performance Tests
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          role-duration-seconds: 21600 # 6 Hours
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      - name: Configure Performance Test environment variables
+        run: |
+          echo "NUM_OF_CPUS=$(nproc --all)" | tee --append $GITHUB_ENV;
+      - name: Run All Docker Containers - Sample App + OTel Collector + Load Generator + Alarm Poller
+        id: check-failure-during-performance-tests
+        continue-on-error: true
+        working-directory: .github/docker-performance-tests
+        env:
+          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
+          LISTEN_ADDRESS_PORT: 8080
+          LOG_GROUP_NAME: otel-sdk-performance-tests
+          # Also uses:
+          # APP_PATH
+          # TARGET_SHA
+          # LOGS_NAMESPACE
+          # LOG_STREAM_NAME
+          # APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE
+          # APP_PROCESS_EXECUTABLE_NAME
+          # HOSTMETRICS_INTERVAL_SECS
+          # TEST_DURATION_MINUTES
+          # NUM_OF_CPUS
+          # CPU_LOAD_THRESHOLD
+          # TOTAL_MEMORY_THRESHOLD
+          # AWS_DEFAULT_REGION
+          # MATRIX_COMMIT_COMBO
+          # GITHUB_RUN_ID
+        run: |-
+          docker-compose up --build;
+          RUN_TESTS_EXIT_CODE=$(
+            docker inspect $(
+              docker ps --quiet --all --filter "name=docker-performance-tests_alarms-poller"
+            ) --format="{{.State.ExitCode}}"
+          );
+          echo "RUN_TESTS_EXIT_CODE=$RUN_TESTS_EXIT_CODE" | tee --append $GITHUB_ENV;
+          exit $RUN_TESTS_EXIT_CODE;
+      - name: Fail early if Soak Tests failed to start
+        if: ${{ env.RUN_TESTS_EXIT_CODE == 1 }}
+        run: exit 1;
+
+    # MARK: - Report on Performance Test Results
+
+      - name: Install script dependencies
+        run: pip install boto3
+      - name: Get a snapshot of metrics and commit them to the repository
+        run: |
+          python3 .github/scripts/performance-tests/produce_metric_widget_images.py \
+            --logs-namespace ${{ env.LOGS_NAMESPACE }} \
+            --metrics-period ${{ env.HOSTMETRICS_INTERVAL_SECS }} \
+            --num-of-cpus ${{ env.NUM_OF_CPUS }} \
+            --app-process-command-line-dimension-value "${{ env.APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE }}" \
+            --target-sha ${{ env.TARGET_SHA }} \
+            --github-run-id ${GITHUB_RUN_ID} \
+            --test-duration-minutes ${{ env.TEST_DURATION_MINUTES }} \
+            --cpu-load-threshold ${{ env.CPU_LOAD_THRESHOLD }} \
+            --total-memory-threshold ${{ env.TOTAL_MEMORY_THRESHOLD }} \
+            --app-platform ${{ matrix.app-platform }} \
+            --instrumentation-type ${{ matrix.instrumentation-type }} \
+            --max-benchmarks-to-keep ${{ env.MAX_BENCHMARKS_TO_KEEP }} \
+            --github-repository ${GITHUB_REPOSITORY}
+          echo "::warning::Checkout Snapshots at this link: https://github.com/${GITHUB_REPOSITORY}/blob/gh-pages/soak-tests/snapshots/commits/${{ env.TARGET_SHA }}/runs/${GITHUB_RUN_ID}/${{ matrix.app-platform }}";
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com";
+          git config user.name "GitHub Actions";
+          git fetch;
+          git checkout gh-pages;
+          git add soak-tests/snapshots/commits;
+          git commit -m "Soak Test Snapshots from ${{ env.TARGET_SHA }} - ${GITHUB_RUN_ID}";
+          git push;
+          git checkout main;
+      - name: Prepare Performance Test results as JSON output
+        run: python3 .github/scripts/performance-tests/get-metric-data/produce_performance_test_results.py
+          --logs-namespace ${{ env.LOGS_NAMESPACE }}
+          --metrics-period ${{ env.HOSTMETRICS_INTERVAL_SECS }}
+          --num-of-cpus ${{ env.NUM_OF_CPUS }}
+          --app-process-command-line-dimension-value "${{ env.APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE }}"
+          --target-sha ${{ env.TARGET_SHA }}
+          --github-run-id ${GITHUB_RUN_ID}
+          --test-duration-minutes ${{ env.TEST_DURATION_MINUTES }}
+      - name: Do we already have Performance Test graph results for this commit?
+        continue-on-error: true
+        id: check-already-have-performance-results
+        run: |
+          git checkout gh-pages;
+          HAS_RESULTS_ALREADY=$(
+            sed 's/window.BENCHMARK_DATA = //' soak-tests/per-commit-overall-results/data.js |
+            jq "
+              .entries |
+              .\"Soak Test Results - sample-app-${{ matrix.app-platform }}-${{ matrix.instrumentation-type }}\" |
+              any(.commit.id == \"${{ env.TARGET_SHA }}\")
+            " || echo false
+          );
+          git checkout main;
+          [[ $HAS_RESULTS_ALREADY == true ]]
+      - name: Graph and Report Performance Test Averages result
+        uses: NathanielRN/github-action-benchmark@v1.8.3-alpha3
+        continue-on-error: true
+        id: check-failure-after-performance-tests
+        with:
+          name: Soak Test Results - sample-app-${{ matrix.app-platform }}-${{ matrix.instrumentation-type }}
+          tool: custombenchmark
+          output-file-path: output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          max-items-in-chart: ${{ env.MAX_BENCHMARKS_TO_KEEP }}
+          alert-threshold: 175%
+          # Does not work as expected, see:
+          # https://github.com/open-telemetry/opentelemetry-python/pull/1478
+          # comment-always: true
+          fail-on-alert: true
+          auto-push: ${{ github.event_name == 'schedule' &&
+            steps.check-already-have-performance-results.outcome == 'failure' &&
+            github.ref == 'refs/heads/main' }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: soak-tests/per-commit-overall-results
+      - name: Publish Issue if failed DURING Performance Tests
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ github.event_name == 'schedule' &&
+          steps.check-failure-during-performance-tests.outcome == 'failure' }}
+        env:
+          APP_PLATFORM: ${{ matrix.app-platform }}
+          INSTRUMENTATION_TYPE: ${{ matrix.instrumentation-type }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: .github/auto-issue-templates/failure-during-soak_tests.md
+      - name: Publish Issue if failed AFTER Performance Tests
+        uses: NathanielRN/create-an-issue@v2.5.1-alpha2
+        if: ${{ github.event_name == 'schedule' &&
+          steps.check-failure-after-performance-tests.outcome == 'failure' }}
+        env:
+          APP_PLATFORM: ${{ matrix.app-platform }}
+          INSTRUMENTATION_TYPE: ${{ matrix.instrumentation-type }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: .github/auto-issue-templates/failure-after-soak_tests.md
+      - name: Check for Performance Degradation either DURING or AFTER Performance Tests
+        if: ${{ steps.check-failure-during-performance-tests.outcome == 'failure' ||
+          steps.check-failure-after-performance-tests.outcome == 'failure' }}
+        run: >-
+          echo 'Performance Tests failed, see the logs above for details';
+          exit 1;
