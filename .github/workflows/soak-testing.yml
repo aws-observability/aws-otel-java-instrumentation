@@ -18,8 +18,9 @@ on:
     - cron: '0 15 * * *'
 env:
   # NOTE: The configuration of `APP_PROCESS_EXECUTABLE_NAME` is repo dependent
-  APP_PROCESS_EXECUTABLE_NAME: python3
+  APP_PROCESS_EXECUTABLE_NAME: java
   AWS_DEFAULT_REGION: us-east-1
+  AWS_WEB_IDENTITY_TOKEN_FILE: /tmp/awscreds
   DEFAULT_TEST_DURATION_MINUTES: 300
   HOSTMETRICS_INTERVAL_SECS: 600
   CPU_LOAD_THRESHOLD: 71
@@ -33,19 +34,20 @@ env:
 
 jobs:
   test_apps_and_publish_results:
-    name: Publish app and Soak Performance Test - (${{ matrix.app-platform }}, ${{ matrix.instrumentation-type }})
+    name: Soak Performance Test - (${{ matrix.app-platform }}, ${{ matrix.instrumentation-type }})
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: write
       issues: write
     strategy:
       fail-fast: false
       matrix:
-        app-platform: [ flask ]
-        instrumentation-type: [ auto, manual, none ]
+        app-platform: [ spark, spark-awssdkv1, springboot ]
+        instrumentation-type: [ auto ]
     env:
       # NOTE: The configuration of `APP_PATH` is repo dependent
-      APP_PATH: integration-test-apps/${{ matrix.instrumentation-type}}-instrumentation/${{ matrix.app-platform }}
+      APP_PATH: sample-apps/${{ matrix.app-platform }}
       LOGS_NAMESPACE: ${{ github.repository }}/soak-tests-${{ matrix.app-platform }}-${{ matrix.instrumentation-type }}
     steps:
     # MARK: - GitHub Workflow Event Type Specific Values
@@ -66,45 +68,27 @@ jobs:
         with:
           ref: ${{ env.TARGET_SHA }}
 
-    # MARK: - Instrumentation-Type Specific Values
+    # MARK: - App-Platform Specific Values
 
       # NOTE: The configuration of `APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE` is
       # repo dependent
-      - name: Configure Auto Instrumentation-Type Specific Values
-        if: ${{ matrix.instrumentation-type == 'auto' }}
+      - name: Configure Spark & Spark-awssdkv1 Specific Values
+        if: ${{ matrix.app-platform == 'spark' ||
+          matrix.app-platform == 'spark-awssdkv1' }}
         run: |
           echo 'APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE<<EOF' >> $GITHUB_ENV
-          echo '/usr/local/bin/python3 application.py' | tee --append $GITHUB_ENV;
+          echo 'java -cp /app/resources:/app/classes:/app/libs/* com.amazon.sampleapp.App' |
+          tee --append $GITHUB_ENV;
           echo 'EOF' >> $GITHUB_ENV
-      - name: Configure Manual Instrumentation-Type Specific Values
-        if: ${{ matrix.instrumentation-type == 'manual' ||
-          matrix.instrumentation-type == 'none' }}
+          echo 'LISTEN_ADDRESS_PORT=8080' | tee --append $GITHUB_ENV;
+      - name: Configure Springboot Specific Values
+        if: ${{ matrix.app-platform == 'springboot' }}
         run: |
           echo 'APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE<<EOF' >> $GITHUB_ENV
-          echo '/usr/local/bin/python3 /app/application.py' | tee --append $GITHUB_ENV;
+          echo 'java -cp /app/resources:/app/classes:/app/libs/* com.amazon.sampleapp.DemoApplication' |
+          tee --append $GITHUB_ENV;
           echo 'EOF' >> $GITHUB_ENV
-      # FIXME: This uses the latest Commit SHA of the upstream Core repo. We
-      # should provide it as an input to consider the edge case where we want to
-      # run against a specific Core repo change. For the manual
-      # instrumentation app.
-      # FIXME: We might also consider making this configurable for the
-      # Auto-Instrumentation app.
-      - name: Clone OpenTelemetry Core Repo
-        uses: actions/checkout@v2
-        if: ${{ matrix.instrumentation-type == 'manual' }}
-        with:
-          repository: open-telemetry/opentelemetry-python
-          path: ${{ env.APP_PATH }}/opentelemetry-python-core
-      # FIXME: This uses the latest Commit SHA of the upstream Contrib repo. We
-      # should provide it as an input to consider the edge case where we want to
-      # run against a specific Contrib repo change. For the manual
-      # instrumentation app.
-      - name: Clone OpenTelemetry Contrib Repo
-        uses: actions/checkout@v2
-        if: ${{ matrix.instrumentation-type == 'manual' }}
-        with:
-          repository: open-telemetry/opentelemetry-python-contrib
-          path: ${{ env.APP_PATH }}/opentelemetry-python-contrib
+          echo 'LISTEN_ADDRESS_PORT=4567' | tee --append $GITHUB_ENV;
 
     # MARK: - Uniquely identify this Sample App environment
 
@@ -115,13 +99,22 @@ jobs:
     # MARK: - Run Performance Tests
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        run: |
+          export AWS_ROLE_ARN=${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          echo AWS_ROLE_ARN=$AWS_ROLE_ARN >> $GITHUB_ENV
+          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+      # NOTE: We only login to prevent getting throttled for too many docker
+      # pulls. We do not publish anything to ECR.
+      - name: Login to ECR
+        run: |
+          aws ecr-public get-login-password |
+          docker login --username AWS --password-stdin public.ecr.aws
+      - name: Build Sample App locally directly to the Docker daemon
+        uses: burrunan/gradle-cache-action@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          role-duration-seconds: 21600 # 6 Hours
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+          arguments: jibDockerBuild
+        env:
+          COMMIT_HASH: ${{ github.sha }}
       - name: Configure Performance Test environment variables
         run: |
           echo "NUM_OF_CPUS=$(nproc --all)" | tee --append $GITHUB_ENV;
@@ -130,11 +123,11 @@ jobs:
         continue-on-error: true
         working-directory: .github/docker-performance-tests
         env:
+          APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-${{ matrix.app-platform }}:${{ env.TARGET_SHA }}
           INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
-          LISTEN_ADDRESS_PORT: 8080
+          LISTEN_ADDRESS_PORT: ${{ env.LISTEN_ADDRESS_PORT }}
           LOG_GROUP_NAME: otel-sdk-performance-tests
           # Also uses:
-          # APP_PATH
           # TARGET_SHA
           # LOGS_NAMESPACE
           # LOG_STREAM_NAME
