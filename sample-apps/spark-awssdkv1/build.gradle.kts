@@ -8,6 +8,7 @@ plugins {
 dependencies {
   implementation("commons-logging:commons-logging")
   implementation("com.amazonaws:aws-java-sdk-s3")
+  implementation("com.amazonaws:aws-java-sdk-sts")
   implementation("com.sparkjava:spark-core")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("io.opentelemetry:opentelemetry-api")
