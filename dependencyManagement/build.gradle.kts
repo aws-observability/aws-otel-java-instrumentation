@@ -26,28 +26,28 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
-val otelVersion = "1.5.0"
-val otelSnapshotVersion = "1.6.0"
+val otelVersion = "1.6.0"
+val otelSnapshotVersion = "1.7.0"
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.57",
+  "com.amazonaws:aws-java-sdk-bom:1.12.71",
   "com.fasterxml.jackson:jackson-bom:2.12.5",
   "com.google.guava:guava-bom:30.1.1-jre",
-  "com.google.protobuf:protobuf-bom:3.17.3",
+  "com.google.protobuf:protobuf-bom:3.18.0",
   "com.linecorp.armeria:armeria-bom:1.11.0",
   "io.grpc:grpc-bom:1.40.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.14.1",
-  "org.junit:junit-bom:5.7.2",
+  "org.junit:junit-bom:5.8.0",
   "org.springframework.boot:spring-boot-dependencies:2.5.4",
   "org.testcontainers:testcontainers-bom:1.16.0",
-  "software.amazon.awssdk:bom:2.17.29"
+  "software.amazon.awssdk:bom:2.17.43"
 )
 
 val DEPENDENCY_SETS = listOf(
   DependencySet(
     "org.assertj",
-    "3.20.2",
+    "3.21.0",
     listOf("assertj-core")
   ),
   DependencySet(
@@ -69,9 +69,9 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.1",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.5.0-SNAPSHOT",
-  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) "1.5.2" else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.11.13"
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:$otelVersion",
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
+  "net.bytebuddy:byte-buddy:1.11.16"
 )
 
 javaPlatform {
