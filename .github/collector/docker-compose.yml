@@ -23,6 +23,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
       - AWS_REGION=us-west-2
       - OTEL_JAVAAGENT_DEBUG=true
+      - OTEL_METRICS_EXPORTER=otlp
     volumes:
       - /tmp/awscreds:/tmp/awscreds
     ports:
