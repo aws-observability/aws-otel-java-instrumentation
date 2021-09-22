@@ -2,7 +2,7 @@ version: "3.7"
 services:
   otel:
     image: amazon/aws-otel-collector:latest
-    command: --config /config/collector-config.yml --log-level debug
+    command: --config /config/collector-config.yml
     environment:
       - AWS_ROLE_ARN
       - AWS_WEB_IDENTITY_TOKEN_FILE

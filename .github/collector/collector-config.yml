@@ -13,6 +13,9 @@ exporters:
     region: us-west-2
 
 service:
+  telemetry:
+    logs:
+      level: debug
   pipelines:
     traces:
       receivers:
