@@ -16,7 +16,8 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.contrib.awsxray.AwsXrayIdGenerator;
-import io.opentelemetry.sdk.autoconfigure.spi.SdkTracerProviderConfigurer;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.autoconfigure.spi.traces.SdkTracerProviderConfigurer;
 import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 
 public class AwsTracerConfigurer implements SdkTracerProviderConfigurer {
@@ -31,7 +32,8 @@ public class AwsTracerConfigurer implements SdkTracerProviderConfigurer {
   }
 
   @Override
-  public void configure(SdkTracerProviderBuilder sdkTracerProviderBuilder) {
+  public void configure(
+      SdkTracerProviderBuilder sdkTracerProviderBuilder, ConfigProperties config) {
     sdkTracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance());
   }
 }

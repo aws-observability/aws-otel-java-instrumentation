@@ -30,7 +30,7 @@ class AwsTracerConfigurerTest {
 
   static {
     SdkTracerProviderBuilder builder = SdkTracerProvider.builder();
-    new AwsTracerConfigurer().configure(builder);
+    new AwsTracerConfigurer().configure(builder, null);
     tracerProvider = builder.build();
   }
 
