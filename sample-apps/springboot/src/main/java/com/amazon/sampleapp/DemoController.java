@@ -17,6 +17,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 @Controller
 public class DemoController {
   private static final Logger logger = LoggerFactory.getLogger(DemoController.class);
+  private static final boolean shouldSampleAppLog =
+      System.getenv().getOrDefault("SAMPLE_APP_LOG_LEVEL", "INFO").equals("INFO");
 
   private final Call.Factory httpClient;
   private final S3Client s3;
@@ -38,7 +40,9 @@ public class DemoController {
   @GetMapping("/outgoing-http-call")
   @ResponseBody
   public String httpCall() {
-    logger.info("Executing outgoing-http-call");
+    if (shouldSampleAppLog) {
+      logger.info("Executing outgoing-http-call");
+    }
 
     try (Response response =
         httpClient.newCall(new Request.Builder().url("https://aws.amazon.com").build()).execute()) {
@@ -53,7 +57,9 @@ public class DemoController {
   @GetMapping("/aws-sdk-call")
   @ResponseBody
   public String awssdkCall() {
-    logger.info("Executing aws-sdk-all");
+    if (shouldSampleAppLog) {
+      logger.info("Executing aws-sdk-all");
+    }
 
     s3.listBuckets();
 

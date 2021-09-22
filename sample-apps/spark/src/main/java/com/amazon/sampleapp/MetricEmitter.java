@@ -41,8 +41,6 @@ public class MetricEmitter {
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
 
-    System.out.println("OTLP port is: " + System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"));
-
     String latencyMetricName = API_LATENCY_METRIC;
     String apiBytesSentMetricName = API_COUNTER_METRIC;
     String totalApiBytesSentMetricName = API_SUM_METRIC;
@@ -88,13 +86,6 @@ public class MetricEmitter {
         .ofLongs()
         .buildWithCallback(
             measurement -> {
-              System.out.println(
-                  "emit total http request size "
-                      + totalBytesSent
-                      + " byte, "
-                      + apiNameValue
-                      + ","
-                      + statusCodeValue);
               measurement.observe(
                   totalBytesSent,
                   Attributes.of(
@@ -108,13 +99,6 @@ public class MetricEmitter {
         .ofLongs()
         .buildWithCallback(
             measurement -> {
-              System.out.println(
-                  "emit last api latency "
-                      + apiLastLatency
-                      + ","
-                      + apiNameValue
-                      + ","
-                      + statusCodeValue);
               measurement.observe(
                   apiLastLatency,
                   Attributes.of(
@@ -127,13 +111,6 @@ public class MetricEmitter {
         .ofLongs()
         .buildWithCallback(
             measurement -> {
-              System.out.println(
-                  "emit actual queue size "
-                      + actualQueueSize
-                      + ","
-                      + apiNameValue
-                      + ","
-                      + statusCodeValue);
               measurement.observe(
                   actualQueueSize,
                   Attributes.of(
@@ -149,8 +126,6 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitReturnTimeMetric(Long returnTime, String apiName, String statusCode) {
-    System.out.println(
-        "emit metric with return time " + returnTime + "," + apiName + "," + statusCode);
     apiLatencyRecorder.record(
         returnTime, Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
   }
@@ -163,7 +138,6 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitBytesSentMetric(int bytes, String apiName, String statusCode) {
-    System.out.println("emit metric with http request size " + bytes + " byte, " + apiName);
     apiBytesSentCounter.add(
         bytes, Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
   }
@@ -176,8 +150,6 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitQueueSizeChangeMetric(int queueSizeChange, String apiName, String statusCode) {
-    System.out.println(
-        "emit metric with queue size change " + queueSizeChange + "," + apiName + "," + statusCode);
     queueSizeCounter.add(
         queueSizeChange,
         Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
@@ -194,13 +166,6 @@ public class MetricEmitter {
     totalBytesSent += bytes;
     apiNameValue = apiName;
     statusCodeValue = statusCode;
-    System.out.println(
-        "update total http request size "
-            + totalBytesSent
-            + " byte, "
-            + apiName
-            + ","
-            + statusCode);
   }
 
   /**
@@ -214,8 +179,6 @@ public class MetricEmitter {
     apiLastLatency = returnTime;
     apiNameValue = apiName;
     statusCodeValue = statusCode;
-    System.out.println(
-        "update last latency value " + totalBytesSent + ", " + apiName + "," + statusCode);
   }
   /**
    * update actual queue size, it will be collected by UpDownSumObserver
@@ -228,7 +191,5 @@ public class MetricEmitter {
     actualQueueSize += queueSizeChange;
     apiNameValue = apiName;
     statusCodeValue = statusCode;
-    System.out.println(
-        "update actual queue size " + actualQueueSize + ", " + apiName + "," + statusCode);
   }
 }
