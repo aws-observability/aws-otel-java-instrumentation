@@ -16,6 +16,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 public class App {
   private static final Logger logger = LogManager.getLogger();
+  private static final boolean shouldSampleAppLog =
+      System.getenv().getOrDefault("SAMPLE_APP_LOG_LEVEL", "INFO").equals("INFO");
 
   static final String REQUEST_START_TIME = "requestStartTime";
   static int mimicQueueSize;
@@ -55,7 +57,9 @@ public class App {
     get(
         "/outgoing-http-call",
         (req, res) -> {
-          logger.info("Executing outgoing-http-call");
+          if (shouldSampleAppLog) {
+            logger.info("Executing outgoing-http-call");
+          }
 
           try (Response response =
               httpClient
@@ -72,7 +76,9 @@ public class App {
     get(
         "/aws-sdk-call",
         (req, res) -> {
-          logger.info("Executing aws-sdk-all");
+          if (shouldSampleAppLog) {
+            logger.info("Executing aws-sdk-all");
+          }
 
           s3.listBuckets();
 
