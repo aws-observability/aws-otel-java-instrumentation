@@ -1,0 +1,79 @@
+version: "3.7"
+services:
+  otel:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: --config /otel-collector/collector-config.yml
+    environment:
+      - AWS_DEFAULT_REGION
+      - AWS_ROLE_ARN
+      - AWS_WEB_IDENTITY_TOKEN_FILE
+      - TARGET_SHA
+      - GITHUB_RUN_ID
+      - HOSTMETRICS_INTERVAL_SECS
+      - LOG_GROUP_NAME
+      - LOGS_NAMESPACE
+      - MATRIX_COMMIT_COMBO
+      - APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE
+      - APP_PROCESS_EXECUTABLE_NAME
+    volumes:
+      - ./otel-collector:/otel-collector
+      - /tmp/awscreds:/tmp/awscreds
+      - type: bind
+        source: /proc
+        target: /proc
+    ports:
+      - '4317:4317'
+    user: "${UID}:${GID}"
+
+  app:
+    image: ${APP_IMAGE}
+    environment:
+      - INSTANCE_ID
+      - LISTEN_ADDRESS=0.0.0.0:${LISTEN_ADDRESS_PORT}
+      - AWS_DEFAULT_REGION
+      - AWS_ROLE_ARN
+      - AWS_WEB_IDENTITY_TOKEN_FILE
+      - SAMPLE_APP_LOG_LEVEL=ERROR
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
+      # Java specific values
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
+      - AWS_REGION=${AWS_DEFAULT_REGION}
+      # Produces several "java.lang.IllegalArgumentException: Counters can only increase"
+      # error messages. Removing for now to not have log messages skew results.
+      # - OTEL_METRICS_EXPORTER=otlp
+    volumes:
+      - /tmp/awscreds:/tmp/awscreds
+    ports:
+      - '${LISTEN_ADDRESS_PORT}:${LISTEN_ADDRESS_PORT}'
+
+  load-generator:
+    build:
+      context: ./load-generator
+    environment:
+      - TARGET_ADDRESS=app:${LISTEN_ADDRESS_PORT}
+      - TEST_DURATION_MINUTES
+    depends_on:
+      - otel
+      - app
+
+  alarms-poller:
+    build:
+      context: ./alarms-poller
+    environment:
+      - AWS_DEFAULT_REGION
+      - AWS_ROLE_ARN
+      - AWS_WEB_IDENTITY_TOKEN_FILE
+      - HOSTMETRICS_INTERVAL_SECS
+      - NUM_OF_CPUS
+      - TARGET_SHA
+      - LOGS_NAMESPACE
+      - APP_PROCESS_COMMAND_LINE_DIMENSION_VALUE
+      - CPU_LOAD_THRESHOLD
+      - TOTAL_MEMORY_THRESHOLD
+      - GITHUB_RUN_ID
+      - MATRIX_COMMIT_COMBO
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/awscreds:/tmp/awscreds
+    depends_on:
+      - load-generator
