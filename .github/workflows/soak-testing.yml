@@ -20,7 +20,6 @@ env:
   # NOTE: The configuration of `APP_PROCESS_EXECUTABLE_NAME` is repo dependent
   APP_PROCESS_EXECUTABLE_NAME: java
   AWS_DEFAULT_REGION: us-east-1
-  AWS_WEB_IDENTITY_TOKEN_FILE: /tmp/awscreds
   DEFAULT_TEST_DURATION_MINUTES: 300
   HOSTMETRICS_INTERVAL_SECS: 600
   CPU_LOAD_THRESHOLD: 71
@@ -100,9 +99,10 @@ jobs:
 
       - name: Configure AWS Credentials
         run: |
-          export AWS_ROLE_ARN=${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          echo AWS_ROLE_ARN=$AWS_ROLE_ARN >> $GITHUB_ENV
-          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+          AWS_CREDENTIALS=$(aws sts get-session-token)
+          echo "AWS_ACCESS_KEY_ID=$(echo $AWS_CREDENTIALS | jq '.Credentials.AccessKeyId')" >> $GITHUB_ENV;
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $AWS_CREDENTIALS | jq '.Credentials.SecretAccessKey')" >> $GITHUB_ENV;
+          echo "AWS_SESSION_TOKEN=$(echo $AWS_CREDENTIALS | jq '.Credentials.SessionToken')" >> $GITHUB_ENV;
       # NOTE: We only login to prevent getting throttled for too many docker
       # pulls. We do not publish anything to ECR.
       - name: Login to ECR
@@ -128,6 +128,9 @@ jobs:
           LISTEN_ADDRESS_PORT: ${{ env.LISTEN_ADDRESS_PORT }}
           LOG_GROUP_NAME: otel-sdk-performance-tests
           # Also uses:
+          # AWS_ACCESS_KEY_ID
+          # AWS_SECRET_ACCESS_KEY
+          # AWS_SESSION_TOKEN
           # TARGET_SHA
           # LOGS_NAMESPACE
           # LOG_STREAM_NAME
