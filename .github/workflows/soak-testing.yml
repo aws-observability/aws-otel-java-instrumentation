@@ -99,6 +99,14 @@ jobs:
 
       - name: Configure AWS Credentials
         run: |
+          export AWS_ROLE_ARN=${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          export AWS_WEB_IDENTITY_TOKEN_FILE=/tmp/awscreds
+
+          echo "AWS_ROLE_ARN=$AWS_ROLE_ARN" >> $GITHUB_ENV
+          echo "AWS_WEB_IDENTITY_TOKEN_FILE=$AWS_WEB_IDENTITY_TOKEN_FILE" >> $GITHUB_ENV
+
+          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+
           AWS_CREDENTIALS=$(aws sts get-session-token)
           echo "AWS_ACCESS_KEY_ID=$(echo $AWS_CREDENTIALS | jq '.Credentials.AccessKeyId')" >> $GITHUB_ENV;
           echo "AWS_SECRET_ACCESS_KEY=$(echo $AWS_CREDENTIALS | jq '.Credentials.SecretAccessKey')" >> $GITHUB_ENV;
