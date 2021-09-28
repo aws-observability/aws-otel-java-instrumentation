@@ -366,17 +366,22 @@ if __name__ == "__main__":
             f"Will create a snapshot at URL: https://github.com/{args.github_repository}/blob/gh-pages/{snapshot_location}",
         )
 
-    # Delete oldest snapshots
+    # Delete oldest run folders in most recent commit and oldest commit folders
 
-    snapshot_dirs_length = len(os.listdir(SOAK_TESTS_SNAPSHOTS_COMMITS_DIR))
+    for snapshots_dir in [
+        SOAK_TESTS_SNAPSHOTS_COMMITS_DIR,
+        f"{SOAK_TESTS_SNAPSHOTS_COMMITS_DIR}/{ args.target_sha }/runs",
+    ]:
+        snapshot_dirs_length = len(os.listdir(snapshots_dir))
 
-    if snapshot_dirs_length > args.max_benchmarks_to_keep:
-        oldest_snapshot_dirs = nsmallest(
-            snapshot_dirs_length - args.max_benchmarks_to_keep,
-            Path(SOAK_TESTS_SNAPSHOTS_COMMITS_DIR).iterdir(),
-            key=os.path.getmtime,
-        )
-        for old_snapshots_dir in oldest_snapshot_dirs:
-            shutil.rmtree(old_snapshots_dir, ignore_errors=True)
+        if snapshot_dirs_length > args.max_benchmarks_to_keep:
+            oldest_snapshot_dirs = nsmallest(
+                snapshot_dirs_length - args.max_benchmarks_to_keep,
+                Path(snapshots_dir).iterdir(),
+                key=os.path.getmtime,
+            )
+            for old_snapshots_dir in oldest_snapshot_dirs:
+
+                shutil.rmtree(old_snapshots_dir, ignore_errors=True)
 
     logger.info("Done creating metric widget images.")
