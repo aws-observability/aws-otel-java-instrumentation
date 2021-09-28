@@ -4,9 +4,10 @@ services:
     image: otel/opentelemetry-collector-contrib:latest
     command: --config /otel-collector/collector-config.yml
     environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
       - AWS_DEFAULT_REGION
-      - AWS_ROLE_ARN
-      - AWS_WEB_IDENTITY_TOKEN_FILE
       - TARGET_SHA
       - GITHUB_RUN_ID
       - HOSTMETRICS_INTERVAL_SECS
@@ -17,7 +18,6 @@ services:
       - APP_PROCESS_EXECUTABLE_NAME
     volumes:
       - ./otel-collector:/otel-collector
-      - /tmp/awscreds:/tmp/awscreds
       - type: bind
         source: /proc
         target: /proc
@@ -30,9 +30,10 @@ services:
     environment:
       - INSTANCE_ID
       - LISTEN_ADDRESS=0.0.0.0:${LISTEN_ADDRESS_PORT}
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
       - AWS_DEFAULT_REGION
-      - AWS_ROLE_ARN
-      - AWS_WEB_IDENTITY_TOKEN_FILE
       - SAMPLE_APP_LOG_LEVEL=ERROR
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       # Java specific values
@@ -41,8 +42,6 @@ services:
       # Produces several "java.lang.IllegalArgumentException: Counters can only increase"
       # error messages. Removing for now to not have log messages skew results.
       # - OTEL_METRICS_EXPORTER=otlp
-    volumes:
-      - /tmp/awscreds:/tmp/awscreds
     ports:
       - '${LISTEN_ADDRESS_PORT}:${LISTEN_ADDRESS_PORT}'
 
@@ -60,9 +59,10 @@ services:
     build:
       context: ./alarms-poller
     environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
       - AWS_DEFAULT_REGION
-      - AWS_ROLE_ARN
-      - AWS_WEB_IDENTITY_TOKEN_FILE
       - HOSTMETRICS_INTERVAL_SECS
       - NUM_OF_CPUS
       - TARGET_SHA
@@ -74,6 +74,5 @@ services:
       - MATRIX_COMMIT_COMBO
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/awscreds:/tmp/awscreds
     depends_on:
       - load-generator
