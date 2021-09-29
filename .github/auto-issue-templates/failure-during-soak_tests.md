@@ -9,7 +9,7 @@ During Soak Tests execution, a performance degradation was revealed for commit {
 
 # Useful Links
 
-Snapshots of the Soak Test run are available [on the gh-pages branch](https://github.com/{{ env.GITHUB_REPOSITORY }}/tree/gh-pages/soak-tests/snapshots/{{ sha }}). These are the snapshots for the violating commit:
+Snapshots of the Soak Test run are available [on the gh-pages branch](https://github.com/{{ env.GITHUB_REPOSITORY }}/tree/gh-pages/soak-tests/snapshots/commits/{{ sha }}). These are the snapshots for the violating commit:
 
 ![CPU Load Soak Test SnapShot Image](https://github.com/{{ env.GITHUB_REPOSITORY }}/blob/gh-pages/soak-tests/snapshots/commits/{{ sha }}/runs/{{ env.GITHUB_RUN_ID }}/{{ env.APP_PLATFORM }}/{{ env.INSTRUMENTATION_TYPE }}-cpu-load.png?raw=true)
 ![Total Memory Soak Test SnapShot Image](https://github.com/{{ env.GITHUB_REPOSITORY }}/blob/gh-pages/soak-tests/snapshots/commits/{{ sha }}/runs/{{ env.GITHUB_RUN_ID }}/{{ env.APP_PLATFORM }}/{{ env.INSTRUMENTATION_TYPE }}-total-memory.png?raw=true)
