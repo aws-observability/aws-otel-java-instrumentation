@@ -36,7 +36,6 @@ jobs:
     name: Soak Performance Test - (${{ matrix.app-platform }}, ${{ matrix.instrumentation-type }})
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: write
       issues: write
     strategy:
@@ -98,19 +97,13 @@ jobs:
     # MARK: - Run Performance Tests
 
       - name: Configure AWS Credentials
-        run: |
-          export AWS_ROLE_ARN=${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          export AWS_WEB_IDENTITY_TOKEN_FILE=/tmp/awscreds
-
-          echo "AWS_ROLE_ARN=$AWS_ROLE_ARN" >> $GITHUB_ENV
-          echo "AWS_WEB_IDENTITY_TOKEN_FILE=$AWS_WEB_IDENTITY_TOKEN_FILE" >> $GITHUB_ENV
-
-          curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
-
-          AWS_CREDENTIALS=$(aws sts get-session-token)
-          echo "AWS_ACCESS_KEY_ID=$(echo $AWS_CREDENTIALS | jq '.Credentials.AccessKeyId')" >> $GITHUB_ENV;
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $AWS_CREDENTIALS | jq '.Credentials.SecretAccessKey')" >> $GITHUB_ENV;
-          echo "AWS_SESSION_TOKEN=$(echo $AWS_CREDENTIALS | jq '.Credentials.SessionToken')" >> $GITHUB_ENV;
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          role-duration-seconds: 21600 # 6 Hours
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
       # NOTE: We only login to prevent getting throttled for too many docker
       # pulls. We do not publish anything to ECR.
       - name: Login to ECR
