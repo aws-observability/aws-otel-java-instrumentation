@@ -19,8 +19,8 @@ logger = logging.getLogger(__file__)
 # AWS Client API Constants
 
 COMMON_ALARM_API_PARAMETERS = {
-    "EvaluationPeriods": 4,
-    "DatapointsToAlarm": 3,
+    "EvaluationPeriods": 5,
+    "DatapointsToAlarm": 5,
     "ComparisonOperator": "GreaterThanOrEqualToThreshold",
     "TreatMissingData": "ignore",
 }
