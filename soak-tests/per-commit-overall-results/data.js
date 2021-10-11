@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1633982740857,
+  "lastUpdate": 1633982766733,
   "repoUrl": "https://github.com/aws-observability/aws-otel-java-instrumentation",
   "entries": {
     "Soak Test Results - sample-app-spark-awssdkv1-auto": [
@@ -31,6 +31,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "Soak Test Average Virtual Memory Used",
             "value": 3454.077990301724,
+            "unit": "Megabytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "(Eliseo) Nathaniel Ruiz Nowell",
+            "username": "NathanielRN",
+            "email": "enowell@amazon.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "525ef8f8ea2f3922515ba6b38a232e5e4dc4b4a2",
+          "message": "Increase points to alarm for memory usage poll (#94)",
+          "timestamp": "2021-10-11T02:50:29Z",
+          "url": "https://github.com/aws-observability/aws-otel-java-instrumentation/commit/525ef8f8ea2f3922515ba6b38a232e5e4dc4b4a2"
+        },
+        "date": 1633982766257,
+        "tool": "custombenchmark",
+        "benches": [
+          {
+            "name": "Soak Test Average CPU Load",
+            "value": 6.415344827586207,
+            "unit": "Percent"
+          },
+          {
+            "name": "Soak Test Average Virtual Memory Used",
+            "value": 3445.71484375,
             "unit": "Megabytes"
           }
         ]
