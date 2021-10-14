@@ -154,7 +154,7 @@ jobs:
           echo "RUN_TESTS_EXIT_CODE=$RUN_TESTS_EXIT_CODE" | tee --append $GITHUB_ENV;
           exit $RUN_TESTS_EXIT_CODE;
       - name: Fail early if Soak Tests failed to start
-        if: ${{ env.RUN_TESTS_EXIT_CODE == 1 }}
+        if: ${{ env.RUN_TESTS_EXIT_CODE == '' || env.RUN_TESTS_EXIT_CODE == 1 }}
         run: exit 1;
 
     # MARK: - Report on Performance Test Results
