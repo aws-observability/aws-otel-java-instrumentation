@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1634241995126,
+  "lastUpdate": 1634242066941,
   "repoUrl": "https://github.com/aws-observability/aws-otel-java-instrumentation",
   "entries": {
     "Soak Test Results - sample-app-spark-awssdkv1-auto": [
@@ -63,6 +63,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "Soak Test Average Virtual Memory Used",
             "value": 3445.71484375,
+            "unit": "Megabytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "(Eliseo) Nathaniel Ruiz Nowell",
+            "username": "NathanielRN",
+            "email": "enowell@amazon.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1e5ce35bb81462d44f539d98bb481659f8e13392",
+          "message": "Detect docker-compose start up failures and fail early (#95)",
+          "timestamp": "2021-10-14T05:02:30Z",
+          "url": "https://github.com/aws-observability/aws-otel-java-instrumentation/commit/1e5ce35bb81462d44f539d98bb481659f8e13392"
+        },
+        "date": 1634242066453,
+        "tool": "custombenchmark",
+        "benches": [
+          {
+            "name": "Soak Test Average CPU Load",
+            "value": 24.096934523809523,
+            "unit": "Percent"
+          },
+          {
+            "name": "Soak Test Average Virtual Memory Used",
+            "value": 3461.8015894396553,
             "unit": "Megabytes"
           }
         ]
