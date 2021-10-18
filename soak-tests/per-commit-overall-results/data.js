@@ -47,38 +47,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow",
             "email": "noreply@github.com"
           },
-          "id": "525ef8f8ea2f3922515ba6b38a232e5e4dc4b4a2",
-          "message": "Increase points to alarm for memory usage poll (#94)",
-          "timestamp": "2021-10-11T02:50:29Z",
-          "url": "https://github.com/aws-observability/aws-otel-java-instrumentation/commit/525ef8f8ea2f3922515ba6b38a232e5e4dc4b4a2"
-        },
-        "date": 1633982766257,
-        "tool": "custombenchmark",
-        "benches": [
-          {
-            "name": "Soak Test Average CPU Load",
-            "value": 6.415344827586207,
-            "unit": "Percent"
-          },
-          {
-            "name": "Soak Test Average Virtual Memory Used",
-            "value": 3445.71484375,
-            "unit": "Megabytes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "name": "(Eliseo) Nathaniel Ruiz Nowell",
-            "username": "NathanielRN",
-            "email": "enowell@amazon.com"
-          },
-          "committer": {
-            "name": "GitHub",
-            "username": "web-flow",
-            "email": "noreply@github.com"
-          },
           "id": "1e5ce35bb81462d44f539d98bb481659f8e13392",
           "message": "Detect docker-compose start up failures and fail early (#95)",
           "timestamp": "2021-10-14T05:02:30Z",
