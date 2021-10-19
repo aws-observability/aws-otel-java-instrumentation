@@ -15,7 +15,7 @@
 
 pluginManagement {
   plugins {
-    id("com.diffplug.spotless") version "5.14.3"
+    id("com.diffplug.spotless") version "5.17.0"
     id("com.github.ben-manes.versions") version "0.39.0"
     id("com.github.jk1.dependency-license-report") version "1.17"
     id("com.github.johnrengelman.shadow") version "7.0.0"

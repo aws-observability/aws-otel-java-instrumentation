@@ -112,7 +112,7 @@ allprojects {
 
     spotless {
       java {
-        googleJavaFormat("1.8")
+        googleJavaFormat()
 
         if (!project.path.startsWith(":sample-apps:")) {
           licenseHeaderFile("${rootProject.projectDir}/config/license/header.java")
@@ -157,8 +157,10 @@ allprojects {
 
   plugins.withId("com.github.johnrengelman.shadow") {
     tasks {
-      named<ShadowJar>("shadowJar") {
+      withType<ShadowJar>().configureEach {
         exclude("**/module-info.class")
+
+        mergeServiceFiles()
 
         // rewrite library instrumentation dependencies
         relocate("io.opentelemetry.instrumentation", "io.opentelemetry.javaagent.shaded.instrumentation")
