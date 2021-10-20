@@ -15,12 +15,10 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.logback_1_0;
 
-import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class AwsXrayLogbackInstrumentationModule extends InstrumentationModule {
   public AwsXrayLogbackInstrumentationModule() {
@@ -30,11 +28,5 @@ public class AwsXrayLogbackInstrumentationModule extends InstrumentationModule {
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
     return Collections.singletonList(new AwsXrayLoggingEventInstrumentation());
-  }
-
-  @Override
-  public Map<String, String> getMuzzleContextStoreClasses() {
-    return Collections.singletonMap(
-        "ch.qos.logback.classic.spi.ILoggingEvent", Span.class.getName());
   }
 }

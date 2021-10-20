@@ -35,7 +35,7 @@ public class AwsXrayLog4jInstrumentationModule extends InstrumentationModule {
   // The SPI will be merged with what's in the agent so we don't need to inject it, only our
   // provider implementation.
   @Override
-  public List<String> getMuzzleHelperClassNames() {
+  public List<String> getAdditionalHelperClassNames() {
     return Collections.singletonList(
         "software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2."
             + "AwsXrayContextDataProvider");
