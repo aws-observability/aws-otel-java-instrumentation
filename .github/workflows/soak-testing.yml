@@ -211,12 +211,12 @@ jobs:
           git checkout main;
           [[ $HAS_RESULTS_ALREADY == true ]]
       - name: Graph and Report Performance Test Averages result
-        uses: NathanielRN/github-action-benchmark@v1.8.3-alpha3
+        uses: benchmark-action/github-action-benchmark@v1
         continue-on-error: true
         id: check-failure-after-performance-tests
         with:
           name: Soak Test Results - sample-app-${{ matrix.app-platform }}-${{ matrix.instrumentation-type }}
-          tool: custombenchmark
+          tool: customSmallerIsBetter
           output-file-path: output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           max-items-in-chart: ${{ env.MAX_BENCHMARKS_TO_KEEP }}
@@ -240,6 +240,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           filename: .github/auto-issue-templates/failure-during-soak_tests.md
+          update_existing: true
       - name: Publish Issue if failed AFTER Performance Tests
         uses: JasonEtco/create-an-issue@v2
         if: ${{ github.event_name == 'schedule' &&
@@ -250,6 +251,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           filename: .github/auto-issue-templates/failure-after-soak_tests.md
+          update_existing: true
       - name: Check for Performance Degradation either DURING or AFTER Performance Tests
         if: ${{ steps.check-failure-during-performance-tests.outcome == 'failure' ||
           steps.check-failure-after-performance-tests.outcome == 'failure' }}
