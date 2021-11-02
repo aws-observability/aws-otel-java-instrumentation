@@ -68,33 +68,31 @@ if __name__ == "__main__":
     )["MetricDataResults"]
 
     benchmarks_json = json.dumps(
-        {
-            "benchmarks": [
-                {
-                    "Name": "Soak Test Average CPU Load",
-                    "Value": mean(
-                        next(
-                            metric_data
-                            for metric_data in metric_data_results
-                            if metric_data["Id"] == "cpu_load_expr"
-                        )["Values"]
-                    ),
-                    "Unit": "Percent",
-                },
-                {
-                    "Name": "Soak Test Average Virtual Memory Used",
-                    "Value": mean(
-                        next(
-                            metric_data
-                            for metric_data in metric_data_results
-                            if metric_data["Id"] == "total_memory_expr"
-                        )["Values"]
-                    )
-                    / (2 ** 20),
-                    "Unit": "Megabytes",
-                },
-            ]
-        },
+        [
+            {
+                "name": "Soak Test Average CPU Load",
+                "value": mean(
+                    next(
+                        metric_data
+                        for metric_data in metric_data_results
+                        if metric_data["Id"] == "cpu_load_expr"
+                    )["Values"]
+                ),
+                "unit": "Percent",
+            },
+            {
+                "name": "Soak Test Average Virtual Memory Used",
+                "value": mean(
+                    next(
+                        metric_data
+                        for metric_data in metric_data_results
+                        if metric_data["Id"] == "total_memory_expr"
+                    )["Values"]
+                )
+                / (2 ** 20),
+                "unit": "Megabytes",
+            },
+        ],
         indent=4,
     )
 
