@@ -4,10 +4,8 @@ services:
     image: amazon/aws-otel-collector:latest
     command: --config /config/collector-config.yml
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
       - AWS_ROLE_ARN
+      - AWS_WEB_IDENTITY_TOKEN_FILE
     volumes:
       - .:/config
       - /tmp/awscreds:/tmp/awscreds
@@ -19,10 +17,8 @@ services:
     environment:
       - INSTANCE_ID
       - LISTEN_ADDRESS
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
       - AWS_ROLE_ARN
+      - AWS_WEB_IDENTITY_TOKEN_FILE
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
       - AWS_REGION=us-west-2
@@ -41,10 +37,8 @@ services:
       - otel
       - app
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
       - AWS_ROLE_ARN
+      - AWS_WEB_IDENTITY_TOKEN_FILE
       - AWS_REGION=us-west-2
     volumes:
       - /tmp/awscreds:/tmp/awscreds
