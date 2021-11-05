@@ -26,7 +26,8 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
-val otelVersion = "1.7.0"
+val otelVersion = "1.7.1"
+val otelJavaagentVersion = "1.7.2"
 val otelSnapshotVersion = "1.8.0"
 
 val DEPENDENCY_BOMS = listOf(
@@ -70,7 +71,7 @@ val DEPENDENCIES = listOf(
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.2",
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.6.0",
-  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelJavaagentVersion else "$otelSnapshotVersion-SNAPSHOT"}",
   "net.bytebuddy:byte-buddy:1.11.21"
 )
 
