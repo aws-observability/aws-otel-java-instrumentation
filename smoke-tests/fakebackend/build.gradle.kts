@@ -26,7 +26,7 @@ java {
 
 dependencies {
   implementation("com.linecorp.armeria:armeria-grpc")
-  implementation("io.opentelemetry:opentelemetry-proto")
+  implementation("io.opentelemetry.proto:opentelemetry-proto")
   implementation("org.curioswitch.curiostack:protobuf-jackson")
   implementation("org.slf4j:slf4j-simple")
 }
