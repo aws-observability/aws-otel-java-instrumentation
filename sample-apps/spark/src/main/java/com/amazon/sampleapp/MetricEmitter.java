@@ -5,7 +5,6 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.Meter;
 
 public class MetricEmitter {
@@ -20,10 +19,11 @@ public class MetricEmitter {
   static String API_UP_DOWN_COUNTER_METRIC = "queueSizeChange";
   static String API_UP_DOWN_SUM_METRIC = "actualQueueSize";
 
-  LongCounter apiBytesSentCounter;
   DoubleHistogram apiLatencyRecorder;
   LongCounter totalBytesSentObserver;
-  LongUpDownCounter queueSizeCounter;
+
+  long apiBytesSent;
+  long queueSizeChange;
 
   long totalBytesSent;
   long apiLastLatency;
@@ -58,12 +58,16 @@ public class MetricEmitter {
       actualQueueSizeMetricName = API_UP_DOWN_SUM_METRIC + "_" + instanceId;
     }
 
-    apiBytesSentCounter =
-        meter
-            .counterBuilder(apiBytesSentMetricName)
-            .setDescription("API request load sent in bytes")
-            .setUnit("one")
-            .build();
+    meter
+        .counterBuilder(apiBytesSentMetricName)
+        .setDescription("API request load sent in bytes")
+        .setUnit("one")
+        .buildWithCallback(
+            measurement ->
+                measurement.observe(
+                    apiBytesSent,
+                    Attributes.of(
+                        DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
 
     apiLatencyRecorder =
         meter
@@ -72,12 +76,16 @@ public class MetricEmitter {
             .setUnit("ms")
             .build();
 
-    queueSizeCounter =
-        meter
-            .upDownCounterBuilder(queueSizeChangeMetricName)
-            .setDescription("Queue Size change")
-            .setUnit("one")
-            .build();
+    meter
+        .upDownCounterBuilder(queueSizeChangeMetricName)
+        .setDescription("Queue Size change")
+        .setUnit("one")
+        .buildWithCallback(
+            measurement ->
+                measurement.observe(
+                    queueSizeChange,
+                    Attributes.of(
+                        DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
 
     meter
         .gaugeBuilder(totalApiBytesSentMetricName)
@@ -138,8 +146,7 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitBytesSentMetric(int bytes, String apiName, String statusCode) {
-    apiBytesSentCounter.add(
-        bytes, Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
+    apiBytesSent += bytes;
   }
 
   /**
@@ -150,9 +157,7 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitQueueSizeChangeMetric(int queueSizeChange, String apiName, String statusCode) {
-    queueSizeCounter.add(
-        queueSizeChange,
-        Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
+    queueSizeChange += queueSizeChange;
   }
 
   /**
