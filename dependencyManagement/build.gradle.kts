@@ -30,18 +30,18 @@ val otelVersion = "1.9.1"
 val otelSnapshotVersion = "1.10.0"
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.118",
+  "com.amazonaws:aws-java-sdk-bom:1.12.129",
   "com.fasterxml.jackson:jackson-bom:2.13.0",
   "com.google.guava:guava-bom:31.0.1-jre",
   "com.google.protobuf:protobuf-bom:3.19.1",
-  "com.linecorp.armeria:armeria-bom:1.13.3",
+  "com.linecorp.armeria:armeria-bom:1.13.4",
   "io.grpc:grpc-bom:1.42.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
-  "org.apache.logging.log4j:log4j-bom:2.14.1",
-  "org.junit:junit-bom:5.8.1",
-  "org.springframework.boot:spring-boot-dependencies:2.6.0",
+  "org.apache.logging.log4j:log4j-bom:2.16.0",
+  "org.junit:junit-bom:5.8.2",
+  "org.springframework.boot:spring-boot-dependencies:2.6.1",
   "org.testcontainers:testcontainers-bom:1.16.2",
-  "software.amazon.awssdk:bom:2.17.89"
+  "software.amazon.awssdk:bom:2.17.100"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -72,7 +72,7 @@ val DEPENDENCIES = listOf(
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.9.0",
   "io.opentelemetry.proto:opentelemetry-proto:0.11.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.12.2"
+  "net.bytebuddy:byte-buddy:1.12.3"
 )
 
 javaPlatform {
