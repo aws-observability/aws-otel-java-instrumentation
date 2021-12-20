@@ -37,7 +37,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.linecorp.armeria:armeria-bom:1.13.4",
   "io.grpc:grpc-bom:1.42.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
-  "org.apache.logging.log4j:log4j-bom:2.16.0",
+  "org.apache.logging.log4j:log4j-bom:2.17.0",
   "org.junit:junit-bom:5.8.2",
   "org.springframework.boot:spring-boot-dependencies:2.6.1",
   "org.testcontainers:testcontainers-bom:1.16.2",
