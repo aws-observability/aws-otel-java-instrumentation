@@ -24,8 +24,6 @@ jobs:
         with:
           java-version: 14
       - uses: gradle/wrapper-validation-action@v1
-
-      - run: sleep 5 # there's still a race condition for now
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:

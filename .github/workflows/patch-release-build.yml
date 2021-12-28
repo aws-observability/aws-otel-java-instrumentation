@@ -63,8 +63,6 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: 14
-
-      - run: sleep 5 # there's still a race condition for now
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
