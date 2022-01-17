@@ -1,9 +1,9 @@
 package com.amazon.sampleapp;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
-import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 
@@ -36,7 +36,7 @@ public class MetricEmitter {
 
   public MetricEmitter() {
     Meter meter =
-        GlobalMeterProvider.get().meterBuilder("aws-otel").setInstrumentationVersion("1.0").build();
+        GlobalOpenTelemetry.meterBuilder("aws-otel").setInstrumentationVersion("1.0").build();
 
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
@@ -64,7 +64,7 @@ public class MetricEmitter {
         .setUnit("one")
         .buildWithCallback(
             measurement ->
-                measurement.observe(
+                measurement.record(
                     apiBytesSent,
                     Attributes.of(
                         DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
@@ -82,7 +82,7 @@ public class MetricEmitter {
         .setUnit("one")
         .buildWithCallback(
             measurement ->
-                measurement.observe(
+                measurement.record(
                     queueSizeChange,
                     Attributes.of(
                         DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
@@ -94,7 +94,7 @@ public class MetricEmitter {
         .ofLongs()
         .buildWithCallback(
             measurement -> {
-              measurement.observe(
+              measurement.record(
                   totalBytesSent,
                   Attributes.of(
                       DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue));
@@ -107,7 +107,7 @@ public class MetricEmitter {
         .ofLongs()
         .buildWithCallback(
             measurement -> {
-              measurement.observe(
+              measurement.record(
                   apiLastLatency,
                   Attributes.of(
                       DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue));
@@ -119,7 +119,7 @@ public class MetricEmitter {
         .ofLongs()
         .buildWithCallback(
             measurement -> {
-              measurement.observe(
+              measurement.record(
                   actualQueueSize,
                   Attributes.of(
                       DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue));

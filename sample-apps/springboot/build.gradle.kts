@@ -11,7 +11,6 @@ dependencies {
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:sts")
   implementation("io.opentelemetry:opentelemetry-api")
-  implementation("io.opentelemetry:opentelemetry-api-metrics")
 }
 
 jib {

@@ -26,8 +26,8 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
-val otelVersion = "1.9.1"
-val otelSnapshotVersion = "1.10.0"
+val otelVersion = "1.10.0"
+val otelSnapshotVersion = "1.11.0"
 
 val DEPENDENCY_BOMS = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.129",

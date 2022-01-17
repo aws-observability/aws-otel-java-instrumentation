@@ -37,7 +37,6 @@ val javaagentLibs by configurations.creating {
   isCanBeConsumed = false
 
   exclude("io.opentelemetry", "opentelemetry-api")
-  exclude("io.opentelemetry", "opentelemetry-api-metrics")
   exclude("io.opentelemetry", "opentelemetry-sdk")
   exclude("io.opentelemetry", "opentelemetry-sdk-common")
   exclude("io.opentelemetry", "opentelemetry-semconv")
