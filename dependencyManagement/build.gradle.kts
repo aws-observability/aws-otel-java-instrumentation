@@ -30,34 +30,34 @@ val otelVersion = "1.10.0"
 val otelSnapshotVersion = "1.11.0"
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.129",
-  "com.fasterxml.jackson:jackson-bom:2.13.0",
+  "com.amazonaws:aws-java-sdk-bom:1.12.141",
+  "com.fasterxml.jackson:jackson-bom:2.13.1",
   "com.google.guava:guava-bom:31.0.1-jre",
-  "com.google.protobuf:protobuf-bom:3.19.1",
+  "com.google.protobuf:protobuf-bom:3.19.3",
   "com.linecorp.armeria:armeria-bom:1.13.4",
   "io.grpc:grpc-bom:1.42.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
-  "org.apache.logging.log4j:log4j-bom:2.17.0",
+  "org.apache.logging.log4j:log4j-bom:2.17.1",
   "org.junit:junit-bom:5.8.2",
-  "org.springframework.boot:spring-boot-dependencies:2.6.1",
+  "org.springframework.boot:spring-boot-dependencies:2.6.2",
   "org.testcontainers:testcontainers-bom:1.16.2",
-  "software.amazon.awssdk:bom:2.17.100"
+  "software.amazon.awssdk:bom:2.17.112"
 )
 
 val DEPENDENCY_SETS = listOf(
   DependencySet(
     "org.assertj",
-    "3.21.0",
+    "3.22.0",
     listOf("assertj-core")
   ),
   DependencySet(
     "org.curioswitch.curiostack",
-    "1.2.0",
+    "2.0.0",
     listOf("protobuf-jackson")
   ),
   DependencySet(
     "org.slf4j",
-    "1.7.32",
+    "1.7.33",
     listOf(
       "slf4j-api",
       "slf4j-simple"
@@ -72,7 +72,7 @@ val DEPENDENCIES = listOf(
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.9.0",
   "io.opentelemetry.proto:opentelemetry-proto:0.11.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.12.3"
+  "net.bytebuddy:byte-buddy:1.12.7"
 )
 
 javaPlatform {
