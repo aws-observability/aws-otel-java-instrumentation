@@ -18,6 +18,7 @@ package software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2;
 import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
+import io.opentelemetry.javaagent.extension.instrumentation.HelperResourceBuilder;
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
@@ -39,6 +40,12 @@ public class AwsXrayLog4jInstrumentationModule extends InstrumentationModule {
     return Collections.singletonList(
         "software.amazon.opentelemetry.javaagent.instrumentation.log4j_2_13_2."
             + "AwsXrayContextDataProvider");
+  }
+
+  @Override
+  public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
+    helperResourceBuilder.register(
+        "META-INF/services/org.apache.logging.log4j.core.util.ContextDataProvider");
   }
 
   @Override
