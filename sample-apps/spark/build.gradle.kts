@@ -24,8 +24,8 @@ application {
 
 jib {
   to {
-    image = "public.ecr.aws/aws-otel-test/aws-otel-java-spark:${System.getenv("COMMIT_HASH")}"
-    tags = setOf("latest")
+    image = "public.ecr.aws/aws-otel-test/aws-otel-java-spark"
+    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
   }
   from {
     image = "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha"
