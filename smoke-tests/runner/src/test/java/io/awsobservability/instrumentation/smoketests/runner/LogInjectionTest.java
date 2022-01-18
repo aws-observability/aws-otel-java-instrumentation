@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.linecorp.armeria.client.WebClient;
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -29,12 +28,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
-// Temporarily disable to work around chicken-egg ordering constraint in building new sample image
-// and using here.
-// Will need to fix the dependency in the future (though with opentelemetry-api in its final form
-// now there is
-// less likeliness of issues happening).
-@Disabled
 @Testcontainers(disabledWithoutDocker = true)
 class LogInjectionTest {
 
@@ -47,7 +40,7 @@ class LogInjectionTest {
   @Container
   private static final GenericContainer<?> log4jApp =
       new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-spark:f8f1ee321a1dc7f306f8354aca357ecbedfe8133")
+              "public.ecr.aws/aws-otel-test/aws-otel-java-spark:ae69a3fef3274282bc4e125d12e874d9330085d4")
           .withExposedPorts(4567)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("log4j")))
           .withLogConsumer(log4jString)
@@ -61,7 +54,7 @@ class LogInjectionTest {
   @Container
   private static final GenericContainer<?> logbackApp =
       new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-springboot:f8f1ee321a1dc7f306f8354aca357ecbedfe8133")
+              "public.ecr.aws/aws-otel-test/aws-otel-java-springboot:ae69a3fef3274282bc4e125d12e874d9330085d4")
           .withExposedPorts(8080)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("logback")))
           .withLogConsumer(logbackString)
