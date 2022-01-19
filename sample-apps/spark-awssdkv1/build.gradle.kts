@@ -20,10 +20,21 @@ application {
 
 jib {
   to {
-    image = "public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1:${System.getenv("COMMIT_HASH")}"
+    image = "public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1"
+    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
   }
   from {
     image = "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha"
+    platforms {
+      platform {
+        architecture = "amd64"
+        os = "linux"
+      }
+      platform {
+        architecture = "arm64"
+        os = "linux"
+      }
+    }
   }
 }
 
