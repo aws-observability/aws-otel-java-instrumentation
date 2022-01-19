@@ -16,7 +16,7 @@ dependencies {
 
 jib {
   to {
-    image = "public.ecr.aws/aws-otel-test/aws-otel-java-springboot:${System.getenv("COMMIT_HASH")}"
+    image = "public.ecr.aws/aws-otel-test/aws-otel-java-springboot"
     tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
   }
   from {
