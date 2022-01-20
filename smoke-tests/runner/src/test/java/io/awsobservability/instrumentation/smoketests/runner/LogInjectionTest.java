@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.output.ToStringConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
@@ -39,11 +40,11 @@ class LogInjectionTest {
 
   @Container
   private static final GenericContainer<?> log4jApp =
-      new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-spark:ae69a3fef3274282bc4e125d12e874d9330085d4")
+      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-spark:latest")
           .withExposedPorts(4567)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("log4j")))
           .withLogConsumer(log4jString)
+          .waitingFor(Wait.forLogMessage(".*Started.*", 1))
           .withCopyFileToContainer(
               MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
@@ -53,11 +54,11 @@ class LogInjectionTest {
 
   @Container
   private static final GenericContainer<?> logbackApp =
-      new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-springboot:ae69a3fef3274282bc4e125d12e874d9330085d4")
+      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-springboot:latest")
           .withExposedPorts(8080)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("logback")))
           .withLogConsumer(logbackString)
+          .waitingFor(Wait.forLogMessage(".*Started DemoApplication.*", 1))
           .withCopyFileToContainer(
               MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
