@@ -114,6 +114,7 @@ class SpringBootSmokeTest {
           .withLogConsumer(new Slf4jLogConsumer(applicationLogger))
           .withCopyFileToContainer(
               MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
+          .waitingFor(Wait.forLogMessage(".*Started Application.*", 1))
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
@@ -128,6 +129,8 @@ class SpringBootSmokeTest {
           .withLogConsumer(new Slf4jLogConsumer(applicationLogger))
           .withCopyFileToContainer(
               MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
+          .waitingFor(Wait.forLogMessage(".*Started Application.*", 1))
+          .withEnv("OTEL_JAVAAGENT_DEBUG", "true")
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
