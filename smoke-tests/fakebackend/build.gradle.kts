@@ -36,6 +36,6 @@ jib {
     image = "public.ecr.aws/u0d6r4y4/aws-otel-java-test-fakebackend:alpha"
   }
   from {
-    image = "public.ecr.aws/u0d6r4y4/amazoncorretto-distroless:alpha"
+    image = "gcr.io/distroless/java17-debian11:debug"
   }
 }
