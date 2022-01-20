@@ -126,6 +126,16 @@ jib {
   }
   from {
     image = "public.ecr.aws/u0d6r4y4/amazoncorretto-distroless:alpha"
+    platforms {
+      platform {
+        architecture = "amd64"
+        os = "linux"
+      }
+      platform {
+        architecture = "arm64"
+        os = "linux"
+      }
+    }
   }
   container {
     appRoot = "/aws-observability"
