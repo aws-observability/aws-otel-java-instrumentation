@@ -126,6 +126,16 @@ jib {
   }
   from {
     image = "gcr.io/distroless/java17-debian11:debug"
+    platforms {
+      platform {
+        architecture = "amd64"
+        os = "linux"
+      }
+      platform {
+        architecture = "arm64"
+        os = "linux"
+      }
+    }
   }
   container {
     appRoot = "/aws-observability"
