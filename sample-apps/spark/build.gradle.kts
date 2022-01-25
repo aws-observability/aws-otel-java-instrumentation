@@ -13,6 +13,8 @@ dependencies {
   implementation("org.apache.logging.log4j:log4j-core")
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:sts")
+  implementation("io.opentelemetry:opentelemetry-sdk-metrics:1.10.0-alpha")
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp-metrics:1.10.0-alpha")
 
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl")
 }

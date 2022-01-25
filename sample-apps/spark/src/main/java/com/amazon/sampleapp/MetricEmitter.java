@@ -1,11 +1,16 @@
 package com.amazon.sampleapp;
 
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 public class MetricEmitter {
 
@@ -35,8 +40,20 @@ public class MetricEmitter {
   String statusCodeValue = "";
 
   public MetricEmitter() {
+    MetricExporter metricExporter =
+        OtlpGrpcMetricExporter.builder()
+            .setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+            .setTimeout(Duration.ofMillis(10))
+            .build();
+    SdkMeterProvider sdkMeterProvider =
+        SdkMeterProvider.builder()
+            .registerMetricReader(
+                PeriodicMetricReader.builder(metricExporter)
+                    .setInterval(1, TimeUnit.SECONDS)
+                    .newMetricReaderFactory())
+            .build();
     Meter meter =
-        GlobalOpenTelemetry.meterBuilder("aws-otel").setInstrumentationVersion("1.0").build();
+        sdkMeterProvider.meterBuilder("aws-otel").setInstrumentationVersion("1.0").build();
 
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
