@@ -35,6 +35,6 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build and push docker image
-        uses: burrunan/gradle-cache-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: :smoke-tests:fakebackend:jib

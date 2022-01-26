@@ -32,7 +32,7 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build snapshot with Gradle
-        uses: burrunan/gradle-cache-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: build snapshot --stacktrace -PenableCoverage=true
         env:
@@ -46,7 +46,7 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
       - name: Build and push agent and testing docker images with Gradle
-        uses: burrunan/gradle-cache-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: jib
         env:
