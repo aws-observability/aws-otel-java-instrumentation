@@ -19,18 +19,20 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-java@v1
         with:
-          java-version: 14
+          java-version: 17
       - uses: gradle/wrapper-validation-action@v1
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Login to ECR
-        run: aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
 
       - name: Build snapshot with Gradle
-        uses: burrunan/gradle-cache-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: build snapshot --stacktrace -PenableCoverage=true
         env:
@@ -44,7 +46,7 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
       - name: Build and push agent and testing docker images with Gradle
-        uses: burrunan/gradle-cache-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: jib
         env:
@@ -61,14 +63,16 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 14
+          java-version: 17
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Login to ECR
-        run: aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
 
       - name: Run test containers
         run: docker-compose up --abort-on-container-exit
@@ -89,14 +93,16 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 14
+          java-version: 17
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Login to ECR
-        run: aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
 
       - name: Run test containers
         run: docker-compose up --abort-on-container-exit
@@ -117,14 +123,16 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 14
+          java-version: 17
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Login to ECR
-        run: aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
 
       - name: Run test containers
         run: docker-compose up --abort-on-container-exit

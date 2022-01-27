@@ -62,14 +62,16 @@ jobs:
 
       - uses: actions/setup-java@v1
         with:
-          java-version: 14
+          java-version: 17
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Login to ECR
-        run: aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
 
       - name: Setup git name
         run: |
@@ -86,7 +88,7 @@ jobs:
           done
 
       - name: Build release with Gradle
-        uses: burrunan/gradle-cache-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: build jib final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:
