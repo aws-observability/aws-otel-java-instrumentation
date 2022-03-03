@@ -26,22 +26,22 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
-val otelVersion = "1.10.1"
-val otelSnapshotVersion = "1.11.0"
+val otelVersion = "1.11.1"
+val otelSnapshotVersion = "1.12.0"
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.141",
+  "com.amazonaws:aws-java-sdk-bom:1.12.170",
   "com.fasterxml.jackson:jackson-bom:2.13.1",
-  "com.google.guava:guava-bom:31.0.1-jre",
-  "com.google.protobuf:protobuf-bom:3.19.3",
-  "com.linecorp.armeria:armeria-bom:1.13.4",
-  "io.grpc:grpc-bom:1.42.1",
+  "com.google.guava:guava-bom:31.1-jre",
+  "com.google.protobuf:protobuf-bom:3.19.4",
+  "com.linecorp.armeria:armeria-bom:1.14.1",
+  "io.grpc:grpc-bom:1.44.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
-  "org.apache.logging.log4j:log4j-bom:2.17.1",
+  "org.apache.logging.log4j:log4j-bom:2.17.2",
   "org.junit:junit-bom:5.8.2",
-  "org.springframework.boot:spring-boot-dependencies:2.6.2",
-  "org.testcontainers:testcontainers-bom:1.16.2",
-  "software.amazon.awssdk:bom:2.17.112"
+  "org.springframework.boot:spring-boot-dependencies:2.6.4",
+  "org.testcontainers:testcontainers-bom:1.16.3",
+  "software.amazon.awssdk:bom:2.17.141"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -57,7 +57,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "org.slf4j",
-    "1.7.33",
+    "1.7.36",
     listOf(
       "slf4j-api",
       "slf4j-simple"
@@ -69,10 +69,10 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.3",
   "com.squareup.okhttp3:okhttp:4.9.3",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.9.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.11.0",
   "io.opentelemetry.proto:opentelemetry-proto:0.11.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.12.7"
+  "net.bytebuddy:byte-buddy:1.12.8"
 )
 
 javaPlatform {
