@@ -28,7 +28,7 @@ jib {
   }
   from {
     image = "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha"
-    /*platforms {
+    platforms {
       platform {
         architecture = "amd64"
         os = "linux"
@@ -37,7 +37,7 @@ jib {
         architecture = "arm64"
         os = "linux"
       }
-    }*/
+    }
   }
 }
 
