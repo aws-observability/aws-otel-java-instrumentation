@@ -22,9 +22,12 @@ pluginManagement {
     id("com.google.cloud.tools.jib") version "3.2.0"
     id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
     id("nebula.release") version "16.0.0"
-    id("org.springframework.boot") version "2.6.4"
+    id("org.springframework.boot") version "2.6.6"
   }
 }
+
+//This property override Spring Framework to the version that contains the fix
+ext['spring-framework.version'] = '5.3.18'
 
 dependencyResolutionManagement {
   repositories {
