@@ -4,6 +4,10 @@ plugins {
   id("com.google.cloud.tools.jib")
 }
 
+
+//This property override Spring Framework to the version that contains the fix
+ext['spring-framework.version'] = '5.3.18'
+
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter")

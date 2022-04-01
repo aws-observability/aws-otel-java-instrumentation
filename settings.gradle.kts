@@ -26,9 +26,6 @@ pluginManagement {
   }
 }
 
-//This property override Spring Framework to the version that contains the fix
-ext['spring-framework.version'] = '5.3.18'
-
 dependencyResolutionManagement {
   repositories {
     mavenCentral()
