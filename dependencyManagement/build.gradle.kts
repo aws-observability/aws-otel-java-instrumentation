@@ -39,7 +39,7 @@ val DEPENDENCY_BOMS = listOf(
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.17.2",
   "org.junit:junit-bom:5.8.2",
-  "org.springframework.boot:spring-boot-dependencies:2.6.5",
+  "org.springframework.boot:spring-boot-dependencies:2.6.6",
   "org.testcontainers:testcontainers-bom:1.16.3",
   "software.amazon.awssdk:bom:2.17.156"
 )
