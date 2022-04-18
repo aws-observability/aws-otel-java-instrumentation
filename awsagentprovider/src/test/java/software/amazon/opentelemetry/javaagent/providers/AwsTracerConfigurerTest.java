@@ -21,26 +21,44 @@ import com.google.common.primitives.Ints;
 import io.opentelemetry.api.trace.TracerProvider;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.RepeatedTest;
 
 class AwsTracerConfigurerTest {
 
-  private static final TracerProvider tracerProvider;
-
-  static {
-    SdkTracerProviderBuilder builder = SdkTracerProvider.builder();
-    new AwsTracerConfigurer().configure(builder, null);
-    tracerProvider = builder.build();
-  }
-
   // The probability of this passing once without correct IDs is low, 20 times is inconceivable.
   @RepeatedTest(20)
   void providerGeneratesXrayIds() {
+    SdkTracerProviderBuilder builder = SdkTracerProvider.builder();
+    new AwsTracerConfigurer().configure(builder, null);
+    TracerProvider tracerProvider = builder.build();
+
     int startTimeSecs = (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
     var span = tracerProvider.get("test").spanBuilder("test").startSpan();
     byte[] traceId = span.getSpanContext().getTraceIdBytes();
     int epoch = Ints.fromBytes(traceId[0], traceId[1], traceId[2], traceId[3]);
     assertThat(epoch).isGreaterThanOrEqualTo(startTimeSecs);
+  }
+
+  // Sanity check that the trace ID ratio sampler works fine with the x-ray generator.
+  @RepeatedTest(20)
+  void traceIdRatioSampler() {
+    SdkTracerProviderBuilder builder =
+        SdkTracerProvider.builder().setSampler(Sampler.traceIdRatioBased(0.01));
+    new AwsTracerConfigurer().configure(builder, null);
+    TracerProvider tracerProvider = builder.build();
+    int numSpans = 100000;
+    int numSampled = 0;
+    for (int i = 0; i < numSpans; i++) {
+      var span = tracerProvider.get("test").spanBuilder("test").startSpan();
+      if (span.getSpanContext().getTraceFlags().isSampled()) {
+        numSampled++;
+      }
+      span.end();
+    }
+    // Configured for 1%, confirm there are at most 5% to account for randomness and reduce test
+    // flakiness.
+    assertThat((double) numSampled / numSpans).isLessThan(0.05);
   }
 }
