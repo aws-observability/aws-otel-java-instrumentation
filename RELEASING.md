@@ -7,7 +7,7 @@ Before beginning a release, make sure dependencies are updated.
 Run `./gradlew dependencyUpdates` to get a report on what dependencies have updates and apply them to
 `dependencyManagement` and `settings.gradle.kts`.
 
-Then, run `./gradlew generateLicenseReport` to update our licenses to reflect the update. Send a PR
+Then, run `rm -rf licenses && ./gradlew --no-build-cache --rerun-tasks generateLicenseReport` to update our licenses to reflect the update. Send a PR
 and merge.
 
 ## Starting the Release
