@@ -13,6 +13,8 @@ can be exported in a variety of formats. In addition, the agent and exporter can
 command line arguments or environment variables. The net result is the ability to gather telemetry
 data from a Java application without any code changes.
 
+ADOT is also now generally available for Java metrics. 
+
 ## Getting Started
 
 Check out the [getting started documentation](https://aws-otel.github.io/docs/getting-started/java-sdk/trace-auto-instr).
