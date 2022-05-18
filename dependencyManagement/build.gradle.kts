@@ -27,14 +27,14 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the only version that affects the released artifact.
-val otelVersion = "1.13.1"
+val otelVersion = "1.14.0"
 val otelSnapshotVersion = "1.15.0"
 
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.208",
-  "com.fasterxml.jackson:jackson-bom:2.13.2.20220328",
+  "com.amazonaws:aws-java-sdk-bom:1.12.222",
+  "com.fasterxml.jackson:jackson-bom:2.13.3",
   "com.google.guava:guava-bom:31.1-jre",
   "com.google.protobuf:protobuf-bom:3.20.1",
   "com.linecorp.armeria:armeria-bom:1.16.0",
@@ -44,7 +44,7 @@ val DEPENDENCY_BOMS = listOf(
   "org.junit:junit-bom:5.8.2",
   "org.springframework.boot:spring-boot-dependencies:2.6.7",
   "org.testcontainers:testcontainers-bom:1.17.1",
-  "software.amazon.awssdk:bom:2.17.179"
+  "software.amazon.awssdk:bom:2.17.194"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -75,7 +75,7 @@ val DEPENDENCIES = listOf(
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.13.0",
   "io.opentelemetry.proto:opentelemetry-proto:0.11.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.12.9"
+  "net.bytebuddy:byte-buddy:1.12.10"
 )
 
 javaPlatform {
