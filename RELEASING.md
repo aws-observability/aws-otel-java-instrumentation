@@ -2,7 +2,7 @@
 
 ## Preparing for a release
 
-Before beginning a release, make sure dependencies are updated.
+Before beginning a release, make sure [dependencies](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/dependencyManagement/build.gradle.kts) are updated.
 
 Run `./gradlew dependencyUpdates` to get a report on what dependencies have updates and apply them to
 `dependencyManagement` and `settings.gradle.kts`.
