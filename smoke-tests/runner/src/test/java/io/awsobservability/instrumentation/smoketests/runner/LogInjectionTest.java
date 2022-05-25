@@ -82,4 +82,3 @@ class LogInjectionTest {
                 ".*1-[0-9a-f]{8}-[0-9a-f]{24}@[0-9a-f]{16} - Executing outgoing-http-call.*",
                 Pattern.DOTALL));
   }
-
