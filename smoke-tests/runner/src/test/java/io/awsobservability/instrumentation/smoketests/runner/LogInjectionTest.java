@@ -83,18 +83,3 @@ class LogInjectionTest {
                 Pattern.DOTALL));
   }
 
-  @Test
-  void logback() {
-    WebClient.of("http://localhost:" + logbackApp.getMappedPort(8080))
-        .get("/outgoing-http-call")
-        .aggregate()
-        .join();
-
-    // Log message has X-Ray trace ID.
-    assertThat(logbackString.toUtf8String())
-        .matches(
-            Pattern.compile(
-                ".*1-[0-9a-f]{8}-[0-9a-f]{24}@[0-9a-f]{16} : Executing outgoing-http-call.*",
-                Pattern.DOTALL));
-  }
-}
