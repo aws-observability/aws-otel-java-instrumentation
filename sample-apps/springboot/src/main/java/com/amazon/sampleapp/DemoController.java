@@ -58,7 +58,7 @@ public class DemoController {
   @ResponseBody
   public String awssdkCall() {
     if (shouldSampleAppLog) {
-      logger.info("Executing aws-sdk-all");
+      logger.info("Executing aws-sdk-alls");
     }
 
     s3.listBuckets();
