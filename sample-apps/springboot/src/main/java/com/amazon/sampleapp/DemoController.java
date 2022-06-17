@@ -33,7 +33,7 @@ public class DemoController {
   @GetMapping("/")
   @ResponseBody
   public String healthCheck() {
-    return "healthchecck";
+    return "healthcheck";
   }
 
   // test http instrumentation (okhttp lib)
@@ -58,7 +58,7 @@ public class DemoController {
   @ResponseBody
   public String awssdkCall() {
     if (shouldSampleAppLog) {
-      logger.info("Executing aws-sdk-all");
+      logger.info("Executing aws-sdk-call");
     }
 
     s3.listBuckets();
