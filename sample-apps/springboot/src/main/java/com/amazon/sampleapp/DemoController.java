@@ -3,11 +3,10 @@ package com.amazon.sampleapp;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import okhttp3.Call;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -72,21 +71,27 @@ public class DemoController {
 
   @GetMapping(value = "/getSampled")
   @ResponseBody
-  public String getSampled(@RequestHeader("user") String userAttribute,
-                           @RequestHeader("service_name") String name, @RequestHeader("required") String required) {
+  public String getSampled(
+      @RequestHeader("user") String userAttribute,
+      @RequestHeader("service_name") String name,
+      @RequestHeader("required") String required) {
     if (shouldSampleAppLog) {
       logger.info("Executing aws-sdk-all");
     }
-    Attributes attributes = Attributes.of(
+    Attributes attributes =
+        Attributes.of(
             AttributeKey.stringKey("http.method"), "GET",
             AttributeKey.stringKey("http.url"), "http://localhost:8080/getSampled",
             AttributeKey.stringKey("user"), userAttribute,
             AttributeKey.stringKey("http.route"), "/getSampled",
             AttributeKey.stringKey("required"), required,
-            AttributeKey.stringKey("http.target"), "/getSampled"
-    );
+            AttributeKey.stringKey("http.target"), "/getSampled");
     Tracer tracer = DemoApplication.openTelemetry.getTracer(name);
-    Span span = tracer.spanBuilder(name).setSpanKind(SpanKind.SERVER).setAllAttributes(attributes)
+    Span span =
+        tracer
+            .spanBuilder(name)
+            .setSpanKind(SpanKind.SERVER)
+            .setAllAttributes(attributes)
             .startSpan();
     span.setAttribute("http.status_code", 200);
     span.setAttribute("http.client_ip", "127.0.0.1");
@@ -98,28 +103,35 @@ public class DemoController {
 
   @PostMapping("/getSampled")
   @ResponseBody
-  public String postSampled(@RequestHeader("user") String userAttribute,
-                            @RequestHeader("service_name") String name, @RequestHeader("required") String required) {
+  public String postSampled(
+      @RequestHeader("user") String userAttribute,
+      @RequestHeader("service_name") String name,
+      @RequestHeader("required") String required) {
     if (shouldSampleAppLog) {
       logger.info("Executing aws-sdk-all");
     }
-    Attributes attributes = Attributes.of(
+    Attributes attributes =
+        Attributes.of(
             AttributeKey.stringKey("http.method"), "POST",
             AttributeKey.stringKey("http.url"), "http://localhost:8080/getSampled",
             AttributeKey.stringKey("user"), userAttribute,
             AttributeKey.stringKey("http.route"), "/getSampled",
             AttributeKey.stringKey("required"), required,
-            AttributeKey.stringKey("http.target"), "/getSampled"
-    );
+            AttributeKey.stringKey("http.target"), "/getSampled");
     Tracer tracer = DemoApplication.openTelemetry.getTracer("/postSampled");
-    Span span = tracer.spanBuilder("/postSampled").setSpanKind(SpanKind.SERVER).setAllAttributes(attributes)
+    Span span =
+        tracer
+            .spanBuilder("/postSampled")
+            .setSpanKind(SpanKind.SERVER)
+            .setAllAttributes(attributes)
             .startSpan();
     span.setAttribute("http.status_code", 200);
     span.setAttribute("http.client_ip", "127.0.0.1");
 
     Boolean isSampled = span.getSpanContext().isSampled();
     span.end();
-    return String.valueOf(isSampled);  }
+    return String.valueOf(isSampled);
+  }
 
   @GetMapping("/importantEndpoint")
   @ResponseBody
@@ -127,15 +139,19 @@ public class DemoController {
     if (shouldSampleAppLog) {
       logger.info("Executing aws-sdk-all");
     }
-    Attributes attributes = Attributes.of(
+    Attributes attributes =
+        Attributes.of(
             AttributeKey.stringKey("http.method"), "GET",
             AttributeKey.stringKey("http.url"), "http://localhost:8080/importantEndpoint",
             AttributeKey.stringKey("http.route"), "/importantEndpoint",
             AttributeKey.stringKey("http.client_ip"), "127.0.0.1",
-            AttributeKey.stringKey("http.target"), "/importantEndpoint"
-    );
+            AttributeKey.stringKey("http.target"), "/importantEndpoint");
     Tracer tracer = DemoApplication.openTelemetry.getTracer("/importantEndpoint");
-    Span span = tracer.spanBuilder("/importantEndpoint").setSpanKind(SpanKind.SERVER).setAllAttributes(attributes)
+    Span span =
+        tracer
+            .spanBuilder("/importantEndpoint")
+            .setSpanKind(SpanKind.SERVER)
+            .setAllAttributes(attributes)
             .startSpan();
     span.setAttribute("http.status_code", 200);
     Boolean isSampled = span.getSpanContext().isSampled();
@@ -149,5 +165,4 @@ public class DemoController {
     String xrayTraceId = "1-" + traceId.substring(0, 8) + "-" + traceId.substring(8);
     return String.format("{\"traceId\": \"%s\"}", xrayTraceId);
   }
-
 }
