@@ -1,7 +1,21 @@
 package com.amazon.sampleapp;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.contrib.awsxray.AwsXrayIdGenerator;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.extension.aws.AwsXrayPropagator;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import org.springframework.boot.SpringApplication;
@@ -22,6 +36,22 @@ public class DemoApplication {
     return S3Client.builder().build();
   }
 
+  public static Resource resource = Resource.builder().build();
+
+  public static OpenTelemetry openTelemetry = OpenTelemetrySdk.builder()
+          .setPropagators(
+                  ContextPropagators.create(
+                          TextMapPropagator.composite(
+                                  W3CTraceContextPropagator.getInstance(), AwsXrayPropagator.getInstance())))
+          .setTracerProvider(
+                  SdkTracerProvider.builder()
+                          .addSpanProcessor(BatchSpanProcessor.builder(OtlpGrpcSpanExporter.getDefault()).build())
+                          .setResource(resource)
+                          .setSampler(AwsXrayRemoteSampler.newBuilder(resource)
+                                  .setPollingInterval(Duration.ofSeconds(1)).build())
+                          .setIdGenerator(AwsXrayIdGenerator.getInstance())
+                          .build())
+          .buildAndRegisterGlobal();
   public static void main(String[] args) {
     // listenAddress should consist host + port (e.g. 127.0.0.1:5000)
     String port;

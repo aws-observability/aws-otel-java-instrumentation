@@ -2,15 +2,24 @@ plugins {
   java
   id("org.springframework.boot")
   id("com.google.cloud.tools.jib")
+  id("java-library")
 }
 
 dependencies {
+  api(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:1.5.0-alpha"))
+
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:sts")
+  implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-api")
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+  implementation("io.opentelemetry.contrib:opentelemetry-aws-xray:1.6.0")
+  implementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
+  implementation("io.opentelemetry:opentelemetry-extension-aws")
+  implementation("io.opentelemetry.instrumentation:opentelemetry-aws-sdk-2.2")
 }
 
 jib {
