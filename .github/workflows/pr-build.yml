@@ -23,4 +23,5 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           arguments: build --stacktrace -PenableCoverage=true
+          cache-disabled: true
       - uses: codecov/codecov-action@v1
