@@ -258,7 +258,7 @@ class SpringBootSmokeTest {
     }
     return exported.stream()
         .flatMap(req -> req.getResourceSpansList().stream())
-        .flatMap(rs -> rs.getInstrumentationLibrarySpansList().stream())
+        .flatMap(rs -> rs.getScopeSpansList().stream())
         .flatMap(ils -> ils.getSpansList().stream())
         .collect(toImmutableList());
   }
