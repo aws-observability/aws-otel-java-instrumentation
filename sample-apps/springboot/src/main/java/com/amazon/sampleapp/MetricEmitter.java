@@ -12,7 +12,7 @@ public class MetricEmitter {
   static final AttributeKey<String> DIMENSION_API_NAME = AttributeKey.stringKey("apiName");
   static final AttributeKey<String> DIMENSION_STATUS_CODE = AttributeKey.stringKey("statusCode");
 
-  static String API_COUNTER_METRIC = "apiBytesSent";
+  static String API_COUNTER_METRIC = "poopy";
   static String API_LATENCY_METRIC = "latency";
   static String API_SUM_METRIC = "totalApiBytesSent";
   static String API_LAST_LATENCY_METRIC = "lastLatency";

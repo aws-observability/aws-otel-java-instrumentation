@@ -14,7 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import software.amazon.awssdk.services.s3.S3Client;
 
-public class App {
+public class App extends Thread {
   private static final Logger logger = LogManager.getLogger();
   private static final boolean shouldSampleAppLog =
       System.getenv().getOrDefault("SAMPLE_APP_LOG_LEVEL", "INFO").equals("INFO");
@@ -25,6 +25,10 @@ public class App {
   private static MetricEmitter buildMetricEmitter() {
     return new MetricEmitter();
   }
+
+  static boolean threadActive = false;
+  static String randApiName;
+  static String randStatusCode;
 
   public static void main(String[] args) {
     MetricEmitter metricEmitter = buildMetricEmitter();
@@ -50,6 +54,13 @@ public class App {
     get(
         "/",
         (req, res) -> {
+          if(!threadActive) {
+              randApiName = req.pathInfo();
+              randStatusCode = String.valueOf(res.status());
+              App thread = new App();
+              threadActive = true;
+              thread.start();
+          }
           return "healthcheck";
         });
 
@@ -57,6 +68,13 @@ public class App {
     get(
         "/outgoing-http-call",
         (req, res) -> {
+            if(!threadActive) {
+                randApiName = req.pathInfo();
+                randStatusCode = String.valueOf(res.status());
+                App thread = new App();
+                threadActive = true;
+                thread.start();
+            }
           if (shouldSampleAppLog) {
             logger.info("Executing outgoing-http-call");
           }
@@ -76,6 +94,13 @@ public class App {
     get(
         "/aws-sdk-call",
         (req, res) -> {
+            if(!threadActive) {
+                randApiName = req.pathInfo();
+                randStatusCode = String.valueOf(res.status());
+                App thread = new App();
+                threadActive = true;
+                thread.start();
+            }
           if (shouldSampleAppLog) {
             logger.info("Executing aws-sdk-all");
           }
@@ -98,17 +123,14 @@ public class App {
             String statusCode = String.valueOf(res.status());
             // calculate return time
             Long requestStartTime = req.attribute(REQUEST_START_TIME);
-            metricEmitter.emitReturnTimeMetric(
+            logger.info("Start time: " + requestStartTime);
+            metricEmitter.emitApiLatencyMetric(
                 System.currentTimeMillis() - requestStartTime, req.pathInfo(), statusCode);
-
-            // emit http request load size
-            int loadSize = req.contentLength() + mimicPayloadSize();
-            metricEmitter.emitBytesSentMetric(loadSize, req.pathInfo(), statusCode);
-            metricEmitter.updateTotalBytesSentMetric(loadSize, req.pathInfo(), statusCode);
-            // mimic a queue size reporter
-            int queueSizeChange = mimicQueueSizeChange();
-            metricEmitter.emitQueueSizeChangeMetric(queueSizeChange, req.pathInfo(), statusCode);
-            metricEmitter.updateActualQueueSizeMetric(queueSizeChange, req.pathInfo(), statusCode);
+//
+//            // emit http request load size
+              int mimicBytes = mimicBytesSent();
+              metricEmitter.emitBytesSentMetric(mimicBytes, req.pathInfo(), statusCode);
+              metricEmitter.emitApiRequestsMetric(req.pathInfo(), statusCode);
           }
         });
 
@@ -120,6 +142,20 @@ public class App {
         });
   }
 
+  public void run() {
+      MetricEmitter metricEmitter = buildMetricEmitter();
+      while(true) {
+          metricEmitter.emitTimeAliveMetric(randApiName, randStatusCode);
+          metricEmitter.emitHeapSizeMetric(mimicHeapSize(), randApiName, randStatusCode);
+          metricEmitter.emitActiveThreadsMetric(mimicActiveThreads(), randApiName, randStatusCode);
+          metricEmitter.emitCpuUsageMetric(mimicCpuUsage(), randApiName, randStatusCode);
+          try {
+              Thread.sleep(1000);
+          } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+          }
+      }
+  }
   // get x-ray trace id
   private static String getXrayTraceId() {
     String traceId = Span.current().getSpanContext().getTraceId();
@@ -128,14 +164,23 @@ public class App {
     return String.format("{\"traceId\": \"%s\"}", xrayTraceId);
   }
 
-  private static int mimicPayloadSize() {
-    return ThreadLocalRandom.current().nextInt(100);
+  private static int mimicBytesSent() {
+      int generatedBytes = ThreadLocalRandom.current().nextInt(1024);
+      return generatedBytes;
   }
 
-  private static int mimicQueueSizeChange() {
-    int newQueueSize = ThreadLocalRandom.current().nextInt(100);
-    int queueSizeChange = newQueueSize - mimicQueueSize;
-    mimicQueueSize = newQueueSize;
-    return queueSizeChange;
+  private static int mimicHeapSize() {
+      int generatedHeapSize = ThreadLocalRandom.current().nextInt(64);
+      return generatedHeapSize;
+  }
+
+  private static int mimicActiveThreads() {
+      int generatedThreads = ThreadLocalRandom.current().nextInt(5);
+      return generatedThreads;
+  }
+
+  private static long mimicCpuUsage() {
+      long generatedCpu = ThreadLocalRandom.current().nextLong(64);
+      return generatedCpu;
   }
 }

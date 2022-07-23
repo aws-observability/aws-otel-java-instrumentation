@@ -3,45 +3,26 @@ services:
   otel:
     image: amazon/aws-otel-collector:latest
     command: --config /config/collector-config.yml
-    environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
     volumes:
       - .:/config
-      - /tmp/awscreds:/tmp/awscreds
+      - ~/.aws:/root/.aws
     ports:
       - '4317:4317'
 
   app:
-    image: ${APP_IMAGE}
+    image: public.ecr.aws/aws-otel-test/aws-otel-java-spark:test-spark
     environment:
       - INSTANCE_ID
-      - LISTEN_ADDRESS
+      - LISTEN_ADDRESS=0.0.0.0:4567
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
       - AWS_REGION=us-west-2
       - OTEL_JAVAAGENT_DEBUG=true
       - OTEL_METRICS_EXPORTER=otlp
     volumes:
-      - /tmp/awscreds:/tmp/awscreds
+      - ~/.aws:/root/.aws
     ports:
       - '4567:4567'
       - '8080:8080'
-
-  validator:
-    image: public.ecr.aws/u0d6r4y4/aws-otel-test-validator:alpha
-    command: ${VALIDATOR_COMMAND}
-    depends_on:
-      - otel
-      - app
-    environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
-      - AWS_REGION=us-west-2
-    volumes:
-      - /tmp/awscreds:/tmp/awscreds
