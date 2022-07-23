@@ -6,33 +6,45 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class MetricEmitter {
-
+  private static final Logger logger = LogManager.getLogger();
   static final AttributeKey<String> DIMENSION_API_NAME = AttributeKey.stringKey("apiName");
   static final AttributeKey<String> DIMENSION_STATUS_CODE = AttributeKey.stringKey("statusCode");
+  static int currentTimeAlive = 0;
+  static int currentBytesSent = 0;
+  static int currentActiveThreads = 0;
 
-  static String API_COUNTER_METRIC = "apiBytesSent";
-  static String API_LATENCY_METRIC = "latency";
-  static String API_SUM_METRIC = "totalApiBytesSent";
-  static String API_LAST_LATENCY_METRIC = "lastLatency";
-  static String API_UP_DOWN_COUNTER_METRIC = "queueSizeChange";
-  static String API_UP_DOWN_SUM_METRIC = "actualQueueSize";
+  static String API_COUNTER_METRIC = "totalBytesSent";
 
-  DoubleHistogram apiLatencyRecorder;
-  LongCounter totalBytesSentObserver;
+  static String API_ASYNC_COUNTER_METRIC = "totalApiRequests";
 
-  long apiBytesSent;
-  long queueSizeChange;
+  static String API_HISTOGRAM_METRIC = "latencyTime";
 
-  long totalBytesSent;
-  long apiLastLatency;
-  long actualQueueSize;
+  static String API_RANDOM_COUNTER_METRIC = "timeAlive";
+
+  static String API_RANDOM_ASYNC_UPDOWN_METRIC = "totalHeapSize";
+
+  static String API_RANDOM_UPDOWN_METRIC = "threadsActive";
+
+  static String API_RANDOM_GAUGE = "cpuUsage";
 
   // The below API name and status code dimensions are currently shared by all metrics observer in
   // this class.
   String apiNameValue = "";
   String statusCodeValue = "";
+
+  DoubleHistogram apiLatencyHistogram;
+  LongCounter bytesCounter;
+  LongCounter timeCounter;
+  LongCounter threadsCounter;
+
+  long totalApiRequests;
+  long totalHeapSize;
+  long cpuUsage;
+
 
   public MetricEmitter() {
     Meter meter =
@@ -41,101 +53,76 @@ public class MetricEmitter {
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
 
-    String latencyMetricName = API_LATENCY_METRIC;
-    String apiBytesSentMetricName = API_COUNTER_METRIC;
-    String totalApiBytesSentMetricName = API_SUM_METRIC;
-    String lastLatencyMetricName = API_LAST_LATENCY_METRIC;
-    String queueSizeChangeMetricName = API_UP_DOWN_COUNTER_METRIC;
-    String actualQueueSizeMetricName = API_UP_DOWN_SUM_METRIC;
+    String totalBytesSentName = API_COUNTER_METRIC;
+    String totalApiRequestsName = API_ASYNC_COUNTER_METRIC;
+    String latencyTimeName = API_HISTOGRAM_METRIC;
+    String timeAliveName = API_RANDOM_COUNTER_METRIC;
+    String totalHeapSizeName = API_RANDOM_ASYNC_UPDOWN_METRIC;
+    String threadsActiveName = API_RANDOM_UPDOWN_METRIC;
+    String cpuUsageName = API_RANDOM_GAUGE;
 
     String instanceId = System.getenv("INSTANCE_ID");
     if (instanceId != null && !instanceId.trim().equals("")) {
-      latencyMetricName = API_LATENCY_METRIC + "_" + instanceId;
-      apiBytesSentMetricName = API_COUNTER_METRIC + "_" + instanceId;
-      totalApiBytesSentMetricName = API_SUM_METRIC + "_" + instanceId;
-      lastLatencyMetricName = API_LAST_LATENCY_METRIC + "_" + instanceId;
-      queueSizeChangeMetricName = API_UP_DOWN_COUNTER_METRIC + "_" + instanceId;
-      actualQueueSizeMetricName = API_UP_DOWN_SUM_METRIC + "_" + instanceId;
+        totalBytesSentName = API_COUNTER_METRIC + "_" + instanceId;
+        totalApiRequestsName = API_ASYNC_COUNTER_METRIC + "_" + instanceId;
+        latencyTimeName = API_HISTOGRAM_METRIC + "_" + instanceId;
+        timeAliveName = API_RANDOM_COUNTER_METRIC + "_" + instanceId;
+        totalHeapSizeName = API_RANDOM_ASYNC_UPDOWN_METRIC + "_" + instanceId;
+        threadsActiveName = API_RANDOM_UPDOWN_METRIC + "_" + instanceId;
+        cpuUsageName = API_RANDOM_GAUGE + "_" + instanceId;
     }
 
-    meter
-        .counterBuilder(apiBytesSentMetricName)
-        .setDescription("API request load sent in bytes")
-        .setUnit("one")
-        .buildWithCallback(
-            measurement ->
-                measurement.record(
-                    apiBytesSent,
-                    Attributes.of(
-                        DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
+    bytesCounter = meter
+            .counterBuilder(totalBytesSentName)
+            .setDescription("API request load sent in bytes")
+            .setUnit("mb")
+            .build();
 
-    apiLatencyRecorder =
-        meter
-            .histogramBuilder(latencyMetricName)
+    meter
+            .counterBuilder(totalApiRequestsName)
+            .setDescription("Total amount of API requests to endpoint")
+            .setUnit("1")
+            .buildWithCallback(measurement ->
+                    measurement.record(
+                            totalApiRequests,
+                            Attributes.of(DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
+
+    apiLatencyHistogram = meter
+            .histogramBuilder(latencyTimeName)
             .setDescription("API latency time")
             .setUnit("ms")
             .build();
 
-    meter
-        .upDownCounterBuilder(queueSizeChangeMetricName)
-        .setDescription("Queue Size change")
-        .setUnit("one")
-        .buildWithCallback(
-            measurement ->
-                measurement.record(
-                    queueSizeChange,
-                    Attributes.of(
-                        DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
+    timeCounter = meter
+            .counterBuilder(timeAliveName)
+            .setDescription("How Long Application is Alive")
+            .setUnit("s")
+            .build();
 
     meter
-        .gaugeBuilder(totalApiBytesSentMetricName)
-        .setDescription("Total API request load sent in bytes")
-        .setUnit("one")
-        .ofLongs()
-        .buildWithCallback(
-            measurement -> {
-              measurement.record(
-                  totalBytesSent,
-                  Attributes.of(
-                      DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue));
-            });
+            .upDownCounterBuilder(totalHeapSizeName)
+            .setDescription("Heap size")
+            .setUnit("1")
+            .buildWithCallback(measurement ->
+                    measurement.record(
+                            totalHeapSize,
+                            Attributes.of(DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
+
+    threadsCounter = meter
+            .counterBuilder(threadsActiveName)
+            .setDescription("Number of Threads Active")
+            .setUnit("1")
+            .build();
 
     meter
-        .gaugeBuilder(lastLatencyMetricName)
-        .setDescription("The last API latency observed at collection interval")
-        .setUnit("ms")
-        .ofLongs()
-        .buildWithCallback(
-            measurement -> {
-              measurement.record(
-                  apiLastLatency,
-                  Attributes.of(
-                      DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue));
-            });
-    meter
-        .gaugeBuilder(actualQueueSizeMetricName)
-        .setDescription("The actual queue size observed at collection interval")
-        .setUnit("one")
-        .ofLongs()
-        .buildWithCallback(
-            measurement -> {
-              measurement.record(
-                  actualQueueSize,
-                  Attributes.of(
-                      DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue));
-            });
-  }
-
-  /**
-   * emit http request latency metrics with summary metric type
-   *
-   * @param returnTime
-   * @param apiName
-   * @param statusCode
-   */
-  public void emitReturnTimeMetric(Long returnTime, String apiName, String statusCode) {
-    apiLatencyRecorder.record(
-        returnTime, Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
+            .gaugeBuilder(cpuUsageName)
+            .setDescription("Measures CPU Usage")
+            .setUnit("1")
+            .ofLongs()
+            .buildWithCallback(measurement ->
+                    measurement.record(
+                            cpuUsage,
+                            Attributes.of(DIMENSION_API_NAME, apiNameValue, DIMENSION_STATUS_CODE, statusCodeValue)));
   }
 
   /**
@@ -146,55 +133,89 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitBytesSentMetric(int bytes, String apiName, String statusCode) {
-    apiBytesSent += bytes;
+    Attributes bytesAttributes = Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode);
+    bytesCounter.add(bytes, bytesAttributes);
+    currentBytesSent += bytes;
+    logger.info("Total Bytes Sent: " + currentBytesSent);
   }
 
   /**
-   * emit queue size change metrics with UpDownCounter metric type
+   * emit total API requests metrics
    *
-   * @param queueSizeChange
    * @param apiName
    * @param statusCode
    */
-  public void emitQueueSizeChangeMetric(int queueSizeChange, String apiName, String statusCode) {
-    queueSizeChange += queueSizeChange;
-  }
-
-  /**
-   * update total http request load size, it will be collected as summary metrics type
-   *
-   * @param bytes
-   * @param apiName
-   * @param statusCode
-   */
-  public void updateTotalBytesSentMetric(int bytes, String apiName, String statusCode) {
-    totalBytesSent += bytes;
+  public void emitApiRequestsMetric(String apiName, String statusCode) {
+    totalApiRequests += 1;
     apiNameValue = apiName;
     statusCodeValue = statusCode;
+    logger.info("API Requests:" + totalApiRequests);
   }
 
   /**
-   * update last api latency, it will be collected by value observer
+   * emit http request latency metrics with summary metric type
    *
    * @param returnTime
    * @param apiName
    * @param statusCode
    */
-  public void updateLastLatencyMetric(Long returnTime, String apiName, String statusCode) {
-    apiLastLatency = returnTime;
-    apiNameValue = apiName;
-    statusCodeValue = statusCode;
+  public void emitApiLatencyMetric(Long returnTime, String apiName, String statusCode) {
+    apiLatencyHistogram.record(
+            returnTime, Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode));
+    logger.info("New Latency Time: " + returnTime);
   }
+
   /**
-   * update actual queue size, it will be collected by UpDownSumObserver
+   * update total time sample app has run for
    *
-   * @param queueSizeChange
    * @param apiName
    * @param statusCode
    */
-  public void updateActualQueueSizeMetric(int queueSizeChange, String apiName, String statusCode) {
-    actualQueueSize += queueSizeChange;
+  public void emitTimeAliveMetric(String apiName, String statusCode) {
+    Attributes timeAttributes = Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode);
+    timeCounter.add(1, timeAttributes);
+    currentTimeAlive += 1;
+    logger.info("Current Time Alive: " + currentTimeAlive);
+  }
+
+  /**
+   * update total heap size
+   *
+   * @param heapChange
+   * @param apiName
+   * @param statusCode
+   */
+  public void emitHeapSizeMetric(int heapChange, String apiName, String statusCode) {
+    totalHeapSize += heapChange;
     apiNameValue = apiName;
     statusCodeValue = statusCode;
+    logger.info("Heap Size: " + totalHeapSize);
+  }
+
+  /**
+   * update number of active threads
+   *
+   * @param threadChange
+   * @param apiName
+   * @param statusCode
+   */
+  public void emitActiveThreadsMetric(int threadChange, String apiName, String statusCode) {
+    Attributes threadAttributes = Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode);
+    threadsCounter.add(threadChange, threadAttributes);
+    currentActiveThreads += threadChange;
+    logger.info("Threads Active: " + currentActiveThreads);
+  }
+  /**
+   * update CPU usage
+   *
+   * @param newCpuUsage
+   * @param apiName
+   * @param statusCode
+   */
+  public void emitCpuUsageMetric(Long newCpuUsage, String apiName, String statusCode) {
+    cpuUsage = newCpuUsage;
+    apiNameValue = apiName;
+    statusCodeValue = statusCode;
+    logger.info("CPU Usage: " + cpuUsage);
   }
 }
