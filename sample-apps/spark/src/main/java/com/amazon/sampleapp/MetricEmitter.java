@@ -9,8 +9,11 @@ import io.opentelemetry.api.metrics.Meter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.FileNotFoundException;
+
 public class MetricEmitter {
   private static final Logger logger = LogManager.getLogger();
+  private static Config getConfig() { return new Config(); }
   static final AttributeKey<String> DIMENSION_API_NAME = AttributeKey.stringKey("apiName");
   static final AttributeKey<String> DIMENSION_STATUS_CODE = AttributeKey.stringKey("statusCode");
   static int currentTimeAlive = 0;
@@ -52,7 +55,6 @@ public class MetricEmitter {
 
     // give a instanceId appending to the metricname so that we can check the metric for each round
     // of integ-test
-
     String totalBytesSentName = API_COUNTER_METRIC;
     String totalApiRequestsName = API_ASYNC_COUNTER_METRIC;
     String latencyTimeName = API_HISTOGRAM_METRIC;
@@ -172,9 +174,10 @@ public class MetricEmitter {
    * @param statusCode
    */
   public void emitTimeAliveMetric(String apiName, String statusCode) {
+    Config config = getConfig();
     Attributes timeAttributes = Attributes.of(DIMENSION_API_NAME, apiName, DIMENSION_STATUS_CODE, statusCode);
-    timeCounter.add(1, timeAttributes);
-    currentTimeAlive += 1;
+    timeCounter.add(config.getTimeAdd(), timeAttributes);
+    currentTimeAlive += config.getTimeAdd();
     logger.info("Current Time Alive: " + currentTimeAlive);
   }
 

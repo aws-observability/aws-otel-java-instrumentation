@@ -13,6 +13,8 @@ dependencies {
   implementation("org.apache.logging.log4j:log4j-core")
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:sts")
+  implementation("org.yaml:snakeyaml:1.8")
+
 
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl")
 }
