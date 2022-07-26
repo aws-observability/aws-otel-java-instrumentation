@@ -13,6 +13,7 @@ import okhttp3.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import software.amazon.awssdk.services.s3.S3Client;
+import java.util.ArrayList;
 
 public class App extends Thread {
   private static final Logger logger = LogManager.getLogger();
@@ -20,18 +21,19 @@ public class App extends Thread {
       System.getenv().getOrDefault("SAMPLE_APP_LOG_LEVEL", "INFO").equals("INFO");
 
   static final String REQUEST_START_TIME = "requestStartTime";
-  static int mimicQueueSize;
 
   private static MetricEmitter buildMetricEmitter() {
     return new MetricEmitter();
   }
 
+  private static Config getConfig() { return new Config(); }
   static boolean threadActive = false;
   static String randApiName;
   static String randStatusCode;
 
   public static void main(String[] args) {
     MetricEmitter metricEmitter = buildMetricEmitter();
+    Config config = getConfig();
     final Call.Factory httpClient = new OkHttpClient();
     final S3Client s3 = S3Client.builder().build();
     String port;
@@ -39,14 +41,17 @@ public class App extends Thread {
     String listenAddress = System.getenv("LISTEN_ADDRESS");
 
     if (listenAddress == null) {
-      host = "127.0.0.1";
-      port = "4567";
+//      host = "127.0.0.1";
+//      port = "4567";
+        logger.info(config.getHost());
+        host = config.getHost();
+        port = config.getPort();
     } else {
       String[] splitAddress = listenAddress.split(":");
       host = splitAddress[0];
       port = splitAddress[1];
     }
-
+    logger.info("dead");
     // set sampleapp app port number and ip address
     port(Integer.parseInt(port));
     ipAddress(host);
@@ -110,6 +115,37 @@ public class App extends Thread {
           return getXrayTraceId();
         });
 
+    /** sample app request */
+    get(
+            "/outgoing-sampleapp",
+            (req, res) -> {
+                if (shouldSampleAppLog) {
+                    logger.info("Executing outgoing-sampleapp call");
+                }
+                ArrayList<String> samplePorts = config.getSamplePorts();
+                if (config.getSamplePorts().isEmpty()) {
+                    try (Response response =
+                                 httpClient
+                                         .newCall(new Request.Builder().url("https://aws.amazon.com").build())
+                                         .execute()) {
+                    } catch (IOException e) {
+                        throw new UncheckedIOException("Could not fetch endpoint", e);
+                    }
+                }
+                else {
+                    for (String i : samplePorts) {
+                        try (Response response =
+                                     httpClient
+                                             .newCall(new Request.Builder().url("localhost:" + i).build())
+                                             .execute()) {
+                        } catch (IOException e) {
+                            throw new UncheckedIOException("Could not fetch endpoint", e);
+                        }
+                    }
+                }
+                return getXrayTraceId();
+            });
+
     /** record a start time for each request */
     before(
         (req, res) -> {
@@ -144,13 +180,14 @@ public class App extends Thread {
 
   public void run() {
       MetricEmitter metricEmitter = buildMetricEmitter();
+      Config config = getConfig();
       while(true) {
           metricEmitter.emitTimeAliveMetric(randApiName, randStatusCode);
           metricEmitter.emitHeapSizeMetric(mimicHeapSize(), randApiName, randStatusCode);
           metricEmitter.emitActiveThreadsMetric(mimicActiveThreads(), randApiName, randStatusCode);
           metricEmitter.emitCpuUsageMetric(mimicCpuUsage(), randApiName, randStatusCode);
           try {
-              Thread.sleep(1000);
+              Thread.sleep(1000 * config.getInterval());
           } catch (InterruptedException e) {
               throw new RuntimeException(e);
           }
@@ -165,22 +202,25 @@ public class App extends Thread {
   }
 
   private static int mimicBytesSent() {
-      int generatedBytes = ThreadLocalRandom.current().nextInt(1024);
+      int generatedBytes = ThreadLocalRandom.current().nextInt(100);
       return generatedBytes;
   }
 
   private static int mimicHeapSize() {
-      int generatedHeapSize = ThreadLocalRandom.current().nextInt(64);
+      Config config = getConfig();
+      int generatedHeapSize = ThreadLocalRandom.current().nextInt(config.getHeap());
       return generatedHeapSize;
   }
 
   private static int mimicActiveThreads() {
-      int generatedThreads = ThreadLocalRandom.current().nextInt(5);
+      Config config = getConfig();
+      int generatedThreads = ThreadLocalRandom.current().nextInt(config.getThreads());
       return generatedThreads;
   }
 
   private static long mimicCpuUsage() {
-      long generatedCpu = ThreadLocalRandom.current().nextLong(64);
+      Config config = getConfig();
+      long generatedCpu = ThreadLocalRandom.current().nextLong(config.getCpu());
       return generatedCpu;
   }
 }

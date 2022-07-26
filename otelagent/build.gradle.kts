@@ -51,7 +51,8 @@ val shadowClasspath by configurations.creating {
 }
 
 dependencies {
-  // Ensure dependency doesn't leak into POMs by using compileOnly and shadow-specific configuration.
+  implementation("org.yaml:snakeyaml:1.30")
+    // Ensure dependency doesn't leak into POMs by using compileOnly and shadow-specific configuration.
   val agentDep = create("io.opentelemetry.javaagent", "opentelemetry-javaagent")
   shadowClasspath(agentDep)
   compileOnly(agentDep)
@@ -103,6 +104,9 @@ tasks {
 }
 
 val shadowJar = tasks.named("shadowJar")
+repositories {
+  mavenCentral()
+}
 tasks {
   named("jar") {
     enabled = false
