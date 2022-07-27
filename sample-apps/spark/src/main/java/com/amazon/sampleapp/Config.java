@@ -25,7 +25,7 @@ public class Config {
             logger.info((System.getProperty("user.dir")));
             String filePath;
 //            String filePath = System.getProperty("user.dir");
-            filePath = "src/main/java/com/amazon/sampleapp/config.yaml";
+            filePath = "/sample-apps/spark/src/main/java/com/amazon/sampleapp/config.yaml";
             inputStream = new FileInputStream(filePath);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
