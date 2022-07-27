@@ -41,3 +41,5 @@ dataSources
 
 # JIRA plugin
 atlassian-ide-plugin.xml
+
+*.class
