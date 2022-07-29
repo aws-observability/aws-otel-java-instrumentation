@@ -35,3 +35,7 @@ defaulting to maximum interoperability.
 
 Other than that, the distribution is identical to the upstream agent and all configuration can be
 used as is.
+
+## Support
+
+Please note that as per policy, we're providing support via GitHub on a best effort basis. However, if you have AWS Enterprise Support you can create a ticket and we will provide direct support within the respective SLAs.
