@@ -1,3 +1,4 @@
+name: Smoke test build
 on:
   push:
     branches:

@@ -1,3 +1,4 @@
+name: Java Agent Main Build
 on:
   push:
     branches:

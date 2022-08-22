@@ -1,3 +1,5 @@
+name: Correto Build
+
 on:
   push:
     branches:
