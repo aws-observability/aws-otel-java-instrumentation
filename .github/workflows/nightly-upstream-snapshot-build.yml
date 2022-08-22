@@ -1,3 +1,4 @@
+name: Nightly Snapshot Build
 on:
   schedule:
     - cron: "21 3 * * *"
