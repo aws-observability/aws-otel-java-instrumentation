@@ -15,27 +15,43 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.primitives.Ints;
-import io.opentelemetry.api.trace.TracerProvider;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.RepeatedTest;
 
 class AwsTracerConfigurerTest {
 
+  private AutoConfiguredOpenTelemetrySdkBuilder createSdkBuilder() {
+    InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+    return AutoConfiguredOpenTelemetrySdk.builder()
+        .addTracerProviderCustomizer(
+            (tracerProviderBuilder, config) -> {
+              return tracerProviderBuilder.addSpanProcessor(
+                  SimpleSpanProcessor.create(spanExporter));
+            })
+        .addPropertiesSupplier(() -> singletonMap("otel.metrics.exporter", "none"))
+        .addPropertiesSupplier(() -> singletonMap("otel.traces.exporter", "none"))
+        .addPropertiesSupplier(() -> singletonMap("otel.logs.exporter", "none"))
+        .setResultAsGlobal(false);
+  }
   // The probability of this passing once without correct IDs is low, 20 times is inconceivable.
   @RepeatedTest(20)
   void providerGeneratesXrayIds() {
-    SdkTracerProviderBuilder builder = SdkTracerProvider.builder();
-    new AwsTracerConfigurer().configure(builder, null);
-    TracerProvider tracerProvider = builder.build();
+    OpenTelemetrySdk sdk = createSdkBuilder().build().getOpenTelemetrySdk();
 
+    Tracer tracer = sdk.getTracer("test");
     int startTimeSecs = (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
-    var span = tracerProvider.get("test").spanBuilder("test").startSpan();
+    var span = tracer.spanBuilder("test").startSpan();
     byte[] traceId = span.getSpanContext().getTraceIdBytes();
     int epoch = Ints.fromBytes(traceId[0], traceId[1], traceId[2], traceId[3]);
     assertThat(epoch).isGreaterThanOrEqualTo(startTimeSecs);
@@ -44,14 +60,19 @@ class AwsTracerConfigurerTest {
   // Sanity check that the trace ID ratio sampler works fine with the x-ray generator.
   @RepeatedTest(20)
   void traceIdRatioSampler() {
-    SdkTracerProviderBuilder builder =
-        SdkTracerProvider.builder().setSampler(Sampler.traceIdRatioBased(0.01));
-    new AwsTracerConfigurer().configure(builder, null);
-    TracerProvider tracerProvider = builder.build();
+    OpenTelemetrySdk sdk =
+        createSdkBuilder()
+            .addTracerProviderCustomizer(
+                (tracerProviderBuilder, config) ->
+                    tracerProviderBuilder.setSampler(Sampler.traceIdRatioBased(0.01)))
+            .build()
+            .getOpenTelemetrySdk();
+
     int numSpans = 100000;
     int numSampled = 0;
+    Tracer tracer = sdk.getTracer("test");
     for (int i = 0; i < numSpans; i++) {
-      var span = tracerProvider.get("test").spanBuilder("test").startSpan();
+      var span = tracer.spanBuilder("test").startSpan();
       if (span.getSpanContext().getTraceFlags().isSampled()) {
         numSampled++;
       }

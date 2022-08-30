@@ -15,16 +15,20 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import io.opentelemetry.javaagent.extension.config.ConfigPropertySource;
+import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
+import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import java.util.HashMap;
-import java.util.Map;
 
-public class AwsAgentProperties implements ConfigPropertySource {
+public class AwsAgentPropertiesCustomizerProvider implements AutoConfigurationCustomizerProvider {
   @Override
-  public Map<String, String> getProperties() {
-    Map<String, String> properties = new HashMap<>();
-    properties.put("otel.propagators", "xray,tracecontext,b3,b3multi");
-    properties.put("otel.instrumentation.aws-sdk.experimental-span-attributes", "true");
-    return properties;
+  public void customize(AutoConfigurationCustomizer autoConfiguration) {
+    autoConfiguration.addPropertiesSupplier(
+        () ->
+            new HashMap<String, String>() {
+              {
+                put("otel.propagators", "xray,tracecontext,b3,b3multi");
+                put("otel.instrumentation.aws-sdk.experimental-span-attributes", "true");
+              }
+            });
   }
 }

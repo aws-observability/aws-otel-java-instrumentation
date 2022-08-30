@@ -16,12 +16,10 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.contrib.awsxray.AwsXrayIdGenerator;
-import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
-import io.opentelemetry.sdk.autoconfigure.spi.traces.SdkTracerProviderConfigurer;
-import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
+import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
+import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 
-public class AwsTracerConfigurer implements SdkTracerProviderConfigurer {
-
+public class AwsTracerCustomizerProvider implements AutoConfigurationCustomizerProvider {
   static {
     if (System.getProperty("otel.aws.imds.endpointOverride") == null) {
       String overrideFromEnv = System.getenv("OTEL_AWS_IMDS_ENDPOINT_OVERRIDE");
@@ -32,8 +30,9 @@ public class AwsTracerConfigurer implements SdkTracerProviderConfigurer {
   }
 
   @Override
-  public void configure(
-      SdkTracerProviderBuilder sdkTracerProviderBuilder, ConfigProperties config) {
-    sdkTracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance());
+  public void customize(AutoConfigurationCustomizer autoConfiguration) {
+    autoConfiguration.addTracerProviderCustomizer(
+        (tracerProviderBuilder, configProps) ->
+            tracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance()));
   }
 }
