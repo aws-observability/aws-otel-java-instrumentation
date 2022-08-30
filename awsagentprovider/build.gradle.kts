@@ -31,7 +31,9 @@ dependencies {
   implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
-
+  testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
+  testImplementation("io.opentelemetry:opentelemetry-extension-aws")
+  testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")

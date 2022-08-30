@@ -1,5 +1,5 @@
 #
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates.
 #
 # Licensed under the Apache License, Version 2.0 (the "License").
 # You may not use this file except in compliance with the License.
@@ -13,4 +13,5 @@
 # permissions and limitations under the License.
 #
 
-software.amazon.opentelemetry.javaagent.providers.AwsTracerConfigurer
+software.amazon.opentelemetry.javaagent.providers.AwsAgentPropertiesCustomizerProvider
+software.amazon.opentelemetry.javaagent.providers.AwsTracerCustomizerProvider
