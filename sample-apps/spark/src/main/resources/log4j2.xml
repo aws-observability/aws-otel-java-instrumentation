@@ -2,7 +2,7 @@
 <Configuration status="WARN">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} %X{AWS-XRAY-TRACE-ID} - %msg%n"/>
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %notEmpty{AWS-XRAY-TRACE-ID: %X{AWS-XRAY-TRACE-ID} }%-5p %m%n"/>
         </Console>
     </Appenders>
     <Loggers>
