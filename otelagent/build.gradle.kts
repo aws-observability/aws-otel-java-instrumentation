@@ -100,6 +100,12 @@ tasks {
       attributes.put("Implementation-Version", implementationVersion)
     }
   }
+
+  // Since we are reconfiguring the publishing procedure to only include the shadow jar, the Gradle metadata file
+  // generated is no longer valid. Instead we should rely only on the pom generated.
+  withType<GenerateModuleMetadata>().configureEach {
+    enabled = false
+  }
 }
 
 val shadowJar = tasks.named("shadowJar")
@@ -114,6 +120,10 @@ tasks {
       publications {
         named<MavenPublication>("maven") {
           artifact(archiveFile)
+          pom {
+            // Force packaging in the POM.
+            packaging = "jar"
+          }
         }
       }
     }
