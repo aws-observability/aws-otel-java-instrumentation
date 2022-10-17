@@ -36,7 +36,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.314",
   "com.fasterxml.jackson:jackson-bom:2.13.4",
   "com.google.guava:guava-bom:31.1-jre",
-  "com.google.protobuf:protobuf-bom:3.21.6",
+  "com.google.protobuf:protobuf-bom:3.21.7",
   "com.linecorp.armeria:armeria-bom:1.19.0",
   "io.grpc:grpc-bom:1.49.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
