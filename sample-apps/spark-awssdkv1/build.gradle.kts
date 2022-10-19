@@ -34,4 +34,7 @@ tasks {
   named("jib") {
     dependsOn(":otelagent:jib")
   }
+  named("jibDockerBuild") {
+    dependsOn(":otelagent:jibDockerBuild")
+  }
 }
