@@ -20,8 +20,14 @@ jobs:
         with:
           java-version: 17
       - uses: gradle/wrapper-validation-action@v1
-      - name: Build with Gradle
+      - name: Build with Gradle with Integration tests
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build --stacktrace -PenableCoverage=true -PlocalDocker=true
+          arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
+      - name: Build with Gradle
+        uses: gradle/gradle-build-action@v2
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        with:
+          arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@v1
