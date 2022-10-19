@@ -14,7 +14,7 @@
  */
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
+import software.amazon.adot.configureImages
 plugins {
   java
   `maven-publish`
@@ -131,22 +131,13 @@ tasks {
 }
 
 jib {
-  to {
-    image = "public.ecr.aws/u0d6r4y4/aws-opentelemetry-java-base:alpha"
-  }
-  from {
-    image = "gcr.io/distroless/java17-debian11:debug"
-    platforms {
-      platform {
-        architecture = "amd64"
-        os = "linux"
-      }
-      platform {
-        architecture = "arm64"
-        os = "linux"
-      }
-    }
-  }
+  configureImages(
+    "gcr.io/distroless/java17-debian11:debug",
+    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
+    localDocker = false,
+    multiPlatform = !rootProject.property("localDocker")!!.equals("true")
+  )
+
   container {
     appRoot = "/aws-observability"
     setEntrypoint("INHERIT")

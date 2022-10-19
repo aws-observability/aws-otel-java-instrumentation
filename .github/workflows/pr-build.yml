@@ -23,5 +23,5 @@ jobs:
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build --stacktrace -PenableCoverage=true
+          arguments: build --stacktrace -PenableCoverage=true -PlocalDocker=true
       - uses: codecov/codecov-action@v1
