@@ -35,12 +35,11 @@ jobs:
       - name: Build release with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build jib final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build integrationTests final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} -PlocalDocker=true --stacktrace
         env:
           PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
           GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_HASH: ${{ github.event.inputs.version }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 

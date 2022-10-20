@@ -35,7 +35,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build snapshot --stacktrace -PenableCoverage=true
+          arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
           PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
