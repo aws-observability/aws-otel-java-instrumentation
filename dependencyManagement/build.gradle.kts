@@ -34,7 +34,7 @@ val otelSnapshotVersion = "1.20.0"
 
 val DEPENDENCY_BOMS = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.322",
-  "com.fasterxml.jackson:jackson-bom:2.14.0-rc2",
+  "com.fasterxml.jackson:jackson-bom:2.13.4.20221013",
   "com.google.guava:guava-bom:31.1-jre",
   "com.google.protobuf:protobuf-bom:3.21.7",
   "com.linecorp.armeria:armeria-bom:1.20.1",
@@ -60,7 +60,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "org.slf4j",
-    "2.0.3",
+    "1.7.36",
     listOf(
       "slf4j-api",
       "slf4j-simple"

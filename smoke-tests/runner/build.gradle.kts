@@ -44,4 +44,21 @@ tasks {
         .getAsFile().absolutePath}"
     )
   }
+
+  register("jibDockerBuildAll")
+  register("integrationTests")
+
+  named("integrationTests") {
+    dependsOn("test")
+    dependsOn("jibDockerBuildAll")
+    findByName("test")?.mustRunAfter("jibDockerBuildAll")
+  }
+
+  named("jibDockerBuildAll") {
+    // Make sure that images used during tests are available locally.
+    dependsOn(":sample-apps:spark:jibDockerBuild")
+    dependsOn(":sample-apps:springboot:jibDockerBuild")
+    dependsOn(":smoke-tests:spring-boot:jibDockerBuild")
+    dependsOn(":smoke-tests:fakebackend:jibDockerBuild")
+  }
 }

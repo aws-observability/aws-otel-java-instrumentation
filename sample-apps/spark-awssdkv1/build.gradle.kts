@@ -1,3 +1,5 @@
+import software.amazon.adot.configureImages
+
 plugins {
   java
 
@@ -19,27 +21,20 @@ application {
 }
 
 jib {
-  to {
-    image = "public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1"
+  configureImages(
+    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
+    "public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1",
+    localDocker = rootProject.property("localDocker")!!.equals("true"),
+    multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
     tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
-  }
-  from {
-    image = "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha"
-    platforms {
-      platform {
-        architecture = "amd64"
-        os = "linux"
-      }
-      platform {
-        architecture = "arm64"
-        os = "linux"
-      }
-    }
-  }
+  )
 }
 
 tasks {
   named("jib") {
     dependsOn(":otelagent:jib")
+  }
+  named("jibDockerBuild") {
+    dependsOn(":otelagent:jibDockerBuild")
   }
 }
