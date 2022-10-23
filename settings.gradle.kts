@@ -21,7 +21,7 @@ pluginManagement {
     id("com.github.johnrengelman.shadow") version "7.1.2"
     id("com.google.cloud.tools.jib") version "3.3.0"
     id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
-    id("nebula.release") version "16.1.0"
+    id("nebula.release") version "17.0.1"
     id("org.springframework.boot") version "2.7.4"
   }
 }
