@@ -27,13 +27,13 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the only version that affects the released artifact.
-val otelVersion = "1.19.1"
+val otelVersion = "1.19.2"
 val otelSnapshotVersion = "1.20.0"
 
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.332",
+  "com.amazonaws:aws-java-sdk-bom:1.12.333",
   "com.fasterxml.jackson:jackson-bom:2.13.4.20221013",
   "com.google.guava:guava-bom:31.1-jre",
   "com.google.protobuf:protobuf-bom:3.21.9",
@@ -44,7 +44,7 @@ val DEPENDENCY_BOMS = listOf(
   "org.junit:junit-bom:5.9.1",
   "org.springframework.boot:spring-boot-dependencies:2.7.5",
   "org.testcontainers:testcontainers-bom:1.17.5",
-  "software.amazon.awssdk:bom:2.18.7"
+  "software.amazon.awssdk:bom:2.18.8"
 )
 
 val DEPENDENCY_SETS = listOf(
