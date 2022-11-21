@@ -29,9 +29,9 @@ jobs:
         name: Parse release branch name
         run: |
           # Sets the release-branch-name output to the version number with the last non-period element replaced with an 'x' and preprended with v.
-          echo "::set-output name=release-branch-name::$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')"
+          echo "release-branch-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
           # Sets the release-tag-name output to the version number with the last non-period element replace with a '0' and prepended with v
-          echo "::set-output name=release-tag-name::$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')"
+          echo "release-tag-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
       - id: checkout-release-branch
         name: Check out release branch
         # Will fail if there is no release branch yet or succeed otherwise
