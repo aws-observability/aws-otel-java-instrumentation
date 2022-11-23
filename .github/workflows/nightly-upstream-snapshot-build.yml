@@ -46,3 +46,27 @@ jobs:
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+  publish-build-status:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Publish CI status
+        run: |
+          if [ '${{ needs.build.result }}' = 'success' ]; then
+            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+              --metric-name Success \
+              --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly-upstream-snapshot-build \
+              --value 1.0
+          else
+            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+              --metric-name Success \
+              --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly-upstream-snapshot-build \
+              --value 0.0
+          fi

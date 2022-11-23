@@ -143,3 +143,30 @@ jobs:
           LISTEN_ADDRESS: 0.0.0.0:4567
           APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1:${{ github.sha }}
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
+
+  publish-build-status:
+    runs-on: ubuntu-latest
+    needs: [test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent]
+    if: always()
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Publish CI status
+        run: |
+          if [ '${{ needs.test_Spring_App_With_Java_Agent.result }}' = 'success' ] && \
+             [ '${{ needs.test_Spark_App_With_Java_Agent.result }}' = 'success' ] && \
+             [ '${{ needs.test_Spark_AWS_SDK_V1_App_With_Java_Agent.result }}' = 'success' ]; then
+            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+              --metric-name Success \
+              --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=main-build \
+              --value 1.0
+          else
+            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+              --metric-name Success \
+              --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=main-build \
+              --value 0.0
+          fi
