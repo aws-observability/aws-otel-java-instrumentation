@@ -26,5 +26,5 @@ dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("net.bytebuddy:byte-buddy")
 
-  compileOnly("ch.qos.logback:logback-classic:1.4.3")
+  compileOnly("ch.qos.logback:logback-classic:1.4.5")
 }
