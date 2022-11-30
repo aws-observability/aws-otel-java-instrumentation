@@ -42,7 +42,7 @@ val DEPENDENCY_BOMS = listOf(
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.19.0",
   "org.junit:junit-bom:5.9.1",
-  "org.springframework.boot:spring-boot-dependencies:2.7.6",
+  "org.springframework.boot:spring-boot-dependencies:2.7.5",
   "org.testcontainers:testcontainers-bom:1.17.6",
   "software.amazon.awssdk:bom:2.18.25"
 )
@@ -73,6 +73,7 @@ val DEPENDENCIES = listOf(
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.10.0",
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.20.1",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray-propagator:1.20.1-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:0.19.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
   "net.bytebuddy:byte-buddy:1.12.19"
