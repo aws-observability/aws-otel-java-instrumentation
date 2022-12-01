@@ -163,7 +163,11 @@ allprojects {
         mergeServiceFiles()
 
         // rewrite library instrumentation dependencies
-        relocate("io.opentelemetry.instrumentation", "io.opentelemetry.javaagent.shaded.instrumentation")
+        relocate("io.opentelemetry.instrumentation", "io.opentelemetry.javaagent.shaded.instrumentation") {
+          // As per https://github.com/open-telemetry/opentelemetry-java/issues/4919#issuecomment-1305774636
+          exclude("io.opentelemetry.instrumentation.resources.*")
+          exclude("io.opentelemetry.instrumentation.spring.resources.*")
+        }
 
         // rewrite dependencies calling Logger.getLogger
         relocate("java.util.logging.Logger", "io.opentelemetry.javaagent.bootstrap.PatchLogger")
