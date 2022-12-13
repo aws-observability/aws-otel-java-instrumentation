@@ -74,12 +74,11 @@ class LogInjectionTest {
         .get("/outgoing-http-call")
         .aggregate()
         .join();
-
     // Log message has X-Ray trace ID.
     assertThat(log4jString.toUtf8String())
         .matches(
             Pattern.compile(
-                ".*1-[0-9a-f]{8}-[0-9a-f]{24}@[0-9a-f]{16} - Executing outgoing-http-call.*",
+                ".*1-[0-9a-f]{8}-[0-9a-f]{24}@[0-9a-f]{16} INFO  Executing outgoing-http-call.*",
                 Pattern.DOTALL));
   }
 
