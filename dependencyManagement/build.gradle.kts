@@ -27,24 +27,24 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "1.20.2"
-val otelSnapshotVersion = "1.21.0"
+val otelVersion = "1.21.0"
+val otelSnapshotVersion = "1.22.0"
 
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.353",
+  "com.amazonaws:aws-java-sdk-bom:1.12.375",
   "com.fasterxml.jackson:jackson-bom:2.14.1",
   "com.google.guava:guava-bom:31.1-jre",
-  "com.google.protobuf:protobuf-bom:3.21.10",
-  "com.linecorp.armeria:armeria-bom:1.20.3",
-  "io.grpc:grpc-bom:1.51.0",
+  "com.google.protobuf:protobuf-bom:3.21.12",
+  "com.linecorp.armeria:armeria-bom:1.21.0",
+  "io.grpc:grpc-bom:1.51.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.19.0",
   "org.junit:junit-bom:5.9.1",
   "org.springframework.boot:spring-boot-dependencies:2.7.5",
   "org.testcontainers:testcontainers-bom:1.17.6",
-  "software.amazon.awssdk:bom:2.18.29"
+  "software.amazon.awssdk:bom:2.19.7"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -72,11 +72,11 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.10.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.20.1",
-  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.20.1-alpha",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.21.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.21.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:0.19.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.12.19"
+  "net.bytebuddy:byte-buddy:1.12.20"
 )
 
 javaPlatform {
@@ -113,7 +113,7 @@ rootProject.allprojects {
 
 fun isNonStable(version: String): Boolean {
   val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.toUpperCase().contains(it) }
-  val regex = "^[0-9,.v-]+(-r)?$".toRegex()
+  val regex = "^[0-9,.v-]+(-r|-alpha)?$".toRegex()
   val isGuava = version.endsWith("-jre")
   val isStable = stableKeyword || regex.matches(version) || isGuava
   return isStable.not()
