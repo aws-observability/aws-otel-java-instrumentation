@@ -36,49 +36,17 @@ to view a summary of all commits since last release as a reference.
 All patch releases should include only bug-fixes, and must avoid
 adding/modifying the public APIs. 
 
-Open the patch release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Patch+Release+Build%22).
+Steps:
+1. Create a branch from the release that you want to patch. It should follow the convention `release-<major>.<minor>.x`. E.g.: if you want to patch release 1.21.0, the name of the branch should be `release-1.21.x`.
+1. Mark the branch as protected.
+1. Modify the source code/dependencies. You can only update the patch version of opentelemetry dependencies.
+1. Optionally prepare patches that can be applied to opentelemetry-java and opentelemetry-java-instrumentation. Use the sufix `-adot` in the
+patched versions.
+1. Create pull request to merge in the release branch.
 
-You will see a button that says "Run workflow". Press the button, enter the version number you want
-to release in the input field for version that pops up and the commits you want to cherrypick for the
-patch as a comma-separated list. Then, press "Run workflow".
+After the pull request is merged, open the release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Release+Build%22).
 
-If the commits cannot be cleanly applied to the release branch, for example because it has diverged
-too much from main, then the workflow will fail before building. In this case, you will need to
-prepare the release branch manually.
-
-This example will assume patching into release branch `v1.2.x` from a git repository with remotes
-named `origin` and `upstream`.
-
-```
-$ git remote -v
-origin	git@github.com:username/opentelemetry-java.git (fetch)
-origin	git@github.com:username/opentelemetry-java.git (push)
-upstream	git@github.com:open-telemetry/opentelemetry-java.git (fetch)
-upstream	git@github.com:open-telemetry/opentelemetry-java.git (push)
-```
-
-First, checkout the release branch
-
-```
-git fetch upstream v1.2.x
-git checkout upstream/v1.2.x
-```
-
-Apply cherrypicks manually and commit. It is ok to apply multiple cherrypicks in a single commit.
-Use a commit message such as "Manual cherrypick for commits commithash1, commithash2".
-
-After commiting the change, push to your fork's branch.
-
-```
-git push origin v1.2.x
-```
-
-Create a PR to have code review and merge this into upstream's release branch. As this was not
-applied automatically, we need to do code review to make sure the manual cherrypick is correct.
-
-After it is merged, Run the patch release workflow again, but leave the commits input field blank.
-The release will be made with the current state of the release branch, which is what you prepared
-above.
+Select the branch and provide the version.
 
 ## Release candidates
 

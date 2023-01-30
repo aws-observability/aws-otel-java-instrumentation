@@ -22,6 +22,12 @@ jobs:
         with:
           java-version: 17
       - uses: gradle/wrapper-validation-action@v1
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSWORD }}
+        if: ${{ contains(github.ref, 'refs/heads/release-') }}
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
