@@ -33,7 +33,7 @@ if [[ -f "$OTEL_JAVA_CONTRIB_PATCH" ]]; then
   git commit -a -m "Patching to release ${PATCH_VERSION}"
   cd -
 else
-  echo "Skipping patching opentelemetry-java-instrumentation"
+  echo "Skipping patching opentelemetry-java-contrib"
 fi
 
 
