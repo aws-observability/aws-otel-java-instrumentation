@@ -28,7 +28,7 @@ jobs:
         if: ${{ contains(github.ref, 'refs/heads/release/v*') }}
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSWORD }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
