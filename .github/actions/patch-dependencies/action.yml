@@ -38,8 +38,8 @@ runs:
 
     - name: Clone and patch repositories
       run: .github/scripts/patch.sh
-      if: ${{ env.patch_otel_java == 'true' OR
-              env.patch_otel_java_instrumentation == 'true' OR
+      if: ${{ env.patch_otel_java == 'true' ||
+              env.patch_otel_java_instrumentation == 'true' ||
               env.patch_otel_java_contrib == 'true' }}
       shell: bash
 
