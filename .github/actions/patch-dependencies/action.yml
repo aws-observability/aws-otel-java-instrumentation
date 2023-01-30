@@ -31,49 +31,74 @@ runs:
         if [[ -f .github/patchs/opentelemetry-java-instrumentation.patch ]]; then
             echo 'patch_otel_java_instrumentation=true' >> $GITHUB_ENV
         fi
+        if [[ -f .github/patchs/opentelemetry-java-contrib.patch ]]; then
+            echo 'patch_otel_java_contrib=true' >> $GITHUB_ENV
+        fi
       shell: bash
 
     - name: Clone and patch repositories
-      if: ${{ env.patch_otel_java == 'true' && env.patch_otel_java_instrumentation == 'true' }}
       run: .github/scripts/patch.sh
+      if: ${{ env.patch_otel_java == 'true' OR
+              env.patch_otel_java_instrumentation == 'true' OR
+              env.patch_otel_java_contrib == 'true' }}
       shell: bash
 
     - name: Build opentelemetry-java with tests
       uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java == 'true' && inputs.run_tests != 'false' }}
       with:
         arguments: build publishToMavenLocal
         build-root-directory: opentelemetry-java
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
-      if: ${{ env.patch_otel_java == 'true' && inputs.run_tests != 'false' }}
 
     - name: Build opentelemetry-java
       uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java == 'true' && inputs.run_tests == 'false' }}
       with:
         arguments: publishToMavenLocal
         build-root-directory: opentelemetry-java
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
-      if: ${{ env.patch_otel_java == 'true' && inputs.run_tests == 'false' }}
+
+    - name: Build opentelemetry-java-contrib with tests
+      uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
+      with:
+        arguments: build publishToMavenLocal
+        build-root-directory: opentelemetry-java-contrib
+      env:
+        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
+        GPG_PASSWORD: ${{ inputs.gpg_password }}
+
+    - name: Build opentelemetry-java-contrib
+      uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests == 'false' }}
+      with:
+        arguments: publishToMavenLocal
+        build-root-directory: opentelemetry-java-contrib
+      env:
+        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
+        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: Build opentelemetry-java-instrumentation with tests
       uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
       with:
         arguments: check -x spotlessCheck publishToMavenLocal
         build-root-directory: opentelemetry-java-instrumentation
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
-      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
 
     - name: Build opentelemetry java instrumentation
       uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests == 'false' }}
       with:
         arguments: publishToMavenLocal
         build-root-directory: opentelemetry-java-instrumentation
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
-      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests == 'false' }}
