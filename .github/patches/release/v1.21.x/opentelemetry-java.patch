@@ -1,0 +1,83 @@
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index d05cbfbe6..82e686a42 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -22,7 +22,7 @@ val DEPENDENCY_BOMS = listOf(
+   "io.zipkin.reporter2:zipkin-reporter-bom:2.16.3",
+   "org.junit:junit-bom:5.9.1",
+   "org.testcontainers:testcontainers-bom:1.17.6",
+-  "org.yaml:snakeyaml:1.33"
++  "org.snakeyaml:snakeyaml-engine:2.6"
+ )
+ 
+ val DEPENDENCY_SETS = listOf(
+diff --git a/sdk-extensions/incubator/build.gradle.kts b/sdk-extensions/incubator/build.gradle.kts
+index c45154d40..55d282f00 100644
+--- a/sdk-extensions/incubator/build.gradle.kts
++++ b/sdk-extensions/incubator/build.gradle.kts
+@@ -20,7 +20,7 @@ dependencies {
+ 
+   // io.opentelemetry.sdk.extension.incubator.metric.viewconfig
+   implementation(project(":sdk-extensions:autoconfigure-spi"))
+-  implementation("org.yaml:snakeyaml")
++  implementation("org.snakeyaml:snakeyaml-engine")
+ 
+   // io.opentelemetry.sdk.extension.trace.zpages
+   implementation(project(":semconv"))
+diff --git a/sdk-extensions/incubator/src/main/java/io/opentelemetry/sdk/extension/incubator/metric/viewconfig/ViewConfig.java b/sdk-extensions/incubator/src/main/java/io/opentelemetry/sdk/extension/incubator/metric/viewconfig/ViewConfig.java
+index 547f0261c..720c67b40 100644
+--- a/sdk-extensions/incubator/src/main/java/io/opentelemetry/sdk/extension/incubator/metric/viewconfig/ViewConfig.java
++++ b/sdk-extensions/incubator/src/main/java/io/opentelemetry/sdk/extension/incubator/metric/viewconfig/ViewConfig.java
+@@ -27,7 +27,8 @@ import java.util.Map;
+ import java.util.Optional;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+-import org.yaml.snakeyaml.Yaml;
++import org.snakeyaml.engine.v2.api.Load;
++import org.snakeyaml.engine.v2.api.LoadSettings;
+ 
+ /**
+  * Enables file based YAML configuration of Metric SDK {@link View}s.
+@@ -94,10 +95,14 @@ public final class ViewConfig {
+   // Visible for testing
+   @SuppressWarnings("unchecked")
+   static List<ViewConfigSpecification> loadViewConfig(InputStream inputStream) {
+-    Yaml yaml = new Yaml();
++    LoadSettings settings = LoadSettings.builder().build();
++    Load yaml = new Load(settings);
+     try {
+       List<ViewConfigSpecification> result = new ArrayList<>();
+-      List<Map<String, Object>> viewConfigs = yaml.load(inputStream);
++
++      List<Map<String, Object>> viewConfigs =
++          (List<Map<String, Object>>) yaml.loadFromInputStream(inputStream);
++
+       for (Map<String, Object> viewConfigSpecMap : viewConfigs) {
+         Map<String, Object> selectorSpecMap =
+             requireNonNull(
+diff --git a/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java b/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
+index 461ed774c..b129c0c4a 100644
+--- a/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
++++ b/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
+@@ -991,7 +991,7 @@ class SdkSpanBuilderTest {
+                 + "resource=Resource\\{schemaUrl=null, "
+                 + "attributes=\\{service.name=\"unknown_service:java\", "
+                 + "telemetry.sdk.language=\"java\", telemetry.sdk.name=\"opentelemetry\", "
+-                + "telemetry.sdk.version=\"\\d+.\\d+.\\d+(-rc.\\d+)?(-SNAPSHOT)?\"}}, "
++                + "telemetry.sdk.version=\"\\d+.\\d+.\\d+(-rc.\\d+)?(-[a-zA-Z0-9]+)?\"}}, "
+                 + "instrumentationScopeInfo=InstrumentationScopeInfo\\{"
+                 + "name=SpanBuilderSdkTest, version=null, schemaUrl=null, attributes=\\{}}, "
+                 + "name=span_name, "
+diff --git a/version.gradle.kts b/version.gradle.kts
+index 10c636439..75610f71a 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,7 +1,7 @@
+ val snapshot = false
+ 
+ allprojects {
+-  var ver = "1.21.0"
++  var ver = "1.21.0-adot1"
+   val release = findProperty("otel.release")
+   if (release != null) {
+     ver += "-" + release
