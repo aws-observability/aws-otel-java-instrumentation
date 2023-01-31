@@ -1,4 +1,6 @@
-#!/bin/bash -x -e -o nounset
+#!/bin/bash
+# Enable debug mode, fail on any command that fail in this script and fail on unset variables
+set -x -e -u
 
 # .github/patchs/.versions.sh should define all the versions of the dependencies that we are going to patch
 # This is used so that we can properly clone the upstream repositories.
