@@ -25,7 +25,7 @@ jobs:
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
-        if: ${{ contains(github.ref, 'refs/heads/release/v*') }}
+        if: ${{ startsWith(github.ref_name, 'release/v') }}
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}

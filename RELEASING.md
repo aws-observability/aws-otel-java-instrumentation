@@ -40,13 +40,27 @@ Steps:
 1. Create a branch from the release that you want to patch. It should follow the convention `release/v<major>.<minor>.x`. E.g.: if you want to patch release 1.21.0, the name of the branch should be `release/v1.21.x`.
 1. Mark the branch as protected.
 1. Modify the source code/dependencies. You can only update the patch version of opentelemetry dependencies.
-1. Optionally prepare patches that can be applied to opentelemetry-java and opentelemetry-java-instrumentation. Use the sufix `-adot` in the
-patched versions.
+1. Optionally prepare patches that can be applied to opentelemetry-java and opentelemetry-java-instrumentation. More details about this in the following section.
 1. Create pull request to merge in the release branch.
 
 After the pull request is merged, open the release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Release+Build%22).
 
 Select the branch and provide the version.
+
+### Patching upstream dependencies
+
+If you need to patch upstream dependencies, you need:
+
+* Provide patch files for each repository that will need to be patched. These files should be located in `.github/patchs` and should be named
+using the convention `<repository name>.patch`. The following repositories are supported: opentelemetry-java, opentelemetry-java-instrumentation and opentelemetry-java-contrib. Provide one patch file per repository. The adot patch version of each upstream dependency should be `<version>+adot<number>` where `version` is the version of the upstream dependency and `number` is the number of this patch that should be incremented from 1 per patch version.
+
+* Create a `versions` file in the directory `.github/patchs`. This file should contain shell variables with the versions of the tags of the repositories which will receive patchs.
+  This file should define the following variables:
+    * `OTEL_JAVA_VERSION`. Tag of the opentelemetry-java repository to use. E.g.: `JAVA_OTEL_JAVA_VERSION=v1.21.0`
+    * `OTEL_JAVA_INSTRUMENTATION_VERSION`. Tag of the opentelemetry-java-instrumentation repository to use, e.g.: `OTEL_JAVA_INSTRUMENTATION_VERSION=v1.21.0`
+    * `OTEL_JAVA_CONTRIB_VERSION`. Tag of the opentelemetry-java-contrib repository. E.g.: `OTEL_JAVA_CONTRIB_VERSION=v1.21.0`
+
+During the build, ephemeral artifacts will be generated and stored into maven local and those will be used to build the ADOT Java Agent.
 
 ## Release candidates
 
