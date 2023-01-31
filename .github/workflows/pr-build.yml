@@ -23,6 +23,7 @@ jobs:
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
+          branch: ${{ github.event.pull_request.base.ref }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -52,6 +53,7 @@ jobs:
         uses: ./.github/actions/patch-dependencies
         if: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') }}
         with:
+          branch: ${{ github.event.pull_request.base.ref }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 

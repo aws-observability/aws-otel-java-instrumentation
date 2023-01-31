@@ -27,6 +27,7 @@ jobs:
         uses: ./.github/actions/patch-dependencies
         if: ${{ startsWith(github.ref_name, 'release/v') }}
         with:
+          branch: ${{ github.ref_name }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
