@@ -35,10 +35,14 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
+          - windows-latest
+        exclude:
+          # Skip windows on patch workflow because it is not possible to build opentelemetry-java on windows
+          # when the cache is in a different drive than the source code
           # Windows is not working for patch workflows, therefore we disable it here
           # https://github.com/square/wire/issues/2188
           # https://github.com/open-telemetry/opentelemetry-java/issues/4560
-          # - windows-latest
+          - os: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') && 'windows-latest' || '' }}
     steps:
       - uses: actions/checkout@v2
 
