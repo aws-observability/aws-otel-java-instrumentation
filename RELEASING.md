@@ -38,7 +38,6 @@ adding/modifying the public APIs.
 
 Steps:
 1. Create a branch from the release that you want to patch. It should follow the convention `release/v<major>.<minor>.x`. E.g.: if you want to patch release 1.21.0, the name of the branch should be `release/v1.21.x`.
-1. Mark the branch as protected.
 1. Modify the source code/dependencies. You can only update the patch version of opentelemetry dependencies.
 1. Optionally prepare patches that can be applied to opentelemetry-java and opentelemetry-java-instrumentation. More details about this in the following section.
 1. Create pull request to merge in the release branch.
