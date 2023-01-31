@@ -2,7 +2,6 @@ name: "Patch dependencies"
 description: |
   Patches direct dependencies of this project leveraging maven local to publish the results.
 
-  This workflow will be noop if there is no dependency to patch, i.e.: no files in `.github/patchs`
   This workflow supports patching opentelemetry-java and opentelemetry-java-instrumentation repositories by executing
   the `patch.sh` script that will try to patch those repositories and after that will optionally test and then publish
   the artifacts to maven local.
@@ -14,6 +13,9 @@ inputs:
     default: "false"
     required: false
     description: "If the workflow should run tests of the dependencies. Anything different than false will evaluate to true"
+  branch:
+    required: true
+    description: "The branch where this patches are being applied e.g.: release/v1.21.x"
   gpg_private_key:
     description: "The gpg key used to sign the artifacts"
     required: true
@@ -25,19 +27,19 @@ runs:
   steps:
     - name: check patches
       run: |
-        if [[ -f .github/patchs/opentelemetry-java.patch ]]; then
+        if [[ -f .github/patches/${{ inputs.branch }}/opentelemetry-java.patch ]]; then
           echo 'patch_otel_java=true' >> $GITHUB_ENV
         fi
-        if [[ -f .github/patchs/opentelemetry-java-instrumentation.patch ]]; then
+        if [[ -f .github/patches/${{ inputs.branch }}/opentelemetry-java-instrumentation.patch ]]; then
             echo 'patch_otel_java_instrumentation=true' >> $GITHUB_ENV
         fi
-        if [[ -f .github/patchs/opentelemetry-java-contrib.patch ]]; then
+        if [[ -f .github/patches/${{ inputs.branch }}/opentelemetry-java-contrib.patch ]]; then
             echo 'patch_otel_java_contrib=true' >> $GITHUB_ENV
         fi
       shell: bash
 
     - name: Clone and patch repositories
-      run: .github/scripts/patch.sh
+      run: .github/scripts/patch.sh "${{ inputs.branch }}"
       if: ${{ env.patch_otel_java == 'true' ||
               env.patch_otel_java_instrumentation == 'true' ||
               env.patch_otel_java_contrib == 'true' }}
