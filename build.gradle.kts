@@ -297,6 +297,6 @@ tasks {
 }
 
 nebulaRelease {
-  addReleaseBranchPattern("main")
-  addReleaseBranchPattern("""release\/v\d+\.\d+\.x""")
+  // It is only possible to release from a release branch.
+  releaseBranchPatterns = setOf("""release\/v\d+\.\d+\.x""")
 }

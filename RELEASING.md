@@ -12,6 +12,9 @@ and merge.
 
 ## Starting the Release
 
+If you are creating a new major/minor release, you first need to create a branch with the following convention: `release/v<major>.<minor>.x`. E.g.: `release/v1.21.x`.
+It is not possible to release from the `main` branch, so this step cannot be skipped.
+
 Open the release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Release+Build%22).
 
 You will see a button that says "Run workflow". Press the button, enter the version number you want
