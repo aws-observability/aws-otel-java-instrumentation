@@ -298,4 +298,5 @@ tasks {
 
 nebulaRelease {
   addReleaseBranchPattern("main")
+  addReleaseBranchPattern("""release\/v\d+\.\d+\.x""")
 }
