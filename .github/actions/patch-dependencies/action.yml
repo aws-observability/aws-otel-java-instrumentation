@@ -65,6 +65,11 @@ runs:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
 
+    - name: cleanup opentelemetry-java
+      run: rm -rf opentelemetry-java
+      if: ${{ env.patch_otel_java == 'true' }}
+      shell: bash
+
     - name: Build opentelemetry-java-contrib with tests
       uses: gradle/gradle-build-action@v2
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
@@ -85,6 +90,11 @@ runs:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
 
+    - name: cleanup opentelemetry-java-contrib
+      run: rm -rf opentelemetry-java-contrib
+      if: ${{ env.patch_otel_java_contrib == 'true' }}
+      shell: bash
+
     - name: Build opentelemetry-java-instrumentation with tests
       uses: gradle/gradle-build-action@v2
       if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
@@ -104,3 +114,8 @@ runs:
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
         GPG_PASSWORD: ${{ inputs.gpg_password }}
+
+    - name: cleanup opentelmetry-java-instrumentation
+      run: rm -rf opentelemetry-java-instrumentation
+      if: ${{ env.patch_otel_java_instrumentation == 'true' }}
+      shell: bash
