@@ -1,0 +1,827 @@
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index e89a9419f5..dbefe45ef4 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -29,8 +29,8 @@ val DEPENDENCY_BOMS = listOf(
+   "com.fasterxml.jackson:jackson-bom:2.14.1",
+   "com.google.guava:guava-bom:31.1-jre",
+   "org.apache.groovy:groovy-bom:${groovyVersion}",
+-  "io.opentelemetry:opentelemetry-bom:1.21.0",
+-  "io.opentelemetry:opentelemetry-bom-alpha:1.21.0-alpha",
++  "io.opentelemetry:opentelemetry-bom:1.21.0-adot1",
++  "io.opentelemetry:opentelemetry-bom-alpha:1.21.0-adot1-alpha",
+   "org.junit:junit-bom:5.9.1",
+   "org.testcontainers:testcontainers-bom:1.17.6",
+   "org.spockframework:spock-bom:2.3-groovy-4.0"
+@@ -106,7 +106,7 @@ val DEPENDENCIES = listOf(
+   // Note that this is only referenced as "org.springframework.boot" in build files, not the artifact name.
+   "org.springframework.boot:spring-boot-dependencies:2.7.5",
+   "javax.validation:validation-api:2.0.1.Final",
+-  "org.yaml:snakeyaml:1.33"
++  "org.snakeyaml:snakeyaml-engine:2.6"
+ )
+ 
+ javaPlatform {
+diff --git a/instrumentation/jmx-metrics/library/build.gradle.kts b/instrumentation/jmx-metrics/library/build.gradle.kts
+index 722db6cf77..375e5e77d9 100644
+--- a/instrumentation/jmx-metrics/library/build.gradle.kts
++++ b/instrumentation/jmx-metrics/library/build.gradle.kts
+@@ -3,7 +3,7 @@ plugins {
+ }
+ 
+ dependencies {
+-  implementation("org.yaml:snakeyaml")
++  implementation("org.snakeyaml:snakeyaml-engine")
+ 
+   testImplementation(project(":testing-common"))
+ }
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxConfig.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxConfig.java
+index d979dfb757..b529e1aa43 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxConfig.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxConfig.java
+@@ -19,15 +19,14 @@ public class JmxConfig {
+   //   rules:
+   //     - JMX_DEFINITION1
+   //     - JMX_DEFINITION2
+-  // The parser is guaranteed to call setRules with a non-null argument, or throw an exception
+-  private List<JmxRule> rules;
++  private final List<JmxRule> rules;
+ 
+-  public List<JmxRule> getRules() {
+-    return rules;
++  public JmxConfig(List<JmxRule> rules) {
++    this.rules = rules;
+   }
+ 
+-  public void setRules(List<JmxRule> rules) {
+-    this.rules = rules;
++  public List<JmxRule> getRules() {
++    return rules;
+   }
+ 
+   /**
+@@ -35,7 +34,7 @@ public class JmxConfig {
+    * MetricConfiguration.
+    *
+    * @param configuration MetricConfiguration to add MetricDefs to
+-   * @throws an exception if the rule conversion cannot be performed
++   * @throws Exception an exception if the rule conversion cannot be performed
+    */
+   void addMetricDefsTo(MetricConfiguration configuration) throws Exception {
+     for (JmxRule rule : rules) {
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxRule.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxRule.java
+index 0bb394cc05..4f622a9138 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxRule.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/JmxRule.java
+@@ -16,6 +16,7 @@ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
++import javax.annotation.Nullable;
+ import javax.management.MalformedObjectNameException;
+ import javax.management.ObjectName;
+ 
+@@ -38,16 +39,16 @@ public class JmxRule extends MetricStructure {
+   //     ATTRIBUTE3:
+   //       METRIC_FIELDS3
+   // The parser never calls setters for these fields with null arguments
+-  private String bean;
++  @Nullable private String bean;
+   private List<String> beans;
+-  private String prefix;
++  @Nullable private String prefix;
+   private Map<String, Metric> mapping;
+ 
+   public String getBean() {
+     return bean;
+   }
+ 
+-  public void setBean(String bean) throws Exception {
++  public void setBean(String bean) {
+     this.bean = validateBean(bean);
+   }
+ 
+@@ -55,14 +56,18 @@ public class JmxRule extends MetricStructure {
+     return beans;
+   }
+ 
+-  private static String validateBean(String name) throws MalformedObjectNameException {
+-    String trimmed = name.trim();
+-    // Check the syntax of the provided name by attempting to create an ObjectName from it.
+-    new ObjectName(trimmed);
+-    return trimmed;
++  private static String validateBean(String name) {
++    try {
++      String trimmed = name.trim();
++      // Check the syntax of the provided name by attempting to create an ObjectName from it.
++      new ObjectName(trimmed);
++      return trimmed;
++    } catch (MalformedObjectNameException e) {
++      throw new IllegalArgumentException("'" + name + "' is not a valid JMX object name", e);
++    }
+   }
+ 
+-  public void setBeans(List<String> beans) throws Exception {
++  public void setBeans(List<String> beans) {
+     List<String> list = new ArrayList<>();
+     for (String name : beans) {
+       list.add(validateBean(name));
+@@ -113,7 +118,7 @@ public class JmxRule extends MetricStructure {
+    * consistency or semantic issues, an exception will be thrown.
+    *
+    * @return a valid MetricDefinition object
+-   * @throws an exception if any issues within the rule are detected
++   * @throws Exception an exception if any issues within the rule are detected
+    */
+   public MetricDef buildMetricDef() throws Exception {
+     BeanGroup group;
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/Metric.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/Metric.java
+index 96b5abd387..38907b998a 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/Metric.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/Metric.java
+@@ -6,6 +6,7 @@
+ package io.opentelemetry.instrumentation.jmx.yaml;
+ 
+ import io.opentelemetry.instrumentation.jmx.engine.MetricInfo;
++import javax.annotation.Nullable;
+ 
+ /**
+  * A class representing metric definition as a part of YAML metric rule. Objects of this class are
+@@ -16,9 +17,8 @@ public class Metric extends MetricStructure {
+   // Used by the YAML parser
+   //   metric: METRIC_NAME
+   //   desc: DESCRIPTION
+-  // The parser never calls setters for these fields with null arguments
+-  private String metric;
+-  private String desc;
++  @Nullable private String metric;
++  @Nullable private String desc;
+ 
+   public String getMetric() {
+     return metric;
+@@ -43,7 +43,10 @@ public class Metric extends MetricStructure {
+   }
+ 
+   MetricInfo buildMetricInfo(
+-      String prefix, String attributeName, String defaultUnit, MetricInfo.Type defaultType) {
++      @Nullable String prefix,
++      String attributeName,
++      String defaultUnit,
++      MetricInfo.Type defaultType) {
+     String metricName;
+     if (metric == null) {
+       metricName = prefix == null ? attributeName : (prefix + attributeName);
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/MetricStructure.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/MetricStructure.java
+index 17fcc382b1..5faf75014a 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/MetricStructure.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/MetricStructure.java
+@@ -29,22 +29,16 @@ abstract class MetricStructure {
+   //      KEY2: SPECIFICATION2
+   //    unit: UNIT
+ 
+-  private String type; // unused, for YAML parser only
+   private Map<String, String> metricAttribute; // unused, for YAML parser only
+   private String unit;
+ 
+   private MetricInfo.Type metricType;
+   private List<MetricAttribute> metricAttributes;
+ 
+-  public String getType() {
+-    return type;
+-  }
+-
+   public void setType(String t) {
+     // Do not complain about case variations
+     t = t.trim().toUpperCase();
+     this.metricType = MetricInfo.Type.valueOf(t);
+-    this.type = t;
+   }
+ 
+   public String getUnit() {
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/RuleParser.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/RuleParser.java
+index 659c792585..73a81086b3 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/RuleParser.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/yaml/RuleParser.java
+@@ -5,14 +5,20 @@
+ 
+ package io.opentelemetry.instrumentation.jmx.yaml;
+ 
++import static java.util.Collections.emptyList;
+ import static java.util.logging.Level.INFO;
+ import static java.util.logging.Level.WARNING;
+ 
+ import io.opentelemetry.instrumentation.jmx.engine.MetricConfiguration;
+ import java.io.InputStream;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
+ import java.util.logging.Logger;
+-import org.yaml.snakeyaml.Yaml;
+-import org.yaml.snakeyaml.constructor.Constructor;
++import java.util.stream.Collectors;
++import javax.annotation.Nullable;
++import org.snakeyaml.engine.v2.api.Load;
++import org.snakeyaml.engine.v2.api.LoadSettings;
+ 
+ /** Parse a YAML file containing a number of rules. */
+ public class RuleParser {
+@@ -40,9 +46,103 @@ public class RuleParser {
+ 
+   private RuleParser() {}
+ 
+-  public JmxConfig loadConfig(InputStream is) throws Exception {
+-    Yaml yaml = new Yaml(new Constructor(JmxConfig.class));
+-    return yaml.load(is);
++  @SuppressWarnings("unchecked")
++  public JmxConfig loadConfig(InputStream is) {
++    LoadSettings settings = LoadSettings.builder().build();
++    Load yaml = new Load(settings);
++
++    Map<String, Object> data = (Map<String, Object>) yaml.loadFromInputStream(is);
++    if (data == null) {
++      return new JmxConfig(emptyList());
++    }
++
++    List<Object> rules = (List<Object>) data.remove("rules");
++    if (rules == null) {
++      return new JmxConfig(emptyList());
++    }
++
++    failOnExtraKeys(data);
++    return new JmxConfig(
++        rules.stream()
++            .map(obj -> (Map<String, Object>) obj)
++            .map(RuleParser::parseJmxRule)
++            .collect(Collectors.toList()));
++  }
++
++  @SuppressWarnings("unchecked")
++  private static JmxRule parseJmxRule(Map<String, Object> ruleYaml) {
++    JmxRule jmxRule = new JmxRule();
++
++    String bean = (String) ruleYaml.remove("bean");
++    if (bean != null) {
++      jmxRule.setBean(bean);
++    }
++    List<String> beans = (List<String>) ruleYaml.remove("beans");
++    if (beans != null) {
++      jmxRule.setBeans(beans);
++    }
++    String prefix = (String) ruleYaml.remove("prefix");
++    if (prefix != null) {
++      jmxRule.setPrefix(prefix);
++    }
++    jmxRule.setMapping(parseMappings((Map<String, Object>) ruleYaml.remove("mapping")));
++    parseMetricStructure(ruleYaml, jmxRule);
++
++    failOnExtraKeys(ruleYaml);
++    return jmxRule;
++  }
++
++  @SuppressWarnings("unchecked")
++  private static Map<String, Metric> parseMappings(@Nullable Map<String, Object> mappingYaml) {
++    Map<String, Metric> mappings = new LinkedHashMap<>();
++    if (mappingYaml != null) {
++      mappingYaml.forEach(
++          (name, metricYaml) ->
++              mappings.put(
++                  name, metricYaml == null ? null : parseMetric((Map<String, Object>) metricYaml)));
++    }
++    return mappings;
++  }
++
++  private static Metric parseMetric(Map<String, Object> metricYaml) {
++    Metric metric = new Metric();
++
++    String metricName = (String) metricYaml.remove("metric");
++    if (metricName != null) {
++      metric.setMetric(metricName);
++    }
++    String desc = (String) metricYaml.remove("desc");
++    if (desc != null) {
++      metric.setDesc(desc);
++    }
++    parseMetricStructure(metricYaml, metric);
++
++    failOnExtraKeys(metricYaml);
++    return metric;
++  }
++
++  @SuppressWarnings("unchecked")
++  private static void parseMetricStructure(
++      Map<String, Object> metricStructureYaml, MetricStructure out) {
++    String type = (String) metricStructureYaml.remove("type");
++    if (type != null) {
++      out.setType(type);
++    }
++    Map<String, String> metricAttribute =
++        (Map<String, String>) metricStructureYaml.remove("metricAttribute");
++    if (metricAttribute != null) {
++      out.setMetricAttribute(metricAttribute);
++    }
++    String unit = (String) metricStructureYaml.remove("unit");
++    if (unit != null) {
++      out.setUnit(unit);
++    }
++  }
++
++  private static void failOnExtraKeys(Map<String, Object> yaml) {
++    if (!yaml.isEmpty()) {
++      throw new IllegalArgumentException("Unrecognized keys found: " + yaml.keySet());
++    }
+   }
+ 
+   /**
+@@ -55,13 +155,9 @@ public class RuleParser {
+    */
+   public void addMetricDefsTo(MetricConfiguration conf, InputStream is, String id) {
+     try {
+-
+       JmxConfig config = loadConfig(is);
+-      if (config != null) {
+-        logger.log(
+-            INFO, "{0}: found {1} metric rules", new Object[] {id, config.getRules().size()});
+-        config.addMetricDefsTo(conf);
+-      }
++      logger.log(INFO, "{0}: found {1} metric rules", new Object[] {id, config.getRules().size()});
++      config.addMetricDefsTo(conf);
+     } catch (Exception exception) {
+       logger.log(
+           WARNING,
+diff --git a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/engine/RuleParserTest.java b/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/engine/RuleParserTest.java
+index 79794f208f..92ad9d88e3 100644
+--- a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/engine/RuleParserTest.java
++++ b/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/engine/RuleParserTest.java
+@@ -9,6 +9,7 @@ package io.opentelemetry.instrumentation.jmx.engine;
+ // because it needs to access package-private methods from a number of classes.
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.entry;
+ 
+ import io.opentelemetry.instrumentation.jmx.yaml.JmxConfig;
+ import io.opentelemetry.instrumentation.jmx.yaml.JmxRule;
+@@ -16,10 +17,9 @@ import io.opentelemetry.instrumentation.jmx.yaml.Metric;
+ import io.opentelemetry.instrumentation.jmx.yaml.RuleParser;
+ import java.io.ByteArrayInputStream;
+ import java.io.InputStream;
+-import java.nio.charset.Charset;
++import java.nio.charset.StandardCharsets;
+ import java.util.List;
+ import java.util.Map;
+-import java.util.Set;
+ import org.junit.jupiter.api.Assertions;
+ import org.junit.jupiter.api.BeforeAll;
+ import org.junit.jupiter.api.Test;
+@@ -28,7 +28,7 @@ class RuleParserTest {
+   private static RuleParser parser;
+ 
+   @BeforeAll
+-  static void setup() throws Exception {
++  static void setup() {
+     parser = RuleParser.get();
+     assertThat(parser == null).isFalse();
+   }
+@@ -67,29 +67,27 @@ class RuleParserTest {
+           + "        metric: METRIC_NAME3\n";
+ 
+   @Test
+-  void testConf2() throws Exception {
+-    InputStream is = new ByteArrayInputStream(CONF2.getBytes(Charset.forName("UTF-8")));
++  void testConf2() {
++    InputStream is = new ByteArrayInputStream(CONF2.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config != null).isTrue();
++    assertThat(config).isNotNull();
+ 
+     List<JmxRule> defs = config.getRules();
+-    assertThat(defs.size() == 2).isTrue();
++    assertThat(defs).hasSize(2);
+ 
+     JmxRule def1 = defs.get(0);
+-    assertThat(def1.getBeans().size() == 2).isTrue();
+-    assertThat(def1.getMetricAttribute().size() == 2).isTrue();
++    assertThat(def1.getBeans()).hasSize(2);
++    assertThat(def1.getMetricAttribute()).hasSize(2);
++
+     Map<String, Metric> attr = def1.getMapping();
+-    assertThat(attr == null).isFalse();
+-    assertThat(attr.size() == 4).isTrue();
++    assertThat(attr).hasSize(4);
+ 
+     Metric m1 = attr.get("ATTRIBUTE1");
+-    assertThat(m1 == null).isFalse();
+-    assertThat("METRIC_NAME1".equals(m1.getMetric())).isTrue();
+-    assertThat(m1.getMetricType() == MetricInfo.Type.GAUGE).isTrue();
+-    assertThat("UNIT1".equals(m1.getUnit())).isTrue();
+-    assertThat(m1.getMetricAttribute() == null).isFalse();
+-    assertThat(m1.getMetricAttribute().size() == 1).isTrue();
+-    assertThat("const(CONSTANT)".equals(m1.getMetricAttribute().get("LABEL_KEY3"))).isTrue();
++    assertThat(m1).isNotNull();
++    assertThat(m1.getMetric()).isEqualTo("METRIC_NAME1");
++    assertThat(m1.getMetricType()).isEqualTo(MetricInfo.Type.GAUGE);
++    assertThat(m1.getUnit()).isEqualTo("UNIT1");
++    assertThat(m1.getMetricAttribute()).containsExactly(entry("LABEL_KEY3", "const(CONSTANT)"));
+   }
+ 
+   private static final String CONF3 =
+@@ -104,24 +102,22 @@ class RuleParserTest {
+           + "      ATTRIBUTE35:\n";
+ 
+   @Test
+-  void testConf3() throws Exception {
+-    InputStream is = new ByteArrayInputStream(CONF3.getBytes(Charset.forName("UTF-8")));
++  void testConf3() {
++    InputStream is = new ByteArrayInputStream(CONF3.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config != null).isTrue();
++    assertThat(config).isNotNull();
+ 
+     List<JmxRule> defs = config.getRules();
+-    assertThat(defs.size() == 1).isTrue();
++    assertThat(defs).hasSize(1);
+ 
+     JmxRule def1 = defs.get(0);
+-    assertThat(def1.getBean() == null).isFalse();
+-    assertThat(def1.getMetricAttribute() == null).isTrue();
+-    Map<String, Metric> attr = def1.getMapping();
+-    assertThat(attr.size() == 5).isTrue();
++    assertThat(def1.getBean()).isNotNull();
++    assertThat(def1.getMetricAttribute()).isNull();
+ 
+-    Set<String> keys = attr.keySet();
+-    assertThat(keys.contains("ATTRIBUTE33")).isTrue();
+-    assertThat(attr.get("ATTRIBUTE33") == null).isTrue();
+-    assertThat(attr.get("ATTRIBUTE34") == null).isFalse();
++    Map<String, Metric> attr = def1.getMapping();
++    assertThat(attr).hasSize(5).containsKey("ATTRIBUTE33");
++    assertThat(attr.get("ATTRIBUTE33")).isNull();
++    assertThat(attr.get("ATTRIBUTE34")).isNotNull();
+   }
+ 
+   /*
+@@ -153,35 +149,39 @@ class RuleParserTest {
+ 
+   @Test
+   void testConf4() throws Exception {
+-    InputStream is = new ByteArrayInputStream(CONF4.getBytes(Charset.forName("UTF-8")));
++    InputStream is = new ByteArrayInputStream(CONF4.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config != null).isTrue();
++    assertThat(config).isNotNull();
+ 
+     List<JmxRule> defs = config.getRules();
+-    assertThat(defs.size() == 1).isTrue();
++    assertThat(defs).hasSize(1);
+ 
+     MetricDef metricDef = defs.get(0).buildMetricDef();
+-    assertThat(metricDef == null).isFalse();
+-    assertThat(metricDef.getMetricExtractors().length == 3).isTrue();
+-
+-    MetricExtractor m1 = metricDef.getMetricExtractors()[0];
+-    BeanAttributeExtractor a1 = m1.getMetricValueExtractor();
+-    assertThat("A.b".equals(a1.getAttributeName())).isTrue();
+-    assertThat(m1.getAttributes().length == 3).isTrue();
+-    MetricInfo mb1 = m1.getInfo();
+-    assertThat("PREFIX.METRIC_NAME1".equals(mb1.getMetricName())).isTrue();
+-    assertThat("DESCRIPTION1".equals(mb1.getDescription())).isTrue();
+-    assertThat("UNIT1".equals(mb1.getUnit())).isTrue();
+-    assertThat(MetricInfo.Type.COUNTER == mb1.getType()).isTrue();
+-
+-    MetricExtractor m3 = metricDef.getMetricExtractors()[2];
+-    BeanAttributeExtractor a3 = m3.getMetricValueExtractor();
+-    assertThat("ATTRIBUTE3".equals(a3.getAttributeName())).isTrue();
+-    MetricInfo mb3 = m3.getInfo();
+-    assertThat("PREFIX.ATTRIBUTE3".equals(mb3.getMetricName())).isTrue();
+-    // syntax extension - defining a default unit and type
+-    assertThat(MetricInfo.Type.UPDOWNCOUNTER == mb3.getType()).isTrue();
+-    assertThat("DEFAULT_UNIT".equals(mb3.getUnit())).isTrue();
++    assertThat(metricDef).isNotNull();
++    assertThat(metricDef.getMetricExtractors()).hasSize(3);
++
++    assertThat(metricDef.getMetricExtractors())
++        .anySatisfy(
++            m -> {
++              assertThat(m.getMetricValueExtractor().getAttributeName()).isEqualTo("A.b");
++              assertThat(m.getAttributes()).hasSize(3);
++
++              MetricInfo mb1 = m.getInfo();
++              assertThat(mb1.getMetricName()).isEqualTo("PREFIX.METRIC_NAME1");
++              assertThat(mb1.getDescription()).isEqualTo("DESCRIPTION1");
++              assertThat(mb1.getUnit()).isEqualTo("UNIT1");
++              assertThat(mb1.getType()).isEqualTo(MetricInfo.Type.COUNTER);
++            })
++        .anySatisfy(
++            m -> {
++              assertThat(m.getMetricValueExtractor().getAttributeName()).isEqualTo("ATTRIBUTE3");
++
++              MetricInfo mb3 = m.getInfo();
++              assertThat(mb3.getMetricName()).isEqualTo("PREFIX.ATTRIBUTE3");
++              // syntax extension - defining a default unit and type
++              assertThat(mb3.getType()).isEqualTo(MetricInfo.Type.UPDOWNCOUNTER);
++              assertThat(mb3.getUnit()).isEqualTo("DEFAULT_UNIT");
++            });
+   }
+ 
+   private static final String CONF5 = // minimal valid definition
+@@ -193,25 +193,25 @@ class RuleParserTest {
+ 
+   @Test
+   void testConf5() throws Exception {
+-    InputStream is = new ByteArrayInputStream(CONF5.getBytes(Charset.forName("UTF-8")));
++    InputStream is = new ByteArrayInputStream(CONF5.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config != null).isTrue();
++    assertThat(config).isNotNull();
+ 
+     List<JmxRule> defs = config.getRules();
+-    assertThat(defs.size() == 1).isTrue();
++    assertThat(defs).hasSize(1);
+ 
+     MetricDef metricDef = defs.get(0).buildMetricDef();
+-    assertThat(metricDef == null).isFalse();
+-    assertThat(metricDef.getMetricExtractors().length == 1).isTrue();
++    assertThat(metricDef).isNotNull();
++    assertThat(metricDef.getMetricExtractors()).hasSize(1);
+ 
+     MetricExtractor m1 = metricDef.getMetricExtractors()[0];
+-    BeanAttributeExtractor a1 = m1.getMetricValueExtractor();
+-    assertThat("ATTRIBUTE".equals(a1.getAttributeName())).isTrue();
+-    assertThat(m1.getAttributes().length == 0).isTrue();
++    assertThat(m1.getMetricValueExtractor().getAttributeName()).isEqualTo("ATTRIBUTE");
++    assertThat(m1.getAttributes()).isEmpty();
++
+     MetricInfo mb1 = m1.getInfo();
+-    assertThat("ATTRIBUTE".equals(mb1.getMetricName())).isTrue();
+-    assertThat(MetricInfo.Type.GAUGE == mb1.getType()).isTrue();
+-    assertThat(null == mb1.getUnit()).isTrue();
++    assertThat(mb1.getMetricName()).isEqualTo("ATTRIBUTE");
++    assertThat(mb1.getType()).isEqualTo(MetricInfo.Type.GAUGE);
++    assertThat(mb1.getUnit()).isNull();
+   }
+ 
+   private static final String CONF6 = // merging metric attribute sets with same keys
+@@ -227,26 +227,25 @@ class RuleParserTest {
+ 
+   @Test
+   void testConf6() throws Exception {
+-    InputStream is = new ByteArrayInputStream(CONF6.getBytes(Charset.forName("UTF-8")));
++    InputStream is = new ByteArrayInputStream(CONF6.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config != null).isTrue();
++    assertThat(config).isNotNull();
+ 
+     List<JmxRule> defs = config.getRules();
+-    assertThat(defs.size() == 1).isTrue();
++    assertThat(defs).hasSize(1);
+ 
+     MetricDef metricDef = defs.get(0).buildMetricDef();
+-    assertThat(metricDef == null).isFalse();
+-    assertThat(metricDef.getMetricExtractors().length == 1).isTrue();
++    assertThat(metricDef).isNotNull();
++    assertThat(metricDef.getMetricExtractors()).hasSize(1);
+ 
+     MetricExtractor m1 = metricDef.getMetricExtractors()[0];
+-    BeanAttributeExtractor a1 = m1.getMetricValueExtractor();
+-    assertThat("ATTRIBUTE".equals(a1.getAttributeName())).isTrue();
++    assertThat(m1.getMetricValueExtractor().getAttributeName()).isEqualTo("ATTRIBUTE");
+     // MetricAttribute set at the metric level should override the one set at the definition level
+-    assertThat(m1.getAttributes().length == 1).isTrue();
++    assertThat(m1.getAttributes()).hasSize(1);
++    assertThat(m1.getInfo().getMetricName()).isEqualTo("ATTRIBUTE");
++
+     MetricAttribute l1 = m1.getAttributes()[0];
+-    assertThat("value2".equals(l1.acquireAttributeValue(null, null))).isTrue();
+-    MetricInfo mb1 = m1.getInfo();
+-    assertThat("ATTRIBUTE".equals(mb1.getMetricName())).isTrue();
++    assertThat(l1.acquireAttributeValue(null, null)).isEqualTo("value2");
+   }
+ 
+   private static final String CONF7 =
+@@ -262,56 +261,54 @@ class RuleParserTest {
+ 
+   @Test
+   void testConf7() throws Exception {
+-    InputStream is = new ByteArrayInputStream(CONF7.getBytes(Charset.forName("UTF-8")));
++    InputStream is = new ByteArrayInputStream(CONF7.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config != null).isTrue();
++    assertThat(config).isNotNull();
+ 
+     List<JmxRule> defs = config.getRules();
+-    assertThat(defs.size() == 1).isTrue();
++    assertThat(defs).hasSize(1);
+ 
+     MetricDef metricDef = defs.get(0).buildMetricDef();
+-    assertThat(metricDef == null).isFalse();
+-    assertThat(metricDef.getMetricExtractors().length == 1).isTrue();
++    assertThat(metricDef).isNotNull();
++    assertThat(metricDef.getMetricExtractors()).hasSize(1);
+ 
+     // Test that the MBean attribute is correctly parsed
+     MetricExtractor m1 = metricDef.getMetricExtractors()[0];
+-    BeanAttributeExtractor a1 = m1.getMetricValueExtractor();
+-    assertThat("ATTRIBUTE".equals(a1.getAttributeName())).isTrue();
+-    assertThat(m1.getAttributes().length == 2).isTrue();
+-    MetricInfo mb1 = m1.getInfo();
+-    assertThat("ATTRIBUTE".equals(mb1.getMetricName())).isTrue();
++    assertThat(m1.getMetricValueExtractor().getAttributeName()).isEqualTo("ATTRIBUTE");
++    assertThat(m1.getAttributes()).hasSize(2);
++    assertThat(m1.getInfo().getMetricName()).isEqualTo("ATTRIBUTE");
+   }
+ 
+   private static final String EMPTY_CONF = "---\n";
+ 
+   @Test
+-  void testEmptyConf() throws Exception {
+-    InputStream is = new ByteArrayInputStream(EMPTY_CONF.getBytes(Charset.forName("UTF-8")));
++  void testEmptyConf() {
++    InputStream is = new ByteArrayInputStream(EMPTY_CONF.getBytes(StandardCharsets.UTF_8));
+     JmxConfig config = parser.loadConfig(is);
+-    assertThat(config == null).isTrue();
++    assertThat(config.getRules()).isEmpty();
+   }
+ 
+   /*
+    *     Negative tests
+    */
+ 
+-  private static void runNegativeTest(String yaml) throws Exception {
+-    InputStream is = new ByteArrayInputStream(yaml.getBytes(Charset.forName("UTF-8")));
++  private static void runNegativeTest(String yaml) {
++    InputStream is = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+ 
+     Assertions.assertThrows(
+         Exception.class,
+         () -> {
+           JmxConfig config = parser.loadConfig(is);
+-          assertThat(config != null).isTrue();
++          assertThat(config).isNotNull();
+ 
+           List<JmxRule> defs = config.getRules();
+-          assertThat(defs.size() == 1).isTrue();
++          assertThat(defs).hasSize(1);
+           defs.get(0).buildMetricDef();
+         });
+   }
+ 
+   @Test
+-  void testNoBeans() throws Exception {
++  void testNoBeans() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:                  # no bean\n"
+@@ -322,7 +319,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testInvalidObjectName() throws Exception {
++  void testInvalidObjectName() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -334,7 +331,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testEmptyMapping() throws Exception {
++  void testEmptyMapping() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n "
+             + "rules:\n"
+@@ -344,7 +341,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testInvalidAttributeName() throws Exception {
++  void testInvalidAttributeName() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -356,7 +353,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testInvalidTag() throws Exception {
++  void testInvalidTag() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -370,7 +367,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testInvalidType() throws Exception {
++  void testInvalidType() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -383,7 +380,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testInvalidTagFromAttribute() throws Exception {
++  void testInvalidTagFromAttribute() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -397,7 +394,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testEmptyTagFromAttribute() throws Exception {
++  void testEmptyTagFromAttribute() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -411,7 +408,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testEmptyTagFromParameter() throws Exception {
++  void testEmptyTagFromParameter() {
+     String yaml =
+         "---                                   # keep stupid spotlessJava at bay\n"
+             + "rules:\n"
+@@ -425,20 +422,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testEmptyPrefix() throws Exception {
+-    String yaml =
+-        "---\n"
+-            + "rules:\n"
+-            + "  - bean: domain:name=you\n"
+-            + "    prefix:\n"
+-            + "    mapping:\n"
+-            + "      A:\n"
+-            + "        metric: METRIC_NAME\n";
+-    runNegativeTest(yaml);
+-  }
+-
+-  @Test
+-  void testTypoInMetric() throws Exception {
++  void testTypoInMetric() {
+     String yaml =
+         "---\n"
+             + "rules:\n"
+@@ -450,7 +434,7 @@ class RuleParserTest {
+   }
+ 
+   @Test
+-  void testMessedUpSyntax() throws Exception {
++  void testMessedUpSyntax() {
+     String yaml =
+         "---\n"
+             + "rules:\n"
+diff --git a/instrumentation/spring/spring-boot-resources/library/build.gradle.kts b/instrumentation/spring/spring-boot-resources/library/build.gradle.kts
+index 90e4f61f16..6417f7c627 100644
+--- a/instrumentation/spring/spring-boot-resources/library/build.gradle.kts
++++ b/instrumentation/spring/spring-boot-resources/library/build.gradle.kts
+@@ -9,7 +9,7 @@ dependencies {
+   compileOnly("com.google.auto.service:auto-service-annotations")
+   testCompileOnly("com.google.auto.service:auto-service-annotations")
+ 
+-  implementation("org.yaml:snakeyaml")
++  implementation("org.snakeyaml:snakeyaml-engine")
+ 
+   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
+ }
+diff --git a/instrumentation/spring/spring-boot-resources/library/src/main/java/io/opentelemetry/instrumentation/spring/resources/SpringBootServiceNameDetector.java b/instrumentation/spring/spring-boot-resources/library/src/main/java/io/opentelemetry/instrumentation/spring/resources/SpringBootServiceNameDetector.java
+index ba7bd65e6b..bfe7af9066 100644
+--- a/instrumentation/spring/spring-boot-resources/library/src/main/java/io/opentelemetry/instrumentation/spring/resources/SpringBootServiceNameDetector.java
++++ b/instrumentation/spring/spring-boot-resources/library/src/main/java/io/opentelemetry/instrumentation/spring/resources/SpringBootServiceNameDetector.java
+@@ -30,7 +30,8 @@ import java.util.regex.Matcher;
+ import java.util.regex.Pattern;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+-import org.yaml.snakeyaml.Yaml;
++import org.snakeyaml.engine.v2.api.Load;
++import org.snakeyaml.engine.v2.api.LoadSettings;
+ 
+ /**
+  * A ResourceProvider that will attempt to guess the application name for a Spring Boot service.
+@@ -174,9 +175,10 @@ public class SpringBootServiceNameDetector implements ConditionalResourceProvide
+   @Nullable
+   @SuppressWarnings("unchecked")
+   private static String parseNameFromYaml(InputStream in) {
+-    Yaml yaml = new Yaml();
+     try {
+-      Map<String, Object> data = yaml.load(in);
++      LoadSettings settings = LoadSettings.builder().build();
++      Load yaml = new Load(settings);
++      Map<String, Object> data = (Map<String, Object>) yaml.loadFromInputStream(in);
+       Map<String, Map<String, Object>> spring =
+           (Map<String, Map<String, Object>>) data.get("spring");
+       if (spring != null) {
+diff --git a/version.gradle.kts b/version.gradle.kts
+index ebade1c844..27e6388518 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,5 +1,5 @@
+-val stableVersion = "1.21.0"
+-val alphaVersion = "1.21.0-alpha"
++val stableVersion = "1.21.0-adot1"
++val alphaVersion = "1.21.0-adot1-alpha"
+ 
+ allprojects {
+   if (findProperty("otel.stable") != "true") {
