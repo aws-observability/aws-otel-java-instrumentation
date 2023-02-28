@@ -174,17 +174,17 @@ class SpringBootSmokeTest {
         .anySatisfy(
             span -> {
               assertThat(span.getKind()).isEqualTo(SPAN_KIND_SERVER);
-              assertThat(span.getName()).isEqualTo("/hello");
+              assertThat(span.getName()).isEqualTo("GET /hello");
             })
         .anySatisfy(
             span -> {
               assertThat(span.getKind()).isEqualTo(SPAN_KIND_SERVER);
-              assertThat(span.getName()).isEqualTo("/backend");
+              assertThat(span.getName()).isEqualTo("GET /backend");
             })
         .anySatisfy(
             span -> {
               assertThat(span.getKind()).isEqualTo(SPAN_KIND_CLIENT);
-              assertThat(span.getName()).isEqualTo("HTTP GET");
+              assertThat(span.getName()).isEqualTo("GET");
             })
         .anySatisfy(
             span -> {
