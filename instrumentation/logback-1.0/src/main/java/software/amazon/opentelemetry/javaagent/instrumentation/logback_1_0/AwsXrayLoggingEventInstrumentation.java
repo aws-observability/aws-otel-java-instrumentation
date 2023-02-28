@@ -26,16 +26,15 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.api.util.VirtualField;
-import io.opentelemetry.instrumentation.logback.v1_0.internal.UnionMap;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.MDC;
 
 public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
   private static final String TRACE_ID_KEY = "AWS-XRAY-TRACE-ID";
@@ -77,6 +76,8 @@ public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
 
       SpanContext spanContext = Java8BytecodeBridge.spanFromContext(context).getSpanContext();
       if (!spanContext.isValid()) {
+        // Remove any remaining trace id from the MDC
+        MDC.remove(TRACE_ID_KEY);
         return;
       }
 
@@ -88,13 +89,7 @@ public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
               + "@"
               + spanContext.getSpanId();
 
-      Map<String, String> spanContextData = Collections.singletonMap(TRACE_ID_KEY, value);
-
-      if (contextData == null) {
-        contextData = spanContextData;
-      } else {
-        contextData = new UnionMap<>(contextData, spanContextData);
-      }
+      MDC.put(TRACE_ID_KEY, value);
     }
   }
 }
