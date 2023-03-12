@@ -33,7 +33,7 @@ val otelSnapshotVersion = "1.24.0"
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.416",
+  "com.amazonaws:aws-java-sdk-bom:1.12.425",
   "com.fasterxml.jackson:jackson-bom:2.14.2",
   "com.google.guava:guava-bom:31.1-jre",
   "com.google.protobuf:protobuf-bom:3.22.0",
