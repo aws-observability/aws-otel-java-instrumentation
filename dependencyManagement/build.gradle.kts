@@ -44,7 +44,7 @@ val DEPENDENCY_BOMS = listOf(
   "org.junit:junit-bom:5.9.2",
   "org.springframework.boot:spring-boot-dependencies:2.7.9",
   "org.testcontainers:testcontainers-bom:1.17.6",
-  "software.amazon.awssdk:bom:2.20.13"
+  "software.amazon.awssdk:bom:2.20.22"
 )
 
 val DEPENDENCY_SETS = listOf(
