@@ -1,0 +1,324 @@
+use std::collections::VecDeque;
+use std::env;
+use std::fs;
+use std::io;
+use std::os::unix;
+use std::path::Path;
+use std::path::PathBuf;
+
+/// A type of copy operation
+#[derive(Debug, PartialEq)]
+enum CopyType {
+    /// equivalent to cp <source> <dest>
+    SingleFile,
+    /// equivalent to cp -a <source> <dest>
+    Archive,
+}
+
+/// Encapsulate a copy operation
+struct CopyOperation {
+    /// The source path
+    source: PathBuf,
+    /// The destination path
+    destination: PathBuf,
+    /// Tye type of copy.
+    copy_type: CopyType,
+}
+
+/// Parse command line arguments and transform into `CopyOperation`
+fn parse_args(args: Vec<String>) -> io::Result<CopyOperation> {
+    if !((args.len() == 4 || args.len() == 5 && args[2].eq("-a")) && args[1].eq("cp")) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Invalid number of parameters",
+        ));
+    }
+
+    if args.len() == 5 {
+        return Ok(CopyOperation {
+            source: PathBuf::from(&args[3]),
+            destination: PathBuf::from(&args[4]),
+            copy_type: CopyType::Archive,
+        });
+    }
+
+    Ok(CopyOperation {
+        source: PathBuf::from(&args[2]),
+        destination: PathBuf::from(&args[3]),
+        copy_type: CopyType::SingleFile,
+    })
+}
+
+/// Execute the copy operation
+fn do_copy(operation: CopyOperation) -> io::Result<()> {
+    match operation.copy_type {
+        CopyType::Archive => copy_recursive(&operation.source, &operation.destination)?,
+        CopyType::SingleFile => copy(&operation.source, &operation.destination)?,
+    }
+    Ok(())
+}
+
+/// Execute the single file copy operation
+fn copy(source: &Path, dest: &Path) -> io::Result<()> {
+    fs::copy(source, dest)?;
+    Ok(())
+}
+
+/// Execute the recursive type of copy operation
+fn copy_recursive(source: &Path, dest: &Path) -> io::Result<()> {
+    // This will cover the case in which the destination exists
+    let sanitized_dest: PathBuf = if dest.exists() {
+        dest.to_path_buf()
+            .join(source.file_name().ok_or(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Invalid source
+        file",
+            ))?)
+    } else {
+        dest.to_path_buf()
+    };
+
+    let mut stack = VecDeque::new();
+    stack.push_back((source.to_path_buf(), sanitized_dest));
+
+    while let Some((current_source, current_dest)) = stack.pop_back() {
+        if current_source.is_symlink() {
+            let target = current_source.read_link()?;
+            unix::fs::symlink(target, &current_dest)?;
+        } else if current_source.is_dir() {
+            fs::create_dir(&current_dest)?;
+            for entry in fs::read_dir(current_source)? {
+                let next_source = entry?.path();
+                let next_dest =
+                    current_dest
+                        .clone()
+                        .join(next_source.file_name().ok_or(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "Invalid source file",
+                        ))?);
+                stack.push_back((next_source, next_dest));
+            }
+        } else if current_source.is_file() {
+            fs::copy(current_source, current_dest)?;
+        }
+    }
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    let args: Vec<String> = env::args().collect();
+
+    let operation = parse_args(args)?;
+
+    do_copy(operation)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs,
+        io::Write,
+        os::unix,
+        path::{Path, PathBuf},
+    };
+
+    use crate::{do_copy, parse_args, CopyOperation, CopyType};
+    use uuid;
+
+    #[test]
+    fn test_parser() {
+        // prepare
+        let input: Vec<String> = ["cp-utility", "cp", "-a", "foo.txt", "dest.txt"]
+            .map(String::from)
+            .to_vec();
+
+        // act
+        let result = parse_args(input).unwrap();
+
+        // assert
+        assert_eq!(result.source, PathBuf::from("foo.txt"));
+        assert_eq!(result.destination, PathBuf::from("dest.txt"));
+        assert_eq!(result.copy_type, CopyType::Archive)
+    }
+
+    #[test]
+    fn parser_failure() {
+        // prepare
+        let input: Vec<String> = ["cp-utility", "-r", "foo.txt", "bar.txt"]
+            .map(String::from)
+            .to_vec();
+
+        // act
+        let result = parse_args(input);
+
+        // assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_copy_single() {
+        // prepare
+        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let test_base = tempdir.path().to_path_buf();
+
+        create_file(&test_base, "foo.txt");
+
+        let source = test_base.join("foo.txt");
+        let dest = test_base.join("bar.txt");
+        let single_copy = CopyOperation {
+            copy_type: CopyType::SingleFile,
+            source: source.clone(),
+            destination: dest.clone(),
+        };
+
+        // act
+        do_copy(single_copy).unwrap();
+
+        // assert
+        assert_same_file(&source, &dest)
+    }
+
+    #[test]
+    fn single_cannot_copy_directory() {
+        // prepare
+        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let test_base = tempdir.path().to_path_buf();
+
+        create_dir(&test_base, "somedir");
+
+        // act
+        let single_copy = CopyOperation {
+            copy_type: CopyType::SingleFile,
+            source: test_base.join("somedir"),
+            destination: test_base.join("somewhereelse"),
+        };
+        let result = do_copy(single_copy);
+
+        // assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_copy_recursive() {
+        // prepare
+        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let test_base = tempdir.path().to_path_buf();
+        ["foo", "foo/foo0", "foo/foo1", "foo/bar"]
+            .iter()
+            .for_each(|x| create_dir(&test_base, x));
+        let files = [
+            "foo/file1.txt",
+            "foo/file2.txt",
+            "foo/foo1/file3.txt",
+            "foo/bar/file4.txt",
+        ];
+        files.iter().for_each(|x| create_file(&test_base, x));
+        [("foo/symlink1.txt", "./file1.txt")]
+            .iter()
+            .for_each(|(x, y)| create_symlink(&test_base, x, y));
+        // act
+        let recursive_copy = CopyOperation {
+            copy_type: CopyType::Archive,
+            source: test_base.join("foo"),
+            destination: test_base.join("bar"),
+        };
+        do_copy(recursive_copy).unwrap();
+
+        // assert
+
+        files.iter().for_each(|x| {
+            assert_same_file(
+                &test_base.join(x),
+                &test_base.join(x.replace("foo/", "bar/")),
+            )
+        });
+        assert_same_file(
+            &test_base.join("foo/symlink1.txt"),
+            &test_base.join("bar/symlink1.txt"),
+        );
+
+        assert_same_link(
+            &test_base.join("foo/symlink1.txt"),
+            &test_base.join("bar/symlink1.txt"),
+        )
+    }
+
+    #[test]
+    fn test_copy_recursive_destination_exists() {
+        // prepare
+        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let test_base = tempdir.path().to_path_buf();
+        ["foo", "foo/foo0", "foo/foo1", "foo/bar"]
+            .iter()
+            .for_each(|x| create_dir(&test_base, x));
+        let files = [
+            "foo/file1.txt",
+            "foo/file2.txt",
+            "foo/foo1/file3.txt",
+            "foo/bar/file4.txt",
+        ];
+        files.iter().for_each(|x| create_file(&test_base, x));
+        [("foo/symlink1.txt", "./file1.txt")]
+            .iter()
+            .for_each(|(x, y)| create_symlink(&test_base, x, y));
+        create_dir(&test_base, "bar");
+
+        // act
+        let recursive_copy = CopyOperation {
+            copy_type: CopyType::Archive,
+            source: test_base.join("foo"),
+            destination: test_base.join("bar"),
+        };
+        do_copy(recursive_copy).unwrap();
+
+        // assert
+
+        files.iter().for_each(|x| {
+            assert_same_file(
+                &test_base.join(x),
+                &test_base.join(x.replace("foo/", "bar/foo/")),
+            )
+        });
+
+        assert_same_link(
+            &test_base.join("foo/symlink1.txt"),
+            &test_base.join("bar/foo/symlink1.txt"),
+        )
+    }
+
+    fn create_dir(base: &Path, dir: &str) {
+        fs::create_dir_all(base.to_path_buf().join(dir)).unwrap();
+    }
+
+    fn create_file(base: &Path, file: &str) {
+        let mut file = fs::File::create(base.to_path_buf().join(file)).unwrap();
+        file.write_fmt(format_args!("{}", uuid::Uuid::new_v4().to_string()))
+            .unwrap();
+    }
+
+    fn create_symlink(base: &Path, file: &str, target: &str) {
+        unix::fs::symlink(Path::new(target), &base.to_path_buf().join(file)).unwrap();
+    }
+
+    fn assert_same_file(source: &Path, dest: &Path) {
+        assert!(source.exists());
+        assert!(dest.exists());
+        assert!(source.is_file());
+        assert!(dest.is_file());
+
+        assert_eq!(
+            fs::read_to_string(source).unwrap(),
+            fs::read_to_string(dest).unwrap()
+        );
+    }
+
+    fn assert_same_link(source: &Path, dest: &Path) {
+        assert!(source.exists());
+        assert!(dest.exists());
+        assert!(source.is_symlink());
+        assert!(dest.is_symlink());
+
+        assert_eq!(fs::read_link(source).unwrap(), fs::read_link(dest).unwrap());
+    }
+}
