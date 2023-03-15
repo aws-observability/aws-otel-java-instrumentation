@@ -71,7 +71,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: |
-          echo ADOT_JAVA_VERSION=$(./gradlew properties | grep -P '^version: '| cut -d ' ' -f 2) >> $“GITHUB_ENV
+          echo "ADOT_JAVA_VERSION=$(./gradlew properties | grep -P '^version: '| cut -d ' ' -f 2)" >> $GITHUB_ENV
 
       - name: Build image
         uses: docker/build-push-action@v4
