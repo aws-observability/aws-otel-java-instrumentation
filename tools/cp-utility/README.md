@@ -19,7 +19,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup component add rustfmt
 ```
 
-### Developing
+### Development
 
 * Auto formatting the code
 
@@ -54,5 +54,4 @@ cargo build --target x86_64-unknown-linux-musl
 ### Docker image
 
 In the root of this project, there is a Dockerfile that is supposed to be used during release.
-This Dockerfile can be used with buildx to generate images for the arm64 and x86_64 platforms. buildx has to be used to
-have a proper cross-compilation.
+This Dockerfile can be used with buildx to generate images for the arm64 and x86_64 platforms.
