@@ -68,7 +68,7 @@ fn parse_args(args: Vec<String>) -> io::Result<CopyOperation> {
 fn do_copy(operation: CopyOperation) -> io::Result<()> {
     match operation.copy_type {
         CopyType::Archive => copy_recursive(&operation.source, &operation.destination)?,
-        CopyType::SingleFile => fs::copy(&operation.source, &operation.destination).map(|_| ())?
+        CopyType::SingleFile => fs::copy(&operation.source, &operation.destination).map(|_| ())?,
     };
     Ok(())
 }
