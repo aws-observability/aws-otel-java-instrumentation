@@ -71,7 +71,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: |
-          ADOT_JAVA_VERSION=$(./gradlew properties | grep -P '^version: '| cut -d ' ' -f 2)"
+          ADOT_JAVA_VERSION="$(./gradlew properties | grep -P '^version: '| cut -d ' ' -f 2)"
           echo "Current version is ${ADOT_JAVA_VERSION}"
           echo ADOT_JAVA_VERSION=${ADOT_JAVA_VERSION} >> $GITHUB_ENV
 
