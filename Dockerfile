@@ -11,6 +11,8 @@
 # on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
+
+# Stage 1: Build the cp-utility binary
 FROM rust:1.68 as builder
 
 # possible values: x86_64 | aarch64
@@ -25,6 +27,7 @@ RUN cargo fmt --check
 RUN cargo test  --target ${ARCH}-unknown-linux-musl
 RUN cargo install --target ${ARCH}-unknown-linux-musl --path . --root .
 
+# Stage 2: Create distribution
 FROM scratch
 
 ARG ADOT_JAVA_VERSION

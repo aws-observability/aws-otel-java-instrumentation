@@ -36,7 +36,7 @@ struct CopyOperation {
     source: PathBuf,
     /// The destination path
     destination: PathBuf,
-    /// Tye type of copy.
+    /// The type of copy being performed
     copy_type: CopyType,
 }
 
@@ -231,6 +231,7 @@ mod tests {
         [("foo/symlink1.txt", "./file1.txt")]
             .iter()
             .for_each(|(x, y)| create_symlink(&test_base, x, y));
+
         // act
         let recursive_copy = CopyOperation {
             copy_type: CopyType::Archive,
@@ -240,7 +241,6 @@ mod tests {
         do_copy(recursive_copy).unwrap();
 
         // assert
-
         files.iter().for_each(|x| {
             assert_same_file(
                 &test_base.join(x),
@@ -287,7 +287,6 @@ mod tests {
         do_copy(recursive_copy).unwrap();
 
         // assert
-
         files.iter().for_each(|x| {
             assert_same_file(
                 &test_base.join(x),
@@ -301,6 +300,7 @@ mod tests {
         )
     }
 
+    // Utility functions used in the tests
     fn create_dir(base: &Path, dir: &str) {
         fs::create_dir_all(base.to_path_buf().join(dir)).unwrap();
     }
