@@ -1,3 +1,17 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
 use std::collections::VecDeque;
 use std::env;
 use std::fs;
@@ -5,6 +19,7 @@ use std::io;
 use std::os::unix;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process;
 
 /// A type of copy operation
 #[derive(Debug, PartialEq)]
@@ -30,7 +45,7 @@ fn parse_args(args: Vec<String>) -> io::Result<CopyOperation> {
     if !((args.len() == 4 || args.len() == 5 && args[2].eq("-a")) && args[1].eq("cp")) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Invalid number of parameters",
+            "Invalid parameters. Expected cp [-a] <source> <destination>",
         ));
     }
 
@@ -53,14 +68,8 @@ fn parse_args(args: Vec<String>) -> io::Result<CopyOperation> {
 fn do_copy(operation: CopyOperation) -> io::Result<()> {
     match operation.copy_type {
         CopyType::Archive => copy_recursive(&operation.source, &operation.destination)?,
-        CopyType::SingleFile => copy(&operation.source, &operation.destination)?,
-    }
-    Ok(())
-}
-
-/// Execute the single file copy operation
-fn copy(source: &Path, dest: &Path) -> io::Result<()> {
-    fs::copy(source, dest)?;
+        CopyType::SingleFile => fs::copy(&operation.source, &operation.destination).map(|_| ())?
+    };
     Ok(())
 }
 
@@ -105,13 +114,18 @@ fn copy_recursive(source: &Path, dest: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn main() -> io::Result<()> {
+fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let operation = parse_args(args)?;
+    let operation = parse_args(args).unwrap_or_else(|err| {
+        eprintln!("Error parsing arguments: {err}");
+        process::exit(1);
+    });
 
-    do_copy(operation)?;
-    Ok(())
+    do_copy(operation).unwrap_or_else(|err| {
+        eprintln!("Error copying files: {err}");
+        process::exit(1);
+    });
 }
 
 #[cfg(test)]
