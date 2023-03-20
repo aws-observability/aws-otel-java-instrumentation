@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_copy_single() {
         // prepare
-        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let test_base = tempdir.path().to_path_buf();
 
         create_file(&test_base, "foo.txt");
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn single_cannot_copy_directory() {
         // prepare
-        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let test_base = tempdir.path().to_path_buf();
 
         create_dir(&test_base, "somedir");
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn test_copy_recursive() {
         // prepare
-        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let test_base = tempdir.path().to_path_buf();
         ["foo", "foo/foo0", "foo/foo1", "foo/bar"]
             .iter()
@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn test_copy_recursive_destination_exists() {
         // prepare
-        let tempdir = tempdir::TempDir::new("cp-utility").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
         let test_base = tempdir.path().to_path_buf();
         ["foo", "foo/foo0", "foo/foo1", "foo/bar"]
             .iter()

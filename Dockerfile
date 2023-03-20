@@ -25,6 +25,11 @@ COPY ./tools/cp-utility .
 
 RUN cargo fmt --check
 RUN cargo test  --target ${ARCH}-unknown-linux-musl
+
+# Audit dependencies
+RUN cargo install cargo-audit
+RUN cargo audit
+
 RUN cargo install --target ${ARCH}-unknown-linux-musl --path . --root .
 
 # Stage 2: Create distribution
