@@ -59,7 +59,6 @@ jobs:
 
       - name: Build and export to Docker
         uses: docker/build-push-action@v4
-        if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
@@ -89,7 +88,6 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v4
-        if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
