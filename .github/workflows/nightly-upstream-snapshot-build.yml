@@ -6,6 +6,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 permissions:
   id-token: write
@@ -41,6 +42,41 @@ jobs:
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Get current version
+        shell: bash
+        run: |
+          echo ADOT_JAVA_VERSION="$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_ENV
+
+      - name: Build image
+        uses: docker/build-push-action@v4
+        with:
+          push: false
+          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
+          context: .
+          tags: ${{ env.TEST_TAG }}
+
+      - name: Test docker image
+        shell: bash
+        run: |
+          docker volume create operator-volume
+          docker run --mount source=operator-volume,dst=/otel-auto-instrumentation adot-java-operator:${{ env.TEST_TAG }} cp /javaagent.jar /otel-auto-instrumentation/javaagent.jar
+          docker run -dt --mount source=operator-volume,dst=/otel-auto-instrumentation --name temp  public.ecr.aws/amazonlinux/amazonlinux:latest
+          FILENAME = $(docker exec temp /bin/bash -c "ls /otel-auto-instrumentation")
+          if [$FILENAME = javaagent.jar]; then
+            echo "javaagent.jar file was copied to the operator-volume"
+          else 
+            echo "error: javaagent.jar file was not copied to the operator-volume"
+            exit 1;
+          fi
+          CHECKSUM = $(docker exec temp /bin/bash -c "sha256sum /otel-auto-instrumentation/javaagent.jar | cut -d' ' -f1")
+          if [$CHECKSUM = $ORIG_CHECKSUM]; then
+            echo "copied javaagent.jar checksum matched"
+          else 
+            echo "error: copied javaagent.jar checksum mis-matched"
+            exit 1;
+          fi
+
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v2
         with:
