@@ -22,6 +22,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
+          name: adot-dependencies
           arguments: ":otelagent:dependencyCheckAnalyze"
 
   check-dependencies-otel-java:
@@ -38,6 +39,12 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           arguments: ":javaagent:dependencyCheckAnalyze"
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: otel-dependencies
+          path: javaagent/build/reports
 
   publish-status:
     needs: ["check-dependencies-adot-java", "check-dependencies-otel-java"]
