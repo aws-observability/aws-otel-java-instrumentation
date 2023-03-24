@@ -124,7 +124,7 @@ fn main() {
 
     do_copy(operation).unwrap_or_else(|err| {
         eprintln!("Error copying files: {err}");
-        process::exit(1);
+        process::exit(2);
     });
 }
 
