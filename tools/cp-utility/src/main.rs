@@ -67,7 +67,7 @@ fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
 /// Execute the copy operation
 fn do_copy(operation: CopyOperation) -> io::Result<()> {
     match operation.copy_type {
-        CopyType::Archive => copy_recursive(&operation.source, &operation.destination)?,
+        CopyType::Archive => copy_archive(&operation.source, &operation.destination)?,
         CopyType::SingleFile => fs::copy(&operation.source, &operation.destination).map(|_| ())?,
     };
     Ok(())
@@ -80,7 +80,8 @@ fn copy_archive(source: &Path, dest: &Path) -> io::Result<()> {
         dest.to_path_buf()
             .join(source.file_name().ok_or(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "Invalid source file",))?)
+                "Invalid source file",
+            ))?)
     } else {
         dest.to_path_buf()
     };
@@ -114,7 +115,7 @@ fn copy_archive(source: &Path, dest: &Path) -> io::Result<()> {
 
 fn main() {
     let original_args: Vec<String> = env::args().collect();
-    let args =  original_args.iter().map(|x| x.as_str()).collect();
+    let args = original_args.iter().map(|x| x.as_str()).collect();
 
     let operation = parse_args(args).unwrap_or_else(|err| {
         eprintln!("Error parsing arguments: {err}");
@@ -228,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_recursive() {
+    fn test_copy_archive() {
         // prepare
         let tempdir = tempfile::tempdir().unwrap();
         let test_base = tempdir.path().to_path_buf();
@@ -273,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_recursive_destination_exists() {
+    fn test_copy_archive_destination_exists() {
         // prepare
         let tempdir = tempfile::tempdir().unwrap();
         let test_base = tempdir.path().to_path_buf();
