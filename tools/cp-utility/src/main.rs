@@ -41,7 +41,7 @@ struct CopyOperation {
 }
 
 /// Parse command line arguments and transform into `CopyOperation`
-fn parse_args(args: Vec<String>) -> io::Result<CopyOperation> {
+fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
     if !((args.len() == 4 || args.len() == 5 && args[2].eq("-a")) && args[1].eq("cp")) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -51,15 +51,15 @@ fn parse_args(args: Vec<String>) -> io::Result<CopyOperation> {
 
     if args.len() == 5 {
         return Ok(CopyOperation {
-            source: PathBuf::from(&args[3]),
-            destination: PathBuf::from(&args[4]),
+            source: PathBuf::from(args[3]),
+            destination: PathBuf::from(args[4]),
             copy_type: CopyType::Archive,
         });
     }
 
     Ok(CopyOperation {
-        source: PathBuf::from(&args[2]),
-        destination: PathBuf::from(&args[3]),
+        source: PathBuf::from(args[2]),
+        destination: PathBuf::from(args[3]),
         copy_type: CopyType::SingleFile,
     })
 }
@@ -80,9 +80,7 @@ fn copy_archive(source: &Path, dest: &Path) -> io::Result<()> {
         dest.to_path_buf()
             .join(source.file_name().ok_or(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "Invalid source
-        file",
-            ))?)
+                "Invalid source file",))?)
     } else {
         dest.to_path_buf()
     };
@@ -115,7 +113,8 @@ fn copy_archive(source: &Path, dest: &Path) -> io::Result<()> {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let original_args: Vec<String> = env::args().collect();
+    let args =  original_args.iter().map(|x| x.as_str()).collect();
 
     let operation = parse_args(args).unwrap_or_else(|err| {
         eprintln!("Error parsing arguments: {err}");
@@ -141,11 +140,9 @@ mod tests {
     use uuid;
 
     #[test]
-    fn test_parser() {
+    fn test_parser_archive() {
         // prepare
-        let input: Vec<String> = ["cp-utility", "cp", "-a", "foo.txt", "dest.txt"]
-            .map(String::from)
-            .to_vec();
+        let input = vec!["cp-utility", "cp", "-a", "foo.txt", "dest.txt"];
 
         // act
         let result = parse_args(input).unwrap();
@@ -157,17 +154,34 @@ mod tests {
     }
 
     #[test]
-    fn parser_failure() {
+    fn test_parser_single() {
         // prepare
-        let input: Vec<String> = ["cp-utility", "-r", "foo.txt", "bar.txt"]
-            .map(String::from)
-            .to_vec();
+        let input: Vec<&str> = vec!["cp-utility", "cp", "foo.txt", "dest.txt"];
 
         // act
-        let result = parse_args(input);
+        let result = parse_args(input).unwrap();
 
         // assert
-        assert!(result.is_err());
+        assert_eq!(result.source, PathBuf::from("foo.txt"));
+        assert_eq!(result.destination, PathBuf::from("dest.txt"));
+        assert_eq!(result.copy_type, CopyType::SingleFile)
+    }
+
+    #[test]
+    fn parser_failure() {
+        // prepare
+        let inputs = vec![
+            vec!["cp-utility", "cp", "-r", "foo.txt", "bar.txt"],
+            vec!["cp-utility", "cp", "-a", "param1", "param2", "param3"],
+            vec!["cp-utility", "cp", "param1", "param2", "param3"],
+        ];
+        // act
+        for input in inputs.into_iter() {
+            let result = parse_args(input.clone());
+
+            // assert
+            assert!(result.is_err(), "input should fail {:?}", input);
+        }
     }
 
     #[test]
