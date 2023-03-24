@@ -74,7 +74,7 @@ fn do_copy(operation: CopyOperation) -> io::Result<()> {
 }
 
 /// Execute the recursive type of copy operation
-fn copy_recursive(source: &Path, dest: &Path) -> io::Result<()> {
+fn copy_archive(source: &Path, dest: &Path) -> io::Result<()> {
     // This will cover the case in which the destination exists
     let sanitized_dest: PathBuf = if dest.exists() {
         dest.to_path_buf()
