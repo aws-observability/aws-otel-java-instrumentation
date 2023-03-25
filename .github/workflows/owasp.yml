@@ -24,6 +24,12 @@ jobs:
         with:
           name: adot-dependencies
           arguments: ":otelagent:dependencyCheckAnalyze"
+      - name: Upload report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: adot-dependencies
+          path: otelagent/build/reports
 
   check-dependencies-otel-java:
     runs-on: ubuntu-latest
@@ -40,7 +46,7 @@ jobs:
         with:
           arguments: ":javaagent:dependencyCheckAnalyze"
       - name: Upload report
-        if: always()
+        if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
           name: otel-dependencies
