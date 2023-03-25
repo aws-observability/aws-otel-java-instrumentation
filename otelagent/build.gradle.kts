@@ -21,6 +21,7 @@ plugins {
 
   id("com.google.cloud.tools.jib")
   id("com.github.johnrengelman.shadow")
+  id("org.owasp.dependencycheck")
 }
 
 java {
