@@ -176,7 +176,7 @@ mod tests {
             vec!["cp-utility", "cp", "-a", "param1", "param2", "param3"],
             vec!["cp-utility", "cp", "param1", "param2", "param3"],
             vec!["cp-utility", "mv", "param1", "param2"],
-            vec!["cp-utility", "mv", "-a", "param1", "param2"]
+            vec!["cp-utility", "mv", "-a", "param1", "param2"],
         ];
 
         for input in inputs.into_iter() {
