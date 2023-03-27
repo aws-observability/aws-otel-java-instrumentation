@@ -175,9 +175,12 @@ mod tests {
             vec!["cp-utility", "cp", "-r", "foo.txt", "bar.txt"],
             vec!["cp-utility", "cp", "-a", "param1", "param2", "param3"],
             vec!["cp-utility", "cp", "param1", "param2", "param3"],
+            vec!["cp-utility", "mv", "param1", "param2"],
+            vec!["cp-utility", "mv", "-a", "param1", "param2"]
         ];
-        // act
+
         for input in inputs.into_iter() {
+            // act
             let result = parse_args(input.clone());
 
             // assert
