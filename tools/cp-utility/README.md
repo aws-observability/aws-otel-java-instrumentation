@@ -1,8 +1,8 @@
 # Introduction
 
-This is a copy utility that is supposed to be used in a container image used by the
-OpenTelemetry Operator. This copy utility will copy the ADOT Java agent jar from
-the init container to the final destination volume.
+This copy utility is intended to be used as a base image for OpenTelemetry Operator 
+autoinstrumentation images. The copy utility will allow the ADOT Java agent jar to be 
+copied from the init container to the final destination volume.
 
 ## Development
 
