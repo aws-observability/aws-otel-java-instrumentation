@@ -13,12 +13,13 @@ jobs:
   check-dependencies-adot-java:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v1
+      - uses: actions/setup-java@v3
         with:
           java-version: 17
+          distribution: 'temurin'
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
@@ -34,13 +35,14 @@ jobs:
   check-dependencies-otel-java:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
-          name: "open-telemetry/opentelemetry-java-instrumentation"
+          repository: "open-telemetry/opentelemetry-java-instrumentation"
           fetch-depth: 0
-      - uses: actions/setup-java@v1
+      - uses: actions/setup-java@v3
         with:
           java-version: 17
+          distribution: 'temurin'
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
