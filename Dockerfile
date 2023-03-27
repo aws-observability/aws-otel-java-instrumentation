@@ -15,22 +15,29 @@
 # Stage 1: Build the cp-utility binary
 FROM rust:1.68 as builder
 
-# possible values: x86_64 | aarch64
-ARG ARCH=x86_64
-
-RUN rustup target add ${ARCH}-unknown-linux-musl
-RUN rustup component add rustfmt
 WORKDIR /usr/src/cp-utility
 COPY ./tools/cp-utility .
 
+# Validations
+## Validate formatting
+RUN rustup component add rustfmt
 RUN cargo fmt --check
-RUN cargo test  --target ${ARCH}-unknown-linux-musl
 
-# Audit dependencies
+## Audit dependencies
 RUN cargo install cargo-audit
 RUN cargo audit
 
-RUN cargo install --target ${ARCH}-unknown-linux-musl --path . --root .
+# Cross-compile based on the target platform.
+## TARGETARCH is defined by buildx
+# https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
+ARG TARGETARCH
+RUN if [ $TARGETARCH = "amd64" ]; then export ARCH="x86_64" ; \
+    elif [ $TARGETARCH = "arm64" ]; then export ARCH="aarch64" ; \
+    else false; \
+    fi \
+    && rustup target add ${ARCH}-unknown-linux-musl \
+    && cargo test  --target ${ARCH}-unknown-linux-musl \
+    && cargo install --target ${ARCH}-unknown-linux-musl --path . --root .
 
 # Stage 2: Create distribution
 FROM scratch
