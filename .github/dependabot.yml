@@ -9,3 +9,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: /tools/cp-utility
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
