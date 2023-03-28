@@ -275,6 +275,12 @@ tasks {
   }
 }
 
+task("printVersion") {
+  doLast {
+    println(project.version)
+  }
+}
+
 licenseReport {
   renderers = arrayOf(InventoryMarkdownReportRenderer())
 }
