@@ -4,7 +4,6 @@ on:
     branches:
       - main
       - "release/v*"
-
 env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
@@ -75,7 +74,6 @@ jobs:
         shell: bash
         run: |
           echo ADOT_JAVA_VERSION="$(./gradlew printVersion -q )" >> $GITHUB_ENV
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -92,27 +90,6 @@ jobs:
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
-
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
-        if: ${{ matrix.os != 'ubuntu-latest' }}
-        with:
-          arguments: build --stacktrace -PenableCoverage=true
-      - uses: codecov/codecov-action@v1
-
-      - name: Get current version
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        shell: bash
-        run: |
-          echo ADOT_JAVA_VERSION="$(./gradlew printVersion -q )" >> $GITHUB_ENV
-
-      - name: Build image
-        uses: docker/build-push-action@v4
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        with:
-          push: false
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
           tags: ${{ env.TEST_TAG }}
 
       - name: Test docker image
@@ -136,3 +113,10 @@ jobs:
             echo "error: copied javaagent.jar checksum mis-matched"
             exit 1;
           fi
+
+      - name: Build with Gradle
+        uses: gradle/gradle-build-action@v2
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        with:
+          arguments: build --stacktrace -PenableCoverage=true
+      - uses: codecov/codecov-action@v1
