@@ -43,3 +43,6 @@ dataSources
 atlassian-ide-plugin.xml
 
 *.class
+
+# rust
+tools/cp-utility/target
