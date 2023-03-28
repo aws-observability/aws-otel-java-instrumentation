@@ -18,19 +18,23 @@ FROM rust:1.68 as builder
 WORKDIR /usr/src/cp-utility
 COPY ./tools/cp-utility .
 
-# Validations
-## Validate formatting
-RUN rustup component add rustfmt
-RUN cargo fmt --check
-
-## Audit dependencies
-RUN cargo install cargo-audit
-RUN cargo audit
-
-# Cross-compile based on the target platform.
 ## TARGETARCH is defined by buildx
 # https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
 ARG TARGETARCH
+
+# Run validations and audit only on amd64 bacause it is faster and those two steps
+# are only used to validate the source code and don't require anything that is
+# architecture specific.
+
+# Validations
+## Validate formatting
+RUN if [ $TARGETARCH = "amd64" ]; then rustup component add rustfmt && cargo fmt --check ; fi
+
+## Audit dependencies
+RUN if [ $TARGETARCH = "amd64" ]; then cargo install cargo-audit && cargo audit ; fi
+
+
+# Cross-compile based on the target platform.
 RUN if [ $TARGETARCH = "amd64" ]; then export ARCH="x86_64" ; \
     elif [ $TARGETARCH = "arm64" ]; then export ARCH="aarch64" ; \
     else false; \
