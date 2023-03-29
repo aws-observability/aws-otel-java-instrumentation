@@ -4,6 +4,8 @@ on:
     branches:
       - main
       - "release/v*"
+env:
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 jobs:
   testpatch:
@@ -89,6 +91,12 @@ jobs:
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
+          tags: ${{ env.TEST_TAG }}
+
+      - name: Test docker image
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        shell: bash
+        run: github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}"
 
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2

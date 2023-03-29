@@ -6,6 +6,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 permissions:
   id-token: write
@@ -60,12 +61,18 @@ jobs:
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
+          tags: ${{ env.TEST_TAG }}
+
+      - name: Test docker image
+        shell: bash
+        run: github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}"
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v2
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
   publish-build-status:
     needs: [build]
     if: ${{ always() }}
@@ -79,4 +86,3 @@ jobs:
       region: us-west-2
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}
-

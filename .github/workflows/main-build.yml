@@ -6,6 +6,7 @@ on:
       - "release/v*"
 env:
   AWS_DEFAULT_REGION: us-east-1
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 permissions:
   id-token: write
@@ -69,6 +70,7 @@ jobs:
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Get current version
         shell: bash
         run: |
@@ -87,12 +89,18 @@ jobs:
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
+          tags: ${{ env.TEST_TAG }}
+
+      - name: Test docker image
+        shell: bash
+        run: github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}"
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v2
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
       - name: Build and push agent and testing docker images with Gradle
         uses: gradle/gradle-build-action@v2
         with:
