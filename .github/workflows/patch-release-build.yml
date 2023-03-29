@@ -12,6 +12,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 permissions:
   id-token: write
