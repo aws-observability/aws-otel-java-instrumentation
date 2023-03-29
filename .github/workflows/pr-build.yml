@@ -96,7 +96,7 @@ jobs:
       - name: Test docker image
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}"
 
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
