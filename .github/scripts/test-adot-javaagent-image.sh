@@ -6,7 +6,7 @@ TEST_TAG=$1
 
 
 docker volume create operator-volume
-docker run --mount source=operator-volume,dst=/otel-auto-instrumentation adot-java-operator:${{ env.TEST_TAG }} cp /javaagent.jar /otel-auto-instrumentation/javaagent.jar
+docker run --mount source=operator-volume,dst=/otel-auto-instrumentation adot-java-operator:${TEST_TAG} cp /javaagent.jar /otel-auto-instrumentation/javaagent.jar
 docker run -dt --mount source=operator-volume,dst=/otel-auto-instrumentation --name temp  public.ecr.aws/amazonlinux/amazonlinux:latest
 FILENAME=$(docker exec temp /bin/bash -c "ls /otel-auto-instrumentation")
 if [ $FILENAME = javaagent.jar ]; then
