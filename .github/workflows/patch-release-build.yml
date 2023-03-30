@@ -120,7 +120,7 @@ jobs:
 
       - name: Test docker image
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ ORIG_CHECKSUM }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ORIG_CHECKSUM }}"
 
       - name: Build and push image
         uses: docker/build-push-action@v4
