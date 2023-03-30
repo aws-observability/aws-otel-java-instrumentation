@@ -71,6 +71,10 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+      - name: Create checksum
+        run: |
+          echo ORIG_CHECKSUM="$(shasum otelagent/build/libs/aws-opentelemetry-agent-*.jar | awk '{ print $1 }')" >> "$GITHUB_ENV"
+
       - name: Get current version
         shell: bash
         run: |
