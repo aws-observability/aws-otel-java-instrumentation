@@ -5,7 +5,7 @@ on:
       - main
       - "release/v*"
 env:
-  TEST_TAG: adot-autoinstrumentation-java:test
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 jobs:
   testpatch:
@@ -83,7 +83,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
-      - name: Build image
+      - name: Build image for testing
         uses: docker/build-push-action@v4
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
