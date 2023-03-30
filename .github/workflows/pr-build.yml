@@ -5,8 +5,7 @@ on:
       - main
       - "release/v*"
 env:
-  AWS_DEFAULT_REGION: us-east-1
-  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
+  TEST_TAG: adot-autoinstrumentation-java:test
 
 jobs:
   testpatch:
@@ -54,17 +53,6 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v1
-        with:
-          registry: public.ecr.aws
-
       - uses: gradle/wrapper-validation-action@v1
 
       - name: Publish patched dependencies to maven local
@@ -99,6 +87,7 @@ jobs:
         uses: docker/build-push-action@v4
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
+          push: false
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
