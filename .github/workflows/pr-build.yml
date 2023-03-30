@@ -53,6 +53,17 @@ jobs:
           java-version: 17
           distribution: temurin
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
+
       - uses: gradle/wrapper-validation-action@v1
 
       - name: Publish patched dependencies to maven local
