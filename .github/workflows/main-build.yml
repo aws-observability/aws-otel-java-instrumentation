@@ -73,12 +73,12 @@ jobs:
 
       - name: Create checksum
         run: |
-          echo ORIG_CHECKSUM="$(sha256sum otelagent/build/libs/aws-opentelemetry-agent-*.jar | cut -d' ' -f1)" >> $GITHUB_ENV
+          echo "ORIG_CHECKSUM=$(sha256sum otelagent/build/libs/aws-opentelemetry-agent-*.jar | cut -d' ' -f1)" >> $GITHUB_ENV
 
       - name: Get current version
         shell: bash
         run: |
-          echo ADOT_JAVA_VERSION="$(./gradlew printVersion -q )" >> $GITHUB_ENV
+          echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
