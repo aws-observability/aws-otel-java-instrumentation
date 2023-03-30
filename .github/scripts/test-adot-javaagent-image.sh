@@ -3,6 +3,7 @@
 set -x -e -u
 
 TEST_TAG=$1
+ORIG_CHECKSUM=$2
 
 docker volume create operator-volume
 docker run --mount source=operator-volume,dst=/otel-auto-instrumentation ${TEST_TAG} cp /javaagent.jar /otel-auto-instrumentation/javaagent.jar
@@ -15,7 +16,7 @@ else
   exit 1;
 fi
 CHECKSUM=$(docker exec temp /bin/bash -c "sha256sum /otel-auto-instrumentation/javaagent.jar | cut -d' ' -f1")
-if [ $CHECKSUM = $ORIG_CHECKSUM ]; then
+if [ $CHECKSUM = ${ORIG_CHECKSUM} ]; then
   echo "copied javaagent.jar checksum matched"
 else
   echo "error: copied javaagent.jar checksum mis-matched"
