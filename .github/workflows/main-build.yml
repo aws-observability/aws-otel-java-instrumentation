@@ -71,10 +71,6 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Create checksum
-        run: |
-          echo "ORIG_CHECKSUM=$(sha256sum otelagent/build/libs/aws-opentelemetry-agent-*.jar | cut -d' ' -f1)" >> $GITHUB_ENV
-
       - name: Get current version
         shell: bash
         run: |
@@ -96,7 +92,7 @@ jobs:
 
       - name: Test docker image
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ORIG_CHECKSUM }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v2

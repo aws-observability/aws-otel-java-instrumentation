@@ -3,7 +3,7 @@
 set -x -e -u
 
 TEST_TAG=$1
-ORIG_CHECKSUM=$2
+ADOT_JAVA_VERSION=$2
 
 docker volume create operator-volume
 docker run --mount source=operator-volume,dst=/otel-auto-instrumentation ${TEST_TAG} cp /javaagent.jar /otel-auto-instrumentation/javaagent.jar
@@ -15,8 +15,10 @@ else
   echo "error: javaagent.jar file was not copied to the operator-volume"
   exit 1;
 fi
+
+ORIG_CHECKSUM=$(sha256sum otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar | cut -d' ' -f1)
 CHECKSUM=$(docker exec temp /bin/bash -c "sha256sum /otel-auto-instrumentation/javaagent.jar | cut -d' ' -f1")
-if [ $CHECKSUM = ${ORIG_CHECKSUM} ]; then
+if [ $CHECKSUM = $ORIG_CHECKSUM ]; then
   echo "copied javaagent.jar checksum matched"
 else
   echo "error: copied javaagent.jar checksum mis-matched"

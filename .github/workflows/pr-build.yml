@@ -69,10 +69,6 @@ jobs:
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
-      - name: Create checksum
-        run: |
-          echo "ORIG_CHECKSUM=$(sha256sum otelagent/build/libs/aws-opentelemetry-agent-*.jar | cut -d' ' -f1)" >> $GITHUB_ENV
-
       - name: Get current version
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
@@ -101,7 +97,7 @@ jobs:
       - name: Test docker image
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ORIG_CHECKSUM }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
