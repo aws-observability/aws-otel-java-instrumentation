@@ -6,6 +6,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
 
 permissions:
   id-token: write
@@ -45,7 +46,7 @@ jobs:
       - name: Get current version
         shell: bash
         run: |
-          echo ADOT_JAVA_VERSION="$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_ENV
+          echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -53,19 +54,26 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build image
+      - name: Build image for testing
         uses: docker/build-push-action@v4
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          tags: ${{ env.TEST_TAG }}
+          load: true
+
+      - name: Test docker image
+        shell: bash
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v2
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
   publish-build-status:
     needs: [build]
     if: ${{ always() }}
@@ -79,4 +87,3 @@ jobs:
       region: us-west-2
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}
-
