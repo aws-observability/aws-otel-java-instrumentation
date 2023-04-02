@@ -76,7 +76,7 @@ val DEPENDENCIES = listOf(
   "io.opentelemetry.contrib:opentelemetry-aws-resources:1.23.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:0.19.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
-  "net.bytebuddy:byte-buddy:1.14.0"
+  "net.bytebuddy:byte-buddy:1.14.3"
 )
 
 javaPlatform {
