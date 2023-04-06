@@ -10,7 +10,7 @@ edition = "2021"
 
 [dev-dependencies]
 # dependencies only used during tests
-tempfile = "3.4.0"
+tempfile = "3.5.0"
 uuid = { version = "1.3.0", features = ["v4", "fast-rng"] }
 
 [profile.release]
