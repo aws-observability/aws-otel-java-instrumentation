@@ -37,6 +37,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
       - name: Log in to AWS ECR
         uses: docker/login-action@v1
         with:
@@ -45,13 +46,18 @@ jobs:
       - name: Build release with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build integrationTests final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} -PlocalDocker=true --stacktrace
-        env:
-          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
-          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
-          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          arguments: build integrationTests -PlocalDocker=true --stacktrace
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
+          aws-region: us-west-2
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -81,7 +87,18 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}, public.ecr.aws/aws-observability/adot-autoinstrumentation-java:latest
+            public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
+
+      - name: Build and Publish release with Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+        env:
+          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
+          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
+          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create Release
         id: create_release
