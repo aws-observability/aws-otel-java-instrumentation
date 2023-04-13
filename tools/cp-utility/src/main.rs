@@ -42,24 +42,24 @@ struct CopyOperation {
 
 /// Parse command line arguments and transform into `CopyOperation`
 fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
-    if !((args.len() == 4 || args.len() == 5 && args[2].eq("-a")) && args[1].eq("cp")) {
+    if !(args.len() == 3 || args.len() == 4 && args[1].eq("-a")) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "Invalid parameters. Expected cp [-a] <source> <destination>",
         ));
     }
 
-    if args.len() == 5 {
+    if args.len() == 4 {
         return Ok(CopyOperation {
-            source: PathBuf::from(args[3]),
-            destination: PathBuf::from(args[4]),
+            source: PathBuf::from(args[2]),
+            destination: PathBuf::from(args[3]),
             copy_type: CopyType::Archive,
         });
     }
 
     Ok(CopyOperation {
-        source: PathBuf::from(args[2]),
-        destination: PathBuf::from(args[3]),
+        source: PathBuf::from(args[1]),
+        destination: PathBuf::from(args[2]),
         copy_type: CopyType::SingleFile,
     })
 }
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn test_parser_archive() {
         // prepare
-        let input = vec!["cp-utility", "cp", "-a", "foo.txt", "dest.txt"];
+        let input = vec!["cp", "-a", "foo.txt", "dest.txt"];
 
         // act
         let result = parse_args(input).unwrap();
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_parser_single() {
         // prepare
-        let input: Vec<&str> = vec!["cp-utility", "cp", "foo.txt", "dest.txt"];
+        let input: Vec<&str> = vec!["cp", "foo.txt", "dest.txt"];
 
         // act
         let result = parse_args(input).unwrap();
@@ -172,11 +172,9 @@ mod tests {
     fn parser_failure() {
         // prepare
         let inputs = vec![
-            vec!["cp-utility", "cp", "-r", "foo.txt", "bar.txt"],
-            vec!["cp-utility", "cp", "-a", "param1", "param2", "param3"],
-            vec!["cp-utility", "cp", "param1", "param2", "param3"],
-            vec!["cp-utility", "mv", "param1", "param2"],
-            vec!["cp-utility", "mv", "-a", "param1", "param2"],
+            vec!["cp", "-r", "foo.txt", "bar.txt"],
+            vec!["cp", "-a", "param1", "param2", "param3"],
+            vec!["cp", "param1", "param2", "param3"],
         ];
 
         for input in inputs.into_iter() {

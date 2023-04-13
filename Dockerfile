@@ -48,8 +48,7 @@ FROM scratch
 
 ARG ADOT_JAVA_VERSION
 
-COPY --from=builder /usr/src/cp-utility/bin/cp-utility /
+COPY --from=builder /usr/src/cp-utility/bin/cp-utility /bin/cp
+
 
 COPY ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar /javaagent.jar
-
-ENTRYPOINT ["/cp-utility"]
