@@ -17,6 +17,7 @@ env:
 permissions:
   id-token: write
   contents: write
+  packages: write
 
 jobs:
   # Runs once for a patch series to any given minor version to create the initial release branch. Subsequent patches
