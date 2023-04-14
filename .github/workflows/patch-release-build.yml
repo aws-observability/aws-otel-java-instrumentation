@@ -91,7 +91,7 @@ jobs:
       - name: Build release with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build integrationTests -PlocalDocker=true --stacktrace
+          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
