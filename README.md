@@ -38,7 +38,7 @@ used as is.
 
 ## Standardized Sample Applications 
 
-In addition to the sample apps in this repository, there are also [new standardized sample apps](https://github.com/aws-observability/aws-otel-community/tree/master/sample-apps) that can be used.
+In addition to the sample apps in this repository, there are also a set of [standardized sample applications](https://github.com/aws-observability/aws-otel-community/tree/master/sample-apps) that can be used. You can find the standardized Java sample app [here](https://github.com/aws-observability/aws-otel-community/tree/master/sample-apps/java-sample-app).
 
 ## Support
 
