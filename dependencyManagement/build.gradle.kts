@@ -33,8 +33,8 @@ val otelSnapshotVersion = "1.25.0"
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.454",
-  "com.fasterxml.jackson:jackson-bom:2.14.2",
+  "com.amazonaws:aws-java-sdk-bom:1.12.459",
+  "com.fasterxml.jackson:jackson-bom:2.15.0",
   "com.google.guava:guava-bom:31.1-jre",
   "com.google.protobuf:protobuf-bom:3.22.3",
   "com.linecorp.armeria:armeria-bom:1.23.1",
@@ -72,7 +72,7 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.10.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.24.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.25.1",
   "io.opentelemetry.contrib:opentelemetry-aws-resources:1.24.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:0.19.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
