@@ -4,13 +4,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: sunday
+      day: "sunday"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "sunday"
   - package-ecosystem: "cargo"
-    directory: /tools/cp-utility
+    directory: "/tools/cp-utility"
     schedule:
       interval: "weekly"
       day: "sunday"
