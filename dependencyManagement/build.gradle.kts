@@ -28,7 +28,7 @@ val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
 val otelVersion = "1.24.0"
-val otelSnapshotVersion = "1.26.0"
+val otelSnapshotVersion = "1.25.0"
 
 // All versions below are only used in testing and do not affect the released artifact.
 
