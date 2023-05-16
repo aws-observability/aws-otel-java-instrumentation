@@ -28,13 +28,13 @@ val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
 val otelVersion = "1.24.0"
-val otelSnapshotVersion = "1.25.0"
+val otelSnapshotVersion = "1.26.0"
 
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.459",
-  "com.fasterxml.jackson:jackson-bom:2.14.2",
+  "com.fasterxml.jackson:jackson-bom:2.15.0",
   "com.google.guava:guava-bom:31.1-jre",
   "com.google.protobuf:protobuf-bom:3.22.3",
   "com.linecorp.armeria:armeria-bom:1.23.1",
