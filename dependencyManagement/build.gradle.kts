@@ -27,7 +27,7 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "1.25.1"
+val otelVersion = "1.25.1-adot1"
 val otelSnapshotVersion = "1.26.0"
 
 // All versions below are only used in testing and do not affect the released artifact.

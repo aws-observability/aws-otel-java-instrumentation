@@ -1,0 +1,34 @@
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index 954167eab5..ca892b1499 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -12,7 +12,7 @@ val dependencyVersions = hashMapOf<String, String>()
+ rootProject.extra["versions"] = dependencyVersions
+ 
+ // this line is managed by .github/scripts/update-sdk-version.sh
+-val otelSdkVersion = "1.25.0"
++val otelSdkVersion = "1.25.0-adot1"
+ 
+ // Need both BOM and groovy jars
+ val groovyVersion = "4.0.11"
+@@ -29,7 +29,7 @@ val groovyVersion = "4.0.11"
+ // configurations.testRuntimeClasspath.resolutionStrategy.force "com.google.guava:guava:19.0"
+ 
+ val DEPENDENCY_BOMS = listOf(
+-  "com.fasterxml.jackson:jackson-bom:2.14.2",
++  "com.fasterxml.jackson:jackson-bom:2.15.0",
+   "com.google.guava:guava-bom:31.1-jre",
+   "org.apache.groovy:groovy-bom:${groovyVersion}",
+   "io.opentelemetry:opentelemetry-bom:${otelSdkVersion}",
+diff --git a/version.gradle.kts b/version.gradle.kts
+index e0ba87b538..17664b243e 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,5 +1,5 @@
+-val stableVersion = "1.25.1"
+-val alphaVersion = "1.25.1-alpha"
++val stableVersion = "1.25.1-adot1"
++val alphaVersion = "1.25.1-adot1-alpha"
+ 
+ allprojects {
+   if (findProperty("otel.stable") != "true") {

@@ -1,0 +1,117 @@
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index 4ff89e689..0be848096 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -12,7 +12,7 @@ val dependencyVersions = hashMapOf<String, String>()
+ rootProject.extra["versions"] = dependencyVersions
+ 
+ val DEPENDENCY_BOMS = listOf(
+-  "com.fasterxml.jackson:jackson-bom:2.14.2",
++  "com.fasterxml.jackson:jackson-bom:2.15.0",
+   "com.google.guava:guava-bom:31.1-jre",
+   "com.google.protobuf:protobuf-bom:3.22.2",
+   "com.linecorp.armeria:armeria-bom:1.22.1",
+diff --git a/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingLogRecordExporter.java b/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingLogRecordExporter.java
+index dc76e7a9e..c5b7d75cb 100644
+--- a/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingLogRecordExporter.java
++++ b/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingLogRecordExporter.java
+@@ -54,7 +54,11 @@ public final class OtlpJsonLoggingLogRecordExporter implements LogRecordExporter
+         // Shouldn't happen in practice, just skip it.
+         continue;
+       }
+-      logger.log(Level.INFO, sw.getAndClear());
++      try {
++        logger.log(Level.INFO, sw.getAndClear());
++      } catch (IOException e) {
++        logger.log(Level.WARNING, "Unable to read OTLP JSON log records", e);
++      }
+     }
+     return CompletableResultCode.ofSuccess();
+   }
+diff --git a/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingMetricExporter.java b/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingMetricExporter.java
+index 14ba6df34..fd0a491bd 100644
+--- a/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingMetricExporter.java
++++ b/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingMetricExporter.java
+@@ -84,7 +84,11 @@ public final class OtlpJsonLoggingMetricExporter implements MetricExporter {
+         // Shouldn't happen in practice, just skip it.
+         continue;
+       }
+-      logger.log(Level.INFO, sw.getAndClear());
++      try {
++        logger.log(Level.INFO, sw.getAndClear());
++      } catch (IOException e) {
++        logger.log(Level.WARNING, "Unable to read OTLP JSON metrics", e);
++      }
+     }
+     return CompletableResultCode.ofSuccess();
+   }
+diff --git a/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingSpanExporter.java b/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingSpanExporter.java
+index 05cd9dfca..c57c9004d 100644
+--- a/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingSpanExporter.java
++++ b/exporters/logging-otlp/src/main/java/io/opentelemetry/exporter/logging/otlp/OtlpJsonLoggingSpanExporter.java
+@@ -51,7 +51,11 @@ public final class OtlpJsonLoggingSpanExporter implements SpanExporter {
+         // Shouldn't happen in practice, just skip it.
+         continue;
+       }
+-      logger.log(Level.INFO, sw.getAndClear());
++      try {
++        logger.log(Level.INFO, sw.getAndClear());
++      } catch (IOException e) {
++        logger.log(Level.WARNING, "Unable to read OTLP JSON spans", e);
++      }
+     }
+     return CompletableResultCode.ofSuccess();
+   }
+diff --git a/exporters/prometheus/src/test/java/io/opentelemetry/exporter/prometheus/CollectorIntegrationTest.java b/exporters/prometheus/src/test/java/io/opentelemetry/exporter/prometheus/CollectorIntegrationTest.java
+index 6bcbb4a6b..1fb9eebb3 100644
+--- a/exporters/prometheus/src/test/java/io/opentelemetry/exporter/prometheus/CollectorIntegrationTest.java
++++ b/exporters/prometheus/src/test/java/io/opentelemetry/exporter/prometheus/CollectorIntegrationTest.java
+@@ -156,11 +156,11 @@ class CollectorIntegrationTest {
+ 
+     assertThat(resourceMetrics.getScopeMetricsCount()).isEqualTo(1);
+     ScopeMetrics scopeMetrics = resourceMetrics.getScopeMetrics(0);
+-    assertThat(scopeMetrics.getScope().getName()).isEqualTo("");
++    assertThat(scopeMetrics.getScope().getName()).isEqualTo("otelcol/prometheusreceiver");
+ 
+     Optional<Metric> optRequestTotal =
+         scopeMetrics.getMetricsList().stream()
+-            .filter(metric -> metric.getName().equals("requests_total"))
++            .filter(metric -> metric.getName().equals("requests"))
+             .findFirst();
+     assertThat(optRequestTotal).isPresent();
+     Metric requestTotal = optRequestTotal.get();
+diff --git a/gradle.properties b/gradle.properties
+index 0b5e135ed..117443182 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -5,3 +5,4 @@ org.gradle.priority=low
+ 
+ # Gradle default is 256m which causes issues with our build - https://docs.gradle.org/current/userguide/build_environment.html#sec:configuring_jvm_memory
+ org.gradle.jvmargs=-XX:MaxMetaspaceSize=512m
++apiBaseVersion=1.25.0
+diff --git a/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java b/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
+index 461ed774c..560706305 100644
+--- a/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
++++ b/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
+@@ -991,7 +991,7 @@ class SdkSpanBuilderTest {
+                 + "resource=Resource\\{schemaUrl=null, "
+                 + "attributes=\\{service.name=\"unknown_service:java\", "
+                 + "telemetry.sdk.language=\"java\", telemetry.sdk.name=\"opentelemetry\", "
+-                + "telemetry.sdk.version=\"\\d+.\\d+.\\d+(-rc.\\d+)?(-SNAPSHOT)?\"}}, "
++                + "telemetry.sdk.version=\"\\d+.\\d+.\\d+(-rc.\\d+)?(-[a-zA-Z0-9]+)?\"}}, "
+                 + "instrumentationScopeInfo=InstrumentationScopeInfo\\{"
+                 + "name=SpanBuilderSdkTest, version=null, schemaUrl=null, attributes=\\{}}, "
+                 + "name=span_name, "
+diff --git a/version.gradle.kts b/version.gradle.kts
+index 5fd54c304..09499d104 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,7 +1,7 @@
+ val snapshot = false
+ 
+ allprojects {
+-  var ver = "1.25.0"
++  var ver = "1.25.0-adot1"
+   val release = findProperty("otel.release")
+   if (release != null) {
+     ver += "-" + release
