@@ -93,7 +93,7 @@ jobs:
             ${{ env.IMAGE_TAG }}
 
       - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
