@@ -23,7 +23,6 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          name: adot-dependencies
           arguments: ":otelagent:dependencyCheckAnalyze"
       - name: Upload report
         if: ${{ always() }}
