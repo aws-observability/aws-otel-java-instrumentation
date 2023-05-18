@@ -20,6 +20,35 @@ index 954167eab5..ca892b1499 100644
    "com.google.guava:guava-bom:31.1-jre",
    "org.apache.groovy:groovy-bom:${groovyVersion}",
    "io.opentelemetry:opentelemetry-bom:${otelSdkVersion}",
+diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
+index df26146497..25bc56e086 100644
+--- a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
++++ b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
+@@ -1,2 +1,9 @@
+ Comparing source compatibility of  against 
+-No changes.
+\ No newline at end of file
++---! REMOVED ANNOTATION: PUBLIC(-) ABSTRACT(-) io.opentelemetry.instrumentation.annotations.AddingSpanAttributes  (not serializable)
++	---  CLASS FILE FORMAT VERSION: n.a. <- 52.0
++	---! REMOVED INTERFACE: java.lang.annotation.Annotation
++	---! REMOVED SUPERCLASS: java.lang.Object
++	---  REMOVED ANNOTATION: java.lang.annotation.Target
++		---  REMOVED ELEMENT: value=java.lang.annotation.ElementType.METHOD,java.lang.annotation.ElementType.CONSTRUCTOR (-)
++	---  REMOVED ANNOTATION: java.lang.annotation.Retention
++		---  REMOVED ELEMENT: value=java.lang.annotation.RetentionPolicy.RUNTIME (-)
+diff --git a/gradle.properties b/gradle.properties
+index a25acd4da9..d14c41da73 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -4,7 +4,7 @@ org.gradle.caching=true
+ org.gradle.priority=low
+ 
+ # Gradle default is 256m which causes issues with our build - https://docs.gradle.org/current/userguide/build_environment.html#sec:configuring_jvm_memory
+-org.gradle.jvmargs=-XX:MaxMetaspaceSize=512m
++org.gradle.jvmargs=-Xmx3g
+ 
+ # Currently causes failure when importing project in IntelliJ
+ # org.gradle.warning.mode=fail
 diff --git a/version.gradle.kts b/version.gradle.kts
 index e0ba87b538..17664b243e 100644
 --- a/version.gradle.kts
