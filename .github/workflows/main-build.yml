@@ -108,7 +108,7 @@ jobs:
           arguments: jib
         env:
           COMMIT_HASH: ${{ github.sha }}
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v3
 
   test_Spring_App_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
