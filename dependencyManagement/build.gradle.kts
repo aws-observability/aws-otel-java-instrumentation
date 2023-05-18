@@ -27,24 +27,24 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "1.24.0"
-val otelSnapshotVersion = "1.25.0"
+val otelVersion = "1.26.0"
+val otelSnapshotVersion = "1.27.0"
 
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.459",
-  "com.fasterxml.jackson:jackson-bom:2.15.0",
+  "com.amazonaws:aws-java-sdk-bom:1.12.470",
+  "com.fasterxml.jackson:jackson-bom:2.15.1",
   "com.google.guava:guava-bom:31.1-jre",
-  "com.google.protobuf:protobuf-bom:3.22.3",
+  "com.google.protobuf:protobuf-bom:3.23.1",
   "com.linecorp.armeria:armeria-bom:1.23.1",
   "io.grpc:grpc-bom:1.55.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
   "org.apache.logging.log4j:log4j-bom:2.20.0",
-  "org.junit:junit-bom:5.9.2",
+  "org.junit:junit-bom:5.9.3",
   "org.springframework.boot:spring-boot-dependencies:2.7.11",
-  "org.testcontainers:testcontainers-bom:1.18.0",
-  "software.amazon.awssdk:bom:2.20.51"
+  "org.testcontainers:testcontainers-bom:1.18.1",
+  "software.amazon.awssdk:bom:2.20.67"
 )
 
 val DEPENDENCY_SETS = listOf(
@@ -55,7 +55,7 @@ val DEPENDENCY_SETS = listOf(
   ),
   DependencySet(
     "org.curioswitch.curiostack",
-    "2.0.0",
+    "2.2.0",
     listOf("protobuf-jackson")
   ),
   DependencySet(
@@ -71,9 +71,9 @@ val DEPENDENCY_SETS = listOf(
 val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
-  "com.squareup.okhttp3:okhttp:4.10.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.24.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.24.0-alpha",
+  "com.squareup.okhttp3:okhttp:4.11.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.26.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.26.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:0.19.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
   "net.bytebuddy:byte-buddy:1.14.4"
