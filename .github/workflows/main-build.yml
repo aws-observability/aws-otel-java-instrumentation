@@ -141,7 +141,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.STAGING_REPO }}:${{ steps.operator_versioning.outputs.STAGING_TAG }}
+            ${{ env.STAGING_REPO }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}
 
   # job to build testbatches for e2e integration test
   get-testing-suites:
