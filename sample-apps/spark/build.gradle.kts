@@ -33,6 +33,16 @@ jib {
   )
 }
 
+jib {
+  configureImages(
+    "eclipse-temurin:17",
+    "public.ecr.aws/aws-otel-test/aws-otel-java-spark-without-auto-instrumentation-agent",
+    localDocker = rootProject.property("localDocker")!!.equals("true"),
+    multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
+    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
+  )
+}
+
 tasks {
   named("jib") {
     dependsOn(":otelagent:jib")
