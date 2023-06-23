@@ -7,7 +7,7 @@ on:
 env:
   AWS_DEFAULT_REGION: us-east-1
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
-  STAGING_REPO: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-java-auto-instrumentation-staging #todo: this ecr repo has to be created new
+  STAGING_ECR: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-staging
   TESTING_FRAMEWORK_REPO: aws-observability/aws-otel-test-framework
   NUM_BATCHES: 2
 
@@ -125,11 +125,16 @@ jobs:
           java_agent_tag=${{ env.ADOT_JAVA_VERSION }}-$shortsha
           echo "STAGING_TAG=java_agent_tag" >> $GITHUB_OUTPUT
 
-      # uses same aws credentials as above in this job. #todo: need to provide appropriate role/permissions to above aws account to push image to private ecr of integ test account.
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.1.0
+        with:
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+          aws-region: us-west-2
+
       - name: Login to private staging ecr
         uses: docker/login-action@v2
         with:
-          registry: ${{ env.STAGING_REPO }}
+          registry: ${{ env.STAGING_ECR }}
         env:
           AWS_REGION: us-west-2
 
@@ -141,7 +146,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.STAGING_REPO }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}
+            ${{ env.STAGING_ECR }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}
 
   # job to build testbatches for e2e integration test
   get-testing-suites:
@@ -213,7 +218,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2.1.0
         with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_JAVA_AGENT_INTEG_TEST_ARN}} # todo: create new role or re-use secrets.AWS_ASSUME_ROLE_ARN?
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
           aws-region: us-west-2
           # 4 hours
           role-duration-seconds: 14400
@@ -240,7 +245,7 @@ jobs:
         run: |
           export TTL_DATE=${{ steps.date.outputs.ttldate }} 
           export TF_VAR_JAVA_AUTO_INSTRUMENTATION_TAG=${{ needs.build.outputs.java_agent_tag }}
-          export TF_VAR_JAVA_AUTO_INSTRUMENTATION_REPOSITORY=${{ env.STAGING_REPO }}
+          export TF_VAR_JAVA_AUTO_INSTRUMENTATION_REPOSITORY=${{ env.STAGING_ECR }}
           export DDB_BATCH_CACHE_SK=${{ needs.build.outputs.java_agent_tag }}
           cd testing-framework/terraform
           make execute-batch-test
