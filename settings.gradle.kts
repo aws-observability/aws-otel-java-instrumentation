@@ -22,7 +22,7 @@ pluginManagement {
     id("com.google.cloud.tools.jib") version "3.3.2"
     id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
     id("nebula.release") version "17.2.2"
-    id("org.springframework.boot") version "2.7.12"
+    id("org.springframework.boot") version "2.7.13"
     id("org.owasp.dependencycheck") version "8.3.1"
   }
 }
