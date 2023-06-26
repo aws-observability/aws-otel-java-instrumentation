@@ -4,19 +4,19 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "sunday"
+      day: "tuesday"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "sunday"
+      day: "tuesday"
   - package-ecosystem: "cargo"
     directory: "/tools/cp-utility"
     schedule:
       interval: "weekly"
-      day: "sunday"
+      day: "tuesday"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "sunday"
+      day: "tuesday"
