@@ -174,9 +174,6 @@ jobs:
         with:
           go-version: '~1.18.9'
 
-      - name: see env
-        run: env
-
       - name: Create test batch key values
         id: set-batches
         run: |
@@ -214,9 +211,11 @@ jobs:
 
       - name: Set up terraform
         uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "~1.4"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.1.0
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
           aws-region: us-west-2
