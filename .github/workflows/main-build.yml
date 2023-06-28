@@ -116,7 +116,7 @@ jobs:
         run: |
           shortsha="$(git rev-parse --short HEAD)"
           java_agent_tag=${{ env.ADOT_JAVA_VERSION }}-$shortsha
-          echo "STAGING_TAG=java_agent_tag" >> $GITHUB_OUTPUT
+          echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2.1.0
