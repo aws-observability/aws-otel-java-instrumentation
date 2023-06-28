@@ -7,7 +7,7 @@ on:
 env:
   AWS_DEFAULT_REGION: us-east-1
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
-  STAGING_ECR: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-staging
+  STAGING_ECR: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java--operator-staging
   TESTING_FRAMEWORK_REPO: aws-observability/aws-otel-test-framework
   NUM_BATCHES: 2
   DDB_TABLE_NAME: BatchTestCache
