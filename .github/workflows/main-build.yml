@@ -307,7 +307,7 @@ jobs:
       - name: Build and push agent and testing docker images with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: jib
+          arguments: jib jibBuildWithoutAgent
         env:
           COMMIT_HASH: ${{ github.sha }}
 
