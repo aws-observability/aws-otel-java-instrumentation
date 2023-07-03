@@ -84,6 +84,13 @@ jobs:
         run: |
           echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
 
+      - name: Build and push Sample-Apps without Auto-Instrumentation Agent
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: jibBuildWithoutAgent
+        env:
+          COMMIT_HASH: ${{ github.sha }}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
@@ -307,7 +314,7 @@ jobs:
       - name: Build and push agent and testing docker images with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: jib jibBuildWithoutAgent
+          arguments: jib
         env:
           COMMIT_HASH: ${{ github.sha }}
 
