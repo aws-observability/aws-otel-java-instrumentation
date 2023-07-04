@@ -1,6 +1,6 @@
-import software.amazon.adot.configureImages
 import com.google.cloud.tools.jib.gradle.BuildImageTask
 import com.google.cloud.tools.jib.gradle.JibExtension
+import software.amazon.adot.configureImages
 
 plugins {
   java
