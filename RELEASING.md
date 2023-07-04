@@ -17,7 +17,7 @@ It is not possible to release from the `main` branch, so this step cannot be ski
 
 Additionally, create and push a release branch to the [aws-otel-test-framework](https://github.com/aws-observability/aws-otel-test-framework) repository using the following command:
 
-`git fetch origin && git checkout origin/terraform && git checkout -b java-release/<version> && git push origin release/<version>`
+`git fetch origin && git checkout origin/terraform  -b java-release/<version> && git push origin java-release/<version>`
 
 NOTE: *The naming convention for the branch is java-release/<version> with the patch number replaced with x. So, if your release version is v0.1.0, then the branch should be java-release/v0.1.x.*
 
