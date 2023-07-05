@@ -1,3 +1,5 @@
+import com.google.cloud.tools.jib.gradle.BuildImageTask
+import com.google.cloud.tools.jib.gradle.JibExtension
 import software.amazon.adot.configureImages
 
 plugins {
@@ -39,5 +41,16 @@ tasks {
   }
   named("jibDockerBuild") {
     dependsOn(":otelagent:jibDockerBuild")
+  }
+  register<BuildImageTask>("jibBuildWithoutAgent") {
+    val j = JibExtension(project)
+    j.configureImages(
+      "eclipse-temurin:17",
+      "public.ecr.aws/aws-otel-test/aws-otel-java-spark-without-auto-instrumentation-agent",
+      localDocker = false,
+      multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
+      tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
+    )
+    setJibExtension(j)
   }
 }

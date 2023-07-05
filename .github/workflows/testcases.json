@@ -1,0 +1,46 @@
+{
+	"clustertargets": [
+		{
+			"type": "EKS_ADOT_OPERATOR",
+			"targets": [
+				{
+					"name": "java-instrumentation-operator-ci-amd64-1-23",
+					"region": "us-west-2"
+				},
+				{
+					"name": "java-instrumentation-operator-ci-amd64-1-26",
+					"region": "us-west-2"
+				}
+			]
+		},
+		{
+			"type": "EKS_ADOT_OPERATOR_ARM64",
+			"targets": [
+				{
+					"name": "java-instrumentation-operator-ci-arm64-1-23",
+					"region": "us-west-2"
+				},
+				{
+					"name": "java-instrumentation-operator-ci-arm64-1-26",
+					"region": "us-west-2"
+				}
+			]
+		}
+	],
+	"tests": [
+		{
+			"case_name": "otlp_metric_auto_instrumentation_adot_operator",
+			"platforms": [
+				"EKS_ADOT_OPERATOR",
+				"EKS_ADOT_OPERATOR_ARM64"
+			]
+		},
+		{
+			"case_name": "otlp_trace_auto_instrumentation_adot_operator",
+			"platforms": [
+				"EKS_ADOT_OPERATOR",
+				"EKS_ADOT_OPERATOR_ARM64"
+			]
+		}
+	]
+}

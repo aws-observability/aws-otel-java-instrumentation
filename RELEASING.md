@@ -12,10 +12,18 @@ and merge.
 
 ## Starting the Release
 
-If you are creating a new major/minor release, you first need to create a branch with the following convention: `release/v<major>.<minor>.x`. E.g.: `release/v1.21.x`.
+If you are creating a new major/minor release, you first need to create a branch in this repository with the following convention: `release/v<major>.<minor>.x`. E.g.: `release/v1.21.x`.
 It is not possible to release from the `main` branch, so this step cannot be skipped.
 
-Open the release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Release+Build%22).
+Additionally, create and push a release branch to the [aws-otel-test-framework](https://github.com/aws-observability/aws-otel-test-framework) repository using the following command:
+
+`git fetch origin && git checkout origin/terraform  -b java-release/<version> && git push origin java-release/<version>`
+
+NOTE: *The naming convention for the branch is java-release/<version> with the patch number replaced with x. So, if your release version is v0.1.0, then the branch should be java-release/v0.1.x.*
+
+NOTE: *origin refers to the remote for https://github.com/aws-observability/aws-otel-test-framework.git. If the name of your remote ref is different adjust the command.*
+
+After the release branches have been created in this repository and the [aws-otel-test-framework](https://github.com/aws-observability/aws-otel-test-framework) repository, open the release build workflow in your browser [here](https://github.com/aws-observability/aws-otel-java-instrumentation/actions?query=workflow%3A%22Release+Build%22).
 
 You will see a button that says "Run workflow". Press the button, enter the version number you want
 to release in the input field that pops up, and then press "Run workflow".

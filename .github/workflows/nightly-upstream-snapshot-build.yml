@@ -49,10 +49,10 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_NIGHTLY }}
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
           aws-region: us-west-2
 
-      - name: Log in to AWS ECR
+      - name: Login to private aws ecr
         uses: docker/login-action@v2
         with:
           registry: 611364707713.dkr.ecr.us-west-2.amazonaws.com

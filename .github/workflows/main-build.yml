@@ -7,6 +7,10 @@ on:
 env:
   AWS_DEFAULT_REGION: us-east-1
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
+  STAGING_ECR: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging
+  TESTING_FRAMEWORK_REPO: aws-observability/aws-otel-test-framework
+  NUM_BATCHES: 2
+  DDB_TABLE_NAME: BatchTestCache
 
 permissions:
   id-token: write
@@ -33,6 +37,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    outputs:
+      java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -51,11 +57,13 @@ jobs:
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - uses: gradle/wrapper-validation-action@v1
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
       - name: Log in to AWS ECR
         uses: docker/login-action@v2
         with:
@@ -75,6 +83,13 @@ jobs:
         shell: bash
         run: |
           echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
+
+      - name: Build and push Sample-Apps without Auto-Instrumentation Agent
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: jibBuildWithoutAgent
+        env:
+          COMMIT_HASH: ${{ github.sha }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -102,17 +117,212 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
+      - name: Get ADOT_JAVA_AGENT Image Tag
+        id: java_agent_versioning
+        working-directory: aws-otel-java-instrumentation
+        run: |
+          shortsha="$(git rev-parse --short HEAD)"
+          java_agent_tag=${{ env.ADOT_JAVA_VERSION }}-$shortsha
+          echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.1.0
+        with:
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+          aws-region: us-west-2
+
+      - name: Login to private staging ecr
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.STAGING_ECR }}
+        env:
+          AWS_REGION: us-west-2
+
+      - name: Build and push staging image for e2e integration test
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.STAGING_ECR }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}
+
+  create-test-ref:
+    runs-on: ubuntu-latest
+    outputs:
+      testRef: ${{ steps.setRef.outputs.ref }}
+    steps:
+      - name: Set testRef output
+        id: setRef
+        run: |
+          if [[ ${{ github.ref_name }} == release/v* ]]; then 
+            release_version = $(echo ${{ github.ref_name }} | cut -f 2 -d /)
+            major_minor = $(echo ${ release_version } | cut -f 1,2 -d .)
+            echo "ref = java-release/${major_minor}.x" >> $GITHUB_OUTPUT
+          else
+            echo "ref=terraform" >> $GITHUB_OUTPUT
+          fi
+
+  # job to build testbatches for e2e integration test
+  get-testing-suites:
+    runs-on: ubuntu-latest
+    needs: [build, create-test-ref]
+    outputs:
+      test-case-batch-key: ${{ steps.set-batches.outputs.batch-keys }}
+      test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ env.TESTING_FRAMEWORK_REPO }}
+          path: testing-framework
+          ref: ${{ needs.create-test-ref.outputs.testRef }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: aws-otel-java-instrumentation
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v3
+        with:
+          go-version: '~1.18.9'
+
+      - name: Create test batch key values
+        id: set-batches
+        run: |
+          cd testing-framework/tools/batchTestGenerator
+          go build
+          ./batchTestGenerator github --testCaseFilePath=$GITHUB_WORKSPACE/aws-otel-java-instrumentation/.github/workflows/testcases.json --maxBatch=${{ env.NUM_BATCHES }} \
+            --include=EKS_ADOT_OPERATOR,EKS_ADOT_OPERATOR_ARM64
+
+      - name: List testing suites
+        run: |
+          echo ${{ steps.set-batches.outputs.batch-keys }}
+          echo ${{ steps.set-batches.outputs.batch-values }}
+
+  # job to run the e2e integration tests
+  run-batch-job:
+    runs-on: ubuntu-latest
+    needs: [build, create-test-ref, get-testing-suites]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.get-testing-suites.outputs.test-case-batch-key) }}
+
+    steps:
+      # required for versioning
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: aws-otel-java-instrumentation
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: Set up terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "~1.4"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
+          aws-region: us-west-2
+          # 4 hours
+          role-duration-seconds: 14400
+
+      - name: Checkout testing framework
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ env.TESTING_FRAMEWORK_REPO }}
+          path: testing-framework
+          ref: ${{ needs.create-test-ref.outputs.testRef }}
+
+      - name: create test-case-batch file
+        run: |
+          jsonStr='${{ needs.get-testing-suites.outputs.test-case-batch-value }}'
+          jsonStr="$(jq -r '.${{ matrix.BatchKey }} | join("\n")' <<< "${jsonStr}")"
+          echo "$jsonStr" >> testing-framework/terraform/test-case-batch
+          cat testing-framework/terraform/test-case-batch
+
+      - name: Get TTL_DATE for cache
+        id: date
+        run: echo "ttldate=$(date -u -d "+7 days" +%s)" >> $GITHUB_OUTPUT
+
+      - name: run tests
+        run: |
+          export TTL_DATE=${{ steps.date.outputs.ttldate }} 
+          export TF_VAR_JAVA_AUTO_INSTRUMENTATION_TAG=${{ needs.build.outputs.java_agent_tag }}
+          export TF_VAR_JAVA_AUTO_INSTRUMENTATION_REPOSITORY=${{ env.STAGING_ECR }}
+          export DDB_BATCH_CACHE_SK=${{ needs.build.outputs.java_agent_tag }}
+          cd testing-framework/terraform
+          make execute-batch-test
+
+      - name: output cache misses
+        if: ${{ failure() }}
+        run: |
+          export DDB_BATCH_CACHE_SK=${{ needs.build.outputs.java_agent_tag }}
+          cd testing-framework/terraform
+          make checkCacheHits
+
+      # This is here just in case workflow cancel
+      # We first kill terraform processes to ensure that no state
+      # file locks are being held from SIGTERMS dispatched in previous
+      # steps.
+      - name: Destroy resources
+        if: ${{ cancelled() }}
+        shell: bash {0}
+        run: |
+          ps -ef | grep terraform | grep -v grep | awk '{print $2}' | xargs -n 1 kill
+          cd testing-framework/terraform
+          make terraformCleanup
+
+
+  build_Images_For_Testing_Sample_App_With_Java_Agent:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - uses: gradle/wrapper-validation-action@v1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v2
+        with:
+          registry: public.ecr.aws
+
       - name: Build and push agent and testing docker images with Gradle
         uses: gradle/gradle-build-action@v2
         with:
           arguments: jib
         env:
           COMMIT_HASH: ${{ github.sha }}
+
       - uses: codecov/codecov-action@v3
 
   test_Spring_App_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
-    needs: build
+    needs: build_Images_For_Testing_Sample_App_With_Java_Agent
     runs-on: ubuntu-latest
 
     steps:
@@ -143,7 +353,7 @@ jobs:
 
   test_Spark_App_With_Java_Agent:
     name: Test Spark App with AWS OTel Java agent
-    needs: build
+    needs: build_Images_For_Testing_Sample_App_With_Java_Agent
     runs-on: ubuntu-latest
 
     steps:
@@ -174,7 +384,7 @@ jobs:
 
   test_Spark_AWS_SDK_V1_App_With_Java_Agent:
     name: Test Spark App (AWS SDK v1) with AWS OTel Java agent
-    needs: build
+    needs: build_Images_For_Testing_Sample_App_With_Java_Agent
     runs-on: ubuntu-latest
 
     steps:
