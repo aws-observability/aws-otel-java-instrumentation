@@ -259,8 +259,8 @@ jobs:
       - name: run tests
         run: |
           export TTL_DATE=${{ steps.date.outputs.ttldate }} 
-          export TF_VAR_JAVA_AUTO_INSTRUMENTATION_TAG=${{ needs.build.outputs.java_agent_tag }}
-          export TF_VAR_JAVA_AUTO_INSTRUMENTATION_REPOSITORY="${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}"
+          export TF_VAR_java_auto_instrumentation_tag=${{ needs.build.outputs.java_agent_tag }}
+          export TF_VAR_java_auto_instrumentation_repository="${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}"
           export DDB_BATCH_CACHE_SK=${{ needs.build.outputs.java_agent_tag }}
           cd testing-framework/terraform
           make execute-batch-test
