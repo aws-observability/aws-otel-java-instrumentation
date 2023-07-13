@@ -157,9 +157,7 @@ jobs:
         id: setRef
         run: |
           if [[ ${{ github.ref_name }} == release/v* ]]; then
-            release_version = $(echo ${{ github.ref_name }} | cut -f 2 -d /)
-            major_minor = $(echo ${ release_version } | cut -f 1,2 -d .)
-            echo "ref = java-release/${major_minor}.x" >> $GITHUB_OUTPUT
+            echo "ref=java-${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
             echo "ref=terraform" >> $GITHUB_OUTPUT
           fi
