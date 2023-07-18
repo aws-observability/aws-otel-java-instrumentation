@@ -13,6 +13,10 @@ env:
   NUM_BATCHES: 2
   DDB_TABLE_NAME: BatchTestCache
 
+concurrency:
+  group: java-agent-main-build
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
