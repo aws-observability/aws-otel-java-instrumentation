@@ -26,15 +26,16 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.api.util.VirtualField;
+import io.opentelemetry.instrumentation.logback.mdc.v1_0.internal.UnionMap;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.MDC;
 
 public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
   private static final String TRACE_ID_KEY = "AWS-XRAY-TRACE-ID";
@@ -74,22 +75,26 @@ public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
         return;
       }
 
+      Map<String, String> spanContextData = new HashMap<>();
+
       SpanContext spanContext = Java8BytecodeBridge.spanFromContext(context).getSpanContext();
-      if (!spanContext.isValid()) {
-        // Remove any remaining trace id from the MDC
-        MDC.remove(TRACE_ID_KEY);
-        return;
+
+      if (spanContext.isValid()) {
+        String value =
+            "1-"
+                + spanContext.getTraceId().substring(0, 8)
+                + "-"
+                + spanContext.getTraceId().substring(8)
+                + "@"
+                + spanContext.getSpanId();
+        spanContextData.put(TRACE_ID_KEY, value);
       }
 
-      String value =
-          "1-"
-              + spanContext.getTraceId().substring(0, 8)
-              + "-"
-              + spanContext.getTraceId().substring(8)
-              + "@"
-              + spanContext.getSpanId();
-
-      MDC.put(TRACE_ID_KEY, value);
+      if (contextData == null) {
+        contextData = spanContextData;
+      } else {
+        contextData = new UnionMap<>(contextData, spanContextData);
+      }
     }
   }
 }
