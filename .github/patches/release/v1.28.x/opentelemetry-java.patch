@@ -1,0 +1,22 @@
+commit e1d7f2edc6201e26649351aef28cf7b7f17726b3
+Author: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+Date:   Mon Jul 10 09:38:16 2023 -0500
+
+    Bump com.squareup.okio:okio-bom from 3.3.0 to 3.4.0 (#5613)
+    
+    Signed-off-by: dependabot[bot] <support@github.com>
+    Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index 917446df7..df564c863 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -17,7 +17,7 @@ val DEPENDENCY_BOMS = listOf(
+   "com.google.protobuf:protobuf-bom:3.23.4",
+   "com.linecorp.armeria:armeria-bom:1.24.2",
+   "com.squareup.okhttp3:okhttp-bom:4.11.0",
+-  "com.squareup.okio:okio-bom:3.3.0", // applies to transitive dependencies of okhttp
++  "com.squareup.okio:okio-bom:3.4.0", // applies to transitive dependencies of okhttp
+   "io.grpc:grpc-bom:1.56.1",
+   "io.netty:netty-bom:4.1.94.Final",
+   "io.zipkin.brave:brave-bom:5.16.0",
