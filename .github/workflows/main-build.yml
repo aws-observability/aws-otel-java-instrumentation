@@ -20,7 +20,7 @@ permissions:
 jobs:
   testpatch:
     name: Test patches applied to dependencies
-    runs-on: ubuntu-latest
+    runs-on: temporary-sizing-testing_ubuntu-latest_64-core
     if: ${{ startsWith(github.ref_name, 'release/v') }}
     steps:
       - uses: actions/checkout@v3
