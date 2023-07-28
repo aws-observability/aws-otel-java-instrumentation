@@ -1,0 +1,45 @@
+commit eaedf2c8d2e747e12a3089f2014f661e180f27b0
+Author: Bryan Aguilar <bryaag@amazon.com>
+Date:   Fri Jul 28 10:11:12 2023 -0700
+
+    Bump java inst version to patched adot
+
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index 39d3c109c2..612df81a55 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -12,7 +12,7 @@ val dependencyVersions = hashMapOf<String, String>()
+ rootProject.extra["versions"] = dependencyVersions
+ 
+ // this line is managed by .github/scripts/update-sdk-version.sh
+-val otelSdkVersion = "1.28.0"
++val otelSdkVersion = "v1.28.0-adot1"
+ val otelSdkAlphaVersion = otelSdkVersion.replaceFirst("(-SNAPSHOT)?$".toRegex(), "-alpha$1")
+ 
+ // Need both BOM and groovy jars
+diff --git a/examples/distro/build.gradle b/examples/distro/build.gradle
+index 9a97747771..6aad22704a 100644
+--- a/examples/distro/build.gradle
++++ b/examples/distro/build.gradle
+@@ -27,7 +27,7 @@ subprojects {
+   ext {
+     versions = [
+       // this line is managed by .github/scripts/update-sdk-version.sh
+-      opentelemetrySdk           : "1.28.0",
++      opentelemetrySdk           : "v1.28.0-adot1",
+ 
+       // these lines are managed by .github/scripts/update-version.sh
+       opentelemetryJavaagent     : "1.28.0",
+diff --git a/examples/extension/build.gradle b/examples/extension/build.gradle
+index 1c25a1e530..b0b07830de 100644
+--- a/examples/extension/build.gradle
++++ b/examples/extension/build.gradle
+@@ -23,7 +23,7 @@ version '1.0'
+ ext {
+   versions = [
+     // this line is managed by .github/scripts/update-sdk-version.sh
+-    opentelemetrySdk           : "1.28.0",
++    opentelemetrySdk           : "v1.28.0-adot1",
+ 
+     // these lines are managed by .github/scripts/update-version.sh
+     opentelemetryJavaagent     : "1.28.0",
