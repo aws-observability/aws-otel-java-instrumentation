@@ -25,6 +25,14 @@ jobs:
         with:
           node-version: 16
 
+        # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+
       # vaadin tests use pnpm
       - name: Cache pnpm modules
         uses: actions/cache@v3
@@ -65,13 +73,13 @@ jobs:
           java-version: 17
           distribution: temurin
 
-        # we need to cache the local patch outputs across builds
-        # we also only want to restore them if they are an exact match
+        # cache local patch outputs
       - name: Cache local Maven repository
         uses: actions/cache@v3
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('**/*.gradle*', '.github/patches/**/opentelemetry-java-*.patch') }}
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
 
       - uses: gradle/wrapper-validation-action@v1
 
