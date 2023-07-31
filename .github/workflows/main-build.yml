@@ -61,6 +61,14 @@ jobs:
           java-version: 17
           distribution: temurin
 
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
         if: ${{ startsWith(github.ref_name, 'release/v') }}
@@ -307,6 +315,14 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
       - uses: gradle/wrapper-validation-action@v1
 
