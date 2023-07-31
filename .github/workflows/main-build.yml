@@ -416,7 +416,7 @@ jobs:
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
 
   publish-build-status:
-    needs: [test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent]
+    needs: [test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent, run-batch-job]
     if: ${{ always() }}
     uses: ./.github/workflows/publish-status.yml
     with:
