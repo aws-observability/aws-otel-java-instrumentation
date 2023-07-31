@@ -65,13 +65,13 @@ jobs:
           java-version: 17
           distribution: temurin
 
+        # we need to cache the local patch outputs across builds
+        # we also only want to restore them if they are an exact match
       - name: Cache local Maven repository
         uses: actions/cache@v3
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('**/*.gradle*', '.github/patches/**/opentelemetry-java-*.patch') }}
 
       - uses: gradle/wrapper-validation-action@v1
 
