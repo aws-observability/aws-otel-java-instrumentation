@@ -10,7 +10,7 @@ env:
 jobs:
   testpatch:
     name: Test patches applied to dependencies
-    runs-on: ubuntu-latest
+    runs-on: temporary-sizing-testing_ubuntu-latest_64-core 
     if: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') }}
     steps:
       - uses: actions/checkout@v3
@@ -19,6 +19,18 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
+      # vaadin 14 tests fail with node 18
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      # vaadin tests use pnpm
+      - name: Cache pnpm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-test-cache-pnpm-modules
 
       - uses: gradle/wrapper-validation-action@v1
 

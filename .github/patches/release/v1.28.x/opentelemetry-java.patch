@@ -1,0 +1,45 @@
+commit 063d3b802112265f64151fb9625d6d6a5b68c7cf
+Author: Bryan Aguilar <bryaag@amazon.com>
+Date:   Fri Jul 28 10:05:22 2023 -0700
+
+    Patch okio and bump version
+
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index 917446df7..df564c863 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -17,7 +17,7 @@ val DEPENDENCY_BOMS = listOf(
+   "com.google.protobuf:protobuf-bom:3.23.4",
+   "com.linecorp.armeria:armeria-bom:1.24.2",
+   "com.squareup.okhttp3:okhttp-bom:4.11.0",
+-  "com.squareup.okio:okio-bom:3.3.0", // applies to transitive dependencies of okhttp
++  "com.squareup.okio:okio-bom:3.4.0", // applies to transitive dependencies of okhttp
+   "io.grpc:grpc-bom:1.56.1",
+   "io.netty:netty-bom:4.1.94.Final",
+   "io.zipkin.brave:brave-bom:5.16.0",
+diff --git a/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java b/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
+index 461ed774c..560706305 100644
+--- a/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
++++ b/sdk/trace/src/test/java/io/opentelemetry/sdk/trace/SdkSpanBuilderTest.java
+@@ -991,7 +991,7 @@ class SdkSpanBuilderTest {
+                 + "resource=Resource\\{schemaUrl=null, "
+                 + "attributes=\\{service.name=\"unknown_service:java\", "
+                 + "telemetry.sdk.language=\"java\", telemetry.sdk.name=\"opentelemetry\", "
+-                + "telemetry.sdk.version=\"\\d+.\\d+.\\d+(-rc.\\d+)?(-SNAPSHOT)?\"}}, "
++                + "telemetry.sdk.version=\"\\d+.\\d+.\\d+(-rc.\\d+)?(-[a-zA-Z0-9]+)?\"}}, "
+                 + "instrumentationScopeInfo=InstrumentationScopeInfo\\{"
+                 + "name=SpanBuilderSdkTest, version=null, schemaUrl=null, attributes=\\{}}, "
+                 + "name=span_name, "
+diff --git a/version.gradle.kts b/version.gradle.kts
+index 1e1986816..32fb83632 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,7 +1,7 @@
+ val snapshot = false
+ 
+ allprojects {
+-  var ver = "1.28.0"
++  var ver = "1.28.0-adot1"
+   val release = findProperty("otel.release")
+   if (release != null) {
+     ver += "-" + release
