@@ -32,6 +32,18 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
+      # vaadin 14 tests fail with node 18
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      # vaadin tests use pnpm
+      - name: Cache pnpm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-test-cache-pnpm-modules
       - uses: gradle/wrapper-validation-action@v1
       - uses: ./.github/actions/patch-dependencies
         with:
@@ -52,6 +64,14 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
+
+        # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
@@ -299,6 +319,14 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
+
+        # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
 
       - uses: gradle/wrapper-validation-action@v1
 
