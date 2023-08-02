@@ -182,7 +182,10 @@ allprojects {
         // these extensions live in the AgentClassLoader, and are injected into the user's class loader
         // by the instrumentation modules that use them
         relocate("io.opentelemetry.extension.aws", "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.aws")
-        relocate("io.opentelemetry.extension.kotlin", "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.kotlin")
+        relocate(
+          "io.opentelemetry.extension.kotlin",
+          "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.kotlin"
+        )
       }
     }
   }
