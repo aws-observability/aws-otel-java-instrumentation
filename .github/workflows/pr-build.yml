@@ -10,7 +10,7 @@ env:
 jobs:
   testpatch:
     name: Test patches applied to dependencies
-    runs-on: temporary-sizing-testing_ubuntu-latest_64-core 
+    runs-on: ubuntu-latest
     if: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') }}
     steps:
       - uses: actions/checkout@v3
@@ -24,14 +24,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-
-        # cache local patch outputs
-      - name: Cache local Maven repository
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
 
       # vaadin tests use pnpm
       - name: Cache pnpm modules
@@ -72,14 +64,6 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
-
-        # cache local patch outputs
-      - name: Cache local Maven repository
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
 
       - uses: gradle/wrapper-validation-action@v1
 

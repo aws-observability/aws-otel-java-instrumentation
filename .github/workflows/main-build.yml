@@ -24,7 +24,7 @@ permissions:
 jobs:
   testpatch:
     name: Test patches applied to dependencies
-    runs-on: temporary-sizing-testing_ubuntu-latest_64-core
+    runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref_name, 'release/v') }}
     steps:
       - uses: actions/checkout@v3
@@ -64,7 +64,7 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
-          
+
         # cache local patch outputs
       - name: Cache local Maven repository
         uses: actions/cache@v3
@@ -327,7 +327,7 @@ jobs:
           path: |
             ~/.m2/repository/io/opentelemetry/
           key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
-          
+
       - uses: gradle/wrapper-validation-action@v1
 
       - name: Configure AWS Credentials
