@@ -29,7 +29,8 @@ val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 // This is the version of the upstream instrumentation BOM
 val otelVersion = "1.28.0"
 val otelSnapshotVersion = "1.29.0"
-
+val otelAlphaVersion = if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
+val otelJavaAgentVersion = if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
@@ -39,7 +40,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.google.protobuf:protobuf-bom:3.23.4",
   "com.linecorp.armeria:armeria-bom:1.24.2",
   "io.grpc:grpc-bom:1.56.1",
-  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:${if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"}",
+  "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.20.0",
   "org.junit:junit-bom:5.9.3",
   "org.springframework.boot:spring-boot-dependencies:2.7.13",
@@ -75,7 +76,7 @@ val DEPENDENCIES = listOf(
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.27.0",
   "io.opentelemetry.contrib:opentelemetry-aws-resources:1.27.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:0.20.0-alpha",
-  "io.opentelemetry.javaagent:opentelemetry-javaagent:${if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"}",
+  "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
   "net.bytebuddy:byte-buddy:1.14.5"
 )
 
