@@ -42,7 +42,7 @@ val DEPENDENCY_BOMS = listOf(
   "io.grpc:grpc-bom:1.56.1",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.20.0",
-  "org.junit:junit-bom:5.9.3",
+  "org.junit:junit-bom:5.10.0",
   "org.springframework.boot:spring-boot-dependencies:2.7.14",
   "org.testcontainers:testcontainers-bom:1.18.3",
   "software.amazon.awssdk:bom:2.20.116"
