@@ -31,7 +31,7 @@ jib {
     "public.ecr.aws/aws-otel-test/aws-otel-java-spark",
     localDocker = rootProject.property("localDocker")!!.equals("true"),
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
-    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
+    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),
   )
 }
 
@@ -49,7 +49,7 @@ tasks {
       "public.ecr.aws/aws-otel-test/aws-otel-java-spark-without-auto-instrumentation-agent",
       localDocker = false,
       multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
-      tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
+      tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),
     )
     setJibExtension(j)
   }

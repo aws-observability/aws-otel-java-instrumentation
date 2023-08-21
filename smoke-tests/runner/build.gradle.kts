@@ -41,7 +41,7 @@ tasks {
 
     jvmArgs(
       "-Dio.awsobservability.instrumentation.smoketests.runner.agentPath=${otelAgentJarTask.get().archiveFile.get()
-        .getAsFile().absolutePath}"
+        .getAsFile().absolutePath}",
     )
   }
 

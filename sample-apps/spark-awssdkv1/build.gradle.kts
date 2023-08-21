@@ -26,7 +26,7 @@ jib {
     "public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1",
     localDocker = rootProject.property("localDocker")!!.equals("true"),
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
-    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}")
+    tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),
   )
 }
 

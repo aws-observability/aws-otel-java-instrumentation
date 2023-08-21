@@ -50,7 +50,7 @@ jib {
     "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
     "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot",
     localDocker = rootProject.property("localDocker")!!.equals("true"),
-    multiPlatform = false
+    multiPlatform = false,
   )
 }
 

@@ -43,6 +43,7 @@ class AwsTracerConfigurerTest {
         .addPropertiesSupplier(() -> singletonMap("otel.traces.exporter", "none"))
         .addPropertiesSupplier(() -> singletonMap("otel.logs.exporter", "none"));
   }
+
   // The probability of this passing once without correct IDs is low, 20 times is inconceivable.
   @RepeatedTest(20)
   void providerGeneratesXrayIds() {

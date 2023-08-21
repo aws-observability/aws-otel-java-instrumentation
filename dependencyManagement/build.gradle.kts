@@ -45,28 +45,28 @@ val DEPENDENCY_BOMS = listOf(
   "org.junit:junit-bom:5.10.0",
   "org.springframework.boot:spring-boot-dependencies:2.7.14",
   "org.testcontainers:testcontainers-bom:1.18.3",
-  "software.amazon.awssdk:bom:2.20.122"
+  "software.amazon.awssdk:bom:2.20.122",
 )
 
 val DEPENDENCY_SETS = listOf(
   DependencySet(
     "org.assertj",
     "3.24.2",
-    listOf("assertj-core")
+    listOf("assertj-core"),
   ),
   DependencySet(
     "org.curioswitch.curiostack",
     "2.2.0",
-    listOf("protobuf-jackson")
+    listOf("protobuf-jackson"),
   ),
   DependencySet(
     "org.slf4j",
     "1.7.36",
     listOf(
       "slf4j-api",
-      "slf4j-simple"
-    )
-  )
+      "slf4j-simple",
+    ),
+  ),
 )
 
 val DEPENDENCIES = listOf(
@@ -77,7 +77,7 @@ val DEPENDENCIES = listOf(
   "io.opentelemetry.contrib:opentelemetry-aws-resources:1.28.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
-  "net.bytebuddy:byte-buddy:1.14.6"
+  "net.bytebuddy:byte-buddy:1.14.6",
 )
 
 javaPlatform {
