@@ -68,7 +68,7 @@ allprojects {
 
   spotless {
     kotlinGradle {
-      ktlint("0.40.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
+      ktlint("0.48.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
 
       // Doesn't support pluginManagement block
       targetExclude("settings.gradle.kts")
@@ -184,7 +184,7 @@ allprojects {
         relocate("io.opentelemetry.extension.aws", "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.aws")
         relocate(
           "io.opentelemetry.extension.kotlin",
-          "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.kotlin"
+          "io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.kotlin",
         )
       }
     }
@@ -224,7 +224,7 @@ allprojects {
           pom {
             name.set("AWS Distro for OpenTelemetry Java Agent")
             description.set(
-              "The Amazon Web Services distribution of the OpenTelemetry Java Instrumentation."
+              "The Amazon Web Services distribution of the OpenTelemetry Java Instrumentation.",
             )
             url.set("https:/github.com/aws-observability/aws-otel-java-instrumentation")
 

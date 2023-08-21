@@ -136,14 +136,14 @@ jib {
     "gcr.io/distroless/java17-debian11:debug",
     "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
     localDocker = false,
-    multiPlatform = !rootProject.property("localDocker")!!.equals("true")
+    multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
   )
 
   container {
     appRoot = "/aws-observability"
     setEntrypoint("INHERIT")
     environment = mapOf(
-      "JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar"
+      "JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar",
     )
   }
   containerizingMode = "packaged"
