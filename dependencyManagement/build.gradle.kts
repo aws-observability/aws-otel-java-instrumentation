@@ -44,7 +44,7 @@ val DEPENDENCY_BOMS = listOf(
   "org.apache.logging.log4j:log4j-bom:2.20.0",
   "org.junit:junit-bom:5.10.0",
   "org.springframework.boot:spring-boot-dependencies:2.7.14",
-  "org.testcontainers:testcontainers-bom:1.18.3",
+  "org.testcontainers:testcontainers-bom:1.19.0",
   "software.amazon.awssdk:bom:2.20.122",
 )
 
