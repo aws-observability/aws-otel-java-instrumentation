@@ -27,25 +27,25 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "1.28.0"
-val otelSnapshotVersion = "1.29.0"
+val otelVersion = "1.29.0"
+val otelSnapshotVersion = "1.30.0"
 val otelAlphaVersion = if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
 val otelJavaAgentVersion = if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
 
 val DEPENDENCY_BOMS = listOf(
-  "com.amazonaws:aws-java-sdk-bom:1.12.529",
+  "com.amazonaws:aws-java-sdk-bom:1.12.533",
   "com.fasterxml.jackson:jackson-bom:2.15.2",
   "com.google.guava:guava-bom:32.1.2-jre",
-  "com.google.protobuf:protobuf-bom:3.23.4",
+  "com.google.protobuf:protobuf-bom:3.24.1",
   "com.linecorp.armeria:armeria-bom:1.24.3",
-  "io.grpc:grpc-bom:1.57.1",
+  "io.grpc:grpc-bom:1.57.2",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.20.0",
   "org.junit:junit-bom:5.10.0",
   "org.springframework.boot:spring-boot-dependencies:2.7.14",
-  "org.testcontainers:testcontainers-bom:1.18.3",
-  "software.amazon.awssdk:bom:2.20.122",
+  "org.testcontainers:testcontainers-bom:1.19.0",
+  "software.amazon.awssdk:bom:2.20.131",
 )
 
 val DEPENDENCY_SETS = listOf(
