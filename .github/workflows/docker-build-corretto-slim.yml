@@ -19,7 +19,7 @@ jobs:
   build-corretto:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: gradle/wrapper-validation-action@v1
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2

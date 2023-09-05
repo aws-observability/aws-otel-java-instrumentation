@@ -63,7 +63,7 @@ jobs:
         run: |
           echo "TEST_DURATION_MINUTES=${{ github.event.inputs.test_duration_minutes || env.DEFAULT_TEST_DURATION_MINUTES }}" | tee --append $GITHUB_ENV;
       - name: Clone This Repo @ ${{ env.TARGET_SHA }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_SHA }}
 
