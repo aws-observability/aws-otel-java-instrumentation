@@ -69,7 +69,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Build image for testing
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
@@ -83,7 +83,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.IMAGE_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
