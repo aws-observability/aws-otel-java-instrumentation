@@ -4,11 +4,11 @@
 			"type": "EKS_ADOT_OPERATOR",
 			"targets": [
 				{
-					"name": "java-instrumentation-operator-ci-amd64-1-23",
+					"name": "java-instrumentation-operator-ci-amd64-1-24",
 					"region": "us-west-2"
 				},
 				{
-					"name": "java-instrumentation-operator-ci-amd64-1-26",
+					"name": "java-instrumentation-operator-ci-amd64-1-27",
 					"region": "us-west-2"
 				}
 			]
@@ -17,11 +17,11 @@
 			"type": "EKS_ADOT_OPERATOR_ARM64",
 			"targets": [
 				{
-					"name": "java-instrumentation-operator-ci-arm64-1-23",
+					"name": "java-instrumentation-operator-ci-arm64-1-24",
 					"region": "us-west-2"
 				},
 				{
-					"name": "java-instrumentation-operator-ci-arm64-1-26",
+					"name": "java-instrumentation-operator-ci-arm64-1-27",
 					"region": "us-west-2"
 				}
 			]
