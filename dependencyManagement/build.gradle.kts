@@ -38,7 +38,7 @@ val DEPENDENCY_BOMS = listOf(
   "com.fasterxml.jackson:jackson-bom:2.15.3",
   "com.google.guava:guava-bom:32.1.3-jre",
   "com.google.protobuf:protobuf-bom:3.24.4",
-  "com.linecorp.armeria:armeria-bom:1.25.2",
+  "com.linecorp.armeria:armeria-bom:1.26.1",
   "io.grpc:grpc-bom:1.59.0",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
