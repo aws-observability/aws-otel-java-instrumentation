@@ -26,13 +26,13 @@ jobs:
       - uses: gradle/wrapper-validation-action@v1
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: public.ecr.aws
 
@@ -47,13 +47,13 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
           aws-region: us-west-2
 
       - name: Login to private aws ecr
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: 611364707713.dkr.ecr.us-west-2.amazonaws.com
 
@@ -63,13 +63,13 @@ jobs:
           echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_ENV
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build image for testing
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
@@ -83,7 +83,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.IMAGE_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
