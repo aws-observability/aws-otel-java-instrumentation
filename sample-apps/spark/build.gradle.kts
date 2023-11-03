@@ -26,13 +26,22 @@ application {
 }
 
 jib {
+
   configureImages(
     "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
-    "public.ecr.aws/aws-otel-test/aws-otel-java-spark",
+    "public.ecr.aws/aws-otel-test/log4j-test",
     localDocker = rootProject.property("localDocker")!!.equals("true"),
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
     tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),
   )
+
+  container {
+    appRoot = "/aws-observability"
+    environment = mapOf(
+      "OTEL_LOGS_EXPORTER" to "otlp",
+      "SAMPLE_APP_LOG_LEVEL" to "INFO",
+    )
+  }
 }
 
 tasks {
