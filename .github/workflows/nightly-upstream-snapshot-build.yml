@@ -46,6 +46,14 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+
+      - name: Run contract tests
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: build contractTests --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true -PlocalDocker=true -Prelease.version=${{ env.APM_JAVA_VERSION }}
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -81,6 +89,17 @@ jobs:
       - name: Test docker image
         shell: bash
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.IMAGE_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
+
+      # confirmation required on e2e-test
+      # confirmation required on cluster name
+      - name: appsinglas-e2e-test
+        needs: build
+        uses: ./.github/workflows/appsignals-e2e-test.yml
+        secrets: inherit
+        with:
+          test-cluster-name: "appsignals-adot-test"
+          apm-adot-image-name: ${{ env.IMAGE_TAG }}
+          caller-workflow-name: 'nightly-upstream-snapshot-build'
 
       - name: Build and push image
         uses: docker/build-push-action@v5
