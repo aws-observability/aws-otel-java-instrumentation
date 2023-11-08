@@ -38,7 +38,7 @@ jib {
   container {
     appRoot = "/aws-observability"
     environment = mapOf(
-      "OTEL_LOGS_EXPORTER" to "otlp"
+      "OTEL_LOGS_EXPORTER" to "otlp",
     )
   }
 }
