@@ -457,7 +457,7 @@ jobs:
     secrets: inherit
     with:
       test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.java_agent_tag }}
+      appsignals-adot-image-name: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging:${{ needs.build.outputs.java_agent_tag }}
       caller-workflow-name: 'main-build'
 
   publish-build-status:
