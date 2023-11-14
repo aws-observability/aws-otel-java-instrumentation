@@ -1,0 +1,23 @@
+## This workflow aims to run the end-to-end tests in canary fashion to
+## test the prod artifacts for App Signals enablement.
+name: App Signals Enablement - E2E EKS Canary Testing
+on:
+  schedule:
+    - cron: '0/10 * * * *' # run the workflow every 10 minutes
+  workflow_dispatch: # be able to run the workflow on demand
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  e2e-canary-test:
+    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-canary-test'
+      caller-workflow-name: 'appsignals-e2e-eks-canary-test'

@@ -28,6 +28,9 @@ public class AwsAgentPropertiesCustomizerProvider implements AutoConfigurationCu
               {
                 put("otel.propagators", "xray,tracecontext,b3,b3multi");
                 put("otel.instrumentation.aws-sdk.experimental-span-attributes", "true");
+                put(
+                    "otel.instrumentation.aws-sdk.experimental-record-individual-http-error",
+                    "true");
               }
             });
   }

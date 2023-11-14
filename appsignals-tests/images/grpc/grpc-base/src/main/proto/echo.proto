@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "software.amazon.appsignals.sampleapp.grpc.base";
+option java_outer_classname = "EchoProto";
+option objc_class_prefix = "E";
+
+package echo;
+
+// The greeting service definition.
+service Echoer {
+  // Sends a greeting
+  rpc EchoSuccess (EchoRequest) returns (EchoReply) {}
+  rpc EchoFault (EchoRequest) returns (EchoReply) {}
+  rpc EchoError (EchoRequest) returns (EchoReply) {}
+}
+
+// The request message containing the user's name.
+message EchoRequest {
+  string message = 1;
+}
+
+// The response message containing the greetings
+message EchoReply {
+  string message = 1;
+}

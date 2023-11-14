@@ -1,0 +1,61 @@
+[{
+  "name": "^{{serviceName}}$",
+  "http": {
+    "request": {
+      "url": "^{{endpoint}}/outgoing-http-call$",
+      "method": "^GET$"
+    },
+    "response": {
+      "status": "^200$"
+    }
+  },
+  "aws": {
+    "account_id": "^{{accountId}}$"
+  },
+  "annotations": {
+    "aws_local_service": "^{{serviceName}}$",
+    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "aws_local_operation": "^GET /outgoing-http-call$"
+  },
+  "metadata": {
+      "default": {
+          "otel.resource.K8s.Workload": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+          "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
+          "otel.resource.K8s.Pod": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+          "aws.span.kind": "^LOCAL_ROOT$"
+      }
+  },
+  "subsegments": [
+    {
+      "subsegments": [
+        {
+          "name": "^www.amazon.com$",
+          "http": {
+            "request": {
+              "url": "^https://www.amazon.com$",
+              "method": "^GET$"
+            }
+          },
+          "annotations": {
+            "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+            "HostedIn_EKS_Cluster": "^{{cluster}}$",
+            "aws_local_service": "^{{serviceName}}$",
+            "aws_local_operation": "^GET /outgoing-http-call$",
+            "aws_remote_service": "^www.amazon.com$",
+            "aws_remote_operation": "^GET /$"
+          },
+          "metadata": {
+            "default": {
+              "aws.span.kind": "^CLIENT$"
+            }
+          },
+          "namespace": "^remote$"
+        }
+      ]
+    }
+  ]
+},
+{
+  "name": "^www.amazon.com$"
+}]
