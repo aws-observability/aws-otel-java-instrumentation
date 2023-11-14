@@ -1,0 +1,57 @@
+[{
+  "name": "^{{serviceName}}$",
+  "annotations": {
+    "aws_local_service": "^{{serviceName}}$",
+    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "aws_local_operation": "^InternalOperation$"
+  },
+  "metadata": {
+    "default": {
+        "otel.resource.K8s.Workload": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+        "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
+        "otel.resource.K8s.Pod": "^sample-app-deployment(-[A-Za-z0-9]*)*$"
+    }
+  },
+  "subsegments": [
+    {
+      "name": "^local-root-client-call$",
+      "http": {
+          "request": {
+              "url": "^http://local-root-client-call$",
+              "method": "^GET$"
+          }
+      },
+      "annotations": {
+        "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+        "HostedIn_EKS_Cluster": "^{{cluster}}$",
+        "aws_local_service": "^{{serviceName}}$",
+        "aws_local_operation": "^InternalOperation$",
+        "aws_remote_service": "^local-root-client-call$",
+        "aws_remote_operation": "GET /"
+      },
+      "metadata": {
+        "default": {
+          "aws.span.kind": "^LOCAL_ROOT$"
+        }
+      },
+      "namespace": "^remote$"
+    }
+  ]
+},
+{
+    "name": "^local-root-client-call$",
+    "http": {
+        "request": {
+            "url": "^http://local-root-client-call$",
+            "method": "^GET$"
+        },
+        "response": {
+            "content_length": 0
+        }
+    },
+    "annotations": {
+        "aws_local_service": "^local-root-client-call$",
+        "aws_local_operation": "^GET /$"
+    }
+}]

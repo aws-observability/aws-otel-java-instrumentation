@@ -24,6 +24,9 @@ base {
 
 dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  compileOnly("io.opentelemetry.semconv:opentelemetry-semconv")
+  testImplementation("io.opentelemetry.semconv:opentelemetry-semconv")
+  compileOnly("com.google.errorprone:error_prone_annotations:2.19.1")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   compileOnly("org.slf4j:slf4j-api")
 
@@ -31,6 +34,8 @@ dependencies {
   implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
   // AWS Resource Detectors
   implementation("io.opentelemetry.contrib:opentelemetry-aws-resources")
+  // Export configuration
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
@@ -39,6 +44,8 @@ dependencies {
   testImplementation("com.google.guava:guava")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
+  testImplementation("org.mockito:mockito-core:5.3.1")
+  testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
 }
 
 tasks {
