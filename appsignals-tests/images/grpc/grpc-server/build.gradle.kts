@@ -43,7 +43,11 @@ dependencies {
 application {
   mainClass.set("software.amazon.opentelemetry.EchoerServer")
 }
-
+tasks {
+  named("jib") {
+    enabled = false
+  }
+}
 jib {
   configureImages(
     "public.ecr.aws/docker/library/amazoncorretto:17-alpine",
