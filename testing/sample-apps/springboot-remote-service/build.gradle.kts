@@ -34,7 +34,11 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter-logging")
 }
-
+tasks {
+  named("jib") {
+    enabled = false
+  }
+}
 jib {
   to {
     image = "<ECR_IMAGE_LINK>:<TAG>"
