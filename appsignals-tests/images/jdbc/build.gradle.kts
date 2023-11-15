@@ -35,6 +35,11 @@ dependencies {
 
 // not publishing images to hubs in this configuration - local build only through jibDockerBuild
 // if localDocker property is set to true then the image will only be pulled from Docker Daemon
+tasks {
+  named("jib") {
+    enabled = false
+  }
+}
 jib {
   configureImages(
     "public.ecr.aws/docker/library/amazoncorretto:17-alpine",

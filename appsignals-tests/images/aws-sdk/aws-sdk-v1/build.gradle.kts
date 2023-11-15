@@ -40,7 +40,11 @@ java {
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 }
-
+tasks {
+  named("jib") {
+    enabled = false
+  }
+}
 jib {
   configureImages(
     "public.ecr.aws/docker/library/amazoncorretto:17-alpine",
