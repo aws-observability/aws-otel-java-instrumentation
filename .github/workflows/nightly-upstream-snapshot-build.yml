@@ -15,6 +15,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      release-candidate-image: ${{ steps.imageNameOutput.outputs.imageName }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,23 +38,18 @@ jobs:
         with:
           registry: public.ecr.aws
 
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
+          arguments: build contractTests --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true -PlocalDocker=true
         env:
           PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Pull base image of Contract Tests Sample Apps
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
-
-      - name: Run contract tests
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: build contractTests --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true -PlocalDocker=true -Prelease.version=${{ env.APM_JAVA_VERSION }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -90,17 +87,6 @@ jobs:
         shell: bash
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.IMAGE_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
-      # confirmation required on e2e-test
-      # confirmation required on cluster name
-      - name: appsinglas-e2e-test
-        needs: build
-        uses: ./.github/workflows/appsignals-e2e-test.yml
-        secrets: inherit
-        with:
-          test-cluster-name: "appsignals-adot-test"
-          apm-adot-image-name: ${{ env.IMAGE_TAG }}
-          caller-workflow-name: 'nightly-upstream-snapshot-build'
-
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
@@ -111,11 +97,24 @@ jobs:
           tags: |
             ${{ env.IMAGE_TAG }}
 
+      - name: Set image name to output
+        id: imageNameOutput
+        run: echo "imageName=${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
+
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
+  e2e-test:
+    needs: build
+    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    secrets: inherit
+    with:
+      test-cluster-name: "e2e-adot-test"
+      appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
+      caller-workflow-name: 'nightly-upstream-snapshot-build'
 
   publish-build-status:
     needs: [build]
