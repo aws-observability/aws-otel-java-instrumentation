@@ -1,0 +1,24 @@
+-
+  validationType: "trace"
+  httpPath: "/outgoing-http-call"
+  httpMethod: "get"
+  callingType: "http"
+  expectedTraceTemplate: "XRAY_SDK_HTTP_EXPECTED_TRACE"
+-
+  validationType: "trace"
+  httpPath: "/aws-sdk-call"
+  httpMethod: "get"
+  callingType: "http"
+  expectedTraceTemplate: "XRAY_SDK_AWSSDK_EXPECTED_TRACE"
+-
+  validationType: "trace"
+  httpPath: "/remote-service"
+  httpMethod: "get"
+  callingType: "http-with-body"
+  expectedTraceTemplate: "XRAY_SDK_REMOTE_SERVICE_EXPECTED_TRACE"
+-
+  validationType: "trace"
+  httpPath: "/client-call"
+  httpMethod: "get"
+  callingType: "http"
+  expectedTraceTemplate: "XRAY_SDK_CLIENT_EXPECTED_TRACE"

@@ -50,3 +50,28 @@ include(":smoke-tests:spring-boot")
 include(":sample-apps:springboot")
 include(":sample-apps:spark")
 include(":sample-apps:spark-awssdkv1")
+
+// Used for contract tests
+include("appsignals-tests:images:mock-collector")
+include("appsignals-tests:images:http-servers:spring-mvc")
+include("appsignals-tests:images:http-servers:tomcat")
+include("appsignals-tests:images:http-servers:netty-server")
+include("appsignals-tests:contract-tests")
+include("appsignals-tests:images:http-clients:native-http-client")
+include("appsignals-tests:images:http-clients:spring-mvc-client")
+include("appsignals-tests:images:http-clients:apache-http-client")
+include("appsignals-tests:images:http-clients:netty-http-client")
+include("appsignals-tests:images:aws-sdk:aws-sdk-v1")
+include("appsignals-tests:images:aws-sdk:aws-sdk-v2")
+include("appsignals-tests:images:grpc:grpc-base")
+include("appsignals-tests:images:grpc:grpc-server")
+include("appsignals-tests:images:grpc:grpc-client")
+include("appsignals-tests:images:jdbc")
+include("appsignals-tests:images:kafka:kafka-producers")
+include("appsignals-tests:images:kafka:kafka-consumers")
+
+
+// End to end tests
+include(":testing:validator")
+include(":testing:sample-apps:springboot")
+include(":testing:sample-apps:springboot-remote-service")

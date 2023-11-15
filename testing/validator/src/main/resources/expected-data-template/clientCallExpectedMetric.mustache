@@ -1,0 +1,323 @@
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: GET /client-call
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+    -
+      name: RemoteOperation
+      value: GET /
+
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+    -
+      name: RemoteOperation
+      value: GET /
+
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: GET /client-call
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+    -
+      name: RemoteOperation
+      value: GET /
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+    -
+      name: RemoteOperation
+      value: GET /
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: GET /client-call
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+    -
+      name: RemoteOperation
+      value: GET /
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call
+    -
+      name: RemoteOperation
+      value: GET /
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: local-root-client-call

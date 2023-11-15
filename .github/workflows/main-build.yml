@@ -104,6 +104,14 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+
+      - name: Run contract tests
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: contractTests -PlocalDocker=true
+
       - name: Get current version
         shell: bash
         run: |
@@ -442,6 +450,15 @@ jobs:
           LISTEN_ADDRESS: 0.0.0.0:4567
           APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1:${{ github.sha }}
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
+
+  e2e-test:
+    needs: build
+    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    secrets: inherit
+    with:
+      test-cluster-name: "e2e-adot-test"
+      appsignals-adot-image-name: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging:${{ needs.build.outputs.java_agent_tag }}
+      caller-workflow-name: 'main-build'
 
   publish-build-status:
     needs: [test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent, run-batch-job]

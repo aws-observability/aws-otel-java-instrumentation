@@ -1,0 +1,35 @@
+[{
+  "HostedIn.EKS.Cluster": "^{{cluster}}$",
+  "HostedIn.K8s.Namespace": "^{{appNamespace}}$",
+  "K8s.Node": "^i-[A-Za-z0-9]{17}$",
+  "K8s.Pod": "^sample-app-deployment-{{testingId}}(-[A-Za-z0-9]*)*$",
+  "K8s.Workload": "^sample-app-deployment-{{testingId}}(-[A-Za-z0-9]*)*$",
+  "Operation": "InternalOperation",
+  "OTelLib": "^AwsSpanMetricsProcessor$",
+  "Version": "^1$",
+  "aws.span.kind": "^LOCAL_ROOT$"
+},
+{
+  "HostedIn.EKS.Cluster": "^{{cluster}}$",
+  "HostedIn.K8s.Namespace": "^{{appNamespace}}$",
+  "K8s.Node": "^i-[A-Za-z0-9]{17}$",
+  "K8s.Pod": "^sample-app-deployment-{{testingId}}(-[A-Za-z0-9]*)*$",
+  "K8s.Workload": "^sample-app-deployment-{{testingId}}(-[A-Za-z0-9]*)*$",
+  "Operation": "InternalOperation",
+  "OTelLib": "^AwsSpanMetricsProcessor$",
+  "Version": "^1$",
+  "aws.span.kind": "^LOCAL_ROOT$"
+},
+{
+  "HostedIn.EKS.Cluster": "^{{cluster}}$",
+  "HostedIn.K8s.Namespace": "^{{appNamespace}}$",
+  "K8s.Node": "^i-[A-Za-z0-9]{17}$",
+  "K8s.Pod": "^sample-app-deployment-{{testingId}}(-[A-Za-z0-9]*)*$",
+  "K8s.Workload": "^sample-app-deployment-{{testingId}}(-[A-Za-z0-9]*)*$",
+  "Operation": "InternalOperation",
+  "OTelLib": "^AwsSpanMetricsProcessor$",
+  "Version": "^1$",
+  "RemoteService": "local-root-client-call",
+  "RemoteOperation": "GET /",
+  "aws.span.kind": "^CLIENT$"
+}]

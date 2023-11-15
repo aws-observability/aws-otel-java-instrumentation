@@ -1,0 +1,65 @@
+[{
+  "name": "^{{serviceName}}$",
+  "http": {
+    "request": {
+      "url": "^{{endpoint}}/aws-sdk-call$",
+      "method": "^GET$"
+    },
+    "response": {
+      "status": "^200$"
+    }
+  },
+  "aws": {
+    "account_id": "^{{accountId}}$"
+  },
+  "annotations": {
+    "aws_local_service": "^{{serviceName}}$",
+    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "aws_local_operation": "^GET /aws-sdk-call$"
+  },
+  "metadata": {
+    "default": {
+        "otel.resource.K8s.Workload": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+        "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
+        "otel.resource.K8s.Pod": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+        "aws.span.kind": "^LOCAL_ROOT$"
+    }
+  },
+  "subsegments": [
+    {
+      "subsegments": [
+        {
+          "name": "^S3$",
+          "http": {
+            "request": {
+              "url": "^https://e2e-test-bucket-name.s3.{{region}}.amazonaws.com\\?location$",
+              "method": "^GET$"
+            }
+          },
+          "annotations": {
+            "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+            "HostedIn_EKS_Cluster": "^{{cluster}}$",
+            "aws_local_service": "^{{serviceName}}$",
+            "aws_local_operation": "^GET /aws-sdk-call$",
+            "aws_remote_service": "^AWS\\.SDK\\.S3$",
+            "aws_remote_operation": "GetBucketLocation",
+            "aws_remote_target": "e2e-test-bucket-name"
+          },
+          "metadata": {
+            "default": {
+              "aws.span.kind": "^CLIENT$"
+            }
+          },
+          "namespace": "^aws$"
+        }
+      ]
+    }
+  ]
+},
+{
+  "name": "^S3$",
+  "aws": {
+    "operation": "^GetBucketLocation$"
+  }
+}]
