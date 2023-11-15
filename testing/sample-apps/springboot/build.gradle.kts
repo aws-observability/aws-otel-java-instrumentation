@@ -38,7 +38,11 @@ dependencies {
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:sts")
 }
-
+tasks {
+  named("jib") {
+    enabled = false
+  }
+}
 jib {
   to {
     image = "<ECR_IMAGE_LINK>:<TAG>"
