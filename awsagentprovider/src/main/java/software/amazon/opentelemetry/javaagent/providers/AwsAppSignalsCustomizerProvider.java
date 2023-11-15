@@ -63,7 +63,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
   }
 
   private boolean isSmpEnabled(ConfigProperties configProps) {
-    return configProps.getBoolean("otel.smp.enabled", true);
+    return configProps.getBoolean("otel.smp.enabled", false);
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
