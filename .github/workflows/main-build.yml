@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
-      staging-image: ${{ steps.imageNameOutput.outputs.imageName }}
+      staging-image-name: ${{ steps.imageNameOutput.outputs.imageName }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -462,7 +462,7 @@ jobs:
     secrets: inherit
     with:
       test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
+      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image-name }}
       caller-workflow-name: 'main-build'
 
   publish-build-status:
