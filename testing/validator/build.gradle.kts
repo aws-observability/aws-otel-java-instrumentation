@@ -57,7 +57,7 @@ dependencies {
   compileOnly("info.picocli:picocli-codegen:4.7.3")
 
   // aws sdk
-  implementation(platform("com.amazonaws:aws-java-sdk-bom:1.12.506"))
+  implementation(platform("com.amazonaws:aws-java-sdk-bom:1.12.593"))
   implementation("com.amazonaws:aws-java-sdk-s3")
   implementation("com.amazonaws:aws-java-sdk-cloudwatch")
   implementation("com.amazonaws:aws-java-sdk-xray")
