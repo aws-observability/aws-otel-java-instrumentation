@@ -213,16 +213,16 @@ jobs:
         run: |
           if [[ "${{ steps.log-validation.outcome }}" == "success" && "${{ steps.metric-validation.outcome }}" == "success" && "${{ steps.trace-validation.outcome }}" == "success" ]]; then
             aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Success \
-            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=${{ inputs.caller-workflow-name }} \
-            --value 1.0 \
-            --region us-west-2
-          else
-            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Success \
+            --metric-name Failure \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=${{ inputs.caller-workflow-name }} \
             --value 0.0 \
-            --region us-west-2
+            --region ${{ env.AWS_DEFAULT_REGION }}
+          else
+            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Failure \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=${{ inputs.caller-workflow-name }} \
+            --value 1.0 \
+            --region ${{ env.AWS_DEFAULT_REGION }}
           fi
 
       # Clean up Procedures
