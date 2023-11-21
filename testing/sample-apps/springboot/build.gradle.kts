@@ -31,7 +31,7 @@ repositories {
 }
 
 dependencies {
-  implementation(platform("software.amazon.awssdk:bom:2.20.78"))
+  implementation(platform("software.amazon.awssdk:bom:2.21.27"))
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter-logging")
   implementation("io.opentelemetry:opentelemetry-api")
