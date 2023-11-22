@@ -32,9 +32,6 @@ dependencies {
   implementation("org.slf4j:slf4j-simple:1.7.30")
   implementation("io.opentelemetry:opentelemetry-api")
 }
-repositories {
-  mavenCentral()
-}
 
 // not publishing images to hubs in this configuration - local build only through jibDockerBuild
 // if localDocker property is set to true then the image will only be pulled from Docker Daemon

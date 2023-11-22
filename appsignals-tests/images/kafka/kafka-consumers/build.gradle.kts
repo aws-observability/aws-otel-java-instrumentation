@@ -25,10 +25,6 @@ java {
   targetCompatibility = JavaVersion.VERSION_11
 }
 
-repositories {
-  mavenCentral()
-}
-
 dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("org.apache.kafka:kafka-clients:3.6.0")

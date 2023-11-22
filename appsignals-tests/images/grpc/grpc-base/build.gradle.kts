@@ -20,10 +20,6 @@ plugins {
 
 group = "software.amazon.opentelemetry"
 
-repositories {
-  mavenCentral()
-}
-
 dependencies {
   // Workaround for @javax.annotation.Generated
   // see: https://github.com/grpc/grpc-java/issues/3633

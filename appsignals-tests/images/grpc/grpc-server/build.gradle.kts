@@ -23,10 +23,6 @@ plugins {
 
 group = "software.amazon.opentelemetry"
 
-repositories {
-  mavenCentral()
-}
-
 dependencies {
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
   implementation("javax.annotation:javax.annotation-api:1.3.2")

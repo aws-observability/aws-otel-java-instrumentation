@@ -104,7 +104,3 @@ tasks {
     dependsOn(":appsignals-tests:images:kafka:kafka-consumers:jibDockerBuild")
   }
 }
-
-repositories {
-  mavenCentral()
-}
