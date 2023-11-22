@@ -1,0 +1,91 @@
+[{
+  "name": "^{{serviceName}}$",
+  "http": {
+    "request": {
+      "url": "^{{endpoint}}/remote-service\\?ip=(([0-9]{1,3}.){3}[0-9]{1,3})/$",
+      "method": "^GET$"
+    },
+    "response": {
+      "status": "^200$"
+    }
+  },
+  "aws": {
+    "account_id": "^{{accountId}}$"
+  },
+  "annotations": {
+    "aws_local_service": "^{{serviceName}}$",
+    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "aws_local_operation": "^GET /remote-service$"
+  },
+  "metadata": {
+      "default": {
+          "otel.resource.K8s.Workload": "^sample-app-deployment-{{testingId}}$",
+          "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
+          "otel.resource.K8s.Pod": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+          "aws.span.kind": "^LOCAL_ROOT$"
+      }
+  },
+  "subsegments": [
+    {
+      "subsegments": [
+        {
+          "name": "^{{remoteServiceDeploymentName}}$",
+          "http": {
+            "request": {
+              "url": "^http://(([0-9]{1,3}.){3}[0-9]{1,3}):8080/healthcheck$",
+              "method": "^GET$"
+            }
+          },
+          "annotations": {
+            "aws_local_service": "^{{serviceName}}$",
+            "aws_local_operation": "^GET /remote-service$",
+            "aws_remote_service": "^{{remoteServiceDeploymentName}}$",
+            "aws_remote_operation": "^GET /healthcheck$"
+          },
+          "metadata": {
+              "default": {
+                  "aws.span.kind": "^CLIENT$"
+              }
+           },
+          "namespace": "^remote$"
+        }
+      ]
+    }
+  ]
+},
+{
+  "name": "^{{remoteServiceDeploymentName}}$",
+  "http": {
+    "request": {
+      "url": "^http://(([0-9]{1,3}.){3}[0-9]{1,3}):8080/healthcheck$",
+      "method": "^GET$"
+    }
+  },
+  "annotations": {
+    "aws_local_service": "^{{remoteServiceDeploymentName}}$",
+    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "aws_local_operation": "^GET /healthcheck$"
+  },
+  "metadata": {
+      "default": {
+          "otel.resource.K8s.Workload": "^{{remoteServiceDeploymentName}}$",
+          "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
+          "otel.resource.K8s.Pod": "^{{remoteServiceDeploymentName}}(-[A-Za-z0-9]*)*$",
+          "aws.span.kind": "^LOCAL_ROOT$"
+      }
+  },
+  "subsegments": [
+    {
+      "name": "^RemoteServiceController.healthcheck$",
+      "annotations": {
+        "HostedIn_K8s_Namespace": "^sample-app-namespace$",
+        "HostedIn_EKS_Cluster": "^{{cluster}}$",
+        "aws_local_operation": "^GET /healthcheck$"
+      }
+    }
+  ]
+}]
+
+

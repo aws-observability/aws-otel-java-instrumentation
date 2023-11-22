@@ -1,0 +1,56 @@
+[{
+  "name": "^{{serviceName}}$",
+  "annotations": {
+    "aws_local_service": "^{{serviceName}}$",
+    "HostedIn_Environment": "^EC2$",
+    "aws_local_operation": "^InternalOperation$"
+  },
+  "metadata": {
+    "default": {
+        "otel.resource.aws.hostedin.environment": "^EC2$",
+        "otel.resource.host.image.id": "^ami-0b021814637c6d457$",
+        "otel.resource.host.type": "^t2.micro$"
+
+    }
+  },
+  "subsegments": [
+    {
+      "name": "^local-root-client-call$",
+      "http": {
+          "request": {
+              "url": "^http://local-root-client-call$",
+              "method": "^GET$"
+          }
+      },
+      "annotations": {
+        "HostedIn_Environment": "^EC2$",
+        "aws_local_service": "^{{serviceName}}$",
+        "aws_local_operation": "^InternalOperation$",
+        "aws_remote_service": "^local-root-client-call$",
+        "aws_remote_operation": "GET /"
+      },
+      "metadata": {
+        "default": {
+          "aws.span.kind": "^LOCAL_ROOT$"
+        }
+      },
+      "namespace": "^remote$"
+    }
+  ]
+},
+{
+    "name": "^local-root-client-call$",
+    "http": {
+        "request": {
+            "url": "^http://local-root-client-call$",
+            "method": "^GET$"
+        },
+        "response": {
+            "content_length": 0
+        }
+    },
+    "annotations": {
+        "aws_local_service": "^local-root-client-call$",
+        "aws_local_operation": "^GET /$"
+    }
+}]

@@ -14,15 +14,14 @@
   },
   "annotations": {
     "aws_local_service": "^{{serviceName}}$",
-    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "HostedIn_Environment": "^EC2$",
     "aws_local_operation": "^GET /remote-service$"
   },
   "metadata": {
       "default": {
-          "otel.resource.K8s.Workload": "^sample-app-deployment-{{testingId}}$",
-          "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
-          "otel.resource.K8s.Pod": "^sample-app-deployment(-[A-Za-z0-9]*)*$",
+          "otel.resource.aws.hostedin.environment": "^EC2$",
+          "otel.resource.host.image.id": "^ami-0b021814637c6d457$",
+          "otel.resource.host.type": "^t2.micro$",
           "aws.span.kind": "^LOCAL_ROOT$"
       }
   },
@@ -55,7 +54,7 @@
   ]
 },
 {
-  "name": "^{{remoteServiceDeploymentName}}$",
+  "name": "^{{remoteServiceName}}$",
   "http": {
     "request": {
       "url": "^http://(([0-9]{1,3}.){3}[0-9]{1,3}):8080/healthcheck$",
@@ -63,16 +62,15 @@
     }
   },
   "annotations": {
-    "aws_local_service": "^{{remoteServiceDeploymentName}}$",
-    "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "HostedIn_Environment": "^EC2$",
+    "aws_local_service": "^{{remoteServiceName}}$",
     "aws_local_operation": "^GET /healthcheck$"
   },
   "metadata": {
       "default": {
-          "otel.resource.K8s.Workload": "^{{remoteServiceDeploymentName}}$",
-          "otel.resource.K8s.Node": "^i-[A-Za-z0-9]{17}$",
-          "otel.resource.K8s.Pod": "^{{remoteServiceDeploymentName}}(-[A-Za-z0-9]*)*$",
+          "otel.resource.aws.hostedin.environment": "^EC2$",
+          "otel.resource.host.image.id": "^ami-0b021814637c6d457$",
+          "otel.resource.host.type": "^t2.micro$",
           "aws.span.kind": "^LOCAL_ROOT$"
       }
   },
@@ -80,10 +78,11 @@
     {
       "name": "^RemoteServiceController.healthcheck$",
       "annotations": {
-        "HostedIn_K8s_Namespace": "^sample-app-namespace$",
-        "HostedIn_EKS_Cluster": "^{{cluster}}$",
+        "HostedIn_Environment": "^EC2$",
         "aws_local_operation": "^GET /healthcheck$"
       }
     }
   ]
 }]
+
+

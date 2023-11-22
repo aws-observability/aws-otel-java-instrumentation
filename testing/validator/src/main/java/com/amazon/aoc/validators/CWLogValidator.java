@@ -141,19 +141,15 @@ public class CWLogValidator implements IValidator {
     if (remoteService == null && remoteOperation == null) {
       filterPattern =
           String.format(
-              "{ ($.['HostedIn.EKS.Cluster'] = %s) && ($.Service = %s) && ($.Operation = \"%s\") && "
+              "{ ($.Service = %s) && ($.Operation = \"%s\") && "
                   + "($.RemoteService NOT EXISTS) && ($.RemoteOperation NOT EXISTS) }",
-              context.getCluster(), context.getServiceName(), operation);
+              context.getServiceName(), operation);
     } else {
       filterPattern =
           String.format(
-              "{ ($.['HostedIn.EKS.Cluster'] = %s) && ($.Service = %s) && ($.Operation = \"%s\") && "
+              "{ ($.Service = %s) && ($.Operation = \"%s\") && "
                   + "($.RemoteService = \"%s\") && ($.RemoteOperation = \"%s\") }",
-              context.getCluster(),
-              context.getServiceName(),
-              operation,
-              remoteService,
-              remoteOperation);
+              context.getServiceName(), operation, remoteService, remoteOperation);
     }
     log.info("Filter Pattern for Log Search: " + filterPattern);
 

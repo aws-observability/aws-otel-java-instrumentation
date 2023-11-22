@@ -83,7 +83,7 @@ public class CWMetricValidatorTest {
    */
   @Test
   public void testValidationSucceed() throws Exception {
-    ValidationConfig validationConfig = initValidationConfig("HTTP_EXPECTED_METRIC");
+    ValidationConfig validationConfig = initValidationConfig("EKS_OUTGOING_HTTP_CALL_METRIC");
     runBasicValidation(validationConfig);
   }
 

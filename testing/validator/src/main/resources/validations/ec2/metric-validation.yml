@@ -3,22 +3,23 @@
   httpPath: "/outgoing-http-call"
   httpMethod: "get"
   callingType: "http"
-  expectedMetricTemplate: "HTTP_EXPECTED_METRIC"
+  expectedMetricTemplate: "EC2_OUTGOING_HTTP_CALL_METRIC"
 -
   validationType: "cw-metric"
   httpPath: "/aws-sdk-call"
   httpMethod: "get"
   callingType: "http"
-  expectedMetricTemplate: "AWSSDK_EXPECTED_METRIC"
+  expectedMetricTemplate: "EC2_AWS_SDK_CALL_METRIC"
 -
   validationType: "cw-metric"
   httpPath: "/remote-service"
   httpMethod: "get"
   callingType: "http-with-body"
-  expectedMetricTemplate: "REMOTE_SERVICE_EXPECTED_METRIC"
+  expectedMetricTemplate: "EC2_REMOTE_SERVICE_METRIC"
 -
   validationType: "cw-metric"
   httpPath: "/client-call"
   httpMethod: "get"
   callingType: "http"
-  expectedMetricTemplate: "CLIENT_EXPECTED_METRIC"
+  expectedMetricTemplate: "EC2_CLIENT_CALL_METRIC"
+
