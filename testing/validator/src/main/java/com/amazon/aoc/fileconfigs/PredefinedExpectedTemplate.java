@@ -22,24 +22,39 @@ import java.net.URL;
  * resources/expected-data-templates.
  */
 public enum PredefinedExpectedTemplate implements FileConfig {
-  /** log template, defined in resources. */
-  AWSSDK_EXPECTED_LOG("/expected-data-template/awsSdkCallExpectedLog.mustache"),
-  HTTP_EXPECTED_LOG("/expected-data-template/httpCallExpectedLog.mustache"),
-  REMOTE_SERVICE_EXPECTED_LOG("/expected-data-template/remoteServiceCallExpectedLog.mustache"),
-  CLIENT_EXPECTED_LOG("/expected-data-template/clientCallExpectedLog.mustache"),
-  /** metric template, defined in resources. */
-  HTTP_EXPECTED_METRIC("/expected-data-template/httpCallExpectedMetric.mustache"),
-  AWSSDK_EXPECTED_METRIC("/expected-data-template/awsSdkCallExpectedMetric.mustache"),
-  REMOTE_SERVICE_EXPECTED_METRIC(
-      "/expected-data-template/remoteServiceCallExpectedMetric.mustache"),
-  CLIENT_EXPECTED_METRIC("/expected-data-template/clientCallExpectedMetric.mustache"),
+  /** EKS Test Case Validations */
+  EKS_OUTGOING_HTTP_CALL_LOG("/expected-data-template/eks/outgoing-http-call-log.mustache"),
+  EKS_OUTGOING_HTTP_CALL_METRIC("/expected-data-template/eks/outgoing-http-call-metric.mustache"),
+  EKS_OUTGOING_HTTP_CALL_TRACE("/expected-data-template/eks/outgoing-http-call-trace.mustache"),
 
-  /** trace template, defined in resources. */
-  XRAY_SDK_HTTP_EXPECTED_TRACE("/expected-data-template/xraySDKexpectedHTTPTrace.mustache"),
-  XRAY_SDK_AWSSDK_EXPECTED_TRACE("/expected-data-template/xraySDKexpectedAWSSDKTrace.mustache"),
-  XRAY_SDK_REMOTE_SERVICE_EXPECTED_TRACE(
-      "/expected-data-template/xraySDKexpectedREMOTESERVICETrace.mustache"),
-  XRAY_SDK_CLIENT_EXPECTED_TRACE("/expected-data-template/xraySDKexpectedCLIENTTrace.mustache"),
+  EKS_AWS_SDK_CALL_LOG("/expected-data-template/eks/aws-sdk-call-log.mustache"),
+  EKS_AWS_SDK_CALL_METRIC("/expected-data-template/eks/aws-sdk-call-metric.mustache"),
+  EKS_AWS_SDK_CALL_TRACE("/expected-data-template/eks/aws-sdk-call-trace.mustache"),
+
+  EKS_REMOTE_SERVICE_LOG("/expected-data-template/eks/remote-service-log.mustache"),
+  EKS_REMOTE_SERVICE_METRIC("/expected-data-template/eks/remote-service-metric.mustache"),
+  EKS_REMOTE_SERVICE_TRACE("/expected-data-template/eks/remote-service-trace.mustache"),
+
+  EKS_CLIENT_CALL_LOG("/expected-data-template/eks/client-call-log.mustache"),
+  EKS_CLIENT_CALL_METRIC("/expected-data-template/eks/client-call-metric.mustache"),
+  EKS_CLIENT_CALL_TRACE("/expected-data-template/eks/client-call-trace.mustache"),
+
+  /** EC2 Test Case Validations */
+  EC2_OUTGOING_HTTP_CALL_LOG("/expected-data-template/ec2/outgoing-http-call-log.mustache"),
+  EC2_OUTGOING_HTTP_CALL_METRIC("/expected-data-template/ec2/outgoing-http-call-metric.mustache"),
+  EC2_OUTGOING_HTTP_CALL_TRACE("/expected-data-template/ec2/outgoing-http-call-trace.mustache"),
+
+  EC2_AWS_SDK_CALL_LOG("/expected-data-template/ec2/aws-sdk-call-log.mustache"),
+  EC2_AWS_SDK_CALL_METRIC("/expected-data-template/ec2/aws-sdk-call-metric.mustache"),
+  EC2_AWS_SDK_CALL_TRACE("/expected-data-template/ec2/aws-sdk-call-trace.mustache"),
+
+  EC2_REMOTE_SERVICE_LOG("/expected-data-template/ec2/remote-service-log.mustache"),
+  EC2_REMOTE_SERVICE_METRIC("/expected-data-template/ec2/remote-service-metric.mustache"),
+  EC2_REMOTE_SERVICE_TRACE("/expected-data-template/ec2/remote-service-trace.mustache"),
+
+  EC2_CLIENT_CALL_LOG("/expected-data-template/ec2/client-call-log.mustache"),
+  EC2_CLIENT_CALL_METRIC("/expected-data-template/ec2/client-call-metric.mustache"),
+  EC2_CLIENT_CALL_TRACE("/expected-data-template/ec2/client-call-trace.mustache"),
   ;
 
   private String path;

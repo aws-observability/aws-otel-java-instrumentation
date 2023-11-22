@@ -1,0 +1,17 @@
+[{
+  "HostedIn.Environment": "^EC2$",
+  "Operation": "GET /outgoing-http-call",
+  "OTelLib": "^AwsSpanMetricsProcessor$",
+  "Version": "^1$",
+  "aws.span.kind": "^LOCAL_ROOT$"
+},
+{
+  "HostedIn.Environment": "^EC2$",
+  "Operation": "GET /outgoing-http-call",
+  "OTelLib": "^AwsSpanMetricsProcessor$",
+  "Version": "^1$",
+  "RemoteService": "www.amazon.com",
+  "RemoteOperation": "GET /",
+  "aws.span.kind": "^CLIENT$"
+}]
+

@@ -1,16 +1,12 @@
 ## This workflow aims to run the Application Signals end-to-end tests as a canary to
 ## test the artifacts for App Signals enablement. It will deploy a sample app and remote
-## service onto an EKS cluster, call the APIs, and validate the generated telemetry,
+## service on two EC2 instances, call the APIs, and validate the generated telemetry,
 ## including logs, metrics, and traces.
-name: App Signals Enablement - E2E EKS Canary Testing
+name: App Signals Enablement - E2E EC2 Canary Testing
 on:
   schedule:
     - cron: '0/15 * * * *' # run the workflow every 15 minutes
   workflow_dispatch: # be able to run the workflow on demand
-
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -18,8 +14,7 @@ permissions:
 
 jobs:
   e2e-canary-test:
-    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    uses: ./.github/workflows/appsignals-e2e-ec2-test.yml
     secrets: inherit
     with:
-      test-cluster-name: 'e2e-canary-test'
-      caller-workflow-name: 'appsignals-e2e-eks-canary-test'
+      caller-workflow-name: 'appsignals-e2e-ec2-canary-test'

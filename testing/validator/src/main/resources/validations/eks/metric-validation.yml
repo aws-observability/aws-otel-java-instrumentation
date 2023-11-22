@@ -1,0 +1,24 @@
+-
+  validationType: "cw-metric"
+  httpPath: "/outgoing-http-call"
+  httpMethod: "get"
+  callingType: "http"
+  expectedMetricTemplate: "EKS_OUTGOING_HTTP_CALL_METRIC"
+-
+  validationType: "cw-metric"
+  httpPath: "/aws-sdk-call"
+  httpMethod: "get"
+  callingType: "http"
+  expectedMetricTemplate: "EKS_AWS_SDK_CALL_METRIC"
+-
+  validationType: "cw-metric"
+  httpPath: "/remote-service"
+  httpMethod: "get"
+  callingType: "http-with-body"
+  expectedMetricTemplate: "EKS_REMOTE_SERVICE_METRIC"
+-
+  validationType: "cw-metric"
+  httpPath: "/client-call"
+  httpMethod: "get"
+  callingType: "http"
+  expectedMetricTemplate: "EKS_CLIENT_CALL_METRIC"
