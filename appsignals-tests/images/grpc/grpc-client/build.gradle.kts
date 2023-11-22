@@ -23,10 +23,6 @@ plugins {
 
 group = "software.amazon.opentelemetry"
 
-repositories {
-  mavenCentral()
-}
-
 dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("org.slf4j:slf4j-simple")
