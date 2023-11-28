@@ -50,12 +50,16 @@ public class XRayService {
   }
 
   // Search for traces generated within the last 60 second.
-  public List<TraceSummary> searchTraces() {
+  public List<TraceSummary> searchClientCallTraces(String serviceName) {
     Date currentDate = new Date();
     Date pastDate = new DateTime(currentDate).minusSeconds(SEARCH_PERIOD).toDate();
     GetTraceSummariesResult traceSummaryResult =
         awsxRay.getTraceSummaries(
-            new GetTraceSummariesRequest().withStartTime(pastDate).withEndTime(currentDate));
+            new GetTraceSummariesRequest()
+                .withStartTime(pastDate)
+                .withEndTime(currentDate)
+                .withFilterExpression("annotation.aws_local_service = " + serviceName)
+                .withFilterExpression("annotation.aws_local_service = \"local-root-client-call\""));
     return traceSummaryResult.getTraceSummaries();
   }
 }

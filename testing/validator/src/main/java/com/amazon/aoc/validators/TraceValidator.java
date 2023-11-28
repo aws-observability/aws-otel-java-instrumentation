@@ -31,7 +31,6 @@ import com.amazon.aoc.services.XRayService;
 import com.amazonaws.services.xray.model.Segment;
 import com.amazonaws.services.xray.model.Trace;
 import com.amazonaws.services.xray.model.TraceSummary;
-import com.amazonaws.services.xray.model.ValueWithServiceIds;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -133,35 +132,13 @@ public class TraceValidator implements IValidator {
   private Map<String, Object> getRetrievedTrace(List<String> traceIdList) throws Exception {
     List<Trace> retrieveTraceList = null;
     // Special Case for the /client-call. The API call doesn't return the trace ID of the local root
-    // client span,
-    // so find traces generated within the last 60 second and search for the InternalOperation
-    // Keyword.
+    // client span, so find the trace by filtering traces generated within the last 60 second
+    // with the serviceName and the local_root_client_call keyword.
     if (XRayService.DEFAULT_TRACE_ID.equals(traceIdList.get(0))) {
-      List<TraceSummary> retrieveTraceLists = xrayService.searchTraces();
-      for (TraceSummary summary : retrieveTraceLists) {
-        try {
-          boolean isClientCall = false;
-          // A summary represents a trace. The trace for the local-root-client-call will have two
-          // segments, each with their own aws_local_service key in the annotation section.
-          // Therefore,
-          // getAnnotations.get("aws_local_service") will return a list with two values, one from
-          // each segment. Search in the list to find whether local-root-client-call exists.
-          for (ValueWithServiceIds service : summary.getAnnotations().get("aws_local_service")) {
-            if (service.getAnnotationValue().getStringValue().equals("local-root-client-call")) {
-              isClientCall = true;
-              break;
-            }
-          }
-
-          if (isClientCall) {
-            List<String> traceIdLists = Collections.singletonList(summary.getId());
-            retrieveTraceList = xrayService.listTraceByIds(traceIdLists);
-            break;
-          }
-        } catch (Exception e) {
-          // Keep iterating until the right trace is found
-        }
-      }
+      List<TraceSummary> retrieveTraceLists =
+          xrayService.searchClientCallTraces(context.getServiceName());
+      List<String> traceIdLists = Collections.singletonList(retrieveTraceLists.get(0).getId());
+      retrieveTraceList = xrayService.listTraceByIds(traceIdLists);
     } else {
       retrieveTraceList = xrayService.listTraceByIds(traceIdList);
     }
