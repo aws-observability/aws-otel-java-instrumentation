@@ -197,8 +197,6 @@ public class KafkaProducersTest extends ContractTestBase {
             });
   }
 
-  // TODO: SemanticConventionsConstants.MESSAGING_OPERATION is not currently present, however it
-  // should be populated and we are currently following up on this.
   protected void assertSemanticConventionsAttributes(
       List<KeyValue> attributesList, String kafkaTopic) {
     assertThat(attributesList)
@@ -230,10 +228,11 @@ public class KafkaProducersTest extends ContractTestBase {
                   .isEqualTo(SemanticConventionsConstants.MESSAGING_SYSTEM);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("kafka");
             })
-        .allSatisfy(
+        .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isNotEqualTo(SemanticConventionsConstants.MESSAGING_OPERATION);
+                  .isEqualTo(SemanticConventionsConstants.MESSAGING_OPERATION);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("publish");
             })
         .satisfiesOnlyOnce(
             attribute -> {
