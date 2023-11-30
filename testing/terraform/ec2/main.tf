@@ -26,8 +26,36 @@ locals {
   private_key_content = tls_private_key.ssh_key.private_key_pem
 }
 
+data "aws_ami" "ami" {
+  executable_users = ["self"]
+  most_recent      = true
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+  filter {
+    name   = "image-type"
+    values = ["machine"]
+  }
+
+  filter {
+    name   = "root-device-name"
+    values = ["/dev/xvda"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 resource "aws_instance" "main_service_instance" {
-  ami                                   = "ami-0b021814637c6d457" # Amazon Linux 2 (free tier)
+  ami                                   = data.aws_ami.ami.id # Amazon Linux 2 (free tier)
   instance_type                         = "t2.micro"
   key_name                              = local.ssh_key_name
   iam_instance_profile                  = "APP_SIGNALS_EC2_TEST_ROLE"
@@ -88,7 +116,7 @@ resource "null_resource" "main_service_setup" {
 }
 
 resource "aws_instance" "remote_service_instance" {
-  ami                                   = "ami-0b021814637c6d457" # Amazon Linux 2 (free tier)
+  ami                                   = data.aws_ami.ami.id # Amazon Linux 2 (free tier)
   instance_type                         = "t2.micro"
   key_name                              = local.ssh_key_name
   iam_instance_profile                  = "APP_SIGNALS_EC2_TEST_ROLE"

@@ -5,6 +5,9 @@ name: App Signals Enablement E2E Testing - EKS
 on:
   workflow_call:
     inputs:
+      aws-region:
+        required: true
+        type: string
       test-cluster-name:
         required: true
         type: string
@@ -20,7 +23,7 @@ permissions:
   contents: read
 
 env:
-  AWS_DEFAULT_REGION: us-east-1
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} # Used by terraform and AWS CLI commands
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   ENABLEMENT_SCRIPT_S3_BUCKET: ${{ secrets.APP_SIGNALS_E2E_ENABLEMENT_SCRIPT }}
   SAMPLE_APP_NAMESPACE: sample-app-namespace
@@ -30,7 +33,7 @@ env:
   LOG_GROUP_NAME: /aws/appsignals/eks
 
 jobs:
-  appsignals-e2e-test:
+  e2e-eks-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +41,7 @@ jobs:
           fetch-depth: 0
 
       - name: Generate testing id
-        run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
+        run: echo TESTING_ID="${{ env.AWS_DEFAULT_REGION }}-${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -87,6 +90,7 @@ jobs:
           terraform validate
           terraform apply -auto-approve \
             -var="test_id=${{ env.TESTING_ID }}" \
+            -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
             -var="kube_directory_path=${{ github.workspace }}/.kube" \
             -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
             -var="eks_cluster_context_name=$(kubectl config current-context)" \
@@ -167,7 +171,7 @@ jobs:
           --metric-namespace ${{ env.METRIC_NAMESPACE }}
           --log-group ${{ env.LOG_GROUP_NAME }}
           --app-namespace ${{ env.SAMPLE_APP_NAMESPACE }}
-          --cluster ${{ inputs.test-cluster-name }}
+          --platform-info ${{ inputs.test-cluster-name }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-deployment-name ${{ env.REMOTE_SERVICE_DEPLOYMENT_NAME }}
           --request-body ip=${{ env.REMOTE_SERVICE_POD_IP }}
@@ -184,7 +188,7 @@ jobs:
           --metric-namespace ${{ env.METRIC_NAMESPACE }}
           --log-group ${{ env.LOG_GROUP_NAME }}
           --app-namespace ${{ env.SAMPLE_APP_NAMESPACE }}
-          --cluster ${{ inputs.test-cluster-name }}
+          --platform-info ${{ inputs.test-cluster-name }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --remote-service-deployment-name ${{ env.REMOTE_SERVICE_DEPLOYMENT_NAME }}
@@ -202,7 +206,7 @@ jobs:
           --metric-namespace ${{ env.METRIC_NAMESPACE }}
           --log-group ${{ env.LOG_GROUP_NAME }}
           --app-namespace ${{ env.SAMPLE_APP_NAMESPACE }}
-          --cluster ${{ inputs.test-cluster-name }}
+          --platform-info ${{ inputs.test-cluster-name }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-deployment-name ${{ env.REMOTE_SERVICE_DEPLOYMENT_NAME }}
           --request-body ip=${{ env.REMOTE_SERVICE_POD_IP }}

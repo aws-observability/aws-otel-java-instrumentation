@@ -21,6 +21,10 @@ variable "kube_directory_path" {
     default = "./.kube"
 }
 
+variable "aws_region" {
+  default = "<e.g. us-east-1>"
+}
+
 variable "eks_cluster_name" {
   default = "<cluster-name>"
 }
