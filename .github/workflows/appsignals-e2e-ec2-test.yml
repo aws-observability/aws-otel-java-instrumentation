@@ -5,6 +5,9 @@ name: App Signals Enablement E2E Testing - EC2 Use Case
 on:
   workflow_call:
     inputs:
+      aws-region:
+        required: true
+        type: string
       caller-workflow-name:
         required: true
         type: string
@@ -14,7 +17,7 @@ permissions:
   contents: read
 
 env:
-  AWS_DEFAULT_REGION: us-east-1
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} # Used by terraform and AWS CLI commands
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   SAMPLE_APP_FRONTEND_SERVICE_JAR: "s3://aws-appsignals-sample-app/main-service.jar"
   SAMPLE_APP_REMOTE_SERVICE_JAR: "s3://aws-appsignals-sample-app/remote-service.jar"
@@ -57,6 +60,11 @@ jobs:
             -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
             -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
             -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}"
+
+      - name: Get the ec2 instance ami id
+        run: |
+          echo "EC2_INSTANCE_AMI=$(terraform output ec2_instance_ami)" >> $GITHUB_ENV
+        working-directory: testing/terraform/ec2
 
       - name: Get the sample app endpoint
         run: |
@@ -103,6 +111,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
       - name: Validate generated metrics
@@ -119,6 +128,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
       - name: Validate generated traces
@@ -135,6 +145,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
       - name: Publish metric on test result
