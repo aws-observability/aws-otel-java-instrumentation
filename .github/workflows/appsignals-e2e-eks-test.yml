@@ -116,48 +116,50 @@ jobs:
 
       # Application pods need to be restarted for the
       # app signals instrumentation to take effect
-      - name: Restart the app pods
-        run: kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+      - name: Restart the app pods and wait for the endpoints to come online
+        id: restart-pod
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          retry_on: error
+          timeout_minutes: 6
+          shell: bash
+          # Restart the pod, then attempt to connect to the endpoint. It will try 30 times with 10 seconds delay. If
+          # it fails to establish connection, restart the pod and try again up to 3 tries.
+          command: |
+            kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+            kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+            cd testing/terraform/eks
+            sample_app_endpoint=http://$(terraform output sample_app_endpoint)
+            cd ../../../              
+            curl --retry 30 --retry-delay 10 -s -o /dev/null $(echo "$sample_app_endpoint" | tr -d '"')
+            if [ $? != "0" ];then
+              echo "Failed to establish connection with endpoint"
+              exit 1
+            fi
 
-      - name: Wait for sample app pods to come up
-        run: |
-          kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+      - name: Get the sample app endpoint
+        if: steps.restart-pod.outcome == 'success' && !cancelled()
+        run: echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV
+        working-directory: testing/terraform/eks
 
       - name: Get remote service pod name and IP
+        if: steps.restart-pod.outcome == 'success' && !cancelled()
         run: |
           echo "REMOTE_SERVICE_DEPLOYMENT_NAME=$(kubectl get deployments -n ${{ env.SAMPLE_APP_NAMESPACE }} --selector=app=remote-app -o jsonpath='{.items[0].metadata.name}')" >> $GITHUB_ENV
           echo "REMOTE_SERVICE_POD_IP=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --selector=app=remote-app -o jsonpath='{.items[0].status.podIP}')" >> $GITHUB_ENV
 
       - name: Verify pod Adot image
+        if: steps.restart-pod.outcome == 'success' && !cancelled()
         run: |
           kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --output json | \
           jq '.items[0].status.initContainerStatuses[0].imageID'
 
       - name: Verify pod CWAgent image
+        if: steps.restart-pod.outcome == 'success' && !cancelled()
         run: |
           kubectl get pods -n amazon-cloudwatch --output json | \
           jq '.items[0].status.containerStatuses[0].imageID'
-
-      - name: Get the sample app endpoint
-        run: |
-          echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV
-        working-directory: testing/terraform/eks
-
-      - name: Wait for app endpoint to come online
-        id: endpoint-check
-        run: |
-          attempt_counter=0
-          max_attempts=30
-          until $(curl --output /dev/null --silent --head --fail http://${{ env.APP_ENDPOINT }}); do
-            if [ ${attempt_counter} -eq ${max_attempts} ];then
-              echo "Max attempts reached"
-              exit 1
-            fi
-
-            printf '.'
-            attempt_counter=$(($attempt_counter+1))
-            sleep 10
-          done
 
       # Validation for app signals telemetry data
       - name: Call endpoint and validate generated EMF logs
