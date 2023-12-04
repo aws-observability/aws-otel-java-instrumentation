@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
-  IMAGE_TAG: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-nightly
+  IMAGE_NAME: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-nightly
 
 permissions:
   id-token: write
@@ -71,7 +71,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.IMAGE_TAG }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value={{date 'YYYYMMDD'}}
 
