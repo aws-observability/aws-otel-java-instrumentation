@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
-  IMAGE_TAG: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-nightly:nightly
+  IMAGE_TAG: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-nightly
 
 permissions:
   id-token: write
@@ -38,13 +38,10 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Pull base image of Contract Tests Sample Apps
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
-
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build contractTests --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true -PlocalDocker=true
+          arguments: build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
         env:
           PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
@@ -70,6 +67,14 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.IMAGE_TAG }}
+          tags: |
+            type=raw,value={{date 'YYYYMMDD'}}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -80,12 +85,12 @@ jobs:
           build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
           context: .
           platforms: linux/amd64
-          tags: ${{ env.IMAGE_TAG }}
+          tags: ${{ steps.meta.outputs.tags }}
           load: true
 
       - name: Test docker image
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.IMAGE_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ steps.meta.outputs.tags }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
@@ -95,17 +100,48 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.IMAGE_TAG }}
+            ${{ steps.meta.outputs.tags }}
 
       - name: Set image name to output
         id: imageNameOutput
-        run: echo "imageName=${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
+        run: echo "imageName=${{ steps.meta.outputs.tags }}" >> "$GITHUB_OUTPUT"
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'temurin'
+      - uses: gradle/wrapper-validation-action@v1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
+
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+
+      - name: Build snapshot with Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: contractTests --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true -PlocalDocker=true
 
   e2e-test:
     concurrency:
