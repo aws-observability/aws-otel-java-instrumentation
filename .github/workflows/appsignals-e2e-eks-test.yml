@@ -260,6 +260,7 @@ jobs:
         run: |
           terraform destroy -auto-approve \
             -var="test_id=${{ env.TESTING_ID }}" \
+            -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
             -var="kube_directory_path=${{ github.workspace }}/.kube" \
             -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
             -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \

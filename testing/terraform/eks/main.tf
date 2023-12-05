@@ -16,7 +16,9 @@ terraform {
   }
 }
 
-provider "aws" {}
+provider "aws" {
+  region = var.aws_region
+}
 
 # get eks cluster
 data "aws_eks_cluster" "testing_cluster" {
