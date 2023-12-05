@@ -160,6 +160,7 @@ public class App {
               ReceiveMessageRequest.builder().queueUrl(response.queueUrl()).build();
 
           var messages = sqsClient.receiveMessage(receiveMessageRequest).messages();
+          logger.info("Message Received: ", messages.toString());
           return response.queueUrl();
         });
 

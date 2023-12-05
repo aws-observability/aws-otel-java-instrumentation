@@ -158,6 +158,7 @@ public class App {
 
           var readMessageRequest = new ReceiveMessageRequest(response.getQueueUrl());
           var messages = sqsClient.receiveMessage(readMessageRequest).getMessages();
+          logger.info("Message Received: ", messages.toString());
           return response.getQueueUrl();
         });
 
