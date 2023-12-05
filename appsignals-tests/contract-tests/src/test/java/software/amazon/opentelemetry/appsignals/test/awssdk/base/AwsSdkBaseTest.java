@@ -1032,7 +1032,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     assertSpanProducerAttributes(
         traces,
-        sqsSpanName("SendMessage"),
+        "some-queue publish",
         getSqsRpcServiceName(),
         localService,
         localOperation,
