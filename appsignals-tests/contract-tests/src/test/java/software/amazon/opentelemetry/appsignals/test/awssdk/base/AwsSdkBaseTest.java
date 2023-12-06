@@ -308,7 +308,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsAttributes(
                   spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
-              assertProducerOrClientAwsAttributes(
+              assertAwsAttributes(
                   spanAttributes,
                   localService,
                   localOperation,
@@ -322,7 +322,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             });
   }
 
-  private void assertProducerOrClientAwsAttributes(
+  private void assertAwsAttributes(
       List<KeyValue> attributesList,
       String localService,
       String localOperation,
@@ -398,6 +398,27 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         expectedSum);
   }
 
+  protected void assertMetricConsumerAttributes(
+      List<ResourceScopeMetric> resourceScopeMetrics,
+      String metricName,
+      String localService,
+      String localOperation,
+      String service,
+      String method,
+      String target,
+      Double expectedSum) {
+    assertMetricAttributes(
+        resourceScopeMetrics,
+        metricName,
+        "CONSUMER",
+        localService,
+        localOperation,
+        service,
+        method,
+        target,
+        expectedSum);
+  }
+
   protected void assertMetricAttributes(
       List<ResourceScopeMetric> resourceScopeMetrics,
       String metricName,
@@ -418,7 +439,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                       dataPoint -> {
                         List<KeyValue> attributes = dataPoint.getAttributesList();
                         assertThat(attributes).isNotNull();
-                        assertProducerOrClientAwsAttributes(
+                        assertAwsAttributes(
                             attributes,
                             localService,
                             localOperation,
@@ -1099,6 +1120,10 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                 AppSignalsConstants.FAULT_METRIC,
                 AppSignalsConstants.LATENCY_METRIC));
 
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "InternalOperation";
+    // ReceiveMessage does not capture aws.queue.name
+    String target = null;
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
     assertSpanConsumerAttributes(
@@ -1113,6 +1138,25 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "http://localstack:4566",
         200,
         testSQSReceiveMessageExtraAssertions(response.contentUtf8()));
+
+    assertMetricConsumerAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSqsServiceName(),
+        "ReceiveMessage",
+        target,
+        5000.0);
+    assertMetricConsumerAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSqsServiceName(),
+        "ReceiveMessage",
+        target,
+        0.0);
   }
 
   protected void doTestSQSError() throws Exception {
