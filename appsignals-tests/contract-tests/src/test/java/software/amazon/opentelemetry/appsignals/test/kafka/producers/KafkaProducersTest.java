@@ -53,7 +53,6 @@ public class KafkaProducersTest extends ContractTestBase {
     var kafkaTopic = "kafka_topic";
     var otelStatusCode = "STATUS_CODE_UNSET";
     var response = appClient.get(path).aggregate().join();
-
     assertThat(response.status().isSuccess()).isTrue();
 
     var resourceScopeSpans = mockCollectorClient.getTraces();
@@ -188,7 +187,7 @@ public class KafkaProducersTest extends ContractTestBase {
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("UnknownRemoteOperation");
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("publish");
             })
         .satisfiesOnlyOnce(
             attribute -> {
@@ -295,7 +294,7 @@ public class KafkaProducersTest extends ContractTestBase {
                                   assertThat(attribute.getKey())
                                       .isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
                                   assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo("UnknownRemoteOperation");
+                                      .isEqualTo("publish");
                                 });
 
                         if (expectedSum != null) {
