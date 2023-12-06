@@ -181,7 +181,8 @@ public class App {
           try {
             errorClient.sendMessage(sendMessageRequest);
           } catch (Exception ex) {
-
+            logger.info("Exception Caught in Sample App");
+            ex.printStackTrace();
           }
           return "";
         });

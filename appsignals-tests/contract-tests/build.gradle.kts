@@ -56,7 +56,7 @@ dependencies {
   testImplementation("software.amazon.awssdk:sts")
   testImplementation(kotlin("test"))
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
-  testImplementation("org.testcontainers:kafka:1.19.1")
+  testImplementation("org.testcontainers:kafka:1.19.3")
 }
 
 project.evaluationDependsOn(":otelagent")
