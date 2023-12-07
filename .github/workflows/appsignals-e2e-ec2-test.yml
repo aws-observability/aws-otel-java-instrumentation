@@ -48,18 +48,61 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Deploy sample app via terraform
+      - name: Deploy sample app via terraform and wait for endpoint to come online
         working-directory: testing/terraform/ec2
         run: |
           terraform init
           terraform validate
-          terraform apply -auto-approve \
-            -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
-            -var="test_id=${{ env.TESTING_ID }}" \
-            -var="sample_app_jar=${{ env.SAMPLE_APP_FRONTEND_SERVICE_JAR }}" \
-            -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
-            -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
-            -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}"
+          
+          # Attempt to deploy the sample app on an EC2 instance and wait for its endpoint to come online. 
+          # There may be occasional failures due to transitivity issues, so try up to 2 times. 
+          # Success of 0 indicates that both the terraform deployment and the endpoint are running, while 1 indicates
+          # that it failed at some point
+          retry_counter=0
+          max_retry=2
+          success=1 
+          while [ $success -eq 1 ]; do
+            if [ $retry_counter -ge $max_retry ]; then
+              exit 1
+            fi
+            success=0
+            terraform apply -auto-approve \
+              -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
+              -var="test_id=${{ env.TESTING_ID }}" \
+              -var="sample_app_jar=${{ env.SAMPLE_APP_FRONTEND_SERVICE_JAR }}" \
+              -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
+              -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
+              -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}" || success=$?
+          
+            # If the success is still 0, then the terraform deployment succeeded and now try to connect to the endpoint.
+            # Attempts to connect will be made for up to 10 minutes
+            if [ $success -eq 0 ]; then
+              echo "Attempting to connect to the endpoint"
+              sample_app_endpoint=http://$(terraform output sample_app_main_service_public_dns):8080
+              attempt_counter=0
+              max_attempts=60
+              until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
+                if [ ${attempt_counter} -eq ${max_attempts} ];then
+                  echo "Max attempts reached"
+                  success=1
+                  break
+                fi
+          
+                printf '.'
+                attempt_counter=$(($attempt_counter+1))
+                sleep 10
+              done
+            fi
+          
+            # If the success is 1 then either the terraform deployment or the endpoint connection failed, so first destroy the
+            # resources created from terraform and try again.
+            if [ $success -eq 1 ]; then
+              terraform destroy -auto-approve \
+                -var="test_id=${{ env.TESTING_ID }}" 
+          
+              retry_counter=$(($retry_counter+1))
+            fi
+          done
 
       - name: Get the ec2 instance ami id
         run: |
@@ -71,22 +114,6 @@ jobs:
           echo "MAIN_SERVICE_ENDPOINT=$(terraform output sample_app_main_service_public_dns):8080" >> $GITHUB_ENV
           echo "REMOTE_SERVICE_IP=$(terraform output sample_app_remote_service_public_ip)" >> $GITHUB_ENV
         working-directory: testing/terraform/ec2
-
-      - name: Wait for app endpoint to come online
-        id: endpoint-check
-        run: |
-          attempt_counter=0
-          max_attempts=30
-          until $(curl --output /dev/null --silent --head --fail http://${{ env.MAIN_SERVICE_ENDPOINT }}); do
-            if [ ${attempt_counter} -eq ${max_attempts} ];then
-              echo "Max attempts reached"
-              exit 1
-            fi
-
-            printf '.'
-            attempt_counter=$(($attempt_counter+1))
-            sleep 10
-          done
 
       # This steps increases the speed of the validation by creating the telemetry data in advance
       - name: Call all test APIs
@@ -174,4 +201,4 @@ jobs:
         working-directory: testing/terraform/ec2
         run: |
           terraform destroy -auto-approve \
-            -var="test_id=${{ env.TESTING_ID }}" 
+            -var="test_id=${{ env.TESTING_ID }}"
