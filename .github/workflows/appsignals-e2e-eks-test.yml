@@ -83,22 +83,6 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Deploy sample app via terraform
-        working-directory: testing/terraform/eks
-        run: |
-          terraform init
-          terraform validate
-          terraform apply -auto-approve \
-            -var="test_id=${{ env.TESTING_ID }}" \
-            -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
-            -var="kube_directory_path=${{ github.workspace }}/.kube" \
-            -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
-            -var="eks_cluster_context_name=$(kubectl config current-context)" \
-            -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \
-            -var="service_account_aws_access=service-account-${{ env.TESTING_ID }}" \
-            -var="sample_app_image=${{ env.SAMPLE_APP_FRONTEND_SERVICE_IMAGE }}" \
-            -var="sample_remote_app_image=${{ env.SAMPLE_APP_REMOTE_SERVICE_IMAGE }}"
-
       # Enable App Signals on the test cluster
       - name: Pull and unzip enablement script from S3
         run: aws s3 cp ${{ env.ENABLEMENT_SCRIPT_S3_BUCKET }} . && unzip -j onboarding.zip
@@ -107,21 +91,80 @@ jobs:
         if: inputs.caller-workflow-name == 'main-build'
         run: "sed -i 's#image:.*#image: ${{ inputs.appsignals-adot-image-name }}#g' instrumentation.yaml"
 
-      - name: Enable App Signals
+      - name: Deploy sample app via terraform and wait for the endpoint to come online
+        id: deploy-sample-app
+        working-directory: testing/terraform/eks
         run: |
-          ./enable-app-signals.sh \
-          ${{ inputs.test-cluster-name }} \
-          ${{ env.AWS_DEFAULT_REGION }} \
-          ${{ env.SAMPLE_APP_NAMESPACE }}
-
-      # Application pods need to be restarted for the
-      # app signals instrumentation to take effect
-      - name: Restart the app pods
-        run: kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
-
-      - name: Wait for sample app pods to come up
-        run: |
-          kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+          terraform init
+          terraform validate
+          
+          # Attempt to deploy the sample app on an EKS instance and wait for its endpoint to come online. 
+          # There may be occasional failures due to transitivity issues, so try up to 2 times. 
+          # Success of 0 indicates that both the terraform deployment and the endpoint are running, while 1 indicates
+          # that it failed at some point
+          retry_counter=0
+          max_retry=2
+          success=1 
+          while [ $success -eq 1 ]; do
+            if [ $retry_counter -ge $max_retry ]; then
+              exit 1
+            fi
+            success=0
+            terraform apply -auto-approve \
+              -var="test_id=${{ env.TESTING_ID }}" \
+              -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
+              -var="kube_directory_path=${{ github.workspace }}/.kube" \
+              -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
+              -var="eks_cluster_context_name=$(kubectl config current-context)" \
+              -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \
+              -var="service_account_aws_access=service-account-${{ env.TESTING_ID }}" \
+              -var="sample_app_image=${{ env.SAMPLE_APP_FRONTEND_SERVICE_IMAGE }}" \
+              -var="sample_remote_app_image=${{ env.SAMPLE_APP_REMOTE_SERVICE_IMAGE }}" || success=$?
+          
+            # If the success is still 0, then the terraform deployment succeeded and now try to connect to the endpoint 
+            # after installing App Signals. Attempts to connect will be made for up to 10 minutes
+            if [ $success -eq 0 ]; then
+              echo "Installing app signals to the sample app"
+              ../../../enable-app-signals.sh \
+              ${{ inputs.test-cluster-name }} \
+              ${{ env.AWS_DEFAULT_REGION }} \
+              ${{ env.SAMPLE_APP_NAMESPACE }}
+          
+              kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+              kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+          
+              echo "Attempting to connect to the endpoint"
+              sample_app_endpoint=http://$(terraform output sample_app_endpoint)
+              attempt_counter=0
+              max_attempts=60
+              until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
+                if [ ${attempt_counter} -eq ${max_attempts} ];then
+                  echo "Max attempts reached"
+                  success=1
+                  break
+                fi
+          
+                printf '.'
+                attempt_counter=$(($attempt_counter+1))
+                sleep 10
+              done
+            fi
+          
+            # If the success is 1 then either the terraform deployment or the endpoint connection failed, so first destroy the
+            # resources created from terraform and try again.
+            if [ $success -eq 1 ]; then
+              kubectl delete namespace ${{ env.SAMPLE_APP_NAMESPACE }}
+              terraform destroy -auto-approve \
+                -var="test_id=${{ env.TESTING_ID }}" \
+                -var="kube_directory_path=${{ github.workspace }}/.kube" \
+                -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
+                -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \
+                -var="service_account_aws_access=service-account-${{ env.TESTING_ID }}" \
+                -var="sample_app_image=${{ env.SAMPLE_APP_IMAGE }}"
+          
+              retry_counter=$(($retry_counter+1))
+            fi
+          done
 
       - name: Get remote service pod name and IP
         run: |
@@ -139,30 +182,13 @@ jobs:
           jq '.items[0].status.containerStatuses[0].imageID'
 
       - name: Get the sample app endpoint
-        run: |
-          echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV
+        run: echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV
         working-directory: testing/terraform/eks
-
-      - name: Wait for app endpoint to come online
-        id: endpoint-check
-        run: |
-          attempt_counter=0
-          max_attempts=30
-          until $(curl --output /dev/null --silent --head --fail http://${{ env.APP_ENDPOINT }}); do
-            if [ ${attempt_counter} -eq ${max_attempts} ];then
-              echo "Max attempts reached"
-              exit 1
-            fi
-
-            printf '.'
-            attempt_counter=$(($attempt_counter+1))
-            sleep 10
-          done
 
       # Validation for app signals telemetry data
       - name: Call endpoint and validate generated EMF logs
         id: log-validation
-        if: steps.endpoint-check.outcome == 'success' && !cancelled()
+        if: steps.deploy-sample-app.outcome == 'success' && !cancelled()
         run: ./gradlew testing:validator:run --args='-c eks/log-validation.yml
           --testing-id ${{ env.TESTING_ID }}
           --endpoint http://${{ env.APP_ENDPOINT }}
@@ -274,4 +300,4 @@ jobs:
           --name service-account-${{ env.TESTING_ID }} \
           --namespace ${{ env.SAMPLE_APP_NAMESPACE }} \
           --cluster ${{ inputs.test-cluster-name }} \
-          --region ${{ env.AWS_DEFAULT_REGION }} \
+          --region ${{ env.AWS_DEFAULT_REGION }}
