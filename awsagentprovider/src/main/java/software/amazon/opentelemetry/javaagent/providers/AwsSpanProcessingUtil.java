@@ -15,11 +15,11 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
+import static io.opentelemetry.semconv.SemanticAttributes.URL_PATH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -156,8 +156,8 @@ final class AwsSpanProcessingUtil {
     if (operation == null || operation.equals(UNKNOWN_OPERATION)) {
       return false;
     }
-    if (isKeyPresent(span, HTTP_METHOD)) {
-      String httpMethod = span.getAttributes().get(HTTP_METHOD);
+    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
+      String httpMethod = span.getAttributes().get(HTTP_REQUEST_METHOD);
       return !operation.equals(httpMethod);
     }
     return true;
@@ -169,15 +169,15 @@ final class AwsSpanProcessingUtil {
    */
   private static String generateIngressOperation(SpanData span) {
     String operation = UNKNOWN_OPERATION;
-    if (isKeyPresent(span, HTTP_TARGET)) {
-      String httpTarget = span.getAttributes().get(HTTP_TARGET);
+    if (isKeyPresent(span, URL_PATH)) {
+      String httpTarget = span.getAttributes().get(URL_PATH);
       // get the first part from API path string as operation value
       // the more levels/parts we get from API path the higher chance for getting high cardinality
       // data
       if (httpTarget != null) {
         operation = extractAPIPathValue(httpTarget);
-        if (isKeyPresent(span, HTTP_METHOD)) {
-          String httpMethod = span.getAttributes().get(HTTP_METHOD);
+        if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
+          String httpMethod = span.getAttributes().get(HTTP_REQUEST_METHOD);
           if (httpMethod != null) {
             operation = httpMethod + " " + operation;
           }

@@ -21,18 +21,18 @@ import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_INVOKED_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_TRIGGER;
 import static io.opentelemetry.semconv.SemanticAttributes.GRAPHQL_OPERATION_TYPE;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_URL;
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_PEER_NAME;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_PEER_PORT;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_SOCK_PEER_ADDR;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_SOCK_PEER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.PEER_SERVICE;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SERVICE;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
+import static io.opentelemetry.semconv.SemanticAttributes.URL_FULL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
@@ -288,8 +288,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    */
   private static String generateRemoteOperation(SpanData span) {
     String remoteOperation = UNKNOWN_REMOTE_OPERATION;
-    if (isKeyPresent(span, HTTP_URL)) {
-      String httpUrl = span.getAttributes().get(HTTP_URL);
+    if (isKeyPresent(span, URL_FULL)) {
+      String httpUrl = span.getAttributes().get(URL_FULL);
       try {
         URL url;
         if (httpUrl != null) {
@@ -300,8 +300,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         logger.log(Level.FINEST, "invalid http.url attribute: ", httpUrl);
       }
     }
-    if (isKeyPresent(span, HTTP_METHOD)) {
-      String httpMethod = span.getAttributes().get(HTTP_METHOD);
+    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
+      String httpMethod = span.getAttributes().get(HTTP_REQUEST_METHOD);
       remoteOperation = httpMethod + " " + remoteOperation;
     }
     if (remoteOperation.equals(UNKNOWN_REMOTE_OPERATION)) {
@@ -312,16 +312,16 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   private static String generateRemoteService(SpanData span) {
     String remoteService = UNKNOWN_REMOTE_SERVICE;
-    if (isKeyPresent(span, NET_PEER_NAME)) {
-      remoteService = getRemoteService(span, NET_PEER_NAME);
-      if (isKeyPresent(span, NET_PEER_PORT)) {
-        Long port = span.getAttributes().get(NET_PEER_PORT);
+    if (isKeyPresent(span, SERVER_ADDRESS)) {
+      remoteService = getRemoteService(span, SERVER_ADDRESS);
+      if (isKeyPresent(span, SERVER_PORT)) {
+        Long port = span.getAttributes().get(SERVER_PORT);
         remoteService += ":" + port;
       }
-    } else if (isKeyPresent(span, NET_SOCK_PEER_ADDR)) {
-      remoteService = getRemoteService(span, NET_SOCK_PEER_ADDR);
-      if (isKeyPresent(span, NET_SOCK_PEER_PORT)) {
-        Long port = span.getAttributes().get(NET_SOCK_PEER_PORT);
+    } else if (isKeyPresent(span, SERVER_SOCKET_ADDRESS)) {
+      remoteService = getRemoteService(span, SERVER_SOCKET_ADDRESS);
+      if (isKeyPresent(span, SERVER_SOCKET_PORT)) {
+        Long port = span.getAttributes().get(SERVER_SOCKET_PORT);
         remoteService += ":" + port;
       }
     } else {
@@ -349,13 +349,13 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * allow for desired metric creation.
    */
   private static void setHttpStatus(SpanData span, AttributesBuilder builder) {
-    if (isKeyPresent(span, HTTP_STATUS_CODE)) {
+    if (isKeyPresent(span, HTTP_RESPONSE_STATUS_CODE)) {
       return;
     }
 
     Long statusCode = getAwsStatusCode(span);
     if (statusCode != null) {
-      builder.put(HTTP_STATUS_CODE, statusCode);
+      builder.put(HTTP_RESPONSE_STATUS_CODE, statusCode);
     }
   }
 
