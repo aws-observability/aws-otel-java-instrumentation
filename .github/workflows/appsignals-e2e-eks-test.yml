@@ -192,6 +192,15 @@ jobs:
         run: echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV
         working-directory: testing/terraform/eks
 
+      # This steps increases the speed of the validation by creating the telemetry data in advance
+      - name: Call all test APIs
+        continue-on-error: true
+        run: |
+          curl -S -s -o /dev/null http://${{ env.APP_ENDPOINT }}/outgoing-http-call/
+          curl -S -s -o /dev/null http://${{ env.APP_ENDPOINT }}/aws-sdk-call/
+          curl -S -s -o /dev/null http://${{ env.APP_ENDPOINT }}/remote-service?ip=${{ env.REMOTE_SERVICE_POD_IP }}/
+          curl -S -s -o /dev/null http://${{ env.APP_ENDPOINT }}/client-call/
+
       # Validation for app signals telemetry data
       - name: Call endpoint and validate generated EMF logs
         id: log-validation
