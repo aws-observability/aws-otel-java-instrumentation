@@ -1,0 +1,22 @@
+From dac9bdd9b91379a3122010a25b30d2ab0dd4915f Mon Sep 17 00:00:00 2001
+From: Paurush Garg <62579325+PaurushGarg@users.noreply.github.com>
+Date: Thu, 7 Dec 2023 13:00:03 -0800
+Subject: [PATCH] Null check for nullable response object (#10029)
+
+---
+ .../io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java  | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java
+index a3e2d0e770c..41c772692d0 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java
+@@ -137,7 +137,7 @@ static String getMessageAttribute(Request<?> request, String name) {
+   }
+
+   static String getMessageId(Response<?> response) {
+-    if (response.getAwsResponse() instanceof SendMessageResult) {
++    if (response != null && response.getAwsResponse() instanceof SendMessageResult) {
+       return ((SendMessageResult) response.getAwsResponse()).getMessageId();
+     }
+     return null;
