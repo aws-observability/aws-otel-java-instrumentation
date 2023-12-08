@@ -274,4 +274,4 @@ jobs:
           --name service-account-${{ env.TESTING_ID }} \
           --namespace ${{ env.SAMPLE_APP_NAMESPACE }} \
           --cluster ${{ inputs.test-cluster-name }} \
-          --region ${{ env.AWS_DEFAULT_REGION }} \
+          --region ${{ env.AWS_DEFAULT_REGION }}
