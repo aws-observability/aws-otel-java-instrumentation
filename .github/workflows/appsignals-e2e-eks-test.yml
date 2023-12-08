@@ -107,8 +107,10 @@ jobs:
           success=1 
           while [ $success -eq 1 ]; do
             if [ $retry_counter -ge $max_retry ]; then
+              echo "Max retry reached, failed to deploy terraform and connect to the endpoint. Exiting code"
               exit 1
             fi
+            echo "Attempt $retry_counter"
             success=0
             terraform apply -auto-approve \
               -var="test_id=${{ env.TESTING_ID }}" \
@@ -120,6 +122,10 @@ jobs:
               -var="service_account_aws_access=service-account-${{ env.TESTING_ID }}" \
               -var="sample_app_image=${{ env.SAMPLE_APP_FRONTEND_SERVICE_IMAGE }}" \
               -var="sample_remote_app_image=${{ env.SAMPLE_APP_REMOTE_SERVICE_IMAGE }}" || success=$?
+          
+            if [ $success -eq 1 ]; then
+              echo "Terraform deployment was unsuccessful. Will attempt to retry deployment."
+            fi
           
             # If the success is still 0, then the terraform deployment succeeded and now try to connect to the endpoint 
             # after installing App Signals. Attempts to connect will be made for up to 10 minutes
@@ -139,7 +145,7 @@ jobs:
               max_attempts=60
               until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
                 if [ ${attempt_counter} -eq ${max_attempts} ];then
-                  echo "Max attempts reached"
+                  echo "Failed to connect to endpoint. Will attempt to redeploy sample app."
                   success=1
                   break
                 fi
@@ -153,6 +159,7 @@ jobs:
             # If the success is 1 then either the terraform deployment or the endpoint connection failed, so first destroy the
             # resources created from terraform and try again.
             if [ $success -eq 1 ]; then
+              echo "Destroying terraform"
               kubectl delete namespace ${{ env.SAMPLE_APP_NAMESPACE }}
               terraform destroy -auto-approve \
                 -var="test_id=${{ env.TESTING_ID }}" \
