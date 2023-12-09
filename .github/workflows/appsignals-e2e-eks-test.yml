@@ -91,6 +91,12 @@ jobs:
         if: inputs.caller-workflow-name == 'main-build'
         run: "sed -i 's#image:.*#image: ${{ inputs.appsignals-adot-image-name }}#g' instrumentation.yaml"
 
+      - name: Remove log group deletion command
+        if: always()
+        run: |
+          delete_log_group="aws logs delete-log-group --log-group-name '${{ env.LOG_GROUP_NAME }}' --region \$REGION"
+          sed -i "s#$delete_log_group##g" clean-app-signals.sh
+
       - name: Deploy sample app via terraform and wait for the endpoint to come online
         id: deploy-sample-app
         working-directory: testing/terraform/eks
@@ -126,7 +132,7 @@ jobs:
             if [ $success -eq 1 ]; then
               echo "Terraform deployment was unsuccessful. Will attempt to retry deployment."
             fi
-          
+
             # If the success is still 0, then the terraform deployment succeeded and now try to connect to the endpoint 
             # after installing App Signals. Attempts to connect will be made for up to 10 minutes
             if [ $success -eq 0 ]; then
@@ -159,10 +165,19 @@ jobs:
             # If the success is 1 then either the terraform deployment or the endpoint connection failed, so first destroy the
             # resources created from terraform and try again.
             if [ $success -eq 1 ]; then
+              echo "Cleaning up App Signal"
+              ../../../clean-app-signals.sh \
+              ${{ inputs.test-cluster-name }} \
+              ${{ env.AWS_DEFAULT_REGION }} \
+              ${{ env.SAMPLE_APP_NAMESPACE }}
+          
+              # Running clean-app-signal.sh removes the current cluster from the config. Update the cluster again for subsequent runs.
+              aws eks update-kubeconfig --name ${{ inputs.test-cluster-name }} --region ${{ env.AWS_DEFAULT_REGION }}
+
               echo "Destroying terraform"
-              kubectl delete namespace ${{ env.SAMPLE_APP_NAMESPACE }}
               terraform destroy -auto-approve \
                 -var="test_id=${{ env.TESTING_ID }}" \
+                -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
                 -var="kube_directory_path=${{ github.workspace }}/.kube" \
                 -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
                 -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \
@@ -272,12 +287,6 @@ jobs:
           fi
 
       # Clean up Procedures
-
-      - name: Remove log group deletion command
-        if: always()
-        run: |
-          delete_log_group="aws logs delete-log-group --log-group-name '${{ env.LOG_GROUP_NAME }}' --region \$REGION"
-          sed -i "s#$delete_log_group##g" clean-app-signals.sh
 
       - name: Clean Up App Signals
         if: always()
