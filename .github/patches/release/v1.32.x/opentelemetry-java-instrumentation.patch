@@ -11,3 +11,13 @@ index a3e2d0e770..41c772692d 100644
        return ((SendMessageResult) response.getAwsResponse()).getMessageId();
      }
      return null;
+diff --git a/version.gradle.kts b/version.gradle.kts
+index a2bacc6f04..bb339641f2 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,4 +1,4 @@
+-val stableVersion = "1.32.0"
++val stableVersion = "1.32.0-adot1"
+ val alphaVersion = "1.32.0-alpha"
+ 
+ allprojects {
