@@ -18,10 +18,6 @@ on:
         required: true
         type: string
 
-concurrency:
-  group: appsignals-e2e-eks-test-${{ github.ref_name }}
-  cancel-in-progress: true
-
 permissions:
   id-token: write
   contents: read
