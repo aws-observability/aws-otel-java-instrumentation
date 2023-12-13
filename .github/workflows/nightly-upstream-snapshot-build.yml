@@ -108,6 +108,9 @@ jobs:
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
   e2e-test:
+    concurrency:
+      group: e2e-adot-test
+      cancel-in-progress: false
     needs: build
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit

@@ -457,6 +457,9 @@ jobs:
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
 
   e2e-test:
+    concurrency:
+      group: e2e-adot-test
+      cancel-in-progress: false
     needs: build
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
