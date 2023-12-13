@@ -85,6 +85,7 @@ jobs:
 
       # Enable App Signals on the test cluster
       - name: Pull and unzip enablement script from S3
+        working-directory: testing/terraform/eks
         run: aws s3 cp ${{ env.ENABLEMENT_SCRIPT_S3_BUCKET }} . && unzip -j onboarding.zip
 
       - name: Change ADOT image if main-build
@@ -93,6 +94,7 @@ jobs:
 
       - name: Remove log group deletion command
         if: always()
+        working-directory: testing/terraform/eks
         run: |
           delete_log_group="aws logs delete-log-group --log-group-name '${{ env.LOG_GROUP_NAME }}' --region \$REGION"
           sed -i "s#$delete_log_group##g" clean-app-signals.sh
@@ -137,7 +139,7 @@ jobs:
             # after installing App Signals. Attempts to connect will be made for up to 10 minutes
             if [ $success -eq 0 ]; then
               echo "Installing app signals to the sample app"
-              ../../../enable-app-signals.sh \
+              ./enable-app-signals.sh \
               ${{ inputs.test-cluster-name }} \
               ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
@@ -166,7 +168,7 @@ jobs:
             # resources created from terraform and try again.
             if [ $success -eq 1 ]; then
               echo "Cleaning up App Signal"
-              ../../../clean-app-signals.sh \
+              ./clean-app-signals.sh \
               ${{ inputs.test-cluster-name }} \
               ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
@@ -236,7 +238,7 @@ jobs:
 
       - name: Call endpoints and validate generated metrics
         id: metric-validation
-        if: (success() || steps.log-validation.outcome == 'failure') && !cancelled()
+        if: (steps.deploy-sample-app.outcome == 'success' || steps.log-validation.outcome == 'failure') && !cancelled()
         run: ./gradlew testing:validator:run --args='-c eks/metric-validation.yml
           --testing-id ${{ env.TESTING_ID }}
           --endpoint http://${{ env.APP_ENDPOINT }}
@@ -254,7 +256,7 @@ jobs:
 
       - name: Call endpoints and validate generated traces
         id: trace-validation
-        if: (success() || steps.log-validation.outcome == 'failure' || steps.metric-validation.outcome == 'failure') && !cancelled()
+        if: (steps.deploy-sample-app.outcome == 'success' || steps.log-validation.outcome == 'failure' || steps.metric-validation.outcome == 'failure') && !cancelled()
         run: ./gradlew testing:validator:run --args='-c eks/trace-validation.yml
           --testing-id ${{ env.TESTING_ID }}
           --endpoint http://${{ env.APP_ENDPOINT }}
