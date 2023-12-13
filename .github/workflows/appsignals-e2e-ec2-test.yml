@@ -34,6 +34,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set CW Agent RPM environment variable
+        run: |
+          if [ ${{ env.AWS_DEFAULT_REGION }} == "us-east-1" ]; then
+            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+          else
+            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+          fi
+          
+
       - name: Generate testing id
         run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
 
