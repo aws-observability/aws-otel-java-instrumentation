@@ -98,6 +98,9 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
+    concurrency:
+      group: e2e-adot-test
+      cancel-in-progress: false
   publish-build-status:
     needs: [build]
     if: ${{ always() }}
