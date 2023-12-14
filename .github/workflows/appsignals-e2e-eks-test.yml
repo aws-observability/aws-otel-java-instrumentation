@@ -240,6 +240,7 @@ jobs:
       - name: Clean Up App Signals
         if: always()
         continue-on-error: true
+        working-directory: testing/terraform/eks
         run: |
           ./clean-app-signals.sh \
           ${{ inputs.test-cluster-name }} \
