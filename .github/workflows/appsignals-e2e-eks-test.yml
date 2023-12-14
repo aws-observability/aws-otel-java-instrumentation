@@ -83,14 +83,13 @@ jobs:
         with:
           terraform_wrapper: false
 
-      # Enable App Signals on the test cluster
-      - name: Pull and unzip enablement script from S3
+      - name: Download enablement scripts from repository
         working-directory: testing/terraform/eks
-        run: aws s3 cp ${{ env.ENABLEMENT_SCRIPT_S3_BUCKET }} . && unzip -j onboarding.zip
-
-      - name: Change ADOT image if main-build
-        if: inputs.caller-workflow-name == 'main-build'
-        run: "sed -i 's#image:.*#image: ${{ inputs.appsignals-adot-image-name }}#g' instrumentation.yaml"
+        run: |
+          curl -O https://raw.githubusercontent.com/aws-observability/application-signals-demo/main/scripts/eks/appsignals/enable-app-signals.sh
+          curl -O https://raw.githubusercontent.com/aws-observability/application-signals-demo/main/scripts/eks/appsignals/clean-app-signals.sh
+          chmod 755 ./enable-app-signals.sh
+          chmod 755 ./clean-app-signals.sh
 
       - name: Remove log group deletion command
         if: always()
