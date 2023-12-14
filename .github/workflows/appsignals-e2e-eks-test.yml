@@ -88,10 +88,6 @@ jobs:
         working-directory: testing/terraform/eks
         run: aws s3 cp ${{ env.ENABLEMENT_SCRIPT_S3_BUCKET }} . && unzip -j onboarding.zip
 
-      - name: Change ADOT image if main-build
-        if: inputs.caller-workflow-name == 'main-build'
-        run: "sed -i 's#image:.*#image: ${{ inputs.appsignals-adot-image-name }}#g' instrumentation.yaml"
-
       - name: Remove log group deletion command
         if: always()
         working-directory: testing/terraform/eks
@@ -139,6 +135,15 @@ jobs:
               ${{ inputs.test-cluster-name }} \
               ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
+          
+              # If the workflow provides a specific ADOT image to test, patch the deployment and restart CW agent related pods
+              if [ ${{ inputs.appsignals-adot-image-name }} != "" ]; then
+                kubectl patch deploy -namazon-cloudwatch amazon-cloudwatch-observability-controller-manager --type='json' \
+                -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args/0", "value": "--auto-instrumentation-java-image=${{ inputs.appsignals-adot-image-name }}"}]'
+          
+                kubectl delete pods --all -n amazon-cloudwatch
+                kubectl wait --for=condition=Ready pod --all -n amazon-cloudwatch
+              fi
           
               kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
               kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
