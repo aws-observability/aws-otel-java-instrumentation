@@ -165,6 +165,11 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Test
+  void testSQSFault() throws Exception {
+    doTestSQSFault();
+  }
+
+  @Test
   void testKinesisPutRecord() throws Exception {
     doTestKinesisPutRecord();
   }

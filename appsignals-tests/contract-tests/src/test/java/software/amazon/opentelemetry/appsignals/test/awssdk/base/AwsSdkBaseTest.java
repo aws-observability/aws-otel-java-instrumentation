@@ -1235,7 +1235,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     assertSpanProducerAttributes(
         traces,
-        sqsSpanName("SendMessage"),
+        "fault.test:8080 publish",
         getSqsRpcServiceName(),
         localService,
         localOperation,
