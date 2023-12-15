@@ -5,6 +5,9 @@ name: App Signals Enablement E2E Testing - EC2 Use Case
 on:
   workflow_call:
     inputs:
+      aws-region:
+        required: true
+        type: string
       caller-workflow-name:
         required: true
         type: string
@@ -14,11 +17,10 @@ permissions:
   contents: read
 
 env:
-  AWS_DEFAULT_REGION: us-east-1
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} # Used by terraform and AWS CLI commands
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   SAMPLE_APP_FRONTEND_SERVICE_JAR: "s3://aws-appsignals-sample-app/main-service.jar"
   SAMPLE_APP_REMOTE_SERVICE_JAR: "s3://aws-appsignals-sample-app/remote-service.jar"
-  APP_SIGNALS_CW_AGENT_RPM: "https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
   APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
   METRIC_NAMESPACE: AppSignals
   LOG_GROUP_NAME: /aws/appsignals/generic
@@ -31,6 +33,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set CW Agent RPM environment variable
+        run: |
+          if [ ${{ env.AWS_DEFAULT_REGION }} == "us-east-1" ]; then
+            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+          else
+            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+          fi
+          
+
       - name: Generate testing id
         run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
 
@@ -41,44 +52,87 @@ jobs:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Set up terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
 
-      - name: Deploy sample app via terraform
+      - name: Deploy sample app via terraform and wait for endpoint to come online
         working-directory: testing/terraform/ec2
         run: |
           terraform init
           terraform validate
-          terraform apply -auto-approve \
-            -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
-            -var="test_id=${{ env.TESTING_ID }}" \
-            -var="sample_app_jar=${{ env.SAMPLE_APP_FRONTEND_SERVICE_JAR }}" \
-            -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
-            -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
-            -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}"
+          
+          # Attempt to deploy the sample app on an EC2 instance and wait for its endpoint to come online. 
+          # There may be occasional failures due to transitivity issues, so try up to 2 times. 
+          # deployment_failed of 0 indicates that both the terraform deployment and the endpoint are running, while 1 indicates
+          # that it failed at some point
+          retry_counter=0
+          max_retry=2
+          while [ $retry_counter -lt $max_retry ]; do
+            echo "Attempt $retry_counter"
+            deployment_failed=0
+            terraform apply -auto-approve \
+              -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
+              -var="test_id=${{ env.TESTING_ID }}" \
+              -var="sample_app_jar=${{ env.SAMPLE_APP_FRONTEND_SERVICE_JAR }}" \
+              -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
+              -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
+              -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}" \
+            || deployment_failed=$?
+          
+            if [ $deployment_failed -eq 1 ]; then
+              echo "Terraform deployment was unsuccessful. Will attempt to retry deployment."
+            fi
+          
+            # If the deployment_failed is still 0, then the terraform deployment succeeded and now try to connect to the endpoint.
+            # Attempts to connect will be made for up to 10 minutes
+            if [ $deployment_failed -eq 0 ]; then
+              echo "Attempting to connect to the endpoint"
+              sample_app_endpoint=http://$(terraform output sample_app_main_service_public_dns):8080
+              attempt_counter=0
+              max_attempts=60
+              until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
+                if [ ${attempt_counter} -eq ${max_attempts} ];then
+                  echo "Failed to connect to endpoint. Will attempt to redeploy sample app."
+                  deployment_failed=1
+                  break
+                fi
+          
+                printf '.'
+                attempt_counter=$(($attempt_counter+1))
+                sleep 10
+              done
+            fi
+          
+            # If the success is 1 then either the terraform deployment or the endpoint connection failed, so first destroy the
+            # resources created from terraform and try again.
+            if [ $deployment_failed -eq 1 ]; then
+              echo "Destroying terraform"
+              terraform destroy -auto-approve \
+                -var="test_id=${{ env.TESTING_ID }}" 
+          
+              retry_counter=$(($retry_counter+1))
+            else
+              # If deployment succeeded, then exit the loop
+              break
+            fi
+          
+            if [ $retry_counter -eq $max_retry ]; then
+              echo "Max retry reached, failed to deploy terraform and connect to the endpoint. Exiting code"
+              exit 1
+            fi
+          done
+
+      - name: Get the ec2 instance ami id
+        run: |
+          echo "EC2_INSTANCE_AMI=$(terraform output ec2_instance_ami)" >> $GITHUB_ENV
+        working-directory: testing/terraform/ec2
 
       - name: Get the sample app endpoint
         run: |
           echo "MAIN_SERVICE_ENDPOINT=$(terraform output sample_app_main_service_public_dns):8080" >> $GITHUB_ENV
           echo "REMOTE_SERVICE_IP=$(terraform output sample_app_remote_service_public_ip)" >> $GITHUB_ENV
         working-directory: testing/terraform/ec2
-
-      - name: Wait for app endpoint to come online
-        id: endpoint-check
-        run: |
-          attempt_counter=0
-          max_attempts=30
-          until $(curl --output /dev/null --silent --head --fail http://${{ env.MAIN_SERVICE_ENDPOINT }}); do
-            if [ ${attempt_counter} -eq ${max_attempts} ];then
-              echo "Max attempts reached"
-              exit 1
-            fi
-
-            printf '.'
-            attempt_counter=$(($attempt_counter+1))
-            sleep 10
-          done
 
       # This steps increases the speed of the validation by creating the telemetry data in advance
       - name: Call all test APIs
@@ -103,6 +157,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
       - name: Validate generated metrics
@@ -119,6 +174,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
       - name: Validate generated traces
@@ -135,6 +191,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
       - name: Publish metric on test result
@@ -163,4 +220,4 @@ jobs:
         working-directory: testing/terraform/ec2
         run: |
           terraform destroy -auto-approve \
-            -var="test_id=${{ env.TESTING_ID }}" 
+            -var="test_id=${{ env.TESTING_ID }}"

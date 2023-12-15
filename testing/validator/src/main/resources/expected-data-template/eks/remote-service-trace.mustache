@@ -15,7 +15,7 @@
   "annotations": {
     "aws_local_service": "^{{serviceName}}$",
     "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
     "aws_local_operation": "^GET /remote-service$"
   },
   "metadata": {
@@ -65,7 +65,7 @@
   "annotations": {
     "aws_local_service": "^{{remoteServiceDeploymentName}}$",
     "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-    "HostedIn_EKS_Cluster": "^{{cluster}}$",
+    "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
     "aws_local_operation": "^GET /healthcheck$"
   },
   "metadata": {
@@ -81,7 +81,7 @@
       "name": "^RemoteServiceController.healthcheck$",
       "annotations": {
         "HostedIn_K8s_Namespace": "^sample-app-namespace$",
-        "HostedIn_EKS_Cluster": "^{{cluster}}$",
+        "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
         "aws_local_operation": "^GET /healthcheck$"
       }
     }
