@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 
 # Stage 1: Build the cp-utility binary
-FROM rust:1.74 as builder
+FROM rust:1.73 as builder
 
 WORKDIR /usr/src/cp-utility
 COPY ./tools/cp-utility .

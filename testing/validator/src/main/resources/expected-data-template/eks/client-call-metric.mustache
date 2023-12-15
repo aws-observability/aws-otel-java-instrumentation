@@ -10,7 +10,7 @@
       value: GET /client-call
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -24,24 +24,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-
--
-  metricName: Latency
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: Operation
-      value: InternalOperation
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -58,7 +41,24 @@
       value: InternalOperation
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Latency
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -78,7 +78,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -98,7 +98,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -118,7 +118,7 @@
       value: GET /client-call
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -132,24 +132,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: Operation
-      value: InternalOperation
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -166,7 +149,24 @@
       value: InternalOperation
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -186,7 +186,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -206,7 +206,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -226,7 +226,7 @@
       value: GET /client-call
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -240,24 +240,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-
--
-  metricName: Fault
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: Operation
-      value: InternalOperation
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -274,7 +257,24 @@
       value: InternalOperation
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Fault
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: Operation
+      value: InternalOperation
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -294,7 +294,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -314,7 +314,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{platformInfo}}
+      value: {{cluster}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}

@@ -17,14 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  e2e-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        aws-region: ['us-east-1', 'us-east-2', 'eu-west-1', 'ap-northeast-1', 'ap-southeast-2']
+  e2e-canary-test:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ matrix.aws-region }}
       test-cluster-name: 'e2e-canary-test'
       caller-workflow-name: 'appsignals-e2e-eks-canary-test'

@@ -35,7 +35,7 @@ dependencies {
   // AWS Resource Detectors
   implementation("io.opentelemetry.contrib:opentelemetry-aws-resources")
   // Export configuration
-  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
