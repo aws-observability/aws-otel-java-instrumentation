@@ -60,9 +60,9 @@ public class App implements Callable<Integer> {
   private String appNamespace;
 
   @CommandLine.Option(
-      names = {"--platform-info"},
+      names = {"--cluster"},
       defaultValue = "demo-cluster")
-  private String platformInfo;
+  private String cluster;
 
   @CommandLine.Option(
       names = {"--service-name"},
@@ -133,11 +133,6 @@ public class App implements Callable<Integer> {
       defaultValue = "true")
   private boolean isRollup;
 
-  @CommandLine.Option(
-      names = {"--instance-ami"},
-      defaultValue = "")
-  private String instanceAmi;
-
   private static final String TEST_CASE_DIM_KEY = "testcase";
   private static final String CANARY_NAMESPACE = "Otel/Canary";
   private static final String CANARY_METRIC_NAME = "Success";
@@ -156,7 +151,7 @@ public class App implements Callable<Integer> {
     context.setAvailabilityZone(this.availabilityZone);
     context.setMetricNamespace(this.metricNamespace);
     context.setAppNamespace(this.appNamespace);
-    context.setPlatformInfo(this.platformInfo);
+    context.setCluster(this.cluster);
     context.setServiceName(this.serviceName);
     context.setRemoteServiceName(this.remoteServiceName);
     context.setRemoteServiceDeploymentName(this.remoteServiceDeploymentName);
@@ -171,7 +166,6 @@ public class App implements Callable<Integer> {
     context.setCortexInstanceEndpoint(this.cortexInstanceEndpoint);
     context.setTestcase(testcase);
     context.setLanguage(language);
-    context.setInstanceAmi(this.instanceAmi);
 
     log.info(context);
 

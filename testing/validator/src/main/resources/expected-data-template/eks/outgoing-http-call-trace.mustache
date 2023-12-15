@@ -15,7 +15,7 @@
   "annotations": {
     "aws_local_service": "^{{serviceName}}$",
     "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-    "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
     "aws_local_operation": "^GET /outgoing-http-call$"
   },
   "metadata": {
@@ -39,7 +39,7 @@
           },
           "annotations": {
             "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-            "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
+            "HostedIn_EKS_Cluster": "^{{cluster}}$",
             "aws_local_service": "^{{serviceName}}$",
             "aws_local_operation": "^GET /outgoing-http-call$",
             "aws_remote_service": "^www.amazon.com$",

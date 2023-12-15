@@ -39,9 +39,7 @@ public class Context {
 
   private String appNamespace;
 
-  // Variable containing platform specific information. Ex: For EKS, the cluster where the sample
-  // app is deployed is needed.
-  private String platformInfo;
+  private String cluster;
 
   private String serviceName;
 
@@ -54,8 +52,6 @@ public class Context {
   private String requestBody;
 
   private String logGroup;
-
-  private String instanceAmi;
 
   private ECSContext ecsContext;
 

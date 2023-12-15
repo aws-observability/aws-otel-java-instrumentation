@@ -3,7 +3,7 @@
   "annotations": {
     "aws_local_service": "^{{serviceName}}$",
     "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-    "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
+    "HostedIn_EKS_Cluster": "^{{cluster}}$",
     "aws_local_operation": "^InternalOperation$"
   },
   "metadata": {
@@ -24,7 +24,7 @@
       },
       "annotations": {
         "HostedIn_K8s_Namespace": "^{{appNamespace}}$",
-        "HostedIn_EKS_Cluster": "^{{platformInfo}}$",
+        "HostedIn_EKS_Cluster": "^{{cluster}}$",
         "aws_local_service": "^{{serviceName}}$",
         "aws_local_operation": "^InternalOperation$",
         "aws_remote_service": "^local-root-client-call$",

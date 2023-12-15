@@ -58,10 +58,8 @@ public class XRayService {
             new GetTraceSummariesRequest()
                 .withStartTime(pastDate)
                 .withEndTime(currentDate)
-                .withFilterExpression(
-                    "annotation.aws_local_service = \""
-                        + serviceName
-                        + "\" AND annotation.aws_local_service = \"local-root-client-call\""));
+                .withFilterExpression("annotation.aws_local_service = " + serviceName)
+                .withFilterExpression("annotation.aws_local_service = \"local-root-client-call\""));
     return traceSummaryResult.getTraceSummaries();
   }
 }

@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: 'temurin'
@@ -108,14 +108,10 @@ jobs:
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
   e2e-test:
-    concurrency:
-      group: e2e-adot-test
-      cancel-in-progress: false
     needs: build
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: us-east-1
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
