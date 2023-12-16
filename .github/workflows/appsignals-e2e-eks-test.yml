@@ -143,30 +143,35 @@ jobs:
           
                 kubectl delete pods --all -n amazon-cloudwatch
                 kubectl wait --for=condition=Ready pod --all -n amazon-cloudwatch
+                
+                # We can't tell when the full set up of the pods is done, so we sleep for 30 seconds
+                sleep 30
               fi
           
               kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
-              kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+              kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }} || deployment_failed=$?
           
-              echo "Attempting to connect to the endpoint"
-              sample_app_endpoint=http://$(terraform output sample_app_endpoint)
-              attempt_counter=0
-              max_attempts=60
-              until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
-                if [ ${attempt_counter} -eq ${max_attempts} ];then
-                  echo "Failed to connect to endpoint. Will attempt to redeploy sample app."
-                  deployment_failed=1
-                  break
-                fi
-          
-                printf '.'
-                attempt_counter=$(($attempt_counter+1))
-                sleep 10
-              done
+              if [ $deployment_failed -eq 0 ]
+                echo "Attempting to connect to the endpoint"
+                sample_app_endpoint=http://$(terraform output sample_app_endpoint)
+                attempt_counter=0
+                max_attempts=60
+                until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
+                  if [ ${attempt_counter} -eq ${max_attempts} ];then
+                    echo "Failed to connect to endpoint. Will attempt to redeploy sample app."
+                    deployment_failed=1
+                    break
+                  fi
+            
+                  printf '.'
+                  attempt_counter=$(($attempt_counter+1))
+                  sleep 10
+                done
+              fi
             fi
           
-            # If the deployment_failed is 1 then either the terraform deployment or the endpoint connection failed, so first destroy the
-            # resources created from terraform and try again.
+            # If the deployment_failed is 1 then either the terraform deployment, the app pods didn't come up, or the endpoint connection
+            # failed, so first destroy the resources created from terraform then try again
             if [ $deployment_failed -eq 1 ]; then
               echo "Cleaning up App Signal"
               ./clean-app-signals.sh \
