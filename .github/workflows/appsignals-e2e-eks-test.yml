@@ -151,13 +151,13 @@ jobs:
               kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
               kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }} || deployment_failed=$?
           
-              if [ $deployment_failed -eq 0 ]
+              if [ $deployment_failed -eq 0 ]; then
                 echo "Attempting to connect to the endpoint"
                 sample_app_endpoint=http://$(terraform output sample_app_endpoint)
                 attempt_counter=0
                 max_attempts=60
                 until $(curl --output /dev/null --silent --head --fail $(echo "$sample_app_endpoint" | tr -d '"')); do
-                  if [ ${attempt_counter} -eq ${max_attempts} ];then
+                  if [ ${attempt_counter} -eq ${max_attempts} ]; then
                     echo "Failed to connect to endpoint. Will attempt to redeploy sample app."
                     deployment_failed=1
                     break
