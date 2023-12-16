@@ -10,7 +10,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -27,7 +27,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -44,7 +44,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -64,7 +64,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -78,7 +78,7 @@
       value: {{remoteServiceDeploymentName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -92,7 +92,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -109,7 +109,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -134,7 +134,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -154,7 +154,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -177,206 +177,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: K8s.RemoteNamespace
-      value: {{appNamespace}}
-    -
-      name: Operation
-      value: GET /remote-service
-    -
-      name: RemoteOperation
-      value: GET /healthcheck
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-    -
-      name: Service
-      value: {{serviceName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Operation
-      value: GET /remote-service
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Operation
-      value: GET /remote-service
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: RemoteOperation
-      value: GET /healthcheck
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: Operation
-      value: GET /healthcheck
-    -
-      name: Service
-      value: {{remoteServiceDeploymentName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{remoteServiceDeploymentName}}
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: Service
-      value: {{serviceName}}
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: RemoteOperation
-      value: GET /healthcheck
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: K8s.RemoteNamespace
-      value: {{appNamespace}}
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-    -
-      name: Service
-      value: {{serviceName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
-    -
-      name: HostedIn.K8s.Namespace
-      value: {{appNamespace}}
-    -
-      name: K8s.RemoteNamespace
-      value: {{appNamespace}}
-    -
-      name: RemoteOperation
-      value: GET /healthcheck
-    -
-      name: RemoteService
-      value: {{remoteServiceDeploymentName}}
-    -
-      name: Service
-      value: {{serviceName}}
-
--
-  metricName: Error
-  namespace: {{metricNamespace}}
-  dimensions:
-    -
-      name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -397,6 +198,205 @@
       value: {{serviceName}}
 
 -
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Operation
+      value: GET /remote-service
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Operation
+      value: GET /remote-service
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteOperation
+      value: GET /healthcheck
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: Operation
+      value: GET /healthcheck
+    -
+      name: Service
+      value: {{remoteServiceDeploymentName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{remoteServiceDeploymentName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: Service
+      value: {{serviceName}}
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: RemoteOperation
+      value: GET /healthcheck
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: K8s.RemoteNamespace
+      value: {{appNamespace}}
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+    -
+      name: Service
+      value: {{serviceName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: K8s.RemoteNamespace
+      value: {{appNamespace}}
+    -
+      name: RemoteOperation
+      value: GET /healthcheck
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+    -
+      name: Service
+      value: {{serviceName}}
+
+-
+  metricName: Error
+  namespace: {{metricNamespace}}
+  dimensions:
+    -
+      name: HostedIn.EKS.Cluster
+      value: {{platformInfo}}
+    -
+      name: HostedIn.K8s.Namespace
+      value: {{appNamespace}}
+    -
+      name: K8s.RemoteNamespace
+      value: {{appNamespace}}
+    -
+      name: Operation
+      value: GET /remote-service
+    -
+      name: RemoteOperation
+      value: GET /healthcheck
+    -
+      name: RemoteService
+      value: {{remoteServiceDeploymentName}}
+    -
+      name: Service
+      value: {{serviceName}}
+
+-
   metricName: Fault
   namespace: {{metricNamespace}}
   dimensions:
@@ -408,7 +408,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -425,7 +425,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -442,7 +442,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -462,7 +462,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -476,7 +476,7 @@
       value: {{remoteServiceDeploymentName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -490,7 +490,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -507,7 +507,7 @@
       value: {{serviceName}}
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -532,7 +532,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -552,7 +552,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
@@ -575,7 +575,7 @@
   dimensions:
     -
       name: HostedIn.EKS.Cluster
-      value: {{cluster}}
+      value: {{platformInfo}}
     -
       name: HostedIn.K8s.Namespace
       value: {{appNamespace}}
