@@ -194,6 +194,9 @@ jobs:
 
   # Non-AppSignals e2e tests with Operator
   e2e-operator-test:
+    concurrency:
+      group: e2e-adot-agent-operator-test
+      cancel-in-progress: false
     needs: [ build, create-test-ref ]
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
