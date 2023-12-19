@@ -1,4 +1,4 @@
-name: End to End Tests with Java Agent embedded in Sample App #non-appsignals testing
+name: End to End Tests with Java Agent in Sample App #non-appsignals testing
 on:
   workflow_call:
     inputs:
@@ -6,6 +6,9 @@ on:
         required: true
         type: string
       image_tag:
+        required: true
+        type: string
+      caller-workflow-name:
         required: true
         type: string
 
@@ -20,7 +23,8 @@ jobs:
   build_Images_For_Testing_Sample_App_With_Java_Agent:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Java Instrumentation repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -37,7 +41,8 @@ jobs:
             ~/.m2/repository/io/opentelemetry/
           key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
 
-      - uses: gradle/wrapper-validation-action@v1
+      - name: Validate the checksums of Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -161,7 +166,7 @@ jobs:
       namespace: 'ADOT/GitHubActions'
       repository: ${{ github.repository }}
       branch: ${{ github.ref_name }}
-      workflow: main-build
+      workflow: ${{ inputs.caller-workflow-name }}
       success: ${{  needs.test_Spring_App_With_Java_Agent.result == 'success'  &&
                     needs.test_Spark_App_With_Java_Agent.result == 'success'  &&
                     needs.test_Spark_AWS_SDK_V1_App_With_Java_Agent.result == 'success' }}

@@ -77,7 +77,7 @@ jobs:
 
       - name: Set image name to output
         id: imageNameOutput
-        run: echo "rcImage=${{ env.IMAGE_NAME }}:${{steps.generate_time_stamp.outputs.nowTimeTag}}" >> "$GITHUB_OUTPUT"
+        run: echo "rcImage=${{ env.IMAGE_NAME }}:${{steps.generate_time_stamp.outputs.nowTimeTag}}" >> $GITHUB_OUTPUT
 
       - name: Build image for testing
         uses: docker/build-push-action@v5
@@ -124,12 +124,13 @@ jobs:
       aws-region: us-east-1
       image_tag: ${{ needs.build.outputs.time_stamp_tag }}
       image_name: ${{ env.IMAGE_NAME }}
+      test_ref: 'terraform'
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
   # Non-AppSignals e2e tests where SampleApp has Java Agent
   e2e-test:
     needs: build
-    uses: ./.github/workflows/e2e-tests-with-embedded-java-agent.yml
+    uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
     secrets: inherit
     with:
       aws-region: us-east-1

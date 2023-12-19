@@ -5,6 +5,9 @@ on:
       aws-region:
         required: true
         type: string
+      caller-workflow-name:
+        required: true
+        type: string
 env:
   AWS_DEFAULT_REGION: ${{ inputs.aws-region }}
 
@@ -54,7 +57,7 @@ jobs:
       namespace: 'ADOT/GitHubActions'
       repository: ${{ github.repository }}
       branch: ${{ github.ref_name }}
-      workflow: main-build
+      workflow: ${{ inputs.caller-workflow-name }}
       success: ${{  needs.contract-tests.result == 'success' }}
       region: us-west-2
     secrets:

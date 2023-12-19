@@ -11,6 +11,12 @@ on:
       image_name:
         required: true
         type: string
+      test_ref:
+        required: true
+        type: string
+      caller-workflow-name:
+        required: true
+        type: string
 
 env:
   AWS_DEFAULT_REGION: ${{ inputs.aws-region }}
@@ -23,31 +29,21 @@ permissions:
   contents: read
 
 jobs:
-  create-test-ref:
-    runs-on: ubuntu-latest
-    outputs:
-      testRef: ${{ steps.setRef.outputs.ref }}
-    steps:
-      - name: Set testRef output
-        id: setRef
-        run: echo "ref=terraform" >> $GITHUB_OUTPUT
-
   # job to build testbatches for e2e integration test
   get-testing-suites:
     runs-on: ubuntu-latest
-    needs: [ create-test-ref ]
     outputs:
       test-case-batch-key: ${{ steps.set-batches.outputs.batch-keys }}
       test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
     steps:
-      - name: Checkout
+      - name: Checkout Testing Framework repository
         uses: actions/checkout@v4
         with:
           repository: ${{ env.TESTING_FRAMEWORK_REPO }}
           path: testing-framework
-          ref: ${{ needs.create-test-ref.outputs.testRef }}
+          ref: ${{ inputs.test_ref }}
 
-      - name: Checkout
+      - name: Checkout Java Instrumentation repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -60,8 +56,8 @@ jobs:
 
       - name: Create test batch key values
         id: set-batches
+        working-directory: testing-framework/tools/batchTestGenerator
         run: |
-          cd testing-framework/tools/batchTestGenerator
           go build
           ./batchTestGenerator github --testCaseFilePath=$GITHUB_WORKSPACE/aws-otel-java-instrumentation/.github/workflows/testcases.json --maxBatch=${{ env.NUM_BATCHES }} \
             --include=EKS_ADOT_OPERATOR,EKS_ADOT_OPERATOR_ARM64
@@ -75,14 +71,14 @@ jobs:
   # job to run the e2e integration tests
   run-batch-job:
     runs-on: ubuntu-latest
-    needs: [ create-test-ref, get-testing-suites ]
+    needs: [ get-testing-suites ]
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.get-testing-suites.outputs.test-case-batch-key) }}
 
     steps:
       # required for versioning
-      - name: Checkout
+      - name: Checkout Java Instrumentation repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -107,12 +103,12 @@ jobs:
           # 4 hours
           role-duration-seconds: 14400
 
-      - name: Checkout testing framework
+      - name: Checkout Testing Framework repository
         uses: actions/checkout@v4
         with:
           repository: ${{ env.TESTING_FRAMEWORK_REPO }}
           path: testing-framework
-          ref: ${{ needs.create-test-ref.outputs.testRef }}
+          ref: ${{ inputs.test_ref }}
 
       - name: create test-case-batch file
         run: |
@@ -126,19 +122,19 @@ jobs:
         run: echo "ttldate=$(date -u -d "+7 days" +%s)" >> $GITHUB_OUTPUT
 
       - name: run tests
+        working-directory: testing-framework/terraform
         run: |
           export TTL_DATE=${{ steps.date.outputs.ttldate }} 
           export TF_VAR_java_auto_instrumentation_tag=${{ inputs.image_tag }}
           export TF_VAR_java_auto_instrumentation_repository="${{ inputs.image_name }}"
           export DDB_BATCH_CACHE_SK=${{ inputs.image_tag }}
-          cd testing-framework/terraform
           make execute-batch-test
 
       - name: output cache misses
         if: ${{ failure() }}
+        working-directory: testing-framework/terraform
         run: |
           export DDB_BATCH_CACHE_SK=${{ inputs.image_tag }}
-          cd testing-framework/terraform
           make checkCacheHits
 
       # This is here just in case workflow cancel
@@ -148,9 +144,9 @@ jobs:
       - name: Destroy resources
         if: ${{ cancelled() }}
         shell: bash {0}
+        working-directory: testing-framework/terraform
         run: |
           ps -ef | grep terraform | grep -v grep | awk '{print $2}' | xargs -n 1 kill
-          cd testing-framework/terraform
           make terraformCleanup
 
   # publish status
@@ -162,7 +158,7 @@ jobs:
       namespace: 'ADOT/GitHubActions'
       repository: ${{ github.repository }}
       branch: ${{ github.ref_name }}
-      workflow: main-build
+      workflow: ${{ inputs.caller-workflow-name }}
       success: ${{  needs.run-batch-job.result == 'success' }}
       region: us-west-2
     secrets:
