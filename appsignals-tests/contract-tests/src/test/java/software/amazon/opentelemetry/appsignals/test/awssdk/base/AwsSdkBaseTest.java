@@ -171,6 +171,23 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
 
+  /** All the spans of the AWS SDK Should have a RPC properties. */
+  private void assertSemanticConventionsSqsConsumerAttributes(
+      List<KeyValue> attributesList,
+      String service,
+      String method,
+      String peerName,
+      int peerPort,
+      String url) {
+    assertThat(attributesList)
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+        .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
+  }
+
   private void assertSpanClientAttributes(
       List<ResourceScopeSpan> spans,
       String spanName,
@@ -256,8 +273,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               var spanAttributes = span.getAttributesList();
               assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
               assertThat(span.getName()).isEqualTo(spanName);
-              assertSemanticConventionsAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
+              assertSemanticConventionsSqsConsumerAttributes(
+                  spanAttributes, rpcService, method, peerName, peerPort, url);
               assertSqsConsumerAwsAttributes(span.getAttributesList(), operation);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -291,7 +308,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsAttributes(
                   spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
-              assertProducerOrClientAwsAttributes(
+              assertAwsAttributes(
                   spanAttributes,
                   localService,
                   localOperation,
@@ -305,7 +322,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             });
   }
 
-  private void assertProducerOrClientAwsAttributes(
+  private void assertAwsAttributes(
       List<KeyValue> attributesList,
       String localService,
       String localOperation,
@@ -327,22 +344,16 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     }
   }
 
-  private void assertConsumerAwsAttributes(
-      List<KeyValue> attributesList, String service, String operation) {
-    assertThat(attributesList)
-        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_OPERATION, operation))
-        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_SERVICE, service))
-        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, "LOCAL_ROOT"));
-  }
-
   private void assertSqsConsumerAwsAttributes(List<KeyValue> attributesList, String operation) {
     assertThat(attributesList)
-        // AWS_LOCAL_OPERATION Is propagated from the parent
         .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_OPERATION, operation))
-        .noneSatisfy(assertKeyIsPresent(AppSignalsConstants.AWS_LOCAL_SERVICE))
-        .noneSatisfy(assertKeyIsPresent(AppSignalsConstants.AWS_REMOTE_OPERATION))
-        .noneSatisfy(assertKeyIsPresent(AppSignalsConstants.AWS_REMOTE_SERVICE))
-        .noneSatisfy(assertKeyIsPresent(AppSignalsConstants.AWS_SPAN_KIND));
+        .satisfiesOnlyOnce(
+            assertAttribute(AppSignalsConstants.AWS_LOCAL_SERVICE, getApplicationOtelServiceName()))
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, "LOCAL_ROOT"))
+        .satisfiesOnlyOnce(
+            assertAttribute(AppSignalsConstants.AWS_REMOTE_OPERATION, "ReceiveMessage"))
+        .satisfiesOnlyOnce(
+            assertAttribute(AppSignalsConstants.AWS_REMOTE_SERVICE, getSqsServiceName()));
   }
 
   protected void assertMetricClientAttributes(
@@ -387,6 +398,27 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         expectedSum);
   }
 
+  protected void assertMetricConsumerAttributes(
+      List<ResourceScopeMetric> resourceScopeMetrics,
+      String metricName,
+      String localService,
+      String localOperation,
+      String service,
+      String method,
+      String target,
+      Double expectedSum) {
+    assertMetricAttributes(
+        resourceScopeMetrics,
+        metricName,
+        "CONSUMER",
+        localService,
+        localOperation,
+        service,
+        method,
+        target,
+        expectedSum);
+  }
+
   protected void assertMetricAttributes(
       List<ResourceScopeMetric> resourceScopeMetrics,
       String metricName,
@@ -407,7 +439,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                       dataPoint -> {
                         List<KeyValue> attributes = dataPoint.getAttributesList();
                         assertThat(attributes).isNotNull();
-                        assertProducerOrClientAwsAttributes(
+                        assertAwsAttributes(
                             attributes,
                             localService,
                             localOperation,
@@ -1032,7 +1064,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     assertSpanProducerAttributes(
         traces,
-        sqsSpanName("SendMessage"),
+        "some-queue publish",
         getSqsRpcServiceName(),
         localService,
         localOperation,
@@ -1088,11 +1120,15 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                 AppSignalsConstants.FAULT_METRIC,
                 AppSignalsConstants.LATENCY_METRIC));
 
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "InternalOperation";
+    // ReceiveMessage does not capture aws.queue.name
+    String target = null;
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
     assertSpanConsumerAttributes(
         traces,
-        sqsSpanName("ReceiveMessage"),
+        "some-queue process",
         getSqsRpcServiceName(),
         "InternalOperation",
         getApplicationOtelServiceName(),
@@ -1103,27 +1139,24 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         200,
         testSQSReceiveMessageExtraAssertions(response.contentUtf8()));
 
-    // SQS consumer spans do not produce metrics.
-    // Checking that there is no metric that has a datapoint with consumer attributes
-    assertThat(metrics)
-        .noneSatisfy(
-            metric -> {
-              var dataPoints = metric.getMetric().getExponentialHistogram().getDataPointsList();
-              assertThat(dataPoints)
-                  .anySatisfy(
-                      dataPoint -> {
-                        List<KeyValue> attributes = dataPoint.getAttributesList();
-                        assertThat(attributes).isNotNull();
-                        assertThat(attributes)
-                            .anySatisfy(
-                                attribute -> {
-                                  assertConsumerAwsAttributes(
-                                      attributes,
-                                      getApplicationOtelServiceName(),
-                                      "InternalOperation");
-                                });
-                      });
-            });
+    assertMetricConsumerAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSqsServiceName(),
+        "ReceiveMessage",
+        target,
+        5000.0);
+    assertMetricConsumerAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSqsServiceName(),
+        "ReceiveMessage",
+        target,
+        0.0);
   }
 
   protected void doTestSQSError() throws Exception {
@@ -1143,7 +1176,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     assertSpanProducerAttributes(
         traces,
-        sqsSpanName("SendMessage"),
+        "error.test:8080 publish",
         getSqsRpcServiceName(),
         localService,
         localOperation,
@@ -1202,7 +1235,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     assertSpanProducerAttributes(
         traces,
-        sqsSpanName("SendMessage"),
+        "fault.test:8080 publish",
         getSqsRpcServiceName(),
         localService,
         localOperation,
