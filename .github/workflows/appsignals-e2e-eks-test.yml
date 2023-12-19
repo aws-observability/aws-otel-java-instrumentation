@@ -40,6 +40,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Download enablement script
+        uses: actions/checkout@v4
+        with:
+          repository: aws-observability/application-signals-demo
+          ref: main
+          path: enablement-script
+          sparse-checkout: |
+            scripts/eks/appsignals/enable-app-signals.sh
+            scripts/eks/appsignals/clean-app-signals.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Remove log group deletion command
+        if: always()
+        working-directory: enablement-script/scripts/eks/appsignals
+        run: |
+          delete_log_group="aws logs delete-log-group --log-group-name '${{ env.LOG_GROUP_NAME }}' --region \$REGION"
+          sed -i "s#$delete_log_group##g" clean-app-signals.sh
+
       - name: Generate testing id
         run: echo TESTING_ID="${{ env.AWS_DEFAULT_REGION }}-${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
 
@@ -83,18 +101,6 @@ jobs:
         with:
           terraform_wrapper: false
 
-      # Enable App Signals on the test cluster
-      - name: Pull and unzip enablement script from S3
-        working-directory: testing/terraform/eks
-        run: aws s3 cp ${{ env.ENABLEMENT_SCRIPT_S3_BUCKET }} . && unzip -j onboarding.zip
-
-      - name: Remove log group deletion command
-        if: always()
-        working-directory: testing/terraform/eks
-        run: |
-          delete_log_group="aws logs delete-log-group --log-group-name '${{ env.LOG_GROUP_NAME }}' --region \$REGION"
-          sed -i "s#$delete_log_group##g" clean-app-signals.sh
-
       - name: Deploy sample app via terraform and wait for the endpoint to come online
         id: deploy-sample-app
         working-directory: testing/terraform/eks
@@ -131,7 +137,7 @@ jobs:
             # after installing App Signals. Attempts to connect will be made for up to 10 minutes
             if [ $deployment_failed -eq 0 ]; then
               echo "Installing app signals to the sample app"
-              ./enable-app-signals.sh \
+              ${GITHUB_WORKSPACE}/enablement-script/scripts/eks/appsignals/enable-app-signals.sh \
               ${{ inputs.test-cluster-name }} \
               ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
@@ -302,7 +308,7 @@ jobs:
       - name: Clean Up App Signals
         if: always()
         continue-on-error: true
-        working-directory: testing/terraform/eks
+        working-directory: enablement-script/scripts/eks/appsignals
         run: |
           ./clean-app-signals.sh \
           ${{ inputs.test-cluster-name }} \
