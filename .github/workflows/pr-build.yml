@@ -67,9 +67,17 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
+        # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
-        if: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') }}
+        if: ${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') != ''}}
         with:
           branch: ${{ github.event.pull_request.base.ref }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
