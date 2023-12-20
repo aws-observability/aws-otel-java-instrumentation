@@ -40,6 +40,14 @@ jobs:
         with:
           registry: public.ecr.aws
 
+      # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+
       - name: Pull base image of Contract Tests Sample Apps
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
