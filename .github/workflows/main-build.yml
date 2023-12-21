@@ -25,7 +25,7 @@ jobs:
   testpatch:
     name: Test patches applied to dependencies
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
-    if: ${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') != ''}}
+    if: ${{ hashFiles('.github/patches/opentelemetry-java-*.patch') != ''}}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -337,7 +337,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java-*.patch') }}
 
       - uses: gradle/wrapper-validation-action@v1
 
