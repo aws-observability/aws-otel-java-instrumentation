@@ -75,6 +75,7 @@ jobs:
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
+        if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
@@ -127,7 +128,7 @@ jobs:
 
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
-        if: ${{ matrix.os != 'ubuntu-latest' }}
+        if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         with:
           arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@v3

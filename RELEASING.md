@@ -61,10 +61,10 @@ Select the branch and provide the version.
 
 If you need to patch upstream dependencies, you need:
 
-* Provide patch files for each repository that will need to be patched. These files should be located in `.github/patches/release/v<major>.<minor>.x` and should be named
+* Provide patch files for each repository that will need to be patched. These files should be located in `.github/patches` and should be named
 using the convention `<repository name>.patch`. The following repositories are supported: opentelemetry-java, opentelemetry-java-instrumentation and opentelemetry-java-contrib. Provide one patch file per repository. The adot patch version of each upstream dependency should be `<version>-adot<number>` where `version` is the version of the upstream dependency and `number` is the number of this patch that should be incremented from 1 per patch version.
 
-* Create a `versions` file in the directory `.github/patches/release/v<major>.<minor>.x`. This file should contain shell variables with the versions of the tags of the repositories which will receive patches.
+* Create a `versions` file in the directory `.github/patches/release`. This file should contain shell variables with the versions of the tags of the repositories which will receive patches.
   This file should define the following variables:
     * `OTEL_JAVA_VERSION`. Tag of the opentelemetry-java repository to use. E.g.: `JAVA_OTEL_JAVA_VERSION=v1.21.0`
     * `OTEL_JAVA_INSTRUMENTATION_VERSION`. Tag of the opentelemetry-java-instrumentation repository to use, e.g.: `OTEL_JAVA_INSTRUMENTATION_VERSION=v1.21.0`
