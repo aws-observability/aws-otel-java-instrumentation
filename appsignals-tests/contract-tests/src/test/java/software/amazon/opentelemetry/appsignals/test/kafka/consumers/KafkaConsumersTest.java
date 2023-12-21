@@ -77,7 +77,7 @@ public class KafkaConsumersTest extends ContractTestBase {
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
             .withNetworkAliases("kafkaBroker")
             .withNetwork(network)
-            .waitingFor(Wait.forLogMessage(".*started (kafka.server.KafkaServer).*", 1))
+            .waitingFor(Wait.forLogMessage(".* Kafka Server started .*", 1))
             .withKraft();
     return List.of(kafka);
   }

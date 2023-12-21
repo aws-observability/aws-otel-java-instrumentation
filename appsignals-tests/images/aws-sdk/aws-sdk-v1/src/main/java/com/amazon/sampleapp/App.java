@@ -158,6 +158,7 @@ public class App {
 
           var readMessageRequest = new ReceiveMessageRequest(response.getQueueUrl());
           var messages = sqsClient.receiveMessage(readMessageRequest).getMessages();
+          logger.info("Message Received: ", messages.toString());
           return response.getQueueUrl();
         });
 
@@ -180,7 +181,8 @@ public class App {
           try {
             errorClient.sendMessage(sendMessageRequest);
           } catch (Exception ex) {
-
+            logger.info("Exception Caught in Sample App");
+            ex.printStackTrace();
           }
           return "";
         });

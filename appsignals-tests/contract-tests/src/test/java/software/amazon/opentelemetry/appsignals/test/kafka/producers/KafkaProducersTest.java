@@ -53,7 +53,6 @@ public class KafkaProducersTest extends ContractTestBase {
     var kafkaTopic = "kafka_topic";
     var otelStatusCode = "STATUS_CODE_UNSET";
     var response = appClient.get(path).aggregate().join();
-
     assertThat(response.status().isSuccess()).isTrue();
 
     var resourceScopeSpans = mockCollectorClient.getTraces();
@@ -111,7 +110,7 @@ public class KafkaProducersTest extends ContractTestBase {
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
             .withNetworkAliases("kafkaBroker")
             .withNetwork(network)
-            .waitingFor(Wait.forLogMessage(".*started (kafka.server.KafkaServer).*", 1))
+            .waitingFor(Wait.forLogMessage(".* Kafka Server started .*", 1))
             .withKraft();
     return List.of(kafka);
   }
@@ -188,7 +187,7 @@ public class KafkaProducersTest extends ContractTestBase {
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("UnknownRemoteOperation");
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("publish");
             })
         .satisfiesOnlyOnce(
             attribute -> {
@@ -197,8 +196,6 @@ public class KafkaProducersTest extends ContractTestBase {
             });
   }
 
-  // TODO: SemanticConventionsConstants.MESSAGING_OPERATION is not currently present, however it
-  // should be populated and we are currently following up on this.
   protected void assertSemanticConventionsAttributes(
       List<KeyValue> attributesList, String kafkaTopic) {
     assertThat(attributesList)
@@ -230,10 +227,11 @@ public class KafkaProducersTest extends ContractTestBase {
                   .isEqualTo(SemanticConventionsConstants.MESSAGING_SYSTEM);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("kafka");
             })
-        .allSatisfy(
+        .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isNotEqualTo(SemanticConventionsConstants.MESSAGING_OPERATION);
+                  .isEqualTo(SemanticConventionsConstants.MESSAGING_OPERATION);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("publish");
             })
         .satisfiesOnlyOnce(
             attribute -> {
@@ -296,7 +294,7 @@ public class KafkaProducersTest extends ContractTestBase {
                                   assertThat(attribute.getKey())
                                       .isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
                                   assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo("UnknownRemoteOperation");
+                                      .isEqualTo("publish");
                                 });
 
                         if (expectedSum != null) {
