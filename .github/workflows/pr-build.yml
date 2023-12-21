@@ -11,7 +11,6 @@ jobs:
   testpatch:
     name: Test patches applied to dependencies
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('.github/patches/opentelemetry-java-*.patch') != ''}}
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +75,6 @@ jobs:
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
-        if: ${{ hashFiles('.github/patches/opentelemetry-java-*.patch') != ''}}
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
