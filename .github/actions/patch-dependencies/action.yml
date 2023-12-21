@@ -13,9 +13,6 @@ inputs:
     default: "false"
     required: false
     description: "If the workflow should run tests of the dependencies. Anything different than false will evaluate to true"
-  branch:
-    required: true
-    description: "The branch where this patches are being applied e.g.: release/v1.21.x"
   gpg_private_key:
     description: "The gpg key used to sign the artifacts"
     required: true
@@ -27,19 +24,19 @@ runs:
   steps:
     - name: check patches
       run: |
-        if [[ -f .github/patches/${{ inputs.branch }}/opentelemetry-java.patch ]]; then
+        if [[ -f .github/patches/opentelemetry-java.patch ]]; then
           echo 'patch_otel_java=true' >> $GITHUB_ENV
         fi
-        if [[ -f .github/patches/${{ inputs.branch }}/opentelemetry-java-instrumentation.patch ]]; then
+        if [[ -f .github/patches/opentelemetry-java-instrumentation.patch ]]; then
             echo 'patch_otel_java_instrumentation=true' >> $GITHUB_ENV
         fi
-        if [[ -f .github/patches/${{ inputs.branch }}/opentelemetry-java-contrib.patch ]]; then
+        if [[ -f .github/patches/opentelemetry-java-contrib.patch ]]; then
             echo 'patch_otel_java_contrib=true' >> $GITHUB_ENV
         fi
       shell: bash
 
     - name: Clone and patch repositories
-      run: .github/scripts/patch.sh "${{ inputs.branch }}"
+      run: .github/scripts/patch.sh
       if: ${{ env.patch_otel_java == 'true' ||
               env.patch_otel_java_instrumentation == 'true' ||
               env.patch_otel_java_contrib == 'true' }}
