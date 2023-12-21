@@ -48,7 +48,6 @@ jobs:
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
-          branch: ${{ github.ref_name }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -72,13 +71,12 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java-*.patch') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
-        if: ${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') != ''}}
+        if: ${{ hashFiles('.github/patches/opentelemetry-java-*.patch') != ''}}
         with:
-          branch: ${{ github.ref_name }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
