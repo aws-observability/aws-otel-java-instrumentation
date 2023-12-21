@@ -71,7 +71,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java-*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
