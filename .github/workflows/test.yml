@@ -1,0 +1,29 @@
+name: Testing
+on:
+  push:
+    branches:
+      - canary-patch-build-test
+
+concurrency:
+  group: pulse-pg-2
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  eks-test:
+    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: pulse-pg-2
+      caller-workflow-name: test
+
+  ec2-test:
+    uses: ./.github/workflows/appsignals-e2e-ec2-test.yml
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: test
