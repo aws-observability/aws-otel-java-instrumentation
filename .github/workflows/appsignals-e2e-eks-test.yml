@@ -214,6 +214,14 @@ jobs:
           kubectl get pods -n amazon-cloudwatch --output json | \
           jq '.items[0].status.containerStatuses[0].imageID'
 
+      # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
       - name: Get the sample app endpoint
         run: echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV
         working-directory: testing/terraform/eks
