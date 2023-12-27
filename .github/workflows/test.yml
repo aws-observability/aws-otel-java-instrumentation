@@ -2,7 +2,7 @@ name: Testing
 on:
   push:
     branches:
-      - canary-patch-build-test
+      - canary-patch-build
 
 concurrency:
   group: pulse-pg-2
