@@ -211,6 +211,11 @@ jobs:
           echo "REMOTE_SERVICE_DEPLOYMENT_NAME=$(kubectl get deployments -n ${{ env.SAMPLE_APP_NAMESPACE }} --selector=app=remote-app -o jsonpath='{.items[0].metadata.name}')" >> $GITHUB_ENV
           echo "REMOTE_SERVICE_POD_IP=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --selector=app=remote-app -o jsonpath='{.items[0].status.podIP}')" >> $GITHUB_ENV
 
+      - name: Log pod Fluent Bit image ID
+        run: |
+          kubectl get pods -n amazon-cloudwatch -l k8s-app=fluent-bit -o json | \
+          jq '.items[0].status.containerStatuses[0].imageID'
+
       - name: Log pod Adot image and save image to the environment
         run: |
           kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --output json | \
