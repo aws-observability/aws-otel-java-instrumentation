@@ -142,7 +142,6 @@ jobs:
             echo "ref=terraform" >> $GITHUB_OUTPUT
           fi
 
-  # Non-AppSignals e2e tests with Operator
   e2e-operator-test:
     concurrency:
       group: e2e-adot-agent-operator-test
@@ -157,7 +156,7 @@ jobs:
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
       caller-workflow-name: 'main-build'
 
-  # Non-AppSignals e2e tests where SampleApp has Java Agent
+  # E2E tests where SampleApp has Java Agent
   e2e-test:
     needs: build
     uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml

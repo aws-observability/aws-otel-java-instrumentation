@@ -96,7 +96,6 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
-  # E2E tests with Operator
   e2e-operator-test:
     concurrency:
       group: e2e-adot-agent-operator-test
