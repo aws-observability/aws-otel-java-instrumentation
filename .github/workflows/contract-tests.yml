@@ -1,4 +1,4 @@
-name: End to End Tests with Operator #appsignals contract testing
+name: End to End Tests with Operator # Appsignals Contract Testing
 on:
   workflow_call:
     inputs:
@@ -42,11 +42,19 @@ jobs:
 
       # cache local patch outputs
       - name: Cache local Maven repository
+        id: cache-local-maven-repo
         uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        if: steps.cache-local-maven-repo.outputs.cache-hit != 'true'
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Pull base image of Contract Tests Sample Apps
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine

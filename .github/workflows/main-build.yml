@@ -6,7 +6,6 @@ on:
       - "release/v*"
 env:
   AWS_DEFAULT_REGION: us-east-1
-  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
   STAGING_ECR_REPOSITORY: adot-autoinstrumentation-java-operator-staging
 
@@ -51,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
-      staging-image-name: ${{ steps.imageNameOutput.outputs.imageName }}
+      staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -98,51 +97,10 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Pull base image of Contract Tests Sample Apps
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
-
-      - name: Run contract tests
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: contractTests -PlocalDocker=true
-
       - name: Get current version
         shell: bash
         run: |
           echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
-
-      - name: Build and push Sample-Apps without Auto-Instrumentation Agent
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: jibBuildWithoutAgent
-        env:
-          COMMIT_HASH: ${{ github.sha }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image for testing
-        uses: docker/build-push-action@v5
-        with:
-          push: false
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
-          platforms: linux/amd64
-          tags: ${{ env.TEST_TAG }}
-          load: true
-
-      - name: Test docker image
-        shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
-
-      - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v3
-        with:
-          name: aws-opentelemetry-agent.jar
-          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
       - name: Get ADOT_JAVA_AGENT Image Tag
         id: java_agent_versioning
@@ -151,32 +109,24 @@ jobs:
           java_agent_tag=${{ env.ADOT_JAVA_VERSION }}-$shortsha
           echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Set image to output
+        id: imageOutput
+        run: echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Java Agent Image and Execute cpUtility Tests
+        uses: ./.github/workflows/build-and-push-image-with-cpUtility-test.yml
+        secrets: inherit
         with:
-          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
           aws-region: us-west-2
+          image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
+          image_registry: {{ env.STAGING_ECR_REGISTRY }}
+          adot-java-version: {{ env.ADOT_JAVA_VERSION }}
 
-      - name: Login to private staging ecr
-        uses: docker/login-action@v3
+      - name: Upload to GitHub Actions
+        uses: actions/upload-artifact@v3
         with:
-          registry: ${{ env.STAGING_ECR_REGISTRY }}
-        env:
-          AWS_REGION: us-west-2
-
-      - name: Build and push staging image for e2e integration test
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}
-
-      - name: Set image name to output
-        id: imageNameOutput
-        run: echo "imageName=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
+          name: aws-opentelemetry-agent.jar
+          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
   create-test-ref:
     runs-on: ubuntu-latest
@@ -201,9 +151,9 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: us-east-1
+      aws-region: {{ env.AWS_DEFAULT_REGION }}
       image_tag: ${{ needs.build.outputs.java_agent_tag }}
-      image_name: ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}
+      image_uri: ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
       caller-workflow-name: 'main-build'
 
@@ -220,43 +170,11 @@ jobs:
   # AppSignals Contract Tests
   contract-tests:
     needs: build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
-
-        # cache local patch outputs
-      - name: Cache local Maven repository
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
-
-      - uses: gradle/wrapper-validation-action@v1
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v3
-        with:
-          registry: public.ecr.aws
-
-      - name: Build and push agent and testing docker images with Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: jib
-        env:
-          COMMIT_HASH: ${{ github.sha }}
+    uses: ./.github/workflows/contract-tests.yml
+    secrets: inherit
+    with:
+      aws-region: {{ env.AWS_DEFAULT_REGION }}
+      caller-workflow-name: 'main-build'
 
   # AppSignals specific e2e tests
   appsignals-e2e-test:
@@ -267,9 +185,9 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: us-east-1
+      aws-region: {{ env.AWS_DEFAULT_REGION }}
       test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image-name }}
+      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'
 
   publish-build-status:
