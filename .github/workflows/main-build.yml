@@ -119,8 +119,8 @@ jobs:
         with:
           aws-region: us-west-2
           image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
-          image_registry: {{ env.STAGING_ECR_REGISTRY }}
-          adot-java-version: {{ env.ADOT_JAVA_VERSION }}
+          image_registry: ${{ env.STAGING_ECR_REGISTRY }}
+          adot-java-version: ${{ env.ADOT_JAVA_VERSION }}
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
@@ -150,7 +150,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: {{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       image_tag: ${{ needs.build.outputs.java_agent_tag }}
       image_uri: ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
@@ -162,7 +162,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
     secrets: inherit
     with:
-      aws-region: {{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       image_tag: ${{ github.sha }}
       caller-workflow-name: 'main-build'
 
@@ -172,7 +172,7 @@ jobs:
     uses: ./.github/workflows/contract-tests.yml
     secrets: inherit
     with:
-      aws-region: {{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       caller-workflow-name: 'main-build'
 
   # AppSignals specific e2e tests
@@ -184,7 +184,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: {{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'
