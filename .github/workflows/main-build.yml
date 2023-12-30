@@ -51,6 +51,9 @@ jobs:
     outputs:
       java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
       staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
+      staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+      staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
+      aws_default_region: ${{ env.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -98,29 +101,31 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Get current version
+        id: getADOTJavaVersion
         shell: bash
-        run: |
-          echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
+        run: echo "adot_java_version=$(./gradlew printVersion -q )" >> $GITHUB_OUTPUT
 
       - name: Get ADOT_JAVA_AGENT Image Tag
         id: java_agent_versioning
         run: |
           shortsha="$(git rev-parse --short HEAD)"
-          java_agent_tag=${{ env.ADOT_JAVA_VERSION }}-$shortsha
+          java_agent_tag=${{ steps.getADOTJavaVersion.outputs.adot_java_version }}-$shortsha
           echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
 
       - name: Set image to output
         id: imageOutput
-        run: echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
+        run: |
+          echo "stagingRegistry=${{ env.STAGING_ECR_REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "stagingRepository=${{ env.STAGING_ECR_REPOSITORY }}" >> $GITHUB_OUTPUT
+          echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Java Agent Image and Execute cpUtility Tests
         uses: ./.github/workflows/build-and-push-image-with-cpUtility-test.yml
-        secrets: inherit
         with:
           aws-region: us-west-2
           image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
-          image_registry: ${{ env.STAGING_ECR_REGISTRY }}
-          adot-java-version: ${{ env.ADOT_JAVA_VERSION }}
+          image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
@@ -150,9 +155,9 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       image_tag: ${{ needs.build.outputs.java_agent_tag }}
-      image_uri: ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}
+      image_uri: ${{ needs.build.outputs.staging_registry }}/${{ needs.build.outputs.staging_repository }}
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
       caller-workflow-name: 'main-build'
 
@@ -162,7 +167,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       image_tag: ${{ github.sha }}
       caller-workflow-name: 'main-build'
 
@@ -172,7 +177,7 @@ jobs:
     uses: ./.github/workflows/contract-tests.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       caller-workflow-name: 'main-build'
 
   # AppSignals specific e2e tests
@@ -184,7 +189,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'
