@@ -78,7 +78,7 @@ jobs:
 
       - name: Generate timestamp for image tag
         id: generate_time_stamp
-        run: echo "nowTimeTag=$(date +'%Y-%m-%dT%H-%M-%S')" >> $$GITHUB_OUTPUT
+        run: echo "nowTimeTag=$(date +'%Y-%m-%dT%H-%M-%S')" >> $GITHUB_OUTPUT
 
       - name: Set image to output
         id: imageOutput
