@@ -45,14 +45,14 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
-          aws-region: {{ env.AWS_DEFAULT_REGION }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to private staging ecr
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.image_registry }}
         env:
-          AWS_REGION: {{ env.AWS_DEFAULT_REGION }}
+          AWS_REGION: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Build image for testing
         uses: docker/build-push-action@v5
