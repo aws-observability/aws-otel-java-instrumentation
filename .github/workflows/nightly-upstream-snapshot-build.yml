@@ -19,6 +19,9 @@ jobs:
     outputs:
       time_stamp_tag: ${{ steps.generate_time_stamp.outputs.nowTimeTag}}
       release-candidate-image: ${{ steps.imageOutput.outputs.rcImage }}
+      image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
+      image_name: ${{ steps.imageOutput.outputs.imageName }}
+      aws_default_region: {{ env.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,9 +72,9 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Get current version
+        id: getADOTJavaVersion
         shell: bash
-        run: |
-          echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_ENV
+        run: echo "adot_java_version=$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_OUTPUT
 
       - name: Generate timestamp for image tag
         id: generate_time_stamp
@@ -79,16 +82,18 @@ jobs:
 
       - name: Set image to output
         id: imageOutput
-        run: echo "rcImage=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.generate_time_stamp.outputs.nowTimeTag }}" >> $GITHUB_OUTPUT
+        run: |
+          echo "imageRegistry=${{ env.IMAGE_REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "imageName=${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+          echo "rcImage=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.generate_time_stamp.outputs.nowTimeTag }}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Java Agent Image and Execute cpUtility Tests
         uses: ./.github/workflows/build-and-push-image-with-cpUtility-test.yml
-        secrets: inherit
         with:
           aws-region: us-west-2
           image_uri_with_tag: ${{ steps.imageOutput.outputs.rcImage }}
-          image_registry: ${{ env.IMAGE_REGISTRY }}
-          adot-java-version: ${{ env.ADOT_JAVA_VERSION }}
+          image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
+          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
@@ -104,9 +109,9 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       image_tag: ${{ needs.build.outputs.time_stamp_tag }}
-      image_uri: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
+      image_uri: ${{ needs.build.outputs.image_registry }}/${{ needs.build.outputs.image_name }}
       test_ref: 'terraform'
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
@@ -116,7 +121,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       image_tag: ${{ needs.build.outputs.time_stamp_tag }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
@@ -126,7 +131,7 @@ jobs:
     uses: ./.github/workflows/contract-tests.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
   # AppSignals specific e2e tests
@@ -138,7 +143,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
