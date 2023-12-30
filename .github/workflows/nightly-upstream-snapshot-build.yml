@@ -21,7 +21,7 @@ jobs:
       release-candidate-image: ${{ steps.imageOutput.outputs.rcImage }}
       image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
       image_name: ${{ steps.imageOutput.outputs.imageName }}
-      aws_default_region: {{ env.AWS_DEFAULT_REGION }}
+      aws_default_region: ${{ env.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
         with:
