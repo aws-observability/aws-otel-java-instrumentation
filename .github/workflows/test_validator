@@ -1,0 +1,26 @@
+name: Manual Trigger
+
+on:
+  workflow_dispatch: # 这里定义手动触发事件
+
+jobs:
+  run-command:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      # vaadin 14 tests fail with node 18
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+
+      - name: Run Command
+        run: |
+          ./gradlew testing:validator:run --args='-h'
