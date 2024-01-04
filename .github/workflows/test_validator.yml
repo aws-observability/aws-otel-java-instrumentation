@@ -1,7 +1,14 @@
 name: Manual Trigger
 
 on:
-  workflow_dispatch: # 这里定义手动触发事件
+  workflow_dispatch:
+
+env:
+  SAMPLE_APP_FRONTEND_SERVICE_JAR: "s3://aws-appsignals-sample-app/main-service.jar"
+  SAMPLE_APP_REMOTE_SERVICE_JAR: "s3://aws-appsignals-sample-app/remote-service.jar"
+  APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
+  METRIC_NAMESPACE: AppSignals
+  LOG_GROUP_NAME: /aws/appsignals/generic
 
 jobs:
   run-command:
@@ -23,4 +30,4 @@ jobs:
 
       - name: Run Command
         run: |
-          ./gradlew testing:validator:run --args='-h'
+          ./gradlew testing:validator:run --args='--dry-run-compile true'
