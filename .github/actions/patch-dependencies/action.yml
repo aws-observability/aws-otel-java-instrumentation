@@ -25,10 +25,10 @@ runs:
     - name: set environment variables
       shell: bash
       run: |
-        if [[ ! -z "${{ inputs.gpg_private_key }}" ]]; then
+        if [[ ${{ inputs.gpg_private_key }} ]]; then
           echo 'GPG_PRIVATE_KEY=${{ inputs.gpg_private_key }}
         fi
-        if [[ ! -z "${{ inputs.gpg_password }}" ]]; then
+        if [[ ${{ inputs.gpg_password }} ]]; then
           echo 'GPG_PASSWORD=${{ inputs.gpg_password }}
         fi
 
