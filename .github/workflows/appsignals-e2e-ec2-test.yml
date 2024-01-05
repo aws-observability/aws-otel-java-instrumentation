@@ -11,7 +11,6 @@ on:
       caller-workflow-name:
         required: true
         type: string
-  workflow_dispatch:
 
 permissions:
   id-token: write
