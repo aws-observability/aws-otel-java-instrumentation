@@ -138,12 +138,6 @@ public class App implements Callable<Integer> {
       defaultValue = "")
   private String instanceAmi;
 
-  @CommandLine.Option(
-          names = {"--dry-run-compile"},
-          defaultValue = "false"
-  )
-  private boolean dryRunCompile;
-
   private static final String TEST_CASE_DIM_KEY = "testcase";
   private static final String CANARY_NAMESPACE = "Otel/Canary";
   private static final String CANARY_METRIC_NAME = "Success";
@@ -155,10 +149,6 @@ public class App implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    if (dryRunCompile) {
-      log.info("Dry Run Compile Success");
-      return null;
-    }
     final Instant startTime = Instant.now();
     // build context
     Context context = new Context(this.testingId, this.region, this.isCanary, this.isRollup);
