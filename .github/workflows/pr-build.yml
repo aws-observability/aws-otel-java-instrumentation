@@ -83,7 +83,7 @@ jobs:
       - name: Dry Run Validator
         if: ${{ matrix.os != 'windows-latest' }} # Skip dry run validator on windows as it is not possible to build opentelemetry-java on windows
         run: |
-          ./gradlew testing:validator:run --args='--dry-run-compile true'
+          ./gradlew testing:validator:build
 
       - name: Build with Gradle with Integration tests
         uses: gradle/gradle-build-action@v2
