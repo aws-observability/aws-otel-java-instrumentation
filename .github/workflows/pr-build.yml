@@ -33,11 +33,9 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
-      - uses: ./.github/actions/patch-dependencies
+      - uses: ./.github/actions/patch-dependencies-unsigned
         with:
           run_tests: "true"
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
   build:
     name: Build on ${{ matrix.os }}
@@ -74,11 +72,8 @@ jobs:
           key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
       - name: Publish patched dependencies to maven local
-        uses: ./.github/actions/patch-dependencies
+        uses: ./.github/actions/patch-dependencies-unsigned
         if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Build with Gradle with Integration tests
         uses: gradle/gradle-build-action@v2
