@@ -23,13 +23,16 @@ runs:
   using: "composite"
   steps:
     - name: set environment variables
+      env:
+        INPUT_KEY: ${{ inputs.gpg_private_key }}
+        INPUT_PASSWORD: ${{ inputs.gpg_password }}
       shell: bash
       run: |
-        if [[ ${{ inputs.gpg_private_key }} ]]; then
-          echo 'GPG_PRIVATE_KEY=${{ inputs.gpg_private_key }}
+        if [[ ! -z "$INPUT_KEY" ]]; then
+          echo 'GPG_PRIVATE_KEY=$INPUT_KEY' >> $GITHUB_ENV
         fi
-        if [[ ${{ inputs.gpg_password }} ]]; then
-          echo 'GPG_PASSWORD=${{ inputs.gpg_password }}
+        if [[ ! -z "$INPUT_PASSWORD" ]]; then
+          echo 'GPG_PASSWORD=$INPUT_PASSWORD' >> $GITHUB_ENV
         fi
 
     - name: check patches
