@@ -5,7 +5,7 @@
 name: App Signals Enablement - E2E EKS Canary Testing
 on:
   schedule:
-   - cron: '0/15 * * * *' # run the workflow every 15 minutes
+    - cron: '0/15 * * * *' # run the workflow every 15 minutes
   workflow_dispatch: # be able to run the workflow on demand
 
 concurrency:
