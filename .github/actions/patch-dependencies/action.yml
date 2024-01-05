@@ -15,10 +15,10 @@ inputs:
     description: "If the workflow should run tests of the dependencies. Anything different than false will evaluate to true"
   gpg_private_key:
     description: "The gpg key used to sign the artifacts"
-    required: true
+    required: false
   gpg_password:
     description: "The gpg key password"
-    required: true
+    required: false
 runs:
   using: "composite"
   steps:
