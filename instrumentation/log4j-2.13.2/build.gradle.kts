@@ -25,5 +25,5 @@ dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("net.bytebuddy:byte-buddy")
 
-  compileOnly("org.apache.logging.log4j:log4j-core:2.20.0")
+  compileOnly("org.apache.logging.log4j:log4j-core:2.22.1")
 }
