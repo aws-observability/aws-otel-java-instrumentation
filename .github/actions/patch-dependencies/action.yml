@@ -29,10 +29,10 @@ runs:
       shell: bash
       run: |
         if [[ ! -z "$INPUT_KEY" ]]; then
-          echo 'GPG_PRIVATE_KEY=$INPUT_KEY' >> $GITHUB_ENV
+          echo "GPG_PRIVATE_KEY=$INPUT_KEY" >> $GITHUB_ENV
         fi
         if [[ ! -z "$INPUT_PASSWORD" ]]; then
-          echo 'GPG_PASSWORD=$INPUT_PASSWORD' >> $GITHUB_ENV
+          echo "GPG_PASSWORD=$INPUT_PASSWORD" >> $GITHUB_ENV
         fi
 
     - name: check patches
