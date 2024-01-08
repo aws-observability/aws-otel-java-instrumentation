@@ -81,9 +81,11 @@ jobs:
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Dry Run Validator
-        if: ${{ matrix.os != 'windows-latest' }} # Skip dry run validator on windows as it is not possible to build opentelemetry-java on windows
-        run: |
-          ./gradlew testing:validator:build
+        uses: gradle/gradle-build-action@v2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          arguments: testing:validator:build
+
 
       - name: Build with Gradle with Integration tests
         uses: gradle/gradle-build-action@v2
