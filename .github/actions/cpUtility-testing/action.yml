@@ -1,6 +1,7 @@
 name: Build and Push Java-Agent Image after CPUtility Test
 description: |
   cpUtility Testing
+  This action assumes that Repo was checked out and Java was set correctly
 
 inputs:
   aws-region:
@@ -19,15 +20,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - uses: actions/setup-java@v4
-      with:
-        java-version: 17
-        distribution: temurin
-
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
