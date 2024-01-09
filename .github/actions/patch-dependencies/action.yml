@@ -28,11 +28,20 @@ runs:
         INPUT_PASSWORD: ${{ inputs.gpg_password }}
       shell: bash
       run: |
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
         if [[ ! -z "$INPUT_KEY" ]]; then
-          echo "GPG_PRIVATE_KEY=$INPUT_KEY" >> $GITHUB_ENV
+          {
+            echo "GPG_PRIVATE_KEY<<$EOF"
+            echo "$INPUT_KEY"
+            echo "$EOF"
+          } >> "$GITHUB_ENV"
         fi
         if [[ ! -z "$INPUT_PASSWORD" ]]; then
-          echo "GPG_PASSWORD=$INPUT_PASSWORD" >> $GITHUB_ENV
+          {
+            echo "GPG_PASSWORD<<$EOF"
+            echo "$INPUT_PASSWORD"
+            echo "$EOF"
+          } >> "$GITHUB_ENV"
         fi
 
     - name: check patches
