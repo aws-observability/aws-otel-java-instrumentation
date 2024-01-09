@@ -16,6 +16,10 @@ inputs:
   adot-java-version:
     required: true
     description: "ADOT Java Version"
+  snapshot-ecr-role:
+    require: true
+    description: "IAM Role used for pushing to snapshot ecr"
+
 
 runs:
   using: "composite"
@@ -29,7 +33,7 @@ runs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+        role-to-assume: ${{ inputs.snapshot-ecr-role }}
         aws-region: ${{ inputs.aws-region }}
 
     - name: Login to private staging ecr

@@ -78,6 +78,7 @@ jobs:
           image_uri_with_tag: ${{ steps.imageOutput.outputs.rcImage }}
           image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
           adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
+          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
