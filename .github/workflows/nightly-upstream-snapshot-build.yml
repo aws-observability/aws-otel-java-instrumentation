@@ -72,7 +72,7 @@ jobs:
           echo "rcImage=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.generate_time_stamp.outputs.nowTimeTag }}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Java Agent Image and Execute cpUtility Tests
-        uses: ./.github/workflows/build-and-push-image-with-cpUtility-test.yml
+        uses: ./.github/actions/cpUtility-testing
         with:
           aws-region: us-west-2
           image_uri_with_tag: ${{ steps.imageOutput.outputs.rcImage }}
