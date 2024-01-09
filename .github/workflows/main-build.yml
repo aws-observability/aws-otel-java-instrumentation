@@ -53,6 +53,7 @@ jobs:
       staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
       staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
       staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
+      aws_default_region: ${{ steps.default_region_output.aws_default_region }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,6 +133,11 @@ jobs:
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
+      - name: Set default region output
+        id: default_region_output
+        run: |
+            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
 
   create-test-ref:
     runs-on: ubuntu-latest
@@ -222,7 +228,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'

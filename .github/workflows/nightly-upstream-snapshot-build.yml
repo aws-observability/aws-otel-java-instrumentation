@@ -21,6 +21,8 @@ jobs:
       release-candidate-image: ${{ steps.imageOutput.outputs.rcImage }}
       image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
       image_name: ${{ steps.imageOutput.outputs.imageName }}
+      aws_default_region: ${{ steps.default_region_output.aws_default_region }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,6 +87,11 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
+      - name: Set default region output
+        id: default_region_output
+        run: |
+            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
+
   e2e-operator-test:
     concurrency:
       group: e2e-adot-agent-operator-test
@@ -141,7 +148,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
