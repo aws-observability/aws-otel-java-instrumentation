@@ -100,7 +100,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
       image_tag: ${{ needs.build.outputs.time_stamp_tag }}
       image_uri: ${{ needs.build.outputs.image_registry }}/${{ needs.build.outputs.image_name }}
       test_ref: 'terraform'
