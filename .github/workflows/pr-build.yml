@@ -75,6 +75,12 @@ jobs:
         uses: ./.github/actions/patch-dependencies
         if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
 
+      - name: Dry Run Validator
+        uses: gradle/gradle-build-action@v2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          arguments: testing:validator:build
+
       - name: Build with Gradle with Integration tests
         uses: gradle/gradle-build-action@v2
         if: ${{ matrix.os == 'ubuntu-latest' }}
