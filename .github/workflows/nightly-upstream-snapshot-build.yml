@@ -21,7 +21,6 @@ jobs:
       release-candidate-image: ${{ steps.imageOutput.outputs.rcImage }}
       image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
       image_name: ${{ steps.imageOutput.outputs.imageName }}
-      aws_default_region: ${{ env.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,7 +93,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       image_tag: ${{ needs.build.outputs.time_stamp_tag }}
       image_uri: ${{ needs.build.outputs.image_registry }}/${{ needs.build.outputs.image_name }}
       test_ref: 'terraform'
@@ -142,7 +141,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
