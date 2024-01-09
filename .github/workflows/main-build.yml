@@ -53,7 +53,6 @@ jobs:
       staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
       staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
       staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
-      aws_default_region: ${{ env.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,7 +155,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       image_tag: ${{ needs.build.outputs.java_agent_tag }}
       image_uri: ${{ needs.build.outputs.staging_registry }}/${{ needs.build.outputs.staging_repository }}
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
@@ -168,7 +167,7 @@ jobs:
     uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       image_tag: ${{ github.sha }}
       caller-workflow-name: 'main-build'
 
@@ -223,7 +222,7 @@ jobs:
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ env.AWS_DEFAULT_REGION }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'
