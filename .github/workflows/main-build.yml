@@ -138,7 +138,7 @@ jobs:
     outputs:
       aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
     steps:
-    - name: Set default region output
+      - name: Set default region output
         id: default_region_output
         run: |
             echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
