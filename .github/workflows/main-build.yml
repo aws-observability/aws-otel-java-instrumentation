@@ -53,7 +53,7 @@ jobs:
       staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
       staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
       staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
-      aws_default_region: ${{ steps.default_region_output.aws_default_region }}
+      aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
     steps:
       - uses: actions/checkout@v4
         with:
