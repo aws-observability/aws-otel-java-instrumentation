@@ -27,7 +27,7 @@ java {
 
 dependencies {
   implementation("com.sparkjava:spark-core")
-  implementation("org.apache.kafka:kafka-clients:3.6.0")
+  implementation("org.apache.kafka:kafka-clients:3.6.1")
   implementation("org.slf4j:slf4j-api:2.0.9")
   implementation("org.slf4j:slf4j-simple:2.0.9")
   testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
