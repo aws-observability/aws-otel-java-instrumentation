@@ -51,6 +51,7 @@ tasks {
     dependsOn(":otelagent:jibDockerBuild")
   }
   register<BuildImageTask>("jibBuildWithoutAgent") {
+    dependsOn(":sample-apps:spark:build")
     val j = JibExtension(project)
     j.configureImages(
       "eclipse-temurin:17",
