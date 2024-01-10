@@ -22,6 +22,8 @@ env:
   TESTING_FRAMEWORK_REPO: aws-observability/aws-otel-test-framework
   NUM_BATCHES: 2
   DDB_TABLE_NAME: BatchTestCache
+  # The precense of this env var is required. It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
 
 permissions:
   id-token: write

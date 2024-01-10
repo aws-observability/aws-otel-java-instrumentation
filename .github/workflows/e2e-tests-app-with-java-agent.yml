@@ -16,6 +16,10 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  # The precense of this env var is required. It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
+  
 jobs:
   build_Images_For_Testing_Sample_App_With_Java_Agent:
     runs-on: ubuntu-latest

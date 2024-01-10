@@ -17,6 +17,9 @@ permissions:
   contents: read
 
 env:
+  # The precense of this env var is required for use by terraform and AWS CLI commands
+  # It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   SAMPLE_APP_FRONTEND_SERVICE_JAR: "s3://aws-appsignals-sample-app/main-service.jar"
   SAMPLE_APP_REMOTE_SERVICE_JAR: "s3://aws-appsignals-sample-app/remote-service.jar"

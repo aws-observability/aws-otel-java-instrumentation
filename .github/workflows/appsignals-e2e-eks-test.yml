@@ -23,6 +23,9 @@ permissions:
   contents: read
 
 env:
+  # The precense of this env var is required for use by terraform and AWS CLI commands
+  # It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   ENABLEMENT_SCRIPT_S3_BUCKET: ${{ secrets.APP_SIGNALS_E2E_ENABLEMENT_SCRIPT }}
   SAMPLE_APP_NAMESPACE: sample-app-namespace
