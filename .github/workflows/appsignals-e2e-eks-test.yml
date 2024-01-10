@@ -48,13 +48,13 @@ jobs:
           distribution: temurin
 
       - name: Generate testing id
-        run: echo TESTING_ID="${{ inputs.aws-region }}-${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
+        run: echo TESTING_ID="${{ env.AWS_DEFAULT_REGION }}-${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.E2E_TEST_ROLE_ARN }}
-          aws-region: ${{ inputs.aws-region }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       # local directory to store the kubernetes config
       - name: Create kubeconfig directory
@@ -64,7 +64,7 @@ jobs:
         run: echo KUBECONFIG="${{ github.workspace }}/.kube/config" >> $GITHUB_ENV
 
       - name: Set up kubeconfig
-        run: aws eks update-kubeconfig --name ${{ inputs.test-cluster-name }} --region ${{ inputs.aws-region }}
+        run: aws eks update-kubeconfig --name ${{ inputs.test-cluster-name }} --region ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Install eksctl
         run: |
@@ -82,7 +82,7 @@ jobs:
           --cluster ${{ inputs.test-cluster-name }} \
           --role-name eks-s3-access-${{ env.TESTING_ID }} \
           --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
-          --region ${{ inputs.aws-region }} \
+          --region ${{ env.AWS_DEFAULT_REGION }} \
           --approve
 
       - name: Set up terraform
@@ -120,7 +120,7 @@ jobs:
             deployment_failed=0
             terraform apply -auto-approve \
               -var="test_id=${{ env.TESTING_ID }}" \
-              -var="aws_region=${{ inputs.aws-region }}" \
+              -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
               -var="kube_directory_path=${{ github.workspace }}/.kube" \
               -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
               -var="eks_cluster_context_name=$(kubectl config current-context)" \
@@ -140,7 +140,7 @@ jobs:
               echo "Installing app signals to the sample app"
               ./enable-app-signals.sh \
               ${{ inputs.test-cluster-name }} \
-              ${{ inputs.aws-region }} \
+              ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
           
               # If the workflow provides a specific ADOT image to test, patch the deployment and restart CW agent related pods
@@ -178,16 +178,16 @@ jobs:
               echo "Cleaning up App Signal"
               ./clean-app-signals.sh \
               ${{ inputs.test-cluster-name }} \
-              ${{ inputs.aws-region }} \
+              ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
           
               # Running clean-app-signal.sh removes the current cluster from the config. Update the cluster again for subsequent runs.
-              aws eks update-kubeconfig --name ${{ inputs.test-cluster-name }} --region ${{ inputs.aws-region }}
+              aws eks update-kubeconfig --name ${{ inputs.test-cluster-name }} --region ${{ env.AWS_DEFAULT_REGION }}
 
               echo "Destroying terraform"
               terraform destroy -auto-approve \
                 -var="test_id=${{ env.TESTING_ID }}" \
-                -var="aws_region=${{ inputs.aws-region }}" \
+                -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
                 -var="kube_directory_path=${{ github.workspace }}/.kube" \
                 -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
                 -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \
@@ -257,7 +257,7 @@ jobs:
         run: ./gradlew testing:validator:run --args='-c eks/log-validation.yml
           --testing-id ${{ env.TESTING_ID }}
           --endpoint http://${{ env.APP_ENDPOINT }}
-          --region ${{ inputs.aws-region }}
+          --region ${{ env.AWS_DEFAULT_REGION }}
           --account-id ${{ env.TEST_ACCOUNT }}
           --metric-namespace ${{ env.METRIC_NAMESPACE }}
           --log-group ${{ env.LOG_GROUP_NAME }}
@@ -274,7 +274,7 @@ jobs:
         run: ./gradlew testing:validator:run --args='-c eks/metric-validation.yml
           --testing-id ${{ env.TESTING_ID }}
           --endpoint http://${{ env.APP_ENDPOINT }}
-          --region ${{ inputs.aws-region }}
+          --region ${{ env.AWS_DEFAULT_REGION }}
           --account-id ${{ env.TEST_ACCOUNT }}
           --metric-namespace ${{ env.METRIC_NAMESPACE }}
           --log-group ${{ env.LOG_GROUP_NAME }}
@@ -292,7 +292,7 @@ jobs:
         run: ./gradlew testing:validator:run --args='-c eks/trace-validation.yml
           --testing-id ${{ env.TESTING_ID }}
           --endpoint http://${{ env.APP_ENDPOINT }}
-          --region ${{ inputs.aws-region }}
+          --region ${{ env.AWS_DEFAULT_REGION }}
           --account-id ${{ env.TEST_ACCOUNT }}
           --metric-namespace ${{ env.METRIC_NAMESPACE }}
           --log-group ${{ env.LOG_GROUP_NAME }}
@@ -311,13 +311,13 @@ jobs:
             --metric-name Failure \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=${{ inputs.caller-workflow-name }} \
             --value 0.0 \
-            --region ${{ inputs.aws-region }}
+            --region ${{ env.AWS_DEFAULT_REGION }}
           else
             aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
             --metric-name Failure \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=${{ inputs.caller-workflow-name }} \
             --value 1.0 \
-            --region ${{ inputs.aws-region }}
+            --region ${{ env.AWS_DEFAULT_REGION }}
           fi
 
       # Clean up Procedures
@@ -329,7 +329,7 @@ jobs:
         run: |
           ./clean-app-signals.sh \
           ${{ inputs.test-cluster-name }} \
-          ${{ inputs.aws-region }} \
+          ${{ env.AWS_DEFAULT_REGION }} \
           ${{ env.SAMPLE_APP_NAMESPACE }}
 
       # This step also deletes lingering resources from previous test runs
@@ -346,7 +346,7 @@ jobs:
         run: |
           terraform destroy -auto-approve \
             -var="test_id=${{ env.TESTING_ID }}" \
-            -var="aws_region=${{ inputs.aws-region }}" \
+            -var="aws_region=${{ env.AWS_DEFAULT_REGION }}" \
             -var="kube_directory_path=${{ github.workspace }}/.kube" \
             -var="eks_cluster_name=${{ inputs.test-cluster-name }}" \
             -var="test_namespace=${{ env.SAMPLE_APP_NAMESPACE }}" \
@@ -361,4 +361,4 @@ jobs:
           --name service-account-${{ env.TESTING_ID }} \
           --namespace ${{ env.SAMPLE_APP_NAMESPACE }} \
           --cluster ${{ inputs.test-cluster-name }} \
-          --region ${{ inputs.aws-region }}
+          --region ${{ env.AWS_DEFAULT_REGION }}
