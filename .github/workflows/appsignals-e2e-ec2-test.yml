@@ -71,10 +71,10 @@ jobs:
         working-directory: testing/terraform/ec2
         run: |
           old_command='"wget -O adot.jar ${var.adot_jar}",'
-          new_command='"aws s3 cp s3://main-build-adot-jar/aws-opentelemetry-agent.jar ./adot.jar",'
+          new_command='"aws s3 cp s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar ./adot.jar",'
           sed -i "s|$old_command|$new_command|" "main.tf"
           
-          if grep -Fq '"aws s3 cp s3://main-build-adot-jar/aws-opentelemetry-agent.jar ./adot.jar",' main.tf; then
+          if grep -Fq '"aws s3 cp s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar ./adot.jar",' main.tf; then
             echo "Command replaced successfully"
           else
             echo "sed command failed, exiting."
