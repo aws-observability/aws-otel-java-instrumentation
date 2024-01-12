@@ -47,7 +47,6 @@ jobs:
           else
             echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           fi
-          
 
       - name: Generate testing id
         run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
@@ -57,6 +56,30 @@ jobs:
         with:
           role-to-assume: ${{ secrets.E2E_TEST_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{ inputs.caller-workflow-name }} == 'main-build'
+        with:
+          name: aws-opentelemetry-agent.jar
+
+      - name: Upload main-build adot.jar to s3
+        if: ${{ inputs.caller-workflow-name }} == 'main-build'
+        run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar
+
+      - name: Update main.tf to download the new aws-opentelemetry-agent.jar
+        if: ${{ inputs.caller-workflow-name }} == 'main-build'
+        working-directory: testing/terraform/ec2
+        run: |
+          old_command='"wget -O adot.jar ${var.adot_jar}",'
+          new_command='"aws s3 cp s3://main-build-adot-jar/aws-opentelemetry-agent.jar ./adot.jar",'
+          sed -i "s|$old_command|$new_command|" "main.tf"
+          
+          if grep -Fq '"aws s3 cp s3://main-build-adot-jar/aws-opentelemetry-agent.jar ./adot.jar",' main.tf; then
+            echo "Command replaced successfully"
+          else
+            echo "sed command failed, exiting."
+            exit 1
+          fi
 
       - name: Set up terraform
         uses: hashicorp/setup-terraform@v3

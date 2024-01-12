@@ -237,6 +237,15 @@ jobs:
       appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'
 
+  # AppSignals specific e2e tests for ec2
+  appsignals-e2e-ec2-test:
+    needs: build
+    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    secrets: inherit
+    with:
+      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      caller-workflow-name: 'main-build'
+
   publish-build-status:
     needs: [ build, contract-tests ]
     if: ${{ always() }}
