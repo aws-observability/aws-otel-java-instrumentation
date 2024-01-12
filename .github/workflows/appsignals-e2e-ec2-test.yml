@@ -17,7 +17,9 @@ permissions:
   contents: read
 
 env:
-  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} # Used by terraform and AWS CLI commands
+  # The precense of this env var is required for use by terraform and AWS CLI commands
+  # It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   SAMPLE_APP_FRONTEND_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_FE_SA_JAR }}
   SAMPLE_APP_REMOTE_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_RE_SA_JAR }}

@@ -53,7 +53,6 @@ jobs:
       staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
       staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
       staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
-      aws_default_region: ${{ env.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -134,6 +133,16 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
+  default-region-output:
+    runs-on: ubuntu-latest
+    outputs:
+      aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
+    steps:
+      - name: Set default region output
+        id: default_region_output
+        run: |
+            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
+
   create-test-ref:
     runs-on: ubuntu-latest
     outputs:
@@ -152,11 +161,11 @@ jobs:
     concurrency:
       group: e2e-adot-agent-operator-test
       cancel-in-progress: false
-    needs: [ build, create-test-ref ]
+    needs: [ build, create-test-ref, default-region-output ]
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       image_tag: ${{ needs.build.outputs.java_agent_tag }}
       image_uri: ${{ needs.build.outputs.staging_registry }}/${{ needs.build.outputs.staging_repository }}
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
@@ -164,11 +173,11 @@ jobs:
 
   # E2E tests where SampleApp has Java Agent
   e2e-test:
-    needs: build
+    needs: [build, default-region-output]
     uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       image_tag: ${{ github.sha }}
       caller-workflow-name: 'main-build'
 
@@ -180,7 +189,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: 'temurin'
@@ -219,11 +228,11 @@ jobs:
     concurrency:
       group: e2e-adot-test
       cancel-in-progress: false
-    needs: build
+    needs: [build, default-region-output]
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
       caller-workflow-name: 'main-build'
