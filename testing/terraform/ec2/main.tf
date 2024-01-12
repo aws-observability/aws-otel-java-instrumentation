@@ -89,12 +89,12 @@ resource "null_resource" "main_service_setup" {
       "echo $agent_config > amazon-cloudwatch-agent.json",
 
       # Get and run CW agent rpm
-      "wget -O cw-agent.rpm ${var.cw_agent_rpm}",
+      "${var.get_cw_agent_rpm}",
       "sudo rpm -U ./cw-agent.rpm",
       "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:./amazon-cloudwatch-agent.json",
 
       # Get ADOT
-      "wget -O adot.jar ${var.adot_jar}",
+      "${var.get_adot_jar}",
 
       # Get and run the sample application with configuration
       "aws s3 cp ${var.sample_app_jar} ./main-service.jar",
@@ -150,12 +150,12 @@ resource "null_resource" "remote_service_setup" {
       "echo $agent_config > amazon-cloudwatch-agent.json",
 
       # Get and run CW agent rpm
-      "wget -O cw-agent.rpm ${var.cw_agent_rpm}",
+       "${var.get_cw_agent_rpm}",
       "sudo rpm -U ./cw-agent.rpm",
       "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:./amazon-cloudwatch-agent.json",
 
       # Get ADOT
-      "wget -O adot.jar ${var.adot_jar}",
+      "${var.get_adot_jar}",
 
       # Get and run the sample application with configuration
       "aws s3 cp ${var.sample_remote_app_jar} ./remote-service.jar",

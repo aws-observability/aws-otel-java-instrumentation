@@ -23,7 +23,6 @@ env:
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   SAMPLE_APP_FRONTEND_SERVICE_JAR: "s3://aws-appsignals-sample-app/main-service.jar"
   SAMPLE_APP_REMOTE_SERVICE_JAR: "s3://aws-appsignals-sample-app/remote-service.jar"
-  APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
   METRIC_NAMESPACE: AppSignals
   LOG_GROUP_NAME: /aws/appsignals/generic
 
@@ -43,9 +42,9 @@ jobs:
       - name: Set CW Agent RPM environment variable
         run: |
           if [ ${{ env.AWS_DEFAULT_REGION }} == "us-east-1" ]; then
-            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+            echo APP_SIGNALS_GET_CW_AGENT_RPM="wget -O cw-agent.rpm https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           else
-            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+            echo APP_SIGNALS_GET_CW_AGENT_RPM="wget -O cw-agent.rpm https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           fi
 
       - name: Generate testing id
@@ -66,19 +65,13 @@ jobs:
         if: ${{ inputs.caller-workflow-name }} == 'main-build'
         run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar
 
-      - name: Update main.tf to download the new aws-opentelemetry-agent.jar
-        if: ${{ inputs.caller-workflow-name }} == 'main-build'
+      - name: Set Get ADOT.jar command environment variable
         working-directory: testing/terraform/ec2
         run: |
-          old_command='"wget -O adot.jar ${var.adot_jar}",'
-          new_command='"aws s3 cp s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar ./adot.jar",'
-          sed -i "s|$old_command|$new_command|" "main.tf"
-          
-          if grep -Fq '"aws s3 cp s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar ./adot.jar",' main.tf; then
-            echo "Command replaced successfully"
+          if [ ${{ inputs.caller-workflow-name }} == 'main-build' ]; then
+            echo APP_SIGNALS_GET_ADOT_JAR="aws s3 cp s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar ./adot.jar" >> $GITHUB_ENV
           else
-            echo "sed command failed, exiting."
-            exit 1
+            echo APP_SIGNALS_GET_ADOT_JAR="wget -O adot.jar https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar" >> $GITHUB_ENV
           fi
 
       - name: Set up terraform
@@ -106,8 +99,8 @@ jobs:
               -var="test_id=${{ env.TESTING_ID }}" \
               -var="sample_app_jar=${{ env.SAMPLE_APP_FRONTEND_SERVICE_JAR }}" \
               -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
-              -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
-              -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}" \
+              -var="get_cw_agent_rpm=${{ env.APP_SIGNALS_GET_CW_AGENT_RPM }}" \
+              -var="get_adot_jar=${{ env.APP_SIGNALS_GET_ADOT_JAR }}" \
             || deployment_failed=$?
           
             if [ $deployment_failed -eq 1 ]; then
