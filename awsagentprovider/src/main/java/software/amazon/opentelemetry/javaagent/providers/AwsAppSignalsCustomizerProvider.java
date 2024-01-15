@@ -49,7 +49,7 @@ import java.util.logging.Logger;
  * </ul>
  *
  * <p>You can control when these customizations are applied using the property otel.smp.enabled or
- * the environment variable OTEL_SMP_ENABLED. This flag is enabled by default.
+ * the environment variable OTEL_SMP_ENABLED. This flag is disabled by default.
  */
 public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomizerProvider {
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
