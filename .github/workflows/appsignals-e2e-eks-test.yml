@@ -23,7 +23,9 @@ permissions:
   contents: read
 
 env:
-  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} # Used by terraform and AWS CLI commands
+  # The precense of this env var is required for use by terraform and AWS CLI commands
+  # It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   ENABLEMENT_SCRIPT_S3_BUCKET: ${{ secrets.APP_SIGNALS_E2E_ENABLEMENT_SCRIPT }}
   SAMPLE_APP_NAMESPACE: sample-app-namespace
@@ -39,6 +41,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
 
       - name: Generate testing id
         run: echo TESTING_ID="${{ env.AWS_DEFAULT_REGION }}-${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
@@ -244,11 +251,19 @@ jobs:
 
       # cache local patch outputs
       - name: Cache local Maven repository
+        id: cache-local-maven-repo
         uses: actions/cache@v3
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
           key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        if: steps.cache-local-maven-repo.outputs.cache-hit != 'true'
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Get the sample app endpoint
         run: echo "APP_ENDPOINT=$(terraform output sample_app_endpoint)" >> $GITHUB_ENV

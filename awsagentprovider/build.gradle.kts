@@ -45,7 +45,7 @@ dependencies {
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.3.1")
-  testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
+  testImplementation("org.mockito:mockito-junit-jupiter:5.8.0")
 }
 
 tasks {

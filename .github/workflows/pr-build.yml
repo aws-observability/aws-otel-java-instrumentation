@@ -36,8 +36,6 @@ jobs:
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
   build:
     name: Build on ${{ matrix.os }}
@@ -76,9 +74,12 @@ jobs:
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
         if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
+
+      - name: Dry Run Validator
+        uses: gradle/gradle-build-action@v2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+          arguments: testing:validator:build
 
       - name: Build with Gradle with Integration tests
         uses: gradle/gradle-build-action@v2
