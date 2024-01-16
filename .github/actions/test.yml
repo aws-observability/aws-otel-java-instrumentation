@@ -13,12 +13,5 @@ jobs:
     secrets: inherit
     with:
       aws-region: us-east-1
-      test-cluster-name: <Enter Cluster Name>
-      caller-workflow-name: 'test'
-
-  e2e-ec2-test:
-    uses: ./.github/workflows/appsignals-e2e-ec2-test.yml
-    secrets: inherit
-    with:
-      aws-region: us-east-1
+      test-cluster-name: GithubTest
       caller-workflow-name: 'test'
