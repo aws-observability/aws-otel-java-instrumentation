@@ -27,7 +27,7 @@ dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("com.google.code.gson:gson:2.10.1")
   implementation("org.slf4j:slf4j-simple")
-  implementation("org.apache.httpcomponents.client5:httpclient5:5.2.1")
+  implementation("org.apache.httpcomponents.client5:httpclient5:5.3")
 }
 java {
   sourceCompatibility = JavaVersion.VERSION_11
