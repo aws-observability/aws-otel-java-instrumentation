@@ -21,7 +21,7 @@ jobs:
       release-candidate-image: ${{ steps.imageOutput.outputs.rcImage }}
       image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
       image_name: ${{ steps.imageOutput.outputs.imageName }}
-      aws_default_region: ${{ env.AWS_DEFAULT_REGION }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,22 +44,6 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: public.ecr.aws
-
-      # cache local patch outputs
-      - name: Cache local Maven repository
-        id: cache-local-maven-repo
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
-
-      - name: Publish patched dependencies to maven local
-        uses: ./.github/actions/patch-dependencies
-        if: steps.cache-local-maven-repo.outputs.cache-hit != 'true'
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
@@ -88,12 +72,13 @@ jobs:
           echo "rcImage=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.generate_time_stamp.outputs.nowTimeTag }}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Java Agent Image and Execute cpUtility Tests
-        uses: ./.github/workflows/build-and-push-image-with-cpUtility-test.yml
+        uses: ./.github/actions/cpUtility-testing
         with:
           aws-region: us-west-2
           image_uri_with_tag: ${{ steps.imageOutput.outputs.rcImage }}
           image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
           adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
+          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
@@ -101,55 +86,79 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
+  default-region-output:
+    runs-on: ubuntu-latest
+    outputs:
+      aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
+    steps:
+      - name: Set default region output
+        id: default_region_output
+        run: |
+            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
+
   e2e-operator-test:
     concurrency:
       group: e2e-adot-agent-operator-test
       cancel-in-progress: false
-    needs: build
+    needs: [build, default-region-output]
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       image_tag: ${{ needs.build.outputs.time_stamp_tag }}
       image_uri: ${{ needs.build.outputs.image_registry }}/${{ needs.build.outputs.image_name }}
       test_ref: 'terraform'
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
-  # E2E tests where SampleApp has Java Agent
-  e2e-test:
-    needs: build
-    uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
-    secrets: inherit
-    with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
-      image_tag: ${{ needs.build.outputs.time_stamp_tag }}
-      caller-workflow-name: 'nightly-upstream-snapshot-build'
-
   # AppSignals Contract Tests
   contract-tests:
+    runs-on: ubuntu-latest
     needs: build
-    uses: ./.github/workflows/contract-tests.yml
-    secrets: inherit
-    with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
-      caller-workflow-name: 'nightly-upstream-snapshot-build'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+      - uses: gradle/wrapper-validation-action@v1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
+
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+
+      - name: Build snapshot with Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: contractTests -PtestUpstreamSnapshots=true -PlocalDocker=true
 
   # AppSignals specific e2e tests
   appsignals-e2e-test:
     concurrency:
       group: e2e-adot-test
       cancel-in-progress: false
-    needs: build
+    needs: [build,default-region-output]
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.build.outputs.aws_default_region }}
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
   publish-build-status:
-    needs: [ build ]
+    needs: [ build, contract-tests ]
     if: ${{ always() }}
     uses: ./.github/workflows/publish-status.yml
     with:
@@ -157,7 +166,8 @@ jobs:
       repository: ${{ github.repository }}
       branch: ${{ github.ref_name }}
       workflow: nightly-upstream-snapshot-build
-      success: ${{  needs.build.result == 'success' }}
+      success: ${{  needs.build.result == 'success' &&
+                    needs.contract-tests.result == 'success'  }}
       region: us-west-2
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}

@@ -15,13 +15,35 @@ inputs:
     description: "If the workflow should run tests of the dependencies. Anything different than false will evaluate to true"
   gpg_private_key:
     description: "The gpg key used to sign the artifacts"
-    required: true
+    required: false
   gpg_password:
     description: "The gpg key password"
-    required: true
+    required: false
 runs:
   using: "composite"
   steps:
+    - name: set environment variables
+      env:
+        INPUT_KEY: ${{ inputs.gpg_private_key }}
+        INPUT_PASSWORD: ${{ inputs.gpg_password }}
+      shell: bash
+      run: |
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        if [[ ! -z "$INPUT_KEY" ]]; then
+          {
+            echo "GPG_PRIVATE_KEY<<$EOF"
+            echo "$INPUT_KEY"
+            echo "$EOF"
+          } >> "$GITHUB_ENV"
+        fi
+        if [[ ! -z "$INPUT_PASSWORD" ]]; then
+          {
+            echo "GPG_PASSWORD<<$EOF"
+            echo "$INPUT_PASSWORD"
+            echo "$EOF"
+          } >> "$GITHUB_ENV"
+        fi
+
     - name: check patches
       run: |
         if [[ -f .github/patches/opentelemetry-java.patch ]]; then
@@ -48,9 +70,6 @@ runs:
       with:
         arguments: build publishToMavenLocal
         build-root-directory: opentelemetry-java
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
-        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: Build opentelemetry-java
       uses: gradle/gradle-build-action@v2
@@ -58,9 +77,6 @@ runs:
       with:
         arguments: publishToMavenLocal
         build-root-directory: opentelemetry-java
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
-        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: cleanup opentelemetry-java
       run: rm -rf opentelemetry-java
@@ -73,9 +89,6 @@ runs:
       with:
         arguments: build publishToMavenLocal
         build-root-directory: opentelemetry-java-contrib
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
-        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: Build opentelemetry-java-contrib
       uses: gradle/gradle-build-action@v2
@@ -83,9 +96,6 @@ runs:
       with:
         arguments: publishToMavenLocal
         build-root-directory: opentelemetry-java-contrib
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
-        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
@@ -98,9 +108,6 @@ runs:
       with:
         arguments: check -x spotlessCheck publishToMavenLocal
         build-root-directory: opentelemetry-java-instrumentation
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
-        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: Build opentelemetry java instrumentation
       uses: gradle/gradle-build-action@v2
@@ -108,9 +115,6 @@ runs:
       with:
         arguments: publishToMavenLocal
         build-root-directory: opentelemetry-java-instrumentation
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
-        GPG_PASSWORD: ${{ inputs.gpg_password }}
 
     - name: cleanup opentelmetry-java-instrumentation
       run: rm -rf opentelemetry-java-instrumentation
