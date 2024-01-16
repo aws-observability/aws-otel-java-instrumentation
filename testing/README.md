@@ -62,6 +62,8 @@ Note: Make sure to replace <Region> with the correct value (e.g. us-east-1)
 #### Create a New Cluster and Install the AWS Load Balancer Controller Add-on for All Regions
 Repeat the previous two steps for all 5 regions. (us-east-1, us-east-2, eu-west-1, ap-northeast-1, ap-southeast-2)
 
+Note: If you do not want to test all 5 regions, you can create one for us-east-1, then on the [appsignals-e2e-eks-canary-test.yml](.github/workflows/appsignals-e2e-eks-canary-test.yml) comment out the other regions on line 24
+
 ### 3. Setting up Environment for EC2 Tests
 #### Create IAM Role for EC2 Instance
 - Login to AWS, go to the IAM console and click on the Roles tab. Click Create role.
