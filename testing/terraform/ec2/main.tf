@@ -27,8 +27,16 @@ locals {
 }
 
 data "aws_ami" "ami" {
-  owners         = ["amazon"]
+  owners   = ["amazon"]
   most_recent      = true
+  filter {
+    name   = "name"
+    values = ["al20*-ami-minimal-*-x86_64"]
+  }
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
   filter {
     name   = "architecture"
     values = ["x86_64"]
@@ -81,8 +89,8 @@ resource "null_resource" "main_service_setup" {
 
   provisioner "remote-exec" {
     inline = [
-      # Install Java 11 and tmux
-      "yes | sudo amazon-linux-extras install java-openjdk11",
+      # Install Java 11 and wget
+      "sudo yum install wget java-11-amazon-corretto -y",
 
       # Copy in CW Agent configuration
       "agent_config='${replace(replace(file("./amazon-cloudwatch-agent.json"), "/\\s+/", ""), "$REGION", var.aws_region)}'",
@@ -142,8 +150,8 @@ resource "null_resource" "remote_service_setup" {
 
   provisioner "remote-exec" {
     inline = [
-      # Install Java 11 and tmux
-      "yes | sudo amazon-linux-extras install java-openjdk11",
+      # Install Java 11 and wget
+      "sudo yum install wget java-11-amazon-corretto -y",
 
       # Copy in CW Agent configuration
       "agent_config='${replace(replace(file("./amazon-cloudwatch-agent.json"), "/\\s+/", ""), "$REGION", var.aws_region)}'",
