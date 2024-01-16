@@ -1,5 +1,11 @@
 # How to Test E2E Resource Changes
-This guide will give a step by step instruction on how to test changes made to E2E testing resources before pushing a PR. 
+This guide will give a step by step instruction on how to test changes made to E2E testing resources before pushing a PR.
+The guide will include the following:
+- Setting up IAM roles and an EKS cluster
+- Setting up VPC settings and IAM role for EC2 instances
+- Buliding sample app images/files and putting them into ECRs/S3 buckets
+- Forking a repository and setting up neccessary secrets
+
 
 ### 1. Create an IAM Role with OIDC Identity Provider
 This step is needed to allow Github Action to have access to resources in the AWS account
@@ -36,20 +42,22 @@ The E2E EKS test uses an EKS cluster to deploy the sample apps.
   - `export AWS_SESSION_TOKEN=$(echo $output | jq -r .Credentials.SessionToken)`
 - Run `aws sts get-caller-identity` to check if you are in the correct role
 #### Create a new Cluster
+Make sure to replace <ClusterName> with the desired cluster name.
 - Next, create the cluster by running `eksctl create cluster --name <ClusterName> --region us-east-1 --zones us-east-1a,us-east-1b`. This will take around ~10 minutes. 
 #### Install AWS Load Balancer Controller Add-on
 - Finally, install the AWS Load Balancer Controller add-on by running the following commands. Make sure to replace the `<ClusterName>` and `<AccountID>` with the correct value.
-  - `eksctl utils associate-iam-oidc-provider --cluster <ClusterName> --region us-east-1 --approve`
-  - `curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.7/docs/install/iam_policy.json`
-  - `aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json --region us-east-1`
-  - `eksctl create iamserviceaccount --cluster=<ClusterName> --namespace=kube-system --name=aws-load-balancer-controller --attach-policy-arn=arn:aws:iam::<AccountID>:policy/AWSLoadBalancerControllerIAMPolicy --region us-east-1 --approve`
-  - `kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.4/cert-manager.yaml`
-  - `curl -Lo v2_4_7_full.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.4.7/v2_4_7_full.yaml`
-  - `sed -i.bak -e '561,569d' ./v2_4_7_full.yaml`
-  - `sed -i.bak -e 's|your-cluster-name|<ClusterName>|' ./v2_4_7_full.yaml`
-  - `kubectl apply -f v2_4_7_full.yaml`
-  - `curl -Lo v2_4_7_ingclass.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.4.7/v2_4_7_ingclass.yaml`
-  - `kubectl apply -f v2_4_7_ingclass.yaml`
+  ```
+  eksctl utils associate-iam-oidc-provider --cluster <ClusterName> --region us-east-1 --approve
+  curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.7/docs/install/iam_policy.json
+  aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json --region us-east-1
+  eksctl create iamserviceaccount --cluster=<ClusterName> --namespace=kube-system --name=aws-load-balancer-controller --attach-policy-arn=arn:aws:iam::<AccountID>:policy/AWSLoadBalancerControllerIAMPolicy --region us-east-1 --approve
+  kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.4/cert-manager.yaml
+  curl -Lo v2_4_7_full.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.4.7/v2_4_7_full.yaml
+  sed -i.bak -e '561,569d' ./v2_4_7_full.yaml
+  sed -i.bak -e 's|your-cluster-name|<ClusterName>|' ./v2_4_7_full.yaml
+  kubectl apply -f v2_4_7_full.yaml
+  curl -Lo v2_4_7_ingclass.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.4.7/v2_4_7_ingclass.yaml
+  kubectl apply -f v2_4_7_ingclass.yaml```
 
 ### 3. Setting up Environment for EC2 Tests
 #### Create IAM Role for EC2 Instance
@@ -59,17 +67,17 @@ The E2E EKS test uses an EKS cluster to deploy the sample apps.
 - Type the role name and click "Create role".
 - 
 #### Setting Up Default VPC
-- Go to the VPC console and on the routing table for the default VPC, click Edit routes. 
+- Go to the VPC console and on the routing table for the default VPC, click Edit routes. (The default VPC should have the `-` name if it hasn't been assigned to another VPC before)
 - Click add routes, for destination add `0.0.0.0/0`, for target add Internet Gateway and save changes.
 - Go to the Security groups tab, find the security group attached to the default VPC, click Edit inbound rules, choose type: All Traffic, Source: custom, and CIDR block: 0.0.0.0/0. Save rules.
 
 ### 4. Building Sample App to ECR
 Create two ECR repositories: one for the sample app main service and another for the sample app remote service. 
-Follow the instructions under ./sample-apps/README.md to build the sample app image and upload it to the ECR
+Follow the instructions [here](./sample-apps/README.md) to build the sample app image and upload it to the ECR
 
 ### 5. Building Sample App to S3 Bucket
 Create an S3 Bucket to store the .jar files for the sample app main service and sample app remote service.
-Follow the instructions under ./sample-apps/README.md to build the sample app .jar and upload it to the bucket
+Follow the instructions under [here](./sample-apps/README.md) to build the sample app .jar and upload it to the bucket
 
 ### 6. Setting up repository
 - Go to https://github.com/aws-observability/aws-otel-java-instrumentation and create a fork

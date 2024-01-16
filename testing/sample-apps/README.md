@@ -11,13 +11,14 @@ To update the image, first push the update to a backup image (or generate a new 
 the backup image, push the update to the main image and revert the addresses on the repositories back to the original. Be careful to ensure the image names are appropriately stored in secrets.
 
 ### Setting up the environment:
-1. Run the `patch.sh` script under `.github/scripts/` folder. You should have a new folder called `opentelemetry-java-instrumentation`
+1. Run `./.github/scripts/patch.sh` in the repository root. You should have a new folder called `opentelemetry-java-instrumentation`
 2. Cd to the new folder, then run `gradle publishToMavenLocal`
 3. Run `rm -rf opentelemetry-java-instrumentation` to delete the folder.
 
 ### Steps to update image:
 1. Use `ada` commands to autheticate into the testing account
-2. Login to ECR Repository: `aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {REPOSITORY}`. Create a new repository first if the repository doesn't exist.
+2. Create a new ECR repository if there's no existing one.
+2. Login to ECR Repository: `aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {REPOSITORY}`. 
 3. Change repository name in the `build.gradle.kts` file under `testing/sample-apps/springboot` or `testing/sample-apps/sprintboot-remote-service`
 4. Change the `tasks.named("jib").enabled` value on the `build.gradle.kts` file from false to true
 4. Run `gradle jib` under the respective directory.
