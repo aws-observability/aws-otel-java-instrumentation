@@ -66,7 +66,7 @@ resource "aws_instance" "main_service_instance" {
   ami                                   = data.aws_ami.ami.id # Amazon Linux 2 (free tier)
   instance_type                         = "t2.micro"
   key_name                              = local.ssh_key_name
-  iam_instance_profile                  = var.test_role
+  iam_instance_profile                  = "APP_SIGNALS_EC2_TEST_ROLE"
   vpc_security_group_ids                = [aws_default_vpc.default.default_security_group_id]
   associate_public_ip_address           = true
   instance_initiated_shutdown_behavior  = "terminate"
@@ -127,7 +127,7 @@ resource "aws_instance" "remote_service_instance" {
   ami                                   = data.aws_ami.ami.id # Amazon Linux 2 (free tier)
   instance_type                         = "t2.micro"
   key_name                              = local.ssh_key_name
-  iam_instance_profile                  = var.test_role
+  iam_instance_profile                  = "APP_SIGNALS_EC2_TEST_ROLE"
   vpc_security_group_ids                = [aws_default_vpc.default.default_security_group_id]
   associate_public_ip_address           = true
   instance_initiated_shutdown_behavior  = "terminate"

@@ -23,8 +23,16 @@ the backup image, push the update to the main image and revert the addresses on 
 4. Change the `tasks.named("jib").enabled` value on the `build.gradle.kts` file from false to true
 4. Run `gradle jib` under the respective directory.
 
-## [WIP] EC2 Use Case: Building the JAR Files
+## EC2 Use Case: Building the JAR Files
 To build the JAR files of the sample application, simply `cd` into each application, e.g. `cd testing/sample-apps/springboot`, and run `gradle build`.
-This will create a JAR file in the `build/libs/` folder. To update the JAR file in the testing account:
+This will create JAR files in the `build/libs/` folder with the format:
+- springboot-*-SNAPSHOT-javadoc.jar
+- springboot-*-SNAPSHOT-plain.jar
+- springboot-*-SNAPSHOT-sources.jar
+- springboot-*-SNAPSHOT.jar. 
+
+To update the JAR file in the testing account:
 - Use `ada` commands to authenticate into the testing account
-- Only after you're sure of your changes and if they do not break the tests running in other repos, use `aws s3api put-object --bucket <BUCKET_NAME> --body build/libs/<JAR_FILE_NAME>.jar --key <SERVICE_NAME>.jar` to push the JAR to S3
+- Only after you're sure of your changes and if they do not break the tests running in other repos, use `aws s3api put-object --bucket <BUCKET_NAME> --body build/libs/springboot-*-SNAPSHOT.jar --key <SERVICE_NAME>.jar`
+
+Note: Replace * with the version number and `<SERVICE_NAME>.jar` is the desired name of the .jar file once in the s3 bucket. e.g. `sample-app-main-service.jar`

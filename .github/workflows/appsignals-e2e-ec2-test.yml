@@ -26,7 +26,6 @@ env:
   APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
   METRIC_NAMESPACE: AppSignals
   LOG_GROUP_NAME: /aws/appsignals/generic
-  APP_SIGNALS_E2E_EC2_TEST_ROLE: ${{ secrets.APP_SIGNALS_E2E_EC2_TEST_ROLE }}
 
 jobs:
   e2e-ec2-test:
@@ -85,7 +84,6 @@ jobs:
               -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
               -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
               -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}" \
-              -var="test_role=${{ env.APP_SIGNALS_E2E_EC2_TEST_ROLE }}" \
             || deployment_failed=$?
           
             if [ $deployment_failed -eq 1 ]; then

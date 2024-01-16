@@ -40,7 +40,3 @@ variable "cw_agent_rpm" {
 variable "adot_jar" {
   default = "s3://<bucket-name>/<jar>"
 }
-
-variable "test_role" {
-   default = "<role-name>"
-}
