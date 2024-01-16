@@ -2,7 +2,7 @@
 ## on the E2E testing resources before submitting a PR. The e2e-eks-test will deploy a
 ## sample app on an EKS cluster, call the APIs, and validate the generated telemetry
 ## including logs, metrics, and traces while the e2e-ec2-test will do the same but on
-## two EC2 instances.#
+## two EC2 instances.
 name: Test
 on:
   push:
