@@ -16,7 +16,7 @@ the backup image, push the update to the main image and revert the addresses on 
 3. Run `rm -rf opentelemetry-java-instrumentation` to delete the folder.
 
 ### Steps to update image:
-1. Use `ada` commands to autheticate into the testing account
+1. Login to the testing account
 2. Create a new ECR repository if there's no existing one.
 2. Login to ECR Repository: `aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {REPOSITORY}`. 
 3. Change repository name in the `build.gradle.kts` file under `testing/sample-apps/springboot` or `testing/sample-apps/sprintboot-remote-service`
@@ -32,7 +32,7 @@ This will create JAR files in the `build/libs/` folder with the format:
 - springboot-*-SNAPSHOT.jar. 
 
 To update the JAR file in the testing account:
-- Use `ada` commands to authenticate into the testing account
+- Login to the testing account
 - Only after you're sure of your changes and if they do not break the tests running in other repos, use `aws s3api put-object --bucket <BUCKET_NAME> --body build/libs/springboot-*-SNAPSHOT.jar --key <SERVICE_NAME>.jar`
 
 Note: Replace * with the version number and `<SERVICE_NAME>.jar` is the desired name of the .jar file once in the s3 bucket. e.g. `sample-app-main-service.jar`

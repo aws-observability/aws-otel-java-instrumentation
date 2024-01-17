@@ -4,7 +4,7 @@ The guide will include the following:
 - Setting up IAM roles and an EKS cluster
 - Setting up VPC settings and IAM role for EC2 instances
 - Buliding sample app images/files and putting them into ECRs/S3 buckets
-- Forking a repository and setting up neccessary secrets
+- Forking a repository and setting up necessary secrets
 
 
 ### 1. Create an IAM Role with OIDC Identity Provider
@@ -35,7 +35,7 @@ Additional Resource: https://docs.github.com/en/actions/deployment/security-hard
 The E2E EKS test uses an EKS cluster to deploy the sample apps. 
 #### Setup Environment with the Appropriate Roles and Permissions.
 Note: Make sure to replace <AccountID> with the correct value.
-- First, assume Admin role from the test account by running `ada credentials update --account=<AccountID> --role=Admin --provider=isengard --once`
+- First, login to the testing account
 - Assume the e2e test role by running 
   - `output=$(aws sts assume-role --role-arn arn:aws:iam::<AccountID>:role/<E2ETestRole> --role-session-name AWSCLI-Session)`
   - `export AWS_ACCESS_KEY_ID=$(echo $output | jq -r .Credentials.AccessKeyId)`
