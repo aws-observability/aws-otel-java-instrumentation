@@ -33,10 +33,10 @@ variable "sample_remote_app_jar" {
   default = "s3://<bucket-name>/<jar>"
 }
 
-variable "cw_agent_rpm" {
-  default = "s3://<bucket-name>/<jar>"
+variable "get_cw_agent_rpm_command" {
+  default = "<command> s3://<bucket-name>/<jar>"
 }
 
-variable "adot_jar" {
-  default = "s3://<bucket-name>/<jar>"
+variable "get_adot_jar_command" {
+  default = "<command> s3://<bucket-name>/<jar>"
 }
