@@ -50,6 +50,7 @@ class LogInjectionTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_JAVAAGENT_DEBUG", "true")
           .withEnv("AWS_REGION", "us-west-2")
+          .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
           .withEnv("LISTEN_ADDRESS", "0.0.0.0:4567");
 
   @Container
@@ -64,6 +65,7 @@ class LogInjectionTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_JAVAAGENT_DEBUG", "true")
           .withEnv("AWS_REGION", "us-west-2")
+          .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
           .withEnv("LISTEN_ADDRESS", "0.0.0.0:8080");
 
   private WebClient appClient;

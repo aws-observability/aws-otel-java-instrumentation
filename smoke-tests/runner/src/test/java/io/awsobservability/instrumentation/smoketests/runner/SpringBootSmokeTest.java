@@ -119,6 +119,7 @@ class SpringBootSmokeTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
+          .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
           .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080");
 
   @Container
@@ -137,6 +138,7 @@ class SpringBootSmokeTest {
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
           .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080")
+          .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
           .withEnv("OTEL_TRACES_SAMPLER", "xray");
 
   private static final TypeReference<List<ExportTraceServiceRequest>>
