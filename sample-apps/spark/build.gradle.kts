@@ -34,13 +34,6 @@ jib {
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
     tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),
   )
-
-  container {
-    appRoot = "/aws-observability"
-    environment = mapOf(
-      "OTEL_LOGS_EXPORTER" to "otlp",
-    )
-  }
 }
 
 tasks {
