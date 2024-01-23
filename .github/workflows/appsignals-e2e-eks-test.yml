@@ -231,12 +231,12 @@ jobs:
           echo "NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json | \
           jq '.items[0].status.initContainerStatuses[0].image') >> $GITHUB_ENV
 
-          - name: Verify ADOT image changed if ADOT Patched
-          run: |
-            if [ "${{ inputs.appsignals-adot-image-name }}" != "" ] && [ "${{ env.OLD_ADOT_IMAGE }}" = "${{ env.NEW_ADOT_IMAGE }}" ]; then
-              echo "ADOT Image did not change"
-              exit 1
-            fi
+      - name: Verify ADOT image changed if ADOT Patched
+        run: |
+          if [ "${{ inputs.appsignals-adot-image-name }}" != "" ] && [ "${{ env.OLD_ADOT_IMAGE }}" = "${{ env.NEW_ADOT_IMAGE }}" ]; then
+            echo "ADOT Image did not change"
+            exit 1
+          fi
         
 
       - name: Log pod CWAgent image
