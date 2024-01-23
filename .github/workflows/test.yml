@@ -13,7 +13,7 @@ jobs:
     secrets: inherit
     with:
       aws-region: us-east-1
-      test-cluster-name: GithubTest
+      test-cluster-name: e2e-canary-test
       caller-workflow-name: 'test'
 
   e2e-ec2-test:
