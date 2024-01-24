@@ -34,6 +34,7 @@ import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -57,6 +58,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       Logger.getLogger(AwsAppSignalsCustomizerProvider.class.getName());
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
+    grpcProtocolByDefault(autoConfiguration);
     autoConfiguration.addSamplerCustomizer(this::customizeSampler);
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
@@ -134,5 +136,18 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
     }
 
     return spanExporter;
+  }
+
+  private void grpcProtocolByDefault(AutoConfigurationCustomizer autoConfiguration) {
+    if (System.getProperty("otel.exporter.otlp.protocol") == null
+        && System.getenv("OTEL_EXPORTER_OTLP_PROTOCOL") == null) {
+      autoConfiguration.addPropertiesSupplier(
+          () ->
+              new HashMap<String, String>() {
+                {
+                  put("otel.exporter.otlp.protocol", "grpc");
+                }
+              });
+    }
   }
 }
