@@ -15,6 +15,11 @@
 
 package com.amazon.aoc.helpers;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import com.amazon.aoc.callers.ICaller;
 import com.amazon.aoc.fileconfigs.FileConfig;
 import com.amazon.aoc.models.Context;
@@ -23,10 +28,6 @@ import com.amazonaws.services.cloudwatch.model.Metric;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /** helper class for getting expected metrics from templates. */
 public class CWMetricHelper {
