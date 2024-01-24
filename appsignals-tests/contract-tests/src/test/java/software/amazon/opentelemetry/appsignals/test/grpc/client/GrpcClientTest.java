@@ -268,11 +268,6 @@ public class GrpcClientTest extends ContractTestBase {
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_NAME);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("server");
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
               assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_ADDR);
             });

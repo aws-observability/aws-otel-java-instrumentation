@@ -29,8 +29,8 @@ public class SemanticConventionsConstants {
   public static final String NET_HOST_PORT = "net.host.port";
   public static final String NET_SOCK_HOST_ADDR = "net.sock.host.addr";
   public static final String NET_SOCK_HOST_PORT = "net.sock.host.port";
-  public static final String NET_SOCK_PEER_ADDR = "net.sock.peer.addr";
-  public static final String NET_SOCK_PEER_PORT = "net.sock.peer.port";
+  public static final String NET_SOCK_PEER_ADDR = "network.peer.address";
+  public static final String NET_SOCK_PEER_PORT = "network.peer.port";
   public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
   public static final String HTTP_SCHEME = "http.scheme";
   public static final String HTTP_TARGET = "http.target";
