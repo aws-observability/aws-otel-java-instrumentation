@@ -137,12 +137,13 @@ public class NettyServer extends BaseHttpServerTest {
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.HTTP_STATUS_CODE);
+                  .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE);
               assertThat(attribute.getValue().getIntValue()).isEqualTo(status_code);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_METHOD);
+              assertThat(attribute.getKey())
+                  .isEqualTo(SemanticConventionsConstants.HTTP_REQUEST_METHOD);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(method);
             })
         .satisfiesOnlyOnce(

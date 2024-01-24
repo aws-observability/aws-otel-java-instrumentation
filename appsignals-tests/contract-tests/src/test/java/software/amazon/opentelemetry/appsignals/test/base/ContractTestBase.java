@@ -80,6 +80,7 @@ public abstract class ContractTestBase {
           .withEnv("OTEL_METRIC_EXPORT_INTERVAL", "100") // 100 ms
           .withEnv("OTEL_SMP_ENABLED", "true")
           .withEnv("OTEL_METRICS_EXPORTER", "none")
+          .withEnv("OTEL_LOGS_EXPORTER", "none")
           .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
           .withEnv("OTEL_INSTRUMENTATION_COMMON_EXPERIMENTAL_CONTROLLER_TELEMETRY_ENABLED", "true")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "0") // Don't wait to export spans to the collector
