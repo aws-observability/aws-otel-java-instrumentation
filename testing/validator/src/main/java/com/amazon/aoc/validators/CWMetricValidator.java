@@ -89,6 +89,7 @@ public class CWMetricValidator implements IValidator {
           .getDimensions()
           .removeIf((dimension) -> skippedDimensionNameList.contains(dimension.getName()));
     }
+
     // get metric from cloudwatch
     RetryHelper.retry(
         maxRetryCount,
