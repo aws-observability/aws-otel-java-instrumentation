@@ -17,9 +17,6 @@ package com.amazon.aoc.services;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import java.util.Date;
-import java.util.List;
-
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.*;
@@ -31,7 +28,8 @@ import com.amazonaws.services.logs.model.FilteredLogEvent;
 import com.amazonaws.services.logs.model.GetLogEventsRequest;
 import com.amazonaws.services.logs.model.GetLogEventsResult;
 import com.amazonaws.services.logs.model.OutputLogEvent;
-
+import java.util.Date;
+import java.util.List;
 import kotlin.Pair;
 import lombok.extern.log4j.Log4j2;
 
@@ -68,11 +66,15 @@ public class CloudWatchService {
   public List<Metric> listMetrics(
       final String namespace,
       final String metricName,
-      final List<Pair<String,String>> dimensionList) {
+      final List<Pair<String, String>> dimensionList) {
     final List<DimensionFilter> dimensionFilters =
-        dimensionList.stream().map(
-          dimension -> new DimensionFilter().withName(dimension.getFirst()).withValue(dimension.getSecond())
-        ).collect(toImmutableList());
+        dimensionList.stream()
+            .map(
+                dimension ->
+                    new DimensionFilter()
+                        .withName(dimension.getFirst())
+                        .withValue(dimension.getSecond()))
+            .collect(toImmutableList());
     final ListMetricsRequest listMetricsRequest =
         new ListMetricsRequest()
             .withNamespace(namespace)

@@ -21,14 +21,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.assertj.core.util.Lists;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIf;
-
 import com.amazon.aoc.callers.HttpCaller;
 import com.amazon.aoc.exception.BaseException;
 import com.amazon.aoc.fileconfigs.LocalPathExpectedTemplate;
@@ -38,9 +30,13 @@ import com.amazon.aoc.models.SampleAppResponse;
 import com.amazon.aoc.models.ValidationConfig;
 import com.amazon.aoc.services.CloudWatchService;
 import com.amazonaws.services.cloudwatch.model.Metric;
-
+import java.util.Arrays;
+import java.util.List;
 import kotlin.Pair;
-
+import org.assertj.core.util.Lists;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 /**
  * This class covers the tests for CWMetricValidator. Tests are not run for Windows, due to file
@@ -50,7 +46,7 @@ import kotlin.Pair;
 public class CWMetricValidatorTest {
   private CWMetricHelper cwMetricHelper = new CWMetricHelper();
   private static final String SERVICE_DIMENSION = "Service";
-  private static final String REMOTE_SERVICE_DIMENSION= "RemoteService";
+  private static final String REMOTE_SERVICE_DIMENSION = "RemoteService";
   private static final String REMOTE_TARGET_DIMENSION = "RemoteTarget";
   private static final String TEMPLATE_ROOT =
       "file://" + System.getProperty("user.dir") + "/src/test/test-resources/";
@@ -130,7 +126,8 @@ public class CWMetricValidatorTest {
     List<Metric> remoteMetricsWithRemoteApp = Lists.newArrayList();
     List<Metric> remoteMetricsWithAmazon = getTestMetrics("endToEnd_remoteMetricsWithAmazon");
     List<Metric> remoteMetricsWithAwsSdk = getTestMetrics("endToEnd_remoteMetricsWithAwsSdk");
-    List<Metric> remoteMetricsWithAwsSdkWithTarget = getTestMetrics("endToEnd_remoteMetricsWithAwsSdk");
+    List<Metric> remoteMetricsWithAwsSdkWithTarget =
+        getTestMetrics("endToEnd_remoteMetricsWithAwsSdk");
 
     CloudWatchService cloudWatchService =
         mockCloudWatchService(
@@ -191,25 +188,43 @@ public class CWMetricValidatorTest {
       List<Metric> remoteMetricsWithS3Target) {
     CloudWatchService cloudWatchService = mock(CloudWatchService.class);
     Lists.newArrayList();
-    when(cloudWatchService.listMetrics(any(), any(), eq(Arrays.asList(new Pair<String,String>(SERVICE_DIMENSION, SERVICE_NAME)))))
+    when(cloudWatchService.listMetrics(
+            any(),
+            any(),
+            eq(Arrays.asList(new Pair<String, String>(SERVICE_DIMENSION, SERVICE_NAME)))))
         .thenReturn(localServiceMetrics);
     when(cloudWatchService.listMetrics(
-            any(), any(), eq(Arrays.asList(new Pair<String,String>(SERVICE_DIMENSION, REMOTE_SERVICE_NAME)))))
+            any(),
+            any(),
+            eq(Arrays.asList(new Pair<String, String>(SERVICE_DIMENSION, REMOTE_SERVICE_NAME)))))
         .thenReturn(remoteServiceMetrics);
     when(cloudWatchService.listMetrics(
-            any(), any(), eq(Arrays.asList(new Pair<String,String>(REMOTE_SERVICE_DIMENSION, REMOTE_SERVICE_DEPLOYMENT_NAME)))))
+            any(),
+            any(),
+            eq(
+                Arrays.asList(
+                    new Pair<String, String>(
+                        REMOTE_SERVICE_DIMENSION, REMOTE_SERVICE_DEPLOYMENT_NAME)))))
         .thenReturn(remoteMetricsWithRemoteApp);
     when(cloudWatchService.listMetrics(
-            any(), any(), eq(Arrays.asList(new Pair<String,String>(REMOTE_SERVICE_DIMENSION, "www.amazon.com")))))
+            any(),
+            any(),
+            eq(
+                Arrays.asList(
+                    new Pair<String, String>(REMOTE_SERVICE_DIMENSION, "www.amazon.com")))))
         .thenReturn(remoteMetricsWithAmazon);
     when(cloudWatchService.listMetrics(
-      any(), any(), eq(Arrays.asList(new Pair<String,String>(REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3")))))
+            any(),
+            any(),
+            eq(Arrays.asList(new Pair<String, String>(REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3")))))
         .thenReturn(remoteMetricsWithAwsSdk);
-        when(cloudWatchService.listMetrics(
-      any(), any(), eq(Arrays.asList(
-          new Pair<String,String>(REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3"),
-          new Pair<String,String>(REMOTE_TARGET_DIMENSION, "e2e-test-bucket-name")
-        ))))
+    when(cloudWatchService.listMetrics(
+            any(),
+            any(),
+            eq(
+                Arrays.asList(
+                    new Pair<String, String>(REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3"),
+                    new Pair<String, String>(REMOTE_TARGET_DIMENSION, "e2e-test-bucket-name")))))
         .thenReturn(remoteMetricsWithS3Target);
     return cloudWatchService;
   }

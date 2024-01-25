@@ -15,16 +15,6 @@
 
 package com.amazon.aoc.validators;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-
 import com.amazon.aoc.callers.ICaller;
 import com.amazon.aoc.exception.BaseException;
 import com.amazon.aoc.exception.ExceptionCode;
@@ -38,7 +28,15 @@ import com.amazon.aoc.services.CloudWatchService;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.Metric;
 import com.google.common.collect.Lists;
-
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import kotlin.Pair;
 import lombok.extern.log4j.Log4j2;
 
@@ -109,24 +107,24 @@ public class CWMetricValidator implements IValidator {
           List<Metric> actualMetricList = Lists.newArrayList();
 
           // Add sets of dimesion filters to use for each query to CloudWatch
-          List<List<Pair<String,String>>> dimensionLists = Lists.newArrayList();
+          List<List<Pair<String, String>>> dimensionLists = Lists.newArrayList();
           for (String serviceName : serviceNames) {
-            dimensionLists.add(Arrays.asList(new Pair<>(CloudWatchService.SERVICE_DIMENSION, serviceName)));
+            dimensionLists.add(
+                Arrays.asList(new Pair<>(CloudWatchService.SERVICE_DIMENSION, serviceName)));
           }
           for (String remoteServiceName : remoteServiceNames) {
-            dimensionLists.add(Arrays.asList(new Pair<>(CloudWatchService.REMOTE_SERVICE_DIMENSION, remoteServiceName)));
+            dimensionLists.add(
+                Arrays.asList(
+                    new Pair<>(CloudWatchService.REMOTE_SERVICE_DIMENSION, remoteServiceName)));
           }
-          dimensionLists.add(Arrays.asList(
-            new Pair<>(CloudWatchService.REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3"),
-            new Pair<>(CloudWatchService.REMOTE_TARGET_DIMENSION, "e2e-test-bucket-name"))
-          );
+          dimensionLists.add(
+              Arrays.asList(
+                  new Pair<>(CloudWatchService.REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3"),
+                  new Pair<>(CloudWatchService.REMOTE_TARGET_DIMENSION, "e2e-test-bucket-name")));
 
           // Populate actualMetricList with each set of dimension filters
-          for (List<Pair<String,String>> dimensionList : dimensionLists) {
-            addMetrics(
-              dimensionList,
-              expectedMetricList,
-              actualMetricList);
+          for (List<Pair<String, String>> dimensionList : dimensionLists) {
+            addMetrics(dimensionList, expectedMetricList, actualMetricList);
           }
 
           // remove the skip dimensions
@@ -147,13 +145,12 @@ public class CWMetricValidator implements IValidator {
   }
 
   private void addMetrics(
-      List<Pair<String,String>> dimensionList,
+      List<Pair<String, String>> dimensionList,
       List<Metric> expectedMetricList,
       List<Metric> actualMetricList)
       throws Exception {
     actualMetricList.addAll(
-        this.listMetricFromCloudWatch(
-            cloudWatchService, expectedMetricList, dimensionList));
+        this.listMetricFromCloudWatch(cloudWatchService, expectedMetricList, dimensionList));
   }
 
   /**
@@ -206,7 +203,7 @@ public class CWMetricValidator implements IValidator {
   private List<Metric> listMetricFromCloudWatch(
       CloudWatchService cloudWatchService,
       List<Metric> expectedMetricList,
-      List<Pair<String,String>> dimensionList)
+      List<Pair<String, String>> dimensionList)
       throws IOException {
     // put namespace into the map key, so that we can use it to search metric
     HashMap<String, String> metricNameMap = new HashMap<>();
@@ -218,8 +215,7 @@ public class CWMetricValidator implements IValidator {
     List<Metric> result = new ArrayList<>();
     for (String metricName : metricNameMap.keySet()) {
       result.addAll(
-          cloudWatchService.listMetrics(
-              metricNameMap.get(metricName), metricName, dimensionList));
+          cloudWatchService.listMetrics(metricNameMap.get(metricName), metricName, dimensionList));
     }
     return result;
   }
