@@ -91,12 +91,12 @@ public class NettyServer extends BaseHttpServerTest {
     assertThat(attributesList)
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_HOST_NAME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_NAME);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_HOST_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
             })
         .satisfiesOnlyOnce(
             attribute -> {
