@@ -32,9 +32,9 @@ public class SemanticConventionsConstants {
   public static final String NET_SOCK_PEER_ADDR = "network.peer.address";
   public static final String NET_SOCK_PEER_PORT = "network.peer.port";
   public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
-  public static final String HTTP_SCHEME = "http.scheme";
-  public static final String HTTP_TARGET = "http.target";
-  public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.response_content_length";
+  public static final String HTTP_SCHEME = "url.scheme";
+  public static final String HTTP_TARGET = "url.path";
+  public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.request.body.size";
   public static final String URL_FULL = "url.full";
   public static final String HTTP_REQUEST_METHOD = "http.request.method";
   public static final String HTTP_ROUTE = "http.route";
