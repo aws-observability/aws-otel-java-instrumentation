@@ -156,12 +156,11 @@ public abstract class BaseHttpClientTest extends ContractTestBase {
               assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.NET_PROTOCOL_VERSION);
             })
-        //        .satisfiesOnlyOnce(commenting due to failures in nettyhttpclient tests
-        //            attribute -> {
-        //
-        // assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.PEER_SERVICE);
-        //              assertThat(attribute.getValue().getStringValue()).isEqualTo("backend:8080");
-        //            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.PEER_SERVICE);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("backend:8080");
+            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.THREAD_ID);
