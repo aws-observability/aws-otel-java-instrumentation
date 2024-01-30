@@ -65,7 +65,7 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build and push agent and testing docker images with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: jib
         env:

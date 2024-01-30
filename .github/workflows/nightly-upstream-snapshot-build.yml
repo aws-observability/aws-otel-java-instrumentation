@@ -46,7 +46,7 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
         env:
@@ -139,7 +139,7 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: contractTests -PtestUpstreamSnapshots=true -PlocalDocker=true
 
