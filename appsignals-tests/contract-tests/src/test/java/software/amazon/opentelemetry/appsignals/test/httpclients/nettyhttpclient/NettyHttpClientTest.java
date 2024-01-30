@@ -60,6 +60,7 @@ class NettyHttpClientTest extends BaseHttpClientTest {
 
   @Test
   void testFault() {
+    System.out.println("Netty http Client is ");
     doTestFault();
   }
 

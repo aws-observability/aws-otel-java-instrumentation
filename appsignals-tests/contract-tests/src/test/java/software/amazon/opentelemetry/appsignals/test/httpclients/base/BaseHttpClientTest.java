@@ -116,7 +116,8 @@ public abstract class BaseHttpClientTest extends ContractTestBase {
 
   protected void assertSemanticConventionsAttributes(
       List<KeyValue> attributesList, String method, String endpoint, long status_code) {
-    assertThat(attributesList)
+      System.out.println("Attribute list is: " + attributesList.toString());
+      assertThat(attributesList)
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_NAME);
