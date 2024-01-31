@@ -21,11 +21,9 @@ package software.amazon.opentelemetry.appsignals.test.utils;
 public class SemanticConventionsConstants {
 
   // Semantic Conventions Attribute names
-  public static final String NET_PEER_NAME = "server.address";
-  public static final String NET_PEER_PORT = "server.port";
+  public static final String SERVER_ADDRESS = "server.address";
+  public static final String SERVER_PORT = "server.port";
   public static final String NET_PROTOCOL_VERSION = "network.protocol.version";
-  //  public static final String NET_HOST_NAME = "net.host.name";
-  //  public static final String NET_HOST_PORT = "net.host.port";
   public static final String NET_SOCK_HOST_ADDR = "net.sock.host.addr";
   public static final String NET_SOCK_HOST_PORT = "net.sock.host.port";
   public static final String NET_SOCK_PEER_ADDR = "network.peer.address";

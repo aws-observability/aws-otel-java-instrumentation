@@ -163,8 +163,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, peerName))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, peerPort))
         .satisfiesOnlyOnce(
             assertAttribute(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE, statusCode))
         .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
@@ -182,8 +182,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, peerName))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, peerPort))
         .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
