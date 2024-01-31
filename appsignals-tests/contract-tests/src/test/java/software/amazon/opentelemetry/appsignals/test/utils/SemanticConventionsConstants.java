@@ -31,7 +31,6 @@ public class SemanticConventionsConstants {
   public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
   public static final String HTTP_SCHEME = "url.scheme";
   public static final String HTTP_TARGET = "url.path";
-  public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.request.body.size";
   public static final String URL_FULL = "url.full";
   public static final String HTTP_REQUEST_METHOD = "http.request.method";
   public static final String HTTP_ROUTE = "http.route";

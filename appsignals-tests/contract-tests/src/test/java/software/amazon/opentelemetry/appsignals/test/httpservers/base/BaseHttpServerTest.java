@@ -123,11 +123,6 @@ public abstract class BaseHttpServerTest extends ContractTestBase {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_SCHEME);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
             })
-        //        .satisfiesOnlyOnce(
-        //            attribute -> {
-        //              assertThat(attribute.getKey())
-        //                  .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_CONTENT_LENGTH);
-        //            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_ROUTE);
