@@ -146,12 +146,6 @@ public class NettyServer extends BaseHttpServerTest {
                   .isEqualTo(SemanticConventionsConstants.HTTP_REQUEST_METHOD);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(method);
             })
-        //        .satisfiesOnlyOnce(
-        //            attribute -> {
-        //              assertThat(attribute.getKey())
-        //                  .isEqualTo(SemanticConventionsConstants.NET_PROTOCOL_NAME);
-        //              assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
-        //            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())

@@ -23,7 +23,6 @@ public class SemanticConventionsConstants {
   // Semantic Conventions Attribute names
   public static final String NET_PEER_NAME = "server.address";
   public static final String NET_PEER_PORT = "server.port";
-  public static final String NET_PROTOCOL_NAME = "network.protocol.name";
   public static final String NET_PROTOCOL_VERSION = "network.protocol.version";
   //  public static final String NET_HOST_NAME = "net.host.name";
   //  public static final String NET_HOST_PORT = "net.host.port";
