@@ -111,22 +111,20 @@ public class NettyServer extends BaseHttpServerTest {
         //            })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_ADDR);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_ADDR);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_SCHEME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_SCHEME);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_TARGET);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_TARGET);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(target);
             })
         .satisfiesOnlyOnce(

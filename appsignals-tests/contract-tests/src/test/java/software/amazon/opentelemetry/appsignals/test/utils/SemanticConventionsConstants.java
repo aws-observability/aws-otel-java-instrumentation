@@ -26,11 +26,11 @@ public class SemanticConventionsConstants {
   public static final String NET_PROTOCOL_VERSION = "network.protocol.version";
   public static final String NET_SOCK_HOST_ADDR = "net.sock.host.addr";
   public static final String NET_SOCK_HOST_PORT = "net.sock.host.port";
-  public static final String NET_SOCK_PEER_ADDR = "network.peer.address";
-  public static final String NET_SOCK_PEER_PORT = "network.peer.port";
+  public static final String NET_PEER_ADDR = "network.peer.address";
+  public static final String NET_PEER_PORT = "network.peer.port";
   public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
-  public static final String HTTP_SCHEME = "url.scheme";
-  public static final String HTTP_TARGET = "url.path";
+  public static final String URL_SCHEME = "url.scheme";
+  public static final String URL_TARGET = "url.path";
   public static final String URL_FULL = "url.full";
   public static final String HTTP_REQUEST_METHOD = "http.request.method";
   public static final String HTTP_ROUTE = "http.route";

@@ -109,18 +109,16 @@ public abstract class BaseHttpServerTest extends ContractTestBase {
         //            })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_ADDR);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_ADDR);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
               assertThat(attribute.getValue().getIntValue()).isBetween(1023L, 65536L);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_SCHEME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_SCHEME);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
             })
         .satisfiesOnlyOnce(
@@ -128,13 +126,11 @@ public abstract class BaseHttpServerTest extends ContractTestBase {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_ROUTE);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(route);
             })
-        //        .satisfiesOnlyOnce(Commenting for testRoutes() test failures in springMVC and
-        // tomcat, http.target is split up.
-        //            attribute -> {
-        //
-        // assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_TARGET);
-        //              assertThat(attribute.getValue().getStringValue()).isEqualTo(target);
-        //            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_TARGET);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo(target);
+            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
@@ -237,7 +233,7 @@ public abstract class BaseHttpServerTest extends ContractTestBase {
 
     var resourceScopeSpans = mockCollectorClient.getTraces();
     assertSemanticConventionsSpanAttributes(
-        resourceScopeSpans, "GET", expectedRoute, "/users/123/orders/123?filter=abc", 200);
+        resourceScopeSpans, "GET", expectedRoute, "/users/123/orders/123", 200);
     assertAwsSpanAttributes(resourceScopeSpans, "GET", expectedRoute);
     var metrics =
         mockCollectorClient.getMetrics(
