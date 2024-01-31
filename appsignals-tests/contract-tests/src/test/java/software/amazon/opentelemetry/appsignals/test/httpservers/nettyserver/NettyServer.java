@@ -98,17 +98,6 @@ public class NettyServer extends BaseHttpServerTest {
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
             })
-        //        .satisfiesOnlyOnce(
-        //            attribute -> {
-        //              assertThat(attribute.getKey())
-        //                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_HOST_ADDR);
-        //            })
-        //        .satisfiesOnlyOnce(
-        //            attribute -> {
-        //              assertThat(attribute.getKey())
-        //                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_HOST_PORT);
-        //              assertThat(attribute.getValue().getIntValue()).isEqualTo(8080L);
-        //            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_ADDR);
