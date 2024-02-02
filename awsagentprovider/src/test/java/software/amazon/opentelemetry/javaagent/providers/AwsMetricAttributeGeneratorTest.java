@@ -809,7 +809,7 @@ class AwsMetricAttributeGeneratorTest {
     Attributes serviceAttributes = attributeMap.get(SERVICE_METRIC);
     Attributes dependencyAttributes = attributeMap.get(DEPENDENCY_METRIC);
 
-    assertThat(attributeMap.get(SERVICE_METRIC)).isEqualTo(serviceAttributes);
-    assertThat(attributeMap.get(DEPENDENCY_METRIC)).isEqualTo(dependencyAttributes);
+    assertThat(serviceAttributes).isNotNull();
+    assertThat(dependencyAttributes).isNotNull();
   }
 }
