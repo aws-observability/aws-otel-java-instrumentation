@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 public class AwsSpanProcessingUtilTest {
   private static final String DEFAULT_PATH_VALUE = "/";
   private static final String UNKNOWN_OPERATION = "UnknownOperation";
-  private String INTERNAL_OPERATIONN = "InternalOperation";
+  private static final String INTERNAL_OPERATION = "InternalOperation";
 
   private Attributes attributesMock;
   private SpanData spanDataMock;
@@ -62,7 +62,7 @@ public class AwsSpanProcessingUtilTest {
     when(spanDataMock.getName()).thenReturn(validName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
-    assertThat(actualOperation).isEqualTo(INTERNAL_OPERATIONN);
+    assertThat(actualOperation).isEqualTo(INTERNAL_OPERATION);
   }
 
   @Test
@@ -123,7 +123,7 @@ public class AwsSpanProcessingUtilTest {
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     String actualOperation = AwsSpanProcessingUtil.getEgressOperation(spanDataMock);
-    assertThat(actualOperation).isEqualTo(AwsSpanProcessingUtil.INTERNAL_OPERATION);
+    assertThat(actualOperation).isEqualTo(INTERNAL_OPERATION);
   }
 
   @Test
@@ -158,14 +158,14 @@ public class AwsSpanProcessingUtilTest {
   }
 
   @Test
-  public void testExtractAPIPathValueNOnlySlash() {
+  public void testExtractAPIPathValueOnlySlash() {
     String invalidTarget = "/";
     String pathValue = AwsSpanProcessingUtil.extractAPIPathValue(invalidTarget);
     assertThat(pathValue).isEqualTo(DEFAULT_PATH_VALUE);
   }
 
   @Test
-  public void testExtractAPIPathValueNOnlySlashAtEnd() {
+  public void testExtractAPIPathValueOnlySlashAtEnd() {
     String invalidTarget = "users/";
     String pathValue = AwsSpanProcessingUtil.extractAPIPathValue(invalidTarget);
     assertThat(pathValue).isEqualTo(DEFAULT_PATH_VALUE);
