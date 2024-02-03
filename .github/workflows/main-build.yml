@@ -221,7 +221,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: contractTests -PlocalDocker=true
+          arguments: contractTests -PlocalDocker=true --no-build-cache
 
   # AppSignals specific e2e tests
   appsignals-e2e-eks-test:
