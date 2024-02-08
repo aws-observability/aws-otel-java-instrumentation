@@ -235,6 +235,11 @@ jobs:
         run: |
           kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --output json | \
           jq '.items[0].status.initContainerStatuses[0].imageID'
+          
+          echo "DEBUGYYYYYYYYYY NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
+          jq '.items[0].status.containerStatuses')
+          echo "DEBUGZZZZZZZZZZ NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
+          jq '.items[0].status.initContainerStatuses')
 
           echo "NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json | \
           jq '.items[0].status.initContainerStatuses[0].image') >> $GITHUB_ENV
