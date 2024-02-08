@@ -15,7 +15,7 @@ jobs:
       aws-region: us-east-1
       test-cluster-name: e2e-canary-test
       caller-workflow-name: 'test'
-      appsignals-adot-image-name: 'public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.31.2'
+      appsignals-adot-image-name: 'public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.0'
 
   e2e-ec2-test:
     uses: ./.github/workflows/appsignals-e2e-ec2-test.yml
