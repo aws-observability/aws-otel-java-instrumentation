@@ -63,7 +63,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
   }
 
   private boolean isSmpEnabled(ConfigProperties configProps) {
-    return configProps.getBoolean("otel.smp.enabled", false);
+    return configProps.getBoolean(
+        "otel.aws.app.signals.enabled", configProps.getBoolean("otel.smp.enabled", false));
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
@@ -79,7 +80,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       logger.info("Span Metrics Processor enabled");
       String smpEndpoint =
           configProps.getString(
-              "otel.aws.smp.exporter.endpoint", "http://cloudwatch-agent.amazon-cloudwatch:4317");
+              "otel.aws.app.signals.exporter.endpoint",
+              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
       logger.log(Level.FINE, String.format("Span Metrics endpoint: %s", smpEndpoint));
