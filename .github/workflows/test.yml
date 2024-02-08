@@ -22,3 +22,4 @@ jobs:
     with:
       aws-region: us-east-1
       caller-workflow-name: 'test'
+      appsignals-adot-image-name: 'public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.31.2'
