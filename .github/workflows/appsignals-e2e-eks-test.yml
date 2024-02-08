@@ -151,6 +151,7 @@ jobs:
 
               # If the workflow provides a specific ADOT image to test, record the Image Names in Env to verify if any change after patch
               if [ ${{ inputs.appsignals-adot-image-name }} != "" ]; then
+                echo "DEBUGXXXXXXX$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }}"
                 echo "OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json | \
                 jq '.items[0].status.initContainerStatuses[0].image') >> $GITHUB_ENV
               fi
