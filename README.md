@@ -15,7 +15,7 @@ data from a Java application without any code changes.
 
 ## Getting Started
 
-Check out the [getting started documentation](https://aws-otel.github.io/docs/getting-started/java-sdk/trace-auto-instr).
+Check out the [getting started documentation](https://aws-otel.github.io/docs/getting-started/java-sdk/auto-instr).
 
 ## Supported Java libraries and frameworks
 
