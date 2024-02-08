@@ -153,12 +153,7 @@ jobs:
               if [ ${{ inputs.appsignals-adot-image-name }} != "" ]; then
                 kubectl wait --for=condition=Ready pod --all -n amazon-cloudwatch
                 kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
-                echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n amazon-cloudwatch -o json| \
-                jq '.items[0].status.initContainerStatuses')
-                echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n amazon-cloudwatch -o json| \
-                jq '.items[0].status.containerStatuses')
-                echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
-                jq '.items[0].status.initContainerStatuses')
+                echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json)
                 echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
                 jq '.items[0].status.containerStatuses')
                 echo "OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json | \
