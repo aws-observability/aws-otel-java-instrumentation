@@ -549,7 +549,8 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::sqs:::aws_queue_name");
     mockAttribute(AWS_QUEUE_NAME, null);
 
-    // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove them.
+    // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove
+    // them.
     mockAttribute(AWS_QUEUE_URL, "https://sqs.us-east-2.amazonaws.com/123456789012/Queue");
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
     validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "arn:aws:sqs:us-east-2:123456789012:Queue");
@@ -576,42 +577,54 @@ class AwsMetricAttributeGeneratorTest {
 
   @Test
   public void testClientSpanSqsBasicUrls() {
-    testSqsUrl("https://sqs.us-east-1.amazonaws.com/123412341234/Q_Name-5",
-            "arn:aws:sqs:us-east-1:123412341234:Q_Name-5");
-    testSqsUrl("https://sqs.af-south-1.amazonaws.com/112233445566/Queue",
-            "arn:aws:sqs:af-south-1:112233445566:Queue");
-    testSqsUrl("http://sqs.eu-west-3.amazonaws.com/112233445566/FirstQueue",
-            "arn:aws:sqs:eu-west-3:112233445566:FirstQueue");
-    testSqsUrl("sqs.sa-east-1.amazonaws.com/123456781234/SecondQueue",
-            "arn:aws:sqs:sa-east-1:123456781234:SecondQueue");
+    testSqsUrl(
+        "https://sqs.us-east-1.amazonaws.com/123412341234/Q_Name-5",
+        "arn:aws:sqs:us-east-1:123412341234:Q_Name-5");
+    testSqsUrl(
+        "https://sqs.af-south-1.amazonaws.com/112233445566/Queue",
+        "arn:aws:sqs:af-south-1:112233445566:Queue");
+    testSqsUrl(
+        "http://sqs.eu-west-3.amazonaws.com/112233445566/FirstQueue",
+        "arn:aws:sqs:eu-west-3:112233445566:FirstQueue");
+    testSqsUrl(
+        "sqs.sa-east-1.amazonaws.com/123456781234/SecondQueue",
+        "arn:aws:sqs:sa-east-1:123456781234:SecondQueue");
   }
 
   @Test
   public void testClientSpanSqsUsGovUrls() {
-    testSqsUrl("https://sqs.us-gov-east-1.amazonaws.com/123456789012/MyQueue",
-            "arn:aws-us-gov:sqs:us-gov-east-1:123456789012:MyQueue");
-    testSqsUrl("sqs.us-gov-west-1.amazonaws.com/112233445566/Queue",
-            "arn:aws-us-gov:sqs:us-gov-west-1:112233445566:Queue");
+    testSqsUrl(
+        "https://sqs.us-gov-east-1.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-us-gov:sqs:us-gov-east-1:123456789012:MyQueue");
+    testSqsUrl(
+        "sqs.us-gov-west-1.amazonaws.com/112233445566/Queue",
+        "arn:aws-us-gov:sqs:us-gov-west-1:112233445566:Queue");
   }
 
   @Test
   public void testClientSpanSqsLegacyFormatUrls() {
-    testSqsUrl("https://ap-northeast-2.queue.amazonaws.com/123456789012/MyQueue",
-            "arn:aws:sqs:ap-northeast-2:123456789012:MyQueue");
-    testSqsUrl("http://cn-northwest-1.queue.amazonaws.com/123456789012/MyQueue",
-            "arn:aws-cn:sqs:cn-northwest-1:123456789012:MyQueue");
-    testSqsUrl("http://cn-north-1.queue.amazonaws.com/123456789012/MyQueue",
-            "arn:aws-cn:sqs:cn-north-1:123456789012:MyQueue");
-    testSqsUrl("ap-south-1.queue.amazonaws.com/123412341234/MyLongerQueueNameHere",
-            "arn:aws:sqs:ap-south-1:123412341234:MyLongerQueueNameHere");
-    testSqsUrl("https://us-gov-east-1.queue.amazonaws.com/123456789012/MyQueue",
-            "arn:aws-us-gov:sqs:us-gov-east-1:123456789012:MyQueue");
+    testSqsUrl(
+        "https://ap-northeast-2.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws:sqs:ap-northeast-2:123456789012:MyQueue");
+    testSqsUrl(
+        "http://cn-northwest-1.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-cn:sqs:cn-northwest-1:123456789012:MyQueue");
+    testSqsUrl(
+        "http://cn-north-1.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-cn:sqs:cn-north-1:123456789012:MyQueue");
+    testSqsUrl(
+        "ap-south-1.queue.amazonaws.com/123412341234/MyLongerQueueNameHere",
+        "arn:aws:sqs:ap-south-1:123412341234:MyLongerQueueNameHere");
+    testSqsUrl(
+        "https://us-gov-east-1.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-us-gov:sqs:us-gov-east-1:123456789012:MyQueue");
   }
 
   @Test
   public void testClientSpanSqsNorthVirginiaUrl() {
-    testSqsUrl("https://queue.amazonaws.com/123456789012/MyQueue",
-            "arn:aws:sqs:us-east-1:123456789012:MyQueue");
+    testSqsUrl(
+        "https://queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws:sqs:us-east-1:123456789012:MyQueue");
   }
 
   @Test
@@ -625,8 +638,8 @@ class AwsMetricAttributeGeneratorTest {
   @Test
   public void testClientSpanSqsLongUrls() {
     String queueName = "a".repeat(80);
-    testSqsUrl("http://127.0.0.1:1212/123456789012/" + queueName,
-            "::sqs::123456789012:" + queueName);
+    testSqsUrl(
+        "http://127.0.0.1:1212/123456789012/" + queueName, "::sqs::123456789012:" + queueName);
 
     String queueNameTooLong = "a".repeat(81);
     testSqsUrl("http://127.0.0.1:1212/123456789012/" + queueNameTooLong, null);

@@ -134,7 +134,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * ActiveMQ name, etc.
    */
   private static Optional<String> getRemoteTarget(SpanData span) {
-    if (isKeyPresent(span,  AWS_BUCKET_NAME)) {
+    if (isKeyPresent(span, AWS_BUCKET_NAME)) {
       return Optional.ofNullable("::s3:::" + span.getAttributes().get(AWS_BUCKET_NAME));
     }
 
