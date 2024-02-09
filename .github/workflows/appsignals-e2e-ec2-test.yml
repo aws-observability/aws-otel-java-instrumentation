@@ -44,7 +44,7 @@ jobs:
       - name: Set CW Agent RPM environment variable
         run: |
           if [ ${{ env.AWS_DEFAULT_REGION }} == "us-east-1" ]; then
-            echo GET_CW_AGENT_RPM_COMMAND="wget -O cw-agent.rpm https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+            echo GET_CW_AGENT_RPM_COMMAND="wget -O cw-agent.rpm https://github.com/XinRanZhAWS/amazon-cloudwatch-agent/releases/download/test/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           else
             echo GET_CW_AGENT_RPM_COMMAND="wget -O cw-agent.rpm https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           fi
