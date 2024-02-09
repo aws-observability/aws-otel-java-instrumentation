@@ -33,16 +33,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.NET_SOCK_PEER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.PEER_SERVICE;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_TARGET;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.*;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
@@ -145,6 +136,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getRemoteTarget(SpanData span) {
     if (isKeyPresent(span, AWS_BUCKET_NAME)) {
       return Optional.ofNullable(span.getAttributes().get(AWS_BUCKET_NAME));
+    } else if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      return Optional.ofNullable(SqsUrlParser.getSqsRemoteTarget(span.getAttributes().get(AWS_QUEUE_URL)));
     } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
       return Optional.ofNullable(span.getAttributes().get(AWS_QUEUE_NAME));
     } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
