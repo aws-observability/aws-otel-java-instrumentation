@@ -652,6 +652,7 @@ class AwsMetricAttributeGeneratorTest {
     testSqsUrl("invalidUrl", null);
     testSqsUrl("https://www.amazon.com", null);
     testSqsUrl("https://sqs.us-east-1.amazonaws.com/123412341234/.", null);
+    testSqsUrl("https://sqs.us-east-1.amazonaws.com/12/Queue", null);
     testSqsUrl("https://sqs.us-east-1.amazonaws.com/A/A", null);
     testSqsUrl("https://sqs.us-east-1.amazonaws.com/123412341234/A/ThisShouldNotBeHere", null);
   }
