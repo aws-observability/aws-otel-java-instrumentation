@@ -48,8 +48,9 @@ import java.util.logging.Logger;
  *   <li>Add AwsMetricAttributesSpanExporter to add more attributes to all spans.
  * </ul>
  *
- * <p>You can control when these customizations are applied using the property otel.smp.enabled or
- * the environment variable OTEL_SMP_ENABLED. This flag is enabled by default.
+ * <p>You can control when these customizations are applied using the property
+ * otel.aws.app.signals.enabled or the environment variable OTEL_AWS_APP_SIGNALS_ENABLED. This flag
+ * is disabled by default.
  */
 public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomizerProvider {
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
