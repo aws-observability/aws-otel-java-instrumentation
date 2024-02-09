@@ -541,12 +541,12 @@ class AwsMetricAttributeGeneratorTest {
   public void testClientSpanWithRemoteTargetAttributes() {
     // Validate behaviour of aws bucket name attribute, then remove it.
     mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_s3_bucket_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::s3:::aws_s3_bucket_name");
     mockAttribute(AWS_BUCKET_NAME, null);
 
     // Validate behaviour of AWS_QUEUE_NAME attribute, then remove it.
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_queue_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::sqs:::aws_queue_name");
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove them.
@@ -556,14 +556,21 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(AWS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
 
+    // Valid queue name with invalid queue URL, we should default to using the queue name.
+    mockAttribute(AWS_QUEUE_URL, "invalidUrl");
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::sqs:::aws_queue_name");
+    mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_QUEUE_NAME, null);
+
     // Validate behaviour of AWS_STREAM_NAME attribute, then remove it.
     mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_stream_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::kinesis:::stream/aws_stream_name");
     mockAttribute(AWS_STREAM_NAME, null);
 
     // Validate behaviour of AWS_TABLE_NAME attribute, then remove it.
     mockAttribute(AWS_TABLE_NAME, "aws_table_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_table_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::dynamodb:::table/aws_table_name");
     mockAttribute(AWS_TABLE_NAME, null);
   }
 

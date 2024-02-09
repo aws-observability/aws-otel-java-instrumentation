@@ -134,16 +134,28 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * ActiveMQ name, etc.
    */
   private static Optional<String> getRemoteTarget(SpanData span) {
-    if (isKeyPresent(span, AWS_BUCKET_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_BUCKET_NAME));
-    } else if (isKeyPresent(span, AWS_QUEUE_URL)) {
-      return Optional.ofNullable(SqsUrlParser.getSqsRemoteTarget(span.getAttributes().get(AWS_QUEUE_URL)));
-    } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_QUEUE_NAME));
-    } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_STREAM_NAME));
-    } else if (isKeyPresent(span, AWS_TABLE_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_TABLE_NAME));
+    if (isKeyPresent(span,  AWS_BUCKET_NAME)) {
+      return Optional.ofNullable("::s3:::" + span.getAttributes().get(AWS_BUCKET_NAME));
+    }
+
+    if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      String arn = SqsUrlParser.getSqsRemoteTarget(span.getAttributes().get(AWS_QUEUE_URL));
+
+      if (arn != null) {
+        return Optional.ofNullable(arn);
+      }
+    }
+
+    if (isKeyPresent(span, AWS_QUEUE_NAME)) {
+      return Optional.ofNullable("::sqs:::" + span.getAttributes().get(AWS_QUEUE_NAME));
+    }
+
+    if (isKeyPresent(span, AWS_STREAM_NAME)) {
+      return Optional.ofNullable("::kinesis:::stream/" + span.getAttributes().get(AWS_STREAM_NAME));
+    }
+
+    if (isKeyPresent(span, AWS_TABLE_NAME)) {
+      return Optional.ofNullable("::dynamodb:::table/" + span.getAttributes().get(AWS_TABLE_NAME));
     }
     return Optional.empty();
   }
