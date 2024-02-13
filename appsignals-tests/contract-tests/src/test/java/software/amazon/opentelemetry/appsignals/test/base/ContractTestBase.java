@@ -78,11 +78,11 @@ public abstract class ContractTestBase {
           .waitingFor(getApplicationWaitCondition())
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_METRIC_EXPORT_INTERVAL", "100") // 100 ms
-          .withEnv("OTEL_SMP_ENABLED", "true")
+          .withEnv("OTEL_AWS_APP_SIGNALS_ENABLED", "true")
           .withEnv("OTEL_METRICS_EXPORTER", "none")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "0") // Don't wait to export spans to the collector
           .withEnv(
-              "OTEL_AWS_SMP_EXPORTER_ENDPOINT",
+              "OTEL_AWS_APP_SIGNALS_EXPORTER_ENDPOINT",
               "http://" + COLLECTOR_HOSTNAME + ":" + COLLECTOR_PORT)
           .withEnv(
               "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
