@@ -474,7 +474,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/createbucket/:bucketname";
-    var target = "create-bucket";
+    var target = "::s3:::create-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -532,7 +532,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/createobject/:bucketname/:objectname";
-    var target = "put-object";
+    var target = "::s3:::put-object";
 
     assertSpanClientAttributes(
         traces,
@@ -589,7 +589,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/getobject/:bucketName/:objectname";
-    var target = "get-object";
+    var target = "::s3:::get-object";
 
     assertSpanClientAttributes(
         traces,
@@ -646,7 +646,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/error";
-    var target = "error-bucket";
+    var target = "::s3:::error-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -703,7 +703,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/fault";
-    var target = "fault-bucket";
+    var target = "::s3:::fault-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -768,7 +768,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/createtable/:tablename";
-    var target = "some-table";
+    var target = "::dynamodb:::table/some-table";
 
     assertSpanClientAttributes(
         traces,
@@ -825,7 +825,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/putitem/:tablename/:partitionkey";
-    var target = "putitem-table";
+    var target = "::dynamodb:::table/putitem-table";
 
     assertSpanClientAttributes(
         traces,
@@ -882,7 +882,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/error";
-    var target = "nonexistanttable";
+    var target = "::dynamodb:::table/nonexistanttable";
 
     assertSpanClientAttributes(
         traces,
@@ -945,7 +945,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/fault";
-    var target = "nonexistanttable";
+    var target = "::dynamodb:::table/nonexistanttable";
 
     assertSpanClientAttributes(
         traces,
@@ -1002,7 +1002,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/createqueue/:queuename";
-    var target = "some-queue";
+    var target = "::sqs:::some-queue";
 
     assertSpanClientAttributes(
         traces,
@@ -1289,7 +1289,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /kinesis/putrecord/:streamname";
-    var target = "my-stream";
+    var target = "::kinesis:::stream/my-stream";
 
     assertSpanClientAttributes(
         traces,
@@ -1346,7 +1346,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /kinesis/error";
-    var target = "nonexistantstream";
+    var target = "::kinesis:::stream/nonexistantstream";
 
     assertSpanClientAttributes(
         traces,
@@ -1404,7 +1404,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /kinesis/fault";
-    var target = "faultstream";
+    var target = "::kinesis:::stream/faultstream";
 
     assertSpanClientAttributes(
         traces,

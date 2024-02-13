@@ -25,6 +25,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_TARGET;
@@ -550,23 +551,126 @@ class AwsMetricAttributeGeneratorTest {
   public void testClientSpanWithRemoteTargetAttributes() {
     // Validate behaviour of aws bucket name attribute, then remove it.
     mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_s3_bucket_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::s3:::aws_s3_bucket_name");
     mockAttribute(AWS_BUCKET_NAME, null);
 
     // Validate behaviour of AWS_QUEUE_NAME attribute, then remove it.
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_queue_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::sqs:::aws_queue_name");
+    mockAttribute(AWS_QUEUE_NAME, null);
+
+    // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove
+    // them.
+    mockAttribute(AWS_QUEUE_URL, "https://sqs.us-east-2.amazonaws.com/123456789012/Queue");
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "arn:aws:sqs:us-east-2:123456789012:Queue");
+    mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_QUEUE_NAME, null);
+
+    // Valid queue name with invalid queue URL, we should default to using the queue name.
+    mockAttribute(AWS_QUEUE_URL, "invalidUrl");
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::sqs:::aws_queue_name");
+    mockAttribute(AWS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Validate behaviour of AWS_STREAM_NAME attribute, then remove it.
     mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_stream_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::kinesis:::stream/aws_stream_name");
     mockAttribute(AWS_STREAM_NAME, null);
 
     // Validate behaviour of AWS_TABLE_NAME attribute, then remove it.
     mockAttribute(AWS_TABLE_NAME, "aws_table_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_table_name");
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "::dynamodb:::table/aws_table_name");
     mockAttribute(AWS_TABLE_NAME, null);
+  }
+
+  @Test
+  public void testSqsClientSpanBasicUrls() {
+    testSqsUrl(
+        "https://sqs.us-east-1.amazonaws.com/123412341234/Q_Name-5",
+        "arn:aws:sqs:us-east-1:123412341234:Q_Name-5");
+    testSqsUrl(
+        "https://sqs.af-south-1.amazonaws.com/999999999999/-_ThisIsValid",
+        "arn:aws:sqs:af-south-1:999999999999:-_ThisIsValid");
+    testSqsUrl(
+        "http://sqs.eu-west-3.amazonaws.com/000000000000/FirstQueue",
+        "arn:aws:sqs:eu-west-3:000000000000:FirstQueue");
+    testSqsUrl(
+        "sqs.sa-east-1.amazonaws.com/123456781234/SecondQueue",
+        "arn:aws:sqs:sa-east-1:123456781234:SecondQueue");
+  }
+
+  @Test
+  public void testSqsClientSpanUsGovUrls() {
+    testSqsUrl(
+        "https://sqs.us-gov-east-1.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-us-gov:sqs:us-gov-east-1:123456789012:MyQueue");
+    testSqsUrl(
+        "sqs.us-gov-west-1.amazonaws.com/112233445566/Queue",
+        "arn:aws-us-gov:sqs:us-gov-west-1:112233445566:Queue");
+  }
+
+  @Test
+  public void testSqsClientSpanLegacyFormatUrls() {
+    testSqsUrl(
+        "https://ap-northeast-2.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws:sqs:ap-northeast-2:123456789012:MyQueue");
+    testSqsUrl(
+        "http://cn-northwest-1.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-cn:sqs:cn-northwest-1:123456789012:MyQueue");
+    testSqsUrl(
+        "http://cn-north-1.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-cn:sqs:cn-north-1:123456789012:MyQueue");
+    testSqsUrl(
+        "ap-south-1.queue.amazonaws.com/123412341234/MyLongerQueueNameHere",
+        "arn:aws:sqs:ap-south-1:123412341234:MyLongerQueueNameHere");
+    testSqsUrl(
+        "https://us-gov-east-1.queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws-us-gov:sqs:us-gov-east-1:123456789012:MyQueue");
+  }
+
+  @Test
+  public void testSqsClientSpanNorthVirginiaLegacyUrl() {
+    testSqsUrl(
+        "https://queue.amazonaws.com/123456789012/MyQueue",
+        "arn:aws:sqs:us-east-1:123456789012:MyQueue");
+  }
+
+  @Test
+  public void testSqsClientSpanCustomUrls() {
+    testSqsUrl("http://127.0.0.1:1212/123456789012/MyQueue", "::sqs::123456789012:MyQueue");
+    testSqsUrl("https://127.0.0.1:1212/123412341234/RRR", "::sqs::123412341234:RRR");
+    testSqsUrl("127.0.0.1:1212/123412341234/QQ", "::sqs::123412341234:QQ");
+    testSqsUrl("https://amazon.com/123412341234/BB", "::sqs::123412341234:BB");
+  }
+
+  @Test
+  public void testSqsClientSpanLongUrls() {
+    String queueName = "a".repeat(80);
+    testSqsUrl(
+        "http://127.0.0.1:1212/123456789012/" + queueName, "::sqs::123456789012:" + queueName);
+
+    String queueNameTooLong = "a".repeat(81);
+    testSqsUrl("http://127.0.0.1:1212/123456789012/" + queueNameTooLong, null);
+  }
+
+  @Test
+  public void testClientSpanSqsInvalidOrEmptyUrls() {
+    testSqsUrl(null, null);
+    testSqsUrl("", null);
+    testSqsUrl("invalidUrl", null);
+    testSqsUrl("https://www.amazon.com", null);
+    testSqsUrl("https://sqs.us-east-1.amazonaws.com/123412341234/.", null);
+    testSqsUrl("https://sqs.us-east-1.amazonaws.com/12/Queue", null);
+    testSqsUrl("https://sqs.us-east-1.amazonaws.com/A/A", null);
+    testSqsUrl("https://sqs.us-east-1.amazonaws.com/123412341234/A/ThisShouldNotBeHere", null);
+  }
+
+  private void testSqsUrl(String sqsUrl, String expectedRemoteTarget) {
+    mockAttribute(AWS_QUEUE_URL, sqsUrl);
+    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, expectedRemoteTarget);
+    mockAttribute(AWS_QUEUE_URL, null);
   }
 
   @Test
