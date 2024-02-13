@@ -48,8 +48,9 @@ import java.util.logging.Logger;
  *   <li>Add AwsMetricAttributesSpanExporter to add more attributes to all spans.
  * </ul>
  *
- * <p>You can control when these customizations are applied using the property otel.smp.enabled or
- * the environment variable OTEL_SMP_ENABLED. This flag is enabled by default.
+ * <p>You can control when these customizations are applied using the property
+ * otel.aws.app.signals.enabled or the environment variable OTEL_AWS_APP_SIGNALS_ENABLED. This flag
+ * is disabled by default.
  */
 public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomizerProvider {
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
@@ -63,7 +64,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
   }
 
   private boolean isSmpEnabled(ConfigProperties configProps) {
-    return configProps.getBoolean("otel.smp.enabled", false);
+    return configProps.getBoolean(
+        "otel.aws.app.signals.enabled", configProps.getBoolean("otel.smp.enabled", false));
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
@@ -79,7 +81,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       logger.info("Span Metrics Processor enabled");
       String smpEndpoint =
           configProps.getString(
-              "otel.aws.smp.exporter.endpoint", "http://cloudwatch-agent.amazon-cloudwatch:4317");
+              "otel.aws.app.signals.exporter.endpoint",
+              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
       logger.log(Level.FINE, String.format("Span Metrics endpoint: %s", smpEndpoint));
