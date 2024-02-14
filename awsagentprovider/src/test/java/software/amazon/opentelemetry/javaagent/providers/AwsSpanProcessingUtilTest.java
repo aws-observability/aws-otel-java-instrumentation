@@ -70,7 +70,7 @@ public class AwsSpanProcessingUtilTest {
     String invalidName = "GET";
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
-    when(attributesMock.get(HTTP_METHOD)).thenReturn(invalidName);
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn(invalidName);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
     assertThat(actualOperation).isEqualTo(UNKNOWN_OPERATION);
   }
@@ -99,7 +99,7 @@ public class AwsSpanProcessingUtilTest {
     String validTarget = "/";
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
-    when(attributesMock.get(HTTP_TARGET)).thenReturn(validTarget);
+    when(attributesMock.get(URL_PATH)).thenReturn(validTarget);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
     assertThat(actualOperation).isEqualTo(validTarget);
   }
@@ -111,8 +111,8 @@ public class AwsSpanProcessingUtilTest {
     String validMethod = "GET";
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
-    when(attributesMock.get(HTTP_TARGET)).thenReturn(validTarget);
-    when(attributesMock.get(HTTP_METHOD)).thenReturn(validMethod);
+    when(attributesMock.get(URL_PATH)).thenReturn(validTarget);
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn(validMethod);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
     assertThat(actualOperation).isEqualTo(validMethod + " " + validTarget);
   }
@@ -180,13 +180,13 @@ public class AwsSpanProcessingUtilTest {
 
   @Test
   public void testIsKeyPresentKeyPresent() {
-    when(attributesMock.get(HTTP_TARGET)).thenReturn("target");
-    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, HTTP_TARGET)).isTrue();
+    when(attributesMock.get(URL_PATH)).thenReturn("target");
+    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, URL_PATH)).isTrue();
   }
 
   @Test
   public void testIsKeyPresentKeyAbsent() {
-    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, HTTP_TARGET)).isFalse();
+    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, URL_PATH)).isFalse();
   }
 
   @Test

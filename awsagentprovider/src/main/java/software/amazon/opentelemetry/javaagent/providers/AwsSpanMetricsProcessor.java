@@ -15,7 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
@@ -118,11 +118,11 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   // possible except for the throttle
   // https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/awsxrayexporter/internal/translator/cause.go#L121-L160
   private void recordErrorOrFault(SpanData spanData, Attributes attributes) {
-    Long httpStatusCode = spanData.getAttributes().get(HTTP_STATUS_CODE);
+    Long httpStatusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
     StatusCode statusCode = spanData.getStatus().getStatusCode();
 
     if (httpStatusCode == null) {
-      httpStatusCode = attributes.get(HTTP_STATUS_CODE);
+      httpStatusCode = attributes.get(HTTP_RESPONSE_STATUS_CODE);
     }
 
     if (httpStatusCode == null
