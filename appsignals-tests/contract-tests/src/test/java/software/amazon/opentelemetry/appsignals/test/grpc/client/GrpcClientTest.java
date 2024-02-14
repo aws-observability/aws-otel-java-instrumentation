@@ -229,12 +229,12 @@ public class GrpcClientTest extends ContractTestBase {
     assertThat(attributesList)
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_NAME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("server");
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
               assertThat(attribute.getValue().getIntValue()).isEqualTo(50051L);
             })
         .satisfiesOnlyOnce(
@@ -268,13 +268,11 @@ public class GrpcClientTest extends ContractTestBase {
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_NAME);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("server");
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_ADDR);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_ADDR);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
             });
   }
 

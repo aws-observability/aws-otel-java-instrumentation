@@ -270,21 +270,19 @@ public class GrpcServerTest extends ContractTestBase {
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_ADDR);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_ADDR);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_HOST_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_HOST_NAME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
             });
   }
