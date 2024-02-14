@@ -34,6 +34,8 @@ import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -58,9 +60,30 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       Logger.getLogger(AwsAppSignalsCustomizerProvider.class.getName());
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
+    autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
     autoConfiguration.addSamplerCustomizer(this::customizeSampler);
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
+  }
+
+  private Map<String, String> customizeProperties(ConfigProperties configProps) {
+    Map<String, String> overrides = new HashMap<>();
+    if (isSmpEnabled(configProps)) {
+      // disable logs exporter by default
+      if (System.getProperty("otel.logs.exporter", System.getenv("OTEL_LOGS_EXPORTER")) == null) {
+        overrides.put("otel.logs.exporter", "none");
+      }
+
+      String traceEndpoint =
+          System.getProperty(
+              "otel.exporter.otlp.traces.endpoint",
+              System.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"));
+      // using grpc if trace endpoint is :4315
+      if (traceEndpoint != null && traceEndpoint.contains(":4315")) {
+        overrides.put("otel.exporter.otlp.traces.protocol", "grpc");
+      }
+    }
+    return overrides;
   }
 
   private boolean isSmpEnabled(ConfigProperties configProps) {
