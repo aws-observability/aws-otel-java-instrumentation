@@ -30,12 +30,14 @@ import com.amazonaws.services.cloudwatch.model.Metric;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import kotlin.Pair;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -103,16 +105,27 @@ public class CWMetricValidator implements IValidator {
           }
 
           List<Metric> actualMetricList = Lists.newArrayList();
-          addMetrics(
-              CloudWatchService.SERVICE_DIMENSION,
-              serviceNames,
-              expectedMetricList,
-              actualMetricList);
-          addMetrics(
-              CloudWatchService.REMOTE_SERVICE_DIMENSION,
-              remoteServiceNames,
-              expectedMetricList,
-              actualMetricList);
+
+          // Add sets of dimesion filters to use for each query to CloudWatch
+          List<List<Pair<String, String>>> dimensionLists = Lists.newArrayList();
+          for (String serviceName : serviceNames) {
+            dimensionLists.add(
+                Arrays.asList(new Pair<>(CloudWatchService.SERVICE_DIMENSION, serviceName)));
+          }
+          for (String remoteServiceName : remoteServiceNames) {
+            dimensionLists.add(
+                Arrays.asList(
+                    new Pair<>(CloudWatchService.REMOTE_SERVICE_DIMENSION, remoteServiceName)));
+          }
+          dimensionLists.add(
+              Arrays.asList(
+                  new Pair<>(CloudWatchService.REMOTE_SERVICE_DIMENSION, "AWS.SDK.S3"),
+                  new Pair<>(CloudWatchService.REMOTE_TARGET_DIMENSION, "e2e-test-bucket-name")));
+
+          // Populate actualMetricList with each set of dimension filters
+          for (List<Pair<String, String>> dimensionList : dimensionLists) {
+            addMetrics(dimensionList, expectedMetricList, actualMetricList);
+          }
 
           // remove the skip dimensions
           log.info("dimensions to be skipped in validation: {}", skippedDimensionNameList);
@@ -132,16 +145,12 @@ public class CWMetricValidator implements IValidator {
   }
 
   private void addMetrics(
-      String dimensionName,
-      List<String> dimensionValues,
+      List<Pair<String, String>> dimensionList,
       List<Metric> expectedMetricList,
       List<Metric> actualMetricList)
       throws Exception {
-    for (String dimensionValue : dimensionValues) {
-      actualMetricList.addAll(
-          this.listMetricFromCloudWatch(
-              cloudWatchService, expectedMetricList, dimensionName, dimensionValue));
-    }
+    actualMetricList.addAll(
+        this.listMetricFromCloudWatch(cloudWatchService, expectedMetricList, dimensionList));
   }
 
   /**
@@ -194,8 +203,7 @@ public class CWMetricValidator implements IValidator {
   private List<Metric> listMetricFromCloudWatch(
       CloudWatchService cloudWatchService,
       List<Metric> expectedMetricList,
-      String dimensionKey,
-      String dimensionValue)
+      List<Pair<String, String>> dimensionList)
       throws IOException {
     // put namespace into the map key, so that we can use it to search metric
     HashMap<String, String> metricNameMap = new HashMap<>();
@@ -207,8 +215,7 @@ public class CWMetricValidator implements IValidator {
     List<Metric> result = new ArrayList<>();
     for (String metricName : metricNameMap.keySet()) {
       result.addAll(
-          cloudWatchService.listMetrics(
-              metricNameMap.get(metricName), metricName, dimensionKey, dimensionValue));
+          cloudWatchService.listMetrics(metricNameMap.get(metricName), metricName, dimensionList));
     }
     return result;
   }
