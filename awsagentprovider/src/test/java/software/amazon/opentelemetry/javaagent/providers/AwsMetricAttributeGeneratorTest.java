@@ -499,13 +499,15 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_SOCK_PEER_ADDR, null);
     mockAttribute(NET_SOCK_PEER_PORT, null);
 
-    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates that RemoteService
+    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates
+    // that RemoteService
     // is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com/payment/123");
     validateExpectedRemoteAttributes("www.example.com", "/payment");
     mockAttribute(HTTP_URL, null);
 
-    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates that RemoteService
+    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates
+    // that RemoteService
     // is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com");
     validateExpectedRemoteAttributes("www.example.com", "/");
