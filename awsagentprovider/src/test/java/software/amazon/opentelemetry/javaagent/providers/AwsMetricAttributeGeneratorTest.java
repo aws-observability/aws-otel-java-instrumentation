@@ -671,14 +671,14 @@ class AwsMetricAttributeGeneratorTest {
   @Test
   public void testClientSpanSqsIsoUrls() {
     testSqsUrl(
-            "https://sqs.us-iso-east-1.amazonaws.com/112233445566/ThisQueue",
-            "arn:aws-iso:sqs:us-iso-east-1:112233445566:ThisQueue");
+        "https://sqs.us-iso-east-1.amazonaws.com/112233445566/ThisQueue",
+        "arn:aws-iso:sqs:us-iso-east-1:112233445566:ThisQueue");
     testSqsUrl(
-            "https://sqs.us-iso-west-1.amazonaws.com/112233445566/ThatQueue",
-            "arn:aws-iso:sqs:us-iso-west-1:112233445566:ThatQueue");
+        "https://sqs.us-iso-west-1.amazonaws.com/112233445566/ThatQueue",
+        "arn:aws-iso:sqs:us-iso-west-1:112233445566:ThatQueue");
     testSqsUrl(
-            "https://sqs.us-isob-east-1.amazonaws.com/123412341234/ThisQueue",
-            "arn:aws-iso-b:sqs:us-isob-east-1:123412341234:ThisQueue");
+        "https://sqs.us-isob-east-1.amazonaws.com/123412341234/ThisQueue",
+        "arn:aws-iso-b:sqs:us-isob-east-1:123412341234:ThisQueue");
   }
 
   private void testSqsUrl(String sqsUrl, String expectedRemoteTarget) {
