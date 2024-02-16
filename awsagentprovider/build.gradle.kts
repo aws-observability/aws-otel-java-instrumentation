@@ -37,6 +37,8 @@ dependencies {
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
 
+  implementation("software.amazon.awssdk:regions:2.24.4")
+
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
