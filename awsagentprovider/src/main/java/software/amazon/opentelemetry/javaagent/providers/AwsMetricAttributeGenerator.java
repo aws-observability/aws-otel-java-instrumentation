@@ -339,6 +339,19 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         Long port = span.getAttributes().get(NET_SOCK_PEER_PORT);
         remoteService += ":" + port;
       }
+    } else if (isKeyPresent(span, HTTP_URL)) {
+      String httpUrl = span.getAttributes().get(HTTP_URL);
+      try {
+        URL url = new URL(httpUrl);
+        if (!url.getHost().isEmpty()) {
+          remoteService = url.getHost();
+          if (url.getPort() != -1) {
+            remoteService += ":" + url.getPort();
+          }
+        }
+      } catch (MalformedURLException e) {
+        logger.log(Level.FINEST, "invalid http.url attribute: ", httpUrl);
+      }
     } else {
       logUnknownAttribute(AWS_REMOTE_SERVICE, span);
     }

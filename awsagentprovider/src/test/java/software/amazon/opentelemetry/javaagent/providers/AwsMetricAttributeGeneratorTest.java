@@ -499,14 +499,31 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_SOCK_PEER_ADDR, null);
     mockAttribute(NET_SOCK_PEER_PORT, null);
 
-    // Validate behavior of Remote Operation from HttpTarget - with 1st api part, then remove it
+    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates that RemoteService
+    // is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com/payment/123");
-    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, "/payment");
+    validateExpectedRemoteAttributes("www.example.com", "/payment");
     mockAttribute(HTTP_URL, null);
 
-    // Validate behavior of Remote Operation from HttpTarget - without 1st api part, then remove it
+    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates that RemoteService
+    // is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com");
-    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, "/");
+    validateExpectedRemoteAttributes("www.example.com", "/");
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, "http://192.168.1.1:8000");
+    validateExpectedRemoteAttributes("192.168.1.1:8000", "/");
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, "");
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, null);
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
     mockAttribute(HTTP_URL, null);
 
     // Validate behavior of Remote Operation from HttpTarget - invalid url, then remove it
