@@ -253,9 +253,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * </ul>
    *
    * if the selected attributes are still producing the UnknownRemoteService or
-   * UnknownRemoteOperation, `net.peer.name`, `net.peer.port`, `net.peer.sock.addr` and
-   * `net.peer.sock.port` will be used to derive the RemoteService. And `http.method` and `http.url`
-   * will be used to derive the RemoteOperation.
+   * UnknownRemoteOperation, `net.peer.name`, `net.peer.port`, `net.peer.sock.addr`,
+   * `net.peer.sock.port` and `http.url` will be used to derive the RemoteService. And `http.method`
+   * and `http.url` will be used to derive the RemoteOperation.
    */
   private static void setRemoteServiceAndOperation(SpanData span, AttributesBuilder builder) {
     String remoteService = UNKNOWN_REMOTE_SERVICE;

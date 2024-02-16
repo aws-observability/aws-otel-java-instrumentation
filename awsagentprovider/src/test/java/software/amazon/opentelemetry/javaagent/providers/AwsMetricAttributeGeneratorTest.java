@@ -517,6 +517,11 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(HTTP_URL, null);
 
     // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, "http://192.168.1.1");
+    validateExpectedRemoteAttributes("192.168.1.1", "/");
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
     mockAttribute(HTTP_URL, "");
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
     mockAttribute(HTTP_URL, null);
