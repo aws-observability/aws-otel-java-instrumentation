@@ -18,10 +18,13 @@ package software.amazon.opentelemetry.javaagent.providers;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
@@ -79,13 +82,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
     if (isSmpEnabled(configProps)) {
       logger.info("Span Metrics Processor enabled");
-      String smpEndpoint =
-          configProps.getString(
-              "otel.aws.app.signals.exporter.endpoint",
-              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
-      logger.log(Level.FINE, String.format("Span Metrics endpoint: %s", smpEndpoint));
       logger.log(Level.FINE, String.format("Span Metrics export interval: %s", exportInterval));
       // Cap export interval to 60 seconds. This is currently required for metrics-trace correlation
       // to work correctly.
@@ -100,17 +98,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
           AttributePropagatingSpanProcessorBuilder.create().build());
       // Construct meterProvider
       MetricExporter metricsExporter =
-          OtlpGrpcMetricExporter.builder()
-              .setEndpoint(smpEndpoint)
-              .setDefaultAggregationSelector(
-                  instrumentType -> {
-                    if (instrumentType == InstrumentType.HISTOGRAM) {
-                      return Aggregation.base2ExponentialBucketHistogram();
-                    }
-                    return Aggregation.defaultAggregation();
-                  })
-              .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
-              .build();
+          SMPMetricsExporterProvider.INSTANCE.createExporter(configProps);
+
       MetricReader metricReader =
           PeriodicMetricReader.builder(metricsExporter).setInterval(exportInterval).build();
 
@@ -137,5 +126,43 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
     }
 
     return spanExporter;
+  }
+
+  private enum SMPMetricsExporterProvider {
+    INSTANCE;
+
+    public MetricExporter createExporter(ConfigProperties configProps) {
+      String protocol =
+          OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
+      logger.log(Level.FINE, String.format("Span Metrics protocol: %s", protocol));
+
+      String smpEndpoint =
+          configProps.getString(
+              "otel.aws.app.signals.exporter.endpoint",
+              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
+      logger.log(Level.FINE, String.format("Span Metrics endpoint: %s", smpEndpoint));
+
+      if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
+        return OtlpHttpMetricExporter.builder()
+            .setEndpoint(smpEndpoint)
+            .setDefaultAggregationSelector(this::getAggregation)
+            .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
+            .build();
+      } else if (protocol.equals(OtlpConfigUtil.PROTOCOL_GRPC)) {
+        return OtlpGrpcMetricExporter.builder()
+            .setEndpoint(smpEndpoint)
+            .setDefaultAggregationSelector(this::getAggregation)
+            .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
+            .build();
+      }
+      throw new ConfigurationException("Unsupported OTLP metrics protocol: " + protocol);
+    }
+
+    private Aggregation getAggregation(InstrumentType instrumentType) {
+      if (instrumentType == InstrumentType.HISTOGRAM) {
+        return Aggregation.base2ExponentialBucketHistogram();
+      }
+      return Aggregation.defaultAggregation();
+    }
   }
 }
