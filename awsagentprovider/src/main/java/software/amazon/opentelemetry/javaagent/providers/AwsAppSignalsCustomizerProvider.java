@@ -66,13 +66,13 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
   }
 
-  private boolean isSmpEnabled(ConfigProperties configProps) {
+  private boolean isAppSignalsEnabled(ConfigProperties configProps) {
     return configProps.getBoolean(
         "otel.aws.app.signals.enabled", configProps.getBoolean("otel.smp.enabled", false));
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
-    if (isSmpEnabled(configProps)) {
+    if (isAppSignalsEnabled(configProps)) {
       return AlwaysRecordSampler.create(sampler);
     }
     return sampler;
@@ -80,7 +80,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
 
   private SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
-    if (isSmpEnabled(configProps)) {
+    if (isAppSignalsEnabled(configProps)) {
       logger.info("Span Metrics Processor enabled");
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
@@ -98,7 +98,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
           AttributePropagatingSpanProcessorBuilder.create().build());
       // Construct meterProvider
       MetricExporter metricsExporter =
-          SMPMetricsExporterProvider.INSTANCE.createExporter(configProps);
+          AppSignalsExporterProvider.INSTANCE.createExporter(configProps);
 
       MetricReader metricReader =
           PeriodicMetricReader.builder(metricsExporter).setInterval(exportInterval).build();
@@ -119,7 +119,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
 
   private SpanExporter customizeSpanExporter(
       SpanExporter spanExporter, ConfigProperties configProps) {
-    if (isSmpEnabled(configProps)) {
+    if (isAppSignalsEnabled(configProps)) {
       return AwsMetricAttributesSpanExporterBuilder.create(
               spanExporter, ResourceHolder.getResource())
           .build();
@@ -128,34 +128,34 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
     return spanExporter;
   }
 
-  private enum SMPMetricsExporterProvider {
+  private enum AppSignalsExporterProvider {
     INSTANCE;
 
     public MetricExporter createExporter(ConfigProperties configProps) {
       String protocol =
           OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
-      logger.log(Level.FINE, String.format("Span Metrics protocol: %s", protocol));
+      logger.log(Level.FINE, String.format("AppSignals protocol: %s", protocol));
 
-      String smpEndpoint =
+      String appSignalsEndpoint =
           configProps.getString(
               "otel.aws.app.signals.exporter.endpoint",
               configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
-      logger.log(Level.FINE, String.format("Span Metrics endpoint: %s", smpEndpoint));
+      logger.log(Level.FINE, String.format("AppSignals endpoint: %s", appSignalsEndpoint));
 
       if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
         return OtlpHttpMetricExporter.builder()
-            .setEndpoint(smpEndpoint)
+            .setEndpoint(appSignalsEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
             .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
             .build();
       } else if (protocol.equals(OtlpConfigUtil.PROTOCOL_GRPC)) {
         return OtlpGrpcMetricExporter.builder()
-            .setEndpoint(smpEndpoint)
+            .setEndpoint(appSignalsEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
             .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
             .build();
       }
-      throw new ConfigurationException("Unsupported OTLP metrics protocol: " + protocol);
+      throw new ConfigurationException("Unsupported AppSignals protocol: " + protocol);
     }
 
     private Aggregation getAggregation(InstrumentType instrumentType) {
