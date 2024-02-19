@@ -81,10 +81,10 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
   private SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
     if (isAppSignalsEnabled(configProps)) {
-      logger.info("Span Metrics Processor enabled");
+      logger.info("AWS AppSignals enabled");
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
-      logger.log(Level.FINE, String.format("Span Metrics export interval: %s", exportInterval));
+      logger.log(Level.FINE, String.format("AppSignals Metrics export interval: %s", exportInterval));
       // Cap export interval to 60 seconds. This is currently required for metrics-trace correlation
       // to work correctly.
       if (exportInterval.compareTo(DEFAULT_METRIC_EXPORT_INTERVAL) > 0) {
@@ -108,7 +108,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
               .build();
-      // Construct and set span metrics processor
+      // Construct and set AppSignals metrics processor
       SpanProcessor spanMetricsProcessor =
           AwsSpanMetricsProcessorBuilder.create(meterProvider, ResourceHolder.getResource())
               .build();
@@ -134,13 +134,13 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
     public MetricExporter createExporter(ConfigProperties configProps) {
       String protocol =
           OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
-      logger.log(Level.FINE, String.format("AppSignals protocol: %s", protocol));
+      logger.log(Level.FINE, String.format("AppSignals export protocol: %s", protocol));
 
       String appSignalsEndpoint =
           configProps.getString(
               "otel.aws.app.signals.exporter.endpoint",
               configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
-      logger.log(Level.FINE, String.format("AppSignals endpoint: %s", appSignalsEndpoint));
+      logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
 
       if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
         return OtlpHttpMetricExporter.builder()
@@ -155,7 +155,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
             .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
             .build();
       }
-      throw new ConfigurationException("Unsupported AppSignals protocol: " + protocol);
+      throw new ConfigurationException("Unsupported AppSignals export protocol: " + protocol);
     }
 
     private Aggregation getAggregation(InstrumentType instrumentType) {
