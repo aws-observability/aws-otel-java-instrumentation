@@ -253,9 +253,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * </ul>
    *
    * if the selected attributes are still producing the UnknownRemoteService or
-   * UnknownRemoteOperation, `net.peer.name`, `net.peer.port`, `net.peer.sock.addr` and
-   * `net.peer.sock.port` will be used to derive the RemoteService. And `http.method` and `http.url`
-   * will be used to derive the RemoteOperation.
+   * UnknownRemoteOperation, `net.peer.name`, `net.peer.port`, `net.peer.sock.addr`,
+   * `net.peer.sock.port` and `http.url` will be used to derive the RemoteService. And `http.method`
+   * and `http.url` will be used to derive the RemoteOperation.
    */
   private static void setRemoteServiceAndOperation(SpanData span, AttributesBuilder builder) {
     String remoteService = UNKNOWN_REMOTE_SERVICE;
@@ -338,6 +338,19 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       if (isKeyPresent(span, NET_SOCK_PEER_PORT)) {
         Long port = span.getAttributes().get(NET_SOCK_PEER_PORT);
         remoteService += ":" + port;
+      }
+    } else if (isKeyPresent(span, HTTP_URL)) {
+      String httpUrl = span.getAttributes().get(HTTP_URL);
+      try {
+        URL url = new URL(httpUrl);
+        if (!url.getHost().isEmpty()) {
+          remoteService = url.getHost();
+          if (url.getPort() != -1) {
+            remoteService += ":" + url.getPort();
+          }
+        }
+      } catch (MalformedURLException e) {
+        logger.log(Level.FINEST, "invalid http.url attribute: ", httpUrl);
       }
     } else {
       logUnknownAttribute(AWS_REMOTE_SERVICE, span);
