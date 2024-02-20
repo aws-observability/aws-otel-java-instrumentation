@@ -84,7 +84,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       logger.info("AWS AppSignals enabled");
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
-      logger.log(Level.FINE, String.format("AppSignals Metrics export interval: %s", exportInterval));
+      logger.log(
+          Level.FINE, String.format("AppSignals Metrics export interval: %s", exportInterval));
       // Cap export interval to 60 seconds. This is currently required for metrics-trace correlation
       // to work correctly.
       if (exportInterval.compareTo(DEFAULT_METRIC_EXPORT_INTERVAL) > 0) {
