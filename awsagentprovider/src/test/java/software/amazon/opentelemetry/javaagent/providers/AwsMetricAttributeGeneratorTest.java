@@ -465,15 +465,15 @@ class AwsMetricAttributeGeneratorTest {
     // Validate db.operation not exist, but db.statement exist, where SpanAttributes.DB_STATEMENT is
     // invalid
     mockAttribute(DB_SYSTEM, "DB system");
-    mockAttribute(DB_OPERATION, "invalid DB statement");
-    mockAttribute(DB_STATEMENT, null);
-    validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(DB_STATEMENT, "invalid DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, UNKNOWN_REMOTE_OPERATION);
 
     // Validate both db.operation and db.statement not exist.
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_OPERATION, null);
     mockAttribute(DB_STATEMENT, null);
-    validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
+    validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, UNKNOWN_REMOTE_OPERATION);
 
     // Validate behaviour of various combinations of FAAS attributes, then remove them.
     validateAndRemoveRemoteAttributes(
