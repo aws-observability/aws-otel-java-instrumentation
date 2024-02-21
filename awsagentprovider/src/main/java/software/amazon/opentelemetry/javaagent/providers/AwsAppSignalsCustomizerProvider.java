@@ -18,10 +18,13 @@ package software.amazon.opentelemetry.javaagent.providers;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
@@ -63,13 +66,13 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
   }
 
-  private boolean isSmpEnabled(ConfigProperties configProps) {
+  private boolean isAppSignalsEnabled(ConfigProperties configProps) {
     return configProps.getBoolean(
         "otel.aws.app.signals.enabled", configProps.getBoolean("otel.smp.enabled", false));
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
-    if (isSmpEnabled(configProps)) {
+    if (isAppSignalsEnabled(configProps)) {
       return AlwaysRecordSampler.create(sampler);
     }
     return sampler;
@@ -77,16 +80,12 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
 
   private SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
-    if (isSmpEnabled(configProps)) {
-      logger.info("Span Metrics Processor enabled");
-      String smpEndpoint =
-          configProps.getString(
-              "otel.aws.app.signals.exporter.endpoint",
-              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
+    if (isAppSignalsEnabled(configProps)) {
+      logger.info("AWS AppSignals enabled");
       Duration exportInterval =
           configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
-      logger.log(Level.FINE, String.format("Span Metrics endpoint: %s", smpEndpoint));
-      logger.log(Level.FINE, String.format("Span Metrics export interval: %s", exportInterval));
+      logger.log(
+          Level.FINE, String.format("AppSignals Metrics export interval: %s", exportInterval));
       // Cap export interval to 60 seconds. This is currently required for metrics-trace correlation
       // to work correctly.
       if (exportInterval.compareTo(DEFAULT_METRIC_EXPORT_INTERVAL) > 0) {
@@ -100,17 +99,8 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
           AttributePropagatingSpanProcessorBuilder.create().build());
       // Construct meterProvider
       MetricExporter metricsExporter =
-          OtlpGrpcMetricExporter.builder()
-              .setEndpoint(smpEndpoint)
-              .setDefaultAggregationSelector(
-                  instrumentType -> {
-                    if (instrumentType == InstrumentType.HISTOGRAM) {
-                      return Aggregation.base2ExponentialBucketHistogram();
-                    }
-                    return Aggregation.defaultAggregation();
-                  })
-              .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
-              .build();
+          AppSignalsExporterProvider.INSTANCE.createExporter(configProps);
+
       MetricReader metricReader =
           PeriodicMetricReader.builder(metricsExporter).setInterval(exportInterval).build();
 
@@ -119,7 +109,7 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
               .build();
-      // Construct and set span metrics processor
+      // Construct and set AppSignals metrics processor
       SpanProcessor spanMetricsProcessor =
           AwsSpanMetricsProcessorBuilder.create(meterProvider, ResourceHolder.getResource())
               .build();
@@ -130,12 +120,50 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
 
   private SpanExporter customizeSpanExporter(
       SpanExporter spanExporter, ConfigProperties configProps) {
-    if (isSmpEnabled(configProps)) {
+    if (isAppSignalsEnabled(configProps)) {
       return AwsMetricAttributesSpanExporterBuilder.create(
               spanExporter, ResourceHolder.getResource())
           .build();
     }
 
     return spanExporter;
+  }
+
+  private enum AppSignalsExporterProvider {
+    INSTANCE;
+
+    public MetricExporter createExporter(ConfigProperties configProps) {
+      String protocol =
+          OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
+      logger.log(Level.FINE, String.format("AppSignals export protocol: %s", protocol));
+
+      String appSignalsEndpoint =
+          configProps.getString(
+              "otel.aws.app.signals.exporter.endpoint",
+              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
+      logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
+
+      if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
+        return OtlpHttpMetricExporter.builder()
+            .setEndpoint(appSignalsEndpoint)
+            .setDefaultAggregationSelector(this::getAggregation)
+            .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
+            .build();
+      } else if (protocol.equals(OtlpConfigUtil.PROTOCOL_GRPC)) {
+        return OtlpGrpcMetricExporter.builder()
+            .setEndpoint(appSignalsEndpoint)
+            .setDefaultAggregationSelector(this::getAggregation)
+            .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
+            .build();
+      }
+      throw new ConfigurationException("Unsupported AppSignals export protocol: " + protocol);
+    }
+
+    private Aggregation getAggregation(InstrumentType instrumentType) {
+      if (instrumentType == InstrumentType.HISTOGRAM) {
+        return Aggregation.base2ExponentialBucketHistogram();
+      }
+      return Aggregation.defaultAggregation();
+    }
   }
 }
