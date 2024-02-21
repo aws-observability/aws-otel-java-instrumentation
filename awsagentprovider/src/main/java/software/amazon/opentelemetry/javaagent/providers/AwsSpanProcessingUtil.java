@@ -22,11 +22,18 @@ import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValu
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 
 /** Utility class designed to support shared logic across AWS Span Processors. */
 final class AwsSpanProcessingUtil {
@@ -40,6 +47,19 @@ final class AwsSpanProcessingUtil {
   static final String LOCAL_ROOT = "LOCAL_ROOT";
   static final String SQS_RECEIVE_MESSAGE_SPAN_NAME = "Sqs.ReceiveMessage";
   static final String AWS_SDK_INSTRUMENTATION_SCOPE_PREFIX = "io.opentelemetry.aws-sdk-";
+  // Max keyword length supported by parsing into remote_operation from DB_STATEMENT
+  static final int MAX_KEYWORD_LENGTH = 27;
+  private static final String SQL_DIALECT_KEYWORDS_JSON = "configuration/sql_dialect_keywords.json";
+
+  static List<String> getDialectKeywords() throws IOException {
+    InputStream jsonFile =
+        AwsSpanProcessingUtil.class.getClassLoader().getResourceAsStream(SQL_DIALECT_KEYWORDS_JSON);
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode jsonNode = mapper.readValue(jsonFile, JsonNode.class);
+    JsonNode arrayNode = jsonNode.get("keywords");
+    ObjectReader reader = mapper.readerFor(new TypeReference<List<String>>() {});
+    return reader.readValue(arrayNode);
+  }
 
   /**
    * Ingress operation (i.e. operation for Server and Consumer spans) will be generated from

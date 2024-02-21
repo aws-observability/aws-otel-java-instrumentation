@@ -22,12 +22,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getDialectKeywords;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import java.io.IOException;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -380,5 +384,24 @@ public class AwsSpanProcessingUtilTest {
     assertThat(AwsSpanProcessingUtil.shouldGenerateServiceMetricAttributes(spanDataMock)).isTrue();
     assertThat(AwsSpanProcessingUtil.shouldGenerateDependencyMetricAttributes(spanDataMock))
         .isTrue();
+  }
+
+  @Test
+  public void testSqlDialectKeywordsOrder() throws IOException {
+    List<String> keywords = getDialectKeywords();
+    int prevKeywordLength = Integer.MAX_VALUE;
+    for (String keyword : keywords) {
+      int currKeywordLength = keyword.length();
+      assertThat(prevKeywordLength >= currKeywordLength);
+      prevKeywordLength = currKeywordLength;
+    }
+  }
+
+  @Test
+  public void testSqlDialectKeywordsMaxLength() throws IOException {
+    List<String> keywords = getDialectKeywords();
+    for (String keyword : keywords) {
+      assertThat(MAX_KEYWORD_LENGTH >= keyword.length());
+    }
   }
 }

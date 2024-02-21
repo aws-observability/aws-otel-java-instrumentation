@@ -34,6 +34,8 @@ dependencies {
   implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
   // AWS Resource Detectors
   implementation("io.opentelemetry.contrib:opentelemetry-aws-resources")
+  // Json file reader
+  implementation(group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-yaml", version = "2.15.1")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
 

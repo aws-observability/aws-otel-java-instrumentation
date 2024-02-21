@@ -437,6 +437,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, "TestString");
     mockAttribute(DB_SYSTEM, "TestString");
     mockAttribute(DB_OPERATION, "TestString");
+    mockAttribute(DB_STATEMENT, "TestString");
     mockAttribute(FAAS_INVOKED_PROVIDER, "TestString");
     mockAttribute(FAAS_INVOKED_NAME, "TestString");
     mockAttribute(MESSAGING_SYSTEM, "TestString");
@@ -460,6 +461,19 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of various combinations of DB attributes, then remove them.
     validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, "DB operation");
+
+    // Validate db.operation not exist, but db.statement exist, where SpanAttributes.DB_STATEMENT is
+    // invalid
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_OPERATION, "invalid DB statement");
+    mockAttribute(DB_STATEMENT, null);
+    validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
+
+    // Validate both db.operation and db.statement not exist.
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_OPERATION, null);
+    mockAttribute(DB_STATEMENT, null);
+    validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
 
     // Validate behaviour of various combinations of FAAS attributes, then remove them.
     validateAndRemoveRemoteAttributes(
@@ -543,6 +557,66 @@ class AwsMetricAttributeGeneratorTest {
 
     // Once we have removed all usable metrics, we only have "unknown" attributes, which are unused.
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+  }
+
+  // Validate behaviour of various combinations of DB attributes.
+  @Test
+  public void testGetDBStatementRemoteOperation() {
+    // Set all expected fields to a test string, we will overwrite them in descending order to test
+    mockAttribute(DB_SYSTEM, "TestString");
+    mockAttribute(DB_OPERATION, "TestString");
+    mockAttribute(DB_STATEMENT, "TestString");
+
+    // Validate SpanAttributes.DB_OPERATION not exist, but SpanAttributes.DB_STATEMENT exist,
+    // where SpanAttributes.DB_STATEMENT is valid
+    // Case 1: Only 1 valid keywords match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 2: More than 1 valid keywords match, we want to pick the longest match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "DROP VIEW DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "DROP VIEW");
+
+    // Case 3: More than 1 valid keywords match, but the other keywords is not
+    // at the start of the SpanAttributes.DB_STATEMENT. We want to only pick start match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT data FROM domains");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 4: Have valid keywords，but it is not at the start of SpanAttributes.DB_STATEMENT
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "invalid SELECT DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
+
+    // Case 5: Have valid keywords, match the longest word
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "UUID");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "UUID");
+
+    // Case 6: Have valid keywords, match with first word
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "FROM SELECT *");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "FROM");
+
+    // Case 7: Have valid keyword, match with first word
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT FROM *");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 8: Have valid keywords, match with upper case
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "seLeCt *");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
   }
 
   @Test

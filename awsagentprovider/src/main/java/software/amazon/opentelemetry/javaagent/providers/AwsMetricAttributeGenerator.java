@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import static io.opentelemetry.semconv.ResourceAttributes.SERVICE_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_INVOKED_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_TRIGGER;
@@ -44,10 +45,12 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getDialectKeywords;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -68,6 +71,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -266,9 +271,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     } else if (isKeyPresent(span, RPC_SERVICE) || isKeyPresent(span, RPC_METHOD)) {
       remoteService = normalizeServiceName(span, getRemoteService(span, RPC_SERVICE));
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
-    } else if (isKeyPresent(span, DB_SYSTEM) || isKeyPresent(span, DB_OPERATION)) {
+    } else if (isKeyPresent(span, DB_SYSTEM)
+        || isKeyPresent(span, DB_OPERATION)
+        || isKeyPresent(span, DB_STATEMENT)) {
       remoteService = getRemoteService(span, DB_SYSTEM);
-      remoteOperation = getRemoteOperation(span, DB_OPERATION);
+      if (isKeyPresent(span, DB_OPERATION)) {
+        remoteOperation = getRemoteOperation(span, DB_OPERATION);
+      } else {
+        remoteOperation = getDBStatementRemoteOperation(span, DB_STATEMENT);
+      }
     } else if (isKeyPresent(span, FAAS_INVOKED_NAME) || isKeyPresent(span, FAAS_TRIGGER)) {
       remoteService = getRemoteService(span, FAAS_INVOKED_NAME);
       remoteOperation = getRemoteOperation(span, FAAS_TRIGGER);
@@ -446,6 +457,43 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     if (remoteOperation == null) {
       remoteOperation = UNKNOWN_REMOTE_OPERATION;
     }
+    return remoteOperation;
+  }
+
+  /**
+   * If no db.operation attribute provided in the span, we use db.statement to compute a valid
+   * remote operation in a best-effort manner. To do this, we take the first substring of the
+   * statement and compare to a regex list of known SQL keywords. The substring length is determined
+   * by the longest known SQL keywords.
+   */
+  private static String getDBStatementRemoteOperation(
+      SpanData span, AttributeKey<String> remoteOperationKey) {
+    String remoteOperation = span.getAttributes().get(remoteOperationKey);
+    if (remoteOperation == null) {
+      remoteOperation = UNKNOWN_REMOTE_OPERATION;
+    }
+
+    // Remove all whitespace and newline characters from the beginning of remote_operation
+    // and retrieve the first MAX_KEYWORD_LENGTH characters
+    remoteOperation = remoteOperation.stripLeading();
+    if (remoteOperation.length() > MAX_KEYWORD_LENGTH) {
+      remoteOperation = remoteOperation.substring(0, MAX_KEYWORD_LENGTH);
+    }
+
+    try {
+      String joinedKeywords = String.join("|", getDialectKeywords());
+      Pattern pattern = Pattern.compile("^(?:" + joinedKeywords + ")\\b");
+      Matcher matcher = pattern.matcher(remoteOperation.toUpperCase());
+      if (matcher.find()) {
+        remoteOperation = matcher.group(0);
+      } else {
+        remoteOperation = UNKNOWN_REMOTE_OPERATION;
+      }
+    } catch (Exception e) {
+      logger.log(Level.FINEST, "Not able to get list of Dialect Keywords. Exception = {1}", e);
+      remoteOperation = UNKNOWN_REMOTE_OPERATION;
+    }
+
     return remoteOperation;
   }
 
