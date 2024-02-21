@@ -46,11 +46,11 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getDialectKeywords;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -72,7 +72,6 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -480,17 +479,10 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteOperation = remoteOperation.substring(0, MAX_KEYWORD_LENGTH);
     }
 
-    try {
-      String joinedKeywords = String.join("|", getDialectKeywords());
-      Pattern pattern = Pattern.compile("^(?:" + joinedKeywords + ")\\b");
-      Matcher matcher = pattern.matcher(remoteOperation.toUpperCase());
-      if (matcher.find()) {
-        remoteOperation = matcher.group(0);
-      } else {
-        remoteOperation = UNKNOWN_REMOTE_OPERATION;
-      }
-    } catch (Exception e) {
-      logger.log(Level.FINEST, "Not able to get list of Dialect Keywords. Exception = {1}", e);
+    Matcher matcher = SQL_DIALECT_PATTERN.matcher(remoteOperation.toUpperCase());
+    if (matcher.find() && !matcher.group(0).isEmpty()) {
+      remoteOperation = matcher.group(0);
+    } else {
       remoteOperation = UNKNOWN_REMOTE_OPERATION;
     }
 

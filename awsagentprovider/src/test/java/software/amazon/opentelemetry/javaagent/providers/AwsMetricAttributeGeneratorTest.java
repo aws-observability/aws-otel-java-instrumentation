@@ -619,6 +619,12 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_STATEMENT, "seLeCt *");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 9: Both DB_OPERATION and DB_STATEMENT are set but the former takes presedence
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT FROM *");
+    mockAttribute(DB_OPERATION, "DB operation");
+    validateExpectedRemoteAttributes("DB system", "DB operation");
   }
 
   @Test
