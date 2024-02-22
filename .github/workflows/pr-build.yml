@@ -31,7 +31,7 @@ jobs:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-test-cache-pnpm-modules
 
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v2
 
       - uses: ./.github/actions/patch-dependencies
         with:
@@ -61,7 +61,7 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v2
 
         # cache local patch outputs
       - name: Cache local Maven repository

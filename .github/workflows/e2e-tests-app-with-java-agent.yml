@@ -51,7 +51,7 @@ jobs:
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Validate the checksums of Gradle Wrapper
-        uses: gradle/wrapper-validation-action@v1
+        uses: gradle/wrapper-validation-action@v2
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
