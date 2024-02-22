@@ -27,7 +27,7 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v2
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
