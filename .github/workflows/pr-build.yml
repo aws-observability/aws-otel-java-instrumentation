@@ -76,13 +76,13 @@ jobs:
         if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
 
       - name: Dry Run Validator
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: testing:validator:build
 
       - name: Build with Gradle with Integration tests
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
@@ -92,7 +92,7 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
       - name: Run contract tests
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: contractTests -PlocalDocker=true -i
@@ -128,7 +128,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         with:
           arguments: build --stacktrace -PenableCoverage=true

@@ -90,7 +90,7 @@ jobs:
           done
 
       - name: Build release with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
@@ -136,7 +136,7 @@ jobs:
             public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
 
       - name: Build and Publish release with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:

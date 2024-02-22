@@ -21,7 +21,7 @@ jobs:
           java-version: 17
           distribution: 'temurin'
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: ":otelagent:dependencyCheckAnalyze"
       - name: Upload report
@@ -43,7 +43,7 @@ jobs:
           java-version: 17
           distribution: 'temurin'
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: ":javaagent:dependencyCheckAnalyze"
       - name: Upload report
