@@ -216,10 +216,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   // add `AWS.SDK.` as prefix to indicate the metrics resulted from current span is from AWS SDK
   private static String normalizeServiceName(SpanData span, String serviceName) {
     if (AwsSpanProcessingUtil.isAwsSDKSpan(span)) {
-      String scopeName = span.getInstrumentationScopeInfo().getName();
-      if (scopeName.contains("aws-sdk-2.")) {
-        return "AWS.SDK." + serviceName;
-      }
+      return "AWS.SDK." + serviceName;
     }
     return serviceName;
   }
