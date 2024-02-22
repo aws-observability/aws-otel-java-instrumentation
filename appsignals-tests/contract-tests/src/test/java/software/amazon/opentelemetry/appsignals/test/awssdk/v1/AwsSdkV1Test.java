@@ -59,22 +59,22 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
 
   @Override
   protected String getS3ServiceName() {
-    return "Amazon S3";
+    return "AWS.SDK.Amazon S3";
   }
 
   @Override
   protected String getDynamoDbServiceName() {
-    return "AmazonDynamoDBv2";
+    return "AWS.SDK.AmazonDynamoDBv2";
   }
 
   @Override
   protected String getSqsServiceName() {
-    return "AmazonSQS";
+    return "AWS.SDK.AmazonSQS";
   }
 
   @Override
   protected String getKinesisServiceName() {
-    return "AmazonKinesis";
+    return "AWS.SDK.AmazonKinesis";
   }
 
   protected String getS3RpcServiceName() {

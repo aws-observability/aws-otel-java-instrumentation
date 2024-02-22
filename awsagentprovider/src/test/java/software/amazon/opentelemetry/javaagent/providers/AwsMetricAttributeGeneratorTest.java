@@ -969,7 +969,7 @@ class AwsMetricAttributeGeneratorTest {
 
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("Amazon S3");
+    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("AWS.SDK.Amazon S3");
   }
 
   @Test
