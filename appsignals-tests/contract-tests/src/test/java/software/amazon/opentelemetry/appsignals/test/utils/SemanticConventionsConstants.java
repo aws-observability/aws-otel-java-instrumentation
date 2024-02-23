@@ -21,23 +21,22 @@ package software.amazon.opentelemetry.appsignals.test.utils;
 public class SemanticConventionsConstants {
 
   // Semantic Conventions Attribute names
-  public static final String NET_PEER_NAME = "net.peer.name";
-  public static final String NET_PEER_PORT = "net.peer.port";
-  public static final String NET_PROTOCOL_NAME = "net.protocol.name";
-  public static final String NET_PROTOCOL_VERSION = "net.protocol.version";
+  public static final String NET_PEER_NAME = "server.address";
+  public static final String NET_PEER_PORT = "server.port";
+  public static final String NET_PROTOCOL_NAME = "network.protocol.name";
+  public static final String NET_PROTOCOL_VERSION = "network.protocol.version";
   public static final String NET_HOST_NAME = "net.host.name";
   public static final String NET_HOST_PORT = "net.host.port";
   public static final String NET_SOCK_HOST_ADDR = "net.sock.host.addr";
   public static final String NET_SOCK_HOST_PORT = "net.sock.host.port";
   public static final String NET_SOCK_PEER_ADDR = "net.sock.peer.addr";
   public static final String NET_SOCK_PEER_PORT = "net.sock.peer.port";
-  public static final String NET_SOCK_PEER_NAME = "net.sock.peer.name";
-  public static final String HTTP_STATUS_CODE = "http.status_code";
+  public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
   public static final String HTTP_SCHEME = "http.scheme";
   public static final String HTTP_TARGET = "http.target";
   public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.response_content_length";
-  public static final String HTTP_URL = "http.url";
-  public static final String HTTP_METHOD = "http.method";
+  public static final String URL_FULL = "url.full";
+  public static final String HTTP_REQUEST_METHOD = "http.request.method";
   public static final String HTTP_ROUTE = "http.route";
 
   public static final String PEER_SERVICE = "peer.service";

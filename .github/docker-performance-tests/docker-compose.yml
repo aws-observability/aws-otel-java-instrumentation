@@ -38,6 +38,7 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=service.name=aws-otel-integ-test
       # Java specific values
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - AWS_REGION=${AWS_DEFAULT_REGION}
       # Produces several "java.lang.IllegalArgumentException: Counters can only increase"
       # error messages. Removing for now to not have log messages skew results.
