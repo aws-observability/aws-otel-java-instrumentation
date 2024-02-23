@@ -163,6 +163,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
         .satisfiesOnlyOnce(
@@ -182,6 +183,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
         .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
