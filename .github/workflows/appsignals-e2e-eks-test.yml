@@ -148,10 +148,22 @@ jobs:
               ${{ inputs.test-cluster-name }} \
               ${{ env.AWS_DEFAULT_REGION }} \
               ${{ env.SAMPLE_APP_NAMESPACE }}
+
+              # If the workflow provides a specific ADOT image to test, record the Image Names in Env to verify if any change after patch
+              if [ ${{ inputs.appsignals-adot-image-name }} != "" ]; then
+                kubectl wait --for=condition=Ready pod --all -n amazon-cloudwatch
+                kubectl wait --for=condition=Ready pod --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
+                echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json)
+                echo "DEBUGXXXXXXXXXX OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
+                jq '.items[0].status.containerStatuses')
+                echo "OLD_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json | \
+                jq '.items[0].status.initContainerStatuses[0].image') >> $GITHUB_ENV
+              fi
+
           
               # If the workflow provides a specific ADOT image to test, patch the deployment and restart CW agent related pods
               if [ ${{ inputs.appsignals-adot-image-name }} != "" ]; then
-                kubectl patch deploy -namazon-cloudwatch amazon-cloudwatch-observability-controller-manager --type='json' \
+                kubectl patch deploy -n amazon-cloudwatch amazon-cloudwatch-observability-controller-manager --type='json' \
                 -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args/0", "value": "--auto-instrumentation-java-image=${{ inputs.appsignals-adot-image-name }}"}]'
           
                 kubectl delete pods --all -n amazon-cloudwatch
@@ -217,14 +229,40 @@ jobs:
           echo "REMOTE_SERVICE_DEPLOYMENT_NAME=$(kubectl get deployments -n ${{ env.SAMPLE_APP_NAMESPACE }} --selector=app=remote-app -o jsonpath='{.items[0].metadata.name}')" >> $GITHUB_ENV
           echo "REMOTE_SERVICE_POD_IP=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --selector=app=remote-app -o jsonpath='{.items[0].status.podIP}')" >> $GITHUB_ENV
 
-      - name: Verify pod Adot image
+      - name: Log pod Fluent Bit image ID
+        run: |
+          kubectl get pods -n amazon-cloudwatch -l k8s-app=fluent-bit -o json | \
+          jq '.items[0].status.containerStatuses[0].imageID'
+
+      - name: Log pod Adot image and save image to the environment
         run: |
           kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} --output json | \
           jq '.items[0].status.initContainerStatuses[0].imageID'
+          
+          echo "DEBUGYYYYYYYYYY NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
+          jq '.items[0].status.containerStatuses')
+          echo "DEBUGZZZZZZZZZZ NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json| \
+          jq '.items[0].status.initContainerStatuses')
 
-      - name: Verify pod CWAgent image
+          echo "NEW_ADOT_IMAGE"=$(kubectl get pods -n ${{ env.SAMPLE_APP_NAMESPACE }} -o json | \
+          jq '.items[0].status.initContainerStatuses[0].image') >> $GITHUB_ENV
+
+      - name: Verify ADOT image changed if ADOT Patched
+        run: |
+          if [ "${{ inputs.appsignals-adot-image-name }}" != "" ] && [ "${{ env.OLD_ADOT_IMAGE }}" = "${{ env.NEW_ADOT_IMAGE }}" ]; then
+            echo "ADOT Image did not change"
+            exit 1
+          fi
+        
+
+      - name: Log pod CWAgent image
         run: |
           kubectl get pods -n amazon-cloudwatch --output json | \
+          jq '.items[0].status.containerStatuses[0].imageID'
+
+      - name: Log pod CWAgent Operator image ID
+        run: |
+          kubectl get pods -n amazon-cloudwatch -l app.kubernetes.io/name=amazon-cloudwatch-observability -o json | \
           jq '.items[0].status.containerStatuses[0].imageID'
 
       # cache local patch outputs
