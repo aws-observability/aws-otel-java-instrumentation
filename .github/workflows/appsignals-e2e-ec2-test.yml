@@ -17,10 +17,12 @@ permissions:
   contents: read
 
 env:
-  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} # Used by terraform and AWS CLI commands
+  # The precense of this env var is required for use by terraform and AWS CLI commands
+  # It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
-  SAMPLE_APP_FRONTEND_SERVICE_JAR: "s3://aws-appsignals-sample-app/main-service.jar"
-  SAMPLE_APP_REMOTE_SERVICE_JAR: "s3://aws-appsignals-sample-app/remote-service.jar"
+  SAMPLE_APP_FRONTEND_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_FE_SA_JAR }}
+  SAMPLE_APP_REMOTE_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_RE_SA_JAR }}
   APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
   METRIC_NAMESPACE: AppSignals
   LOG_GROUP_NAME: /aws/appsignals/generic
@@ -33,14 +35,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
       - name: Set CW Agent RPM environment variable
         run: |
           if [ ${{ env.AWS_DEFAULT_REGION }} == "us-east-1" ]; then
-            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+            echo GET_CW_AGENT_RPM_COMMAND="wget -O cw-agent.rpm https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           else
-            echo APP_SIGNALS_CW_AGENT_RPM="https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
+            echo GET_CW_AGENT_RPM_COMMAND="wget -O cw-agent.rpm https://amazoncloudwatch-agent-${{ env.AWS_DEFAULT_REGION }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm" >> $GITHUB_ENV
           fi
-          
 
       - name: Generate testing id
         run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
@@ -50,6 +56,24 @@ jobs:
         with:
           role-to-assume: ${{ secrets.E2E_TEST_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - uses: actions/download-artifact@v3
+        if: inputs.caller-workflow-name == 'main-build'
+        with:
+          name: aws-opentelemetry-agent.jar
+
+      - name: Upload main-build adot.jar to s3
+        if: inputs.caller-workflow-name == 'main-build'
+        run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar
+
+      - name: Set Get ADOT.jar command environment variable
+        working-directory: testing/terraform/ec2
+        run: |
+          if [ ${{ inputs.caller-workflow-name }} == "main-build" ]; then
+            echo GET_ADOT_JAR_COMMAND="aws s3 cp s3://main-build-adot-staging-jar/aws-opentelemetry-agent.jar ./adot.jar" >> $GITHUB_ENV
+          else
+            echo GET_ADOT_JAR_COMMAND="wget -O adot.jar https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar" >> $GITHUB_ENV
+          fi
 
       - name: Set up terraform
         uses: hashicorp/setup-terraform@v3
@@ -76,8 +100,8 @@ jobs:
               -var="test_id=${{ env.TESTING_ID }}" \
               -var="sample_app_jar=${{ env.SAMPLE_APP_FRONTEND_SERVICE_JAR }}" \
               -var="sample_remote_app_jar=${{ env.SAMPLE_APP_REMOTE_SERVICE_JAR }}" \
-              -var="cw_agent_rpm=${{ env.APP_SIGNALS_CW_AGENT_RPM }}" \
-              -var="adot_jar=${{ env.APP_SIGNALS_ADOT_JAR }}" \
+              -var="get_cw_agent_rpm_command=${{ env.GET_CW_AGENT_RPM_COMMAND }}" \
+              -var="get_adot_jar_command=${{ env.GET_ADOT_JAR_COMMAND }}" \
             || deployment_failed=$?
           
             if [ $deployment_failed -eq 1 ]; then
@@ -122,6 +146,22 @@ jobs:
               exit 1
             fi
           done
+
+      # cache local patch outputs
+      - name: Cache local Maven repository
+        id: cache-local-maven-repo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        if: steps.cache-local-maven-repo.outputs.cache-hit != 'true'
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Get the ec2 instance ami id
         run: |
@@ -211,9 +251,7 @@ jobs:
             --region ${{ env.AWS_DEFAULT_REGION }}
           fi
 
-
       # Clean up Procedures
-
       - name: Terraform destroy
         if: always()
         continue-on-error: true

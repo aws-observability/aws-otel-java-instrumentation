@@ -6,7 +6,8 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
-  IMAGE_TAG: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-nightly:nightly
+  IMAGE_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
+  IMAGE_NAME: adot-autoinstrumentation-java-nightly
 
 permissions:
   id-token: write
@@ -16,7 +17,103 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      release-candidate-image: ${{ steps.imageNameOutput.outputs.imageName }}
+      time_stamp_tag: ${{ steps.generate_time_stamp.outputs.nowTimeTag}}
+      release-candidate-image: ${{ steps.imageOutput.outputs.rcImage }}
+      image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
+      image_name: ${{ steps.imageOutput.outputs.imageName }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      - uses: gradle/wrapper-validation-action@v1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
+
+      - name: Build snapshot with Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
+        env:
+          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
+          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Get current version
+        id: getADOTJavaVersion
+        shell: bash
+        run: echo "adot_java_version=$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_OUTPUT
+
+      - name: Generate timestamp for image tag
+        id: generate_time_stamp
+        run: echo "nowTimeTag=$(date +'%Y-%m-%dT%H-%M-%S')" >> $GITHUB_OUTPUT
+
+      - name: Set image to output
+        id: imageOutput
+        run: |
+          echo "imageRegistry=${{ env.IMAGE_REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "imageName=${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+          echo "rcImage=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.generate_time_stamp.outputs.nowTimeTag }}" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Java Agent Image and Execute cpUtility Tests
+        uses: ./.github/actions/cpUtility-testing
+        with:
+          aws-region: us-west-2
+          image_uri_with_tag: ${{ steps.imageOutput.outputs.rcImage }}
+          image_registry: ${{ steps.imageOutput.outputs.imageRegistry }}
+          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
+          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+
+      - name: Upload to GitHub Actions
+        uses: actions/upload-artifact@v3
+        with:
+          name: aws-opentelemetry-agent.jar
+          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+
+  default-region-output:
+    runs-on: ubuntu-latest
+    outputs:
+      aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
+    steps:
+      - name: Set default region output
+        id: default_region_output
+        run: |
+            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
+
+  e2e-operator-test:
+    concurrency:
+      group: e2e-adot-agent-operator-test
+      cancel-in-progress: false
+    needs: [build, default-region-output]
+    uses: ./.github/workflows/e2e-tests-with-operator.yml
+    secrets: inherit
+    with:
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
+      image_tag: ${{ needs.build.outputs.time_stamp_tag }}
+      image_uri: ${{ needs.build.outputs.image_registry }}/${{ needs.build.outputs.image_name }}
+      test_ref: 'terraform'
+      caller-workflow-name: 'nightly-upstream-snapshot-build'
+
+  # AppSignals Contract Tests
+  contract-tests:
+    runs-on: ubuntu-latest
+    needs: build
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,86 +139,26 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
-          arguments: build contractTests --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true -PlocalDocker=true
-        env:
-          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
-          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          arguments: contractTests -PtestUpstreamSnapshots=true -PlocalDocker=true
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
-          aws-region: us-west-2
-
-      - name: Login to private aws ecr
-        uses: docker/login-action@v3
-        with:
-          registry: 611364707713.dkr.ecr.us-west-2.amazonaws.com
-
-      - name: Get current version
-        shell: bash
-        run: |
-          echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q -PtestUpstreamSnapshots=true )" >> $GITHUB_ENV
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image for testing
-        uses: docker/build-push-action@v5
-        with:
-          push: false
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
-          platforms: linux/amd64
-          tags: ${{ env.IMAGE_TAG }}
-          load: true
-
-      - name: Test docker image
-        shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.IMAGE_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
-
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.IMAGE_TAG }}
-
-      - name: Set image name to output
-        id: imageNameOutput
-        run: echo "imageName=${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
-
-      - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v3
-        with:
-          name: aws-opentelemetry-agent.jar
-          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
-
-  e2e-test:
+  # AppSignals specific e2e tests
+  appsignals-e2e-test:
     concurrency:
       group: e2e-adot-test
       cancel-in-progress: false
-    needs: build
+    needs: [build,default-region-output]
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: us-east-1
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
       appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
       caller-workflow-name: 'nightly-upstream-snapshot-build'
 
   publish-build-status:
-    needs: [build]
+    needs: [ build, contract-tests ]
     if: ${{ always() }}
     uses: ./.github/workflows/publish-status.yml
     with:
@@ -129,7 +166,8 @@ jobs:
       repository: ${{ github.repository }}
       branch: ${{ github.ref_name }}
       workflow: nightly-upstream-snapshot-build
-      success: ${{ needs.build.result == 'success' }}
+      success: ${{  needs.build.result == 'success' &&
+                    needs.contract-tests.result == 'success'  }}
       region: us-west-2
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}

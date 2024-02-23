@@ -1,0 +1,212 @@
+name: End to End Tests with Operator
+on:
+  workflow_call:
+    inputs:
+      aws-region:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      image_uri:
+        required: true
+        type: string
+      test_ref:
+        required: true
+        type: string
+      caller-workflow-name:
+        required: true
+        type: string
+
+env:
+  TESTING_FRAMEWORK_REPO: aws-observability/aws-otel-test-framework
+  NUM_BATCHES: 2
+  DDB_TABLE_NAME: BatchTestCache
+  # The precense of this env var is required. It is not redundant
+  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # job to build testbatches for e2e integration test
+  build-sample-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      # cache local patch outputs
+      - name: Cache local Maven repository
+        id: cache-local-maven-repo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        if: steps.cache-local-maven-repo.outputs.cache-hit != 'true'
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
+
+      - name: Build and push Sample-Apps without Auto-Instrumentation Agent
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: jibBuildWithoutAgent
+        env:
+          COMMIT_HASH: ${{ inputs.image_tag }}
+
+  get-testing-suites:
+    runs-on: ubuntu-latest
+    outputs:
+      test-case-batch-key: ${{ steps.set-batches.outputs.batch-keys }}
+      test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
+    steps:
+      - name: Checkout Testing Framework repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TESTING_FRAMEWORK_REPO }}
+          path: testing-framework
+          ref: ${{ inputs.test_ref }}
+
+      - name: Checkout Java Instrumentation repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: aws-otel-java-instrumentation
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v5
+        with:
+          go-version: '~1.18.9'
+
+      - name: Create test batch key values
+        id: set-batches
+        working-directory: testing-framework/tools/batchTestGenerator
+        run: |
+          go build
+          ./batchTestGenerator github --testCaseFilePath=$GITHUB_WORKSPACE/aws-otel-java-instrumentation/.github/workflows/testcases.json --maxBatch=${{ env.NUM_BATCHES }} \
+            --include=EKS_ADOT_OPERATOR,EKS_ADOT_OPERATOR_ARM64
+
+      - name: List testing suites
+        run: |
+          echo ${{ steps.set-batches.outputs.batch-keys }}
+          echo ${{ steps.set-batches.outputs.batch-values }}
+
+
+  # job to run the e2e integration tests
+  run-batch-job:
+    runs-on: ubuntu-latest
+    needs: [ build-sample-app, get-testing-suites ]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.get-testing-suites.outputs.test-case-batch-key) }}
+
+    steps:
+      # required for versioning
+      - name: Checkout Java Instrumentation repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: aws-otel-java-instrumentation
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: Set up terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.5"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
+          aws-region: us-west-2
+          # 4 hours
+          role-duration-seconds: 14400
+
+      - name: Checkout Testing Framework repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TESTING_FRAMEWORK_REPO }}
+          path: testing-framework
+          ref: ${{ inputs.test_ref }}
+
+      - name: create test-case-batch file
+        run: |
+          jsonStr='${{ needs.get-testing-suites.outputs.test-case-batch-value }}'
+          jsonStr="$(jq -r '.${{ matrix.BatchKey }} | join("\n")' <<< "${jsonStr}")"
+          echo "$jsonStr" >> testing-framework/terraform/test-case-batch
+          cat testing-framework/terraform/test-case-batch
+
+      - name: Get TTL_DATE for cache
+        id: date
+        run: echo "ttldate=$(date -u -d "+7 days" +%s)" >> $GITHUB_OUTPUT
+
+      - name: run tests
+        working-directory: testing-framework/terraform
+        run: |
+          export TTL_DATE=${{ steps.date.outputs.ttldate }} 
+          export TF_VAR_java_auto_instrumentation_tag=${{ inputs.image_tag }}
+          export TF_VAR_java_auto_instrumentation_repository="${{ inputs.image_uri }}"
+          export DDB_BATCH_CACHE_SK=${{ inputs.image_tag }}
+          make execute-batch-test
+
+      - name: output cache misses
+        if: ${{ failure() }}
+        working-directory: testing-framework/terraform
+        run: |
+          export DDB_BATCH_CACHE_SK=${{ inputs.image_tag }}
+          make checkCacheHits
+
+      # This is here just in case workflow cancel
+      # We first kill terraform processes to ensure that no state
+      # file locks are being held from SIGTERMS dispatched in previous
+      # steps.
+      - name: Destroy resources
+        if: ${{ cancelled() }}
+        shell: bash {0}
+        working-directory: testing-framework/terraform
+        run: |
+          ps -ef | grep terraform | grep -v grep | awk '{print $2}' | xargs -n 1 kill
+          make terraformCleanup
+
+  # publish status
+  publish-build-status:
+    needs: [ run-batch-job ]
+    if: ${{ always() }}
+    uses: ./.github/workflows/publish-status.yml
+    with:
+      namespace: 'ADOT/GitHubActions'
+      repository: ${{ github.repository }}
+      branch: ${{ github.ref_name }}
+      workflow: ${{ inputs.caller-workflow-name }}
+      success: ${{  needs.run-batch-job.result == 'success' }}
+      region: us-west-2
+    secrets:
+      roleArn: ${{ secrets.METRICS_ROLE_ARN }}

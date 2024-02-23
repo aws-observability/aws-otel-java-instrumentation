@@ -6,12 +6,8 @@ on:
       - "release/v*"
 env:
   AWS_DEFAULT_REGION: us-east-1
-  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
   STAGING_ECR_REPOSITORY: adot-autoinstrumentation-java-operator-staging
-  TESTING_FRAMEWORK_REPO: aws-observability/aws-otel-test-framework
-  NUM_BATCHES: 2
-  DDB_TABLE_NAME: BatchTestCache
 
 concurrency:
   group: java-agent-main-build
@@ -25,7 +21,6 @@ jobs:
   testpatch:
     name: Test patches applied to dependencies
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
-    if: ${{ startsWith(github.ref_name, 'release/v') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -48,7 +43,6 @@ jobs:
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
-          branch: ${{ github.ref_name }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -56,7 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
-      staging-image-name: ${{ steps.imageNameOutput.outputs.imageName }}
+      staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
+      staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+      staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,13 +68,11 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
-        if: ${{ startsWith(github.ref_name, 'release/v') }}
         with:
-          branch: ${{ github.ref_name }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -96,7 +90,7 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
@@ -105,45 +99,33 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Pull base image of Contract Tests Sample Apps
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
-
-      - name: Run contract tests
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: contractTests -PlocalDocker=true
-
       - name: Get current version
+        id: getADOTJavaVersion
         shell: bash
+        run: echo "adot_java_version=$(./gradlew printVersion -q )" >> $GITHUB_OUTPUT
+
+      - name: Get ADOT_JAVA_AGENT Image Tag
+        id: java_agent_versioning
         run: |
-          echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
+          shortsha="$(git rev-parse --short HEAD)"
+          java_agent_tag=${{ steps.getADOTJavaVersion.outputs.adot_java_version }}-$shortsha
+          echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
 
-      - name: Build and push Sample-Apps without Auto-Instrumentation Agent
-        uses: gradle/gradle-build-action@v2
+      - name: Set image to output
+        id: imageOutput
+        run: |
+          echo "stagingRegistry=${{ env.STAGING_ECR_REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "stagingRepository=${{ env.STAGING_ECR_REPOSITORY }}" >> $GITHUB_OUTPUT
+          echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Java Agent Image and Execute cpUtility Tests
+        uses: ./.github/actions/cpUtility-testing
         with:
-          arguments: jibBuildWithoutAgent
-        env:
-          COMMIT_HASH: ${{ github.sha }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image for testing
-        uses: docker/build-push-action@v5
-        with:
-          push: false
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
-          platforms: linux/amd64
-          tags: ${{ env.TEST_TAG }}
-          load: true
-
-      - name: Test docker image
-        shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
+          aws-region: us-west-2
+          image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
+          image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
+          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v3
@@ -151,39 +133,15 @@ jobs:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
-      - name: Get ADOT_JAVA_AGENT Image Tag
-        id: java_agent_versioning
+  default-region-output:
+    runs-on: ubuntu-latest
+    outputs:
+      aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
+    steps:
+      - name: Set default region output
+        id: default_region_output
         run: |
-          shortsha="$(git rev-parse --short HEAD)"
-          java_agent_tag=${{ env.ADOT_JAVA_VERSION }}-$shortsha
-          echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
-          aws-region: us-west-2
-
-      - name: Login to private staging ecr
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.STAGING_ECR_REGISTRY }}
-        env:
-          AWS_REGION: us-west-2
-
-      - name: Build and push staging image for e2e integration test
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          build-args: "ADOT_JAVA_VERSION=${{ env.ADOT_JAVA_VERSION }}"
-          context: .
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}
-
-      - name: Set image name to output
-        id: imageNameOutput
-        run: echo "imageName=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> "$GITHUB_OUTPUT"
+            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
 
   create-test-ref:
     runs-on: ubuntu-latest
@@ -199,148 +157,42 @@ jobs:
             echo "ref=terraform" >> $GITHUB_OUTPUT
           fi
 
-  # job to build testbatches for e2e integration test
-  get-testing-suites:
-    runs-on: ubuntu-latest
-    needs: [build, create-test-ref]
-    outputs:
-      test-case-batch-key: ${{ steps.set-batches.outputs.batch-keys }}
-      test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.TESTING_FRAMEWORK_REPO }}
-          path: testing-framework
-          ref: ${{ needs.create-test-ref.outputs.testRef }}
+  e2e-operator-test:
+    concurrency:
+      group: e2e-adot-agent-operator-test
+      cancel-in-progress: false
+    needs: [ build, create-test-ref, default-region-output ]
+    uses: ./.github/workflows/e2e-tests-with-operator.yml
+    secrets: inherit
+    with:
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
+      image_tag: ${{ needs.build.outputs.java_agent_tag }}
+      image_uri: ${{ needs.build.outputs.staging_registry }}/${{ needs.build.outputs.staging_repository }}
+      test_ref: ${{ needs.create-test-ref.outputs.testRef }}
+      caller-workflow-name: 'main-build'
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          path: aws-otel-java-instrumentation
+  # E2E tests where SampleApp has Java Agent
+  e2e-test:
+    needs: [build, default-region-output]
+    uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
+    secrets: inherit
+    with:
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
+      image_tag: ${{ github.sha }}
+      caller-workflow-name: 'main-build'
 
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v4
-        with:
-          go-version: '~1.18.9'
-
-      - name: Create test batch key values
-        id: set-batches
-        run: |
-          cd testing-framework/tools/batchTestGenerator
-          go build
-          ./batchTestGenerator github --testCaseFilePath=$GITHUB_WORKSPACE/aws-otel-java-instrumentation/.github/workflows/testcases.json --maxBatch=${{ env.NUM_BATCHES }} \
-            --include=EKS_ADOT_OPERATOR,EKS_ADOT_OPERATOR_ARM64
-
-      - name: List testing suites
-        run: |
-          echo ${{ steps.set-batches.outputs.batch-keys }}
-          echo ${{ steps.set-batches.outputs.batch-values }}
-
-  # job to run the e2e integration tests
-  run-batch-job:
-    runs-on: ubuntu-latest
-    needs: [build, create-test-ref, get-testing-suites]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.get-testing-suites.outputs.test-case-batch-key) }}
-
-    steps:
-      # required for versioning
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          path: aws-otel-java-instrumentation
-
-      - name: Set up JDK 11
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '11'
-
-      - name: Set up terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~1.5"
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
-          aws-region: us-west-2
-          # 4 hours
-          role-duration-seconds: 14400
-
-      - name: Checkout testing framework
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.TESTING_FRAMEWORK_REPO }}
-          path: testing-framework
-          ref: ${{ needs.create-test-ref.outputs.testRef }}
-
-      - name: create test-case-batch file
-        run: |
-          jsonStr='${{ needs.get-testing-suites.outputs.test-case-batch-value }}'
-          jsonStr="$(jq -r '.${{ matrix.BatchKey }} | join("\n")' <<< "${jsonStr}")"
-          echo "$jsonStr" >> testing-framework/terraform/test-case-batch
-          cat testing-framework/terraform/test-case-batch
-
-      - name: Get TTL_DATE for cache
-        id: date
-        run: echo "ttldate=$(date -u -d "+7 days" +%s)" >> $GITHUB_OUTPUT
-
-      - name: run tests
-        run: |
-          export TTL_DATE=${{ steps.date.outputs.ttldate }} 
-          export TF_VAR_java_auto_instrumentation_tag=${{ needs.build.outputs.java_agent_tag }}
-          export TF_VAR_java_auto_instrumentation_repository="${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}"
-          export DDB_BATCH_CACHE_SK=${{ needs.build.outputs.java_agent_tag }}
-          cd testing-framework/terraform
-          make execute-batch-test
-
-      - name: output cache misses
-        if: ${{ failure() }}
-        run: |
-          export DDB_BATCH_CACHE_SK=${{ needs.build.outputs.java_agent_tag }}
-          cd testing-framework/terraform
-          make checkCacheHits
-
-      # This is here just in case workflow cancel
-      # We first kill terraform processes to ensure that no state
-      # file locks are being held from SIGTERMS dispatched in previous
-      # steps.
-      - name: Destroy resources
-        if: ${{ cancelled() }}
-        shell: bash {0}
-        run: |
-          ps -ef | grep terraform | grep -v grep | awk '{print $2}' | xargs -n 1 kill
-          cd testing-framework/terraform
-          make terraformCleanup
-
-
-  build_Images_For_Testing_Sample_App_With_Java_Agent:
+  # AppSignals Contract Tests
+  contract-tests:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-java@v4
         with:
           java-version: 17
-          distribution: temurin
-
-        # cache local patch outputs
-      - name: Cache local Maven repository
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/**/opentelemetry-java-*.patch') }}
-
+          distribution: 'temurin'
       - uses: gradle/wrapper-validation-action@v1
 
       - name: Configure AWS Credentials
@@ -354,123 +206,48 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Build and push agent and testing docker images with Gradle
-        uses: gradle/gradle-build-action@v2
+      # cache local patch outputs
+      - name: Cache local Maven repository
+        id: cache-local-maven-repo
+        uses: actions/cache@v3
         with:
-          arguments: jib
-        env:
-          COMMIT_HASH: ${{ github.sha }}
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
-      - uses: codecov/codecov-action@v3
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
-  test_Spring_App_With_Java_Agent:
-    name: Test Spring App with AWS OTel Java agent
-    needs: build_Images_For_Testing_Sample_App_With_Java_Agent
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
+      - name: Build snapshot with Gradle
+        uses: gradle/gradle-build-action@v3
         with:
-          java-version: 17
-          distribution: 'temurin'
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v3
-        with:
-          registry: public.ecr.aws
+          arguments: contractTests -PlocalDocker=true
 
-      - name: Run test containers
-        run: docker-compose up --abort-on-container-exit
-        working-directory: .github/collector
-        env:
-          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
-          LISTEN_ADDRESS: 0.0.0.0:8080
-          APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-springboot:${{ github.sha }}
-          VALIDATOR_COMMAND: -c springboot-otel-trace-metric-validation.yml --endpoint http://app:8080 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
-
-  test_Spark_App_With_Java_Agent:
-    name: Test Spark App with AWS OTel Java agent
-    needs: build_Images_For_Testing_Sample_App_With_Java_Agent
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: 'temurin'
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v3
-        with:
-          registry: public.ecr.aws
-
-      - name: Run test containers
-        run: docker-compose up --abort-on-container-exit
-        working-directory: .github/collector
-        env:
-          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
-          LISTEN_ADDRESS: 0.0.0.0:4567
-          APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-spark:${{ github.sha }}
-          VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
-
-  test_Spark_AWS_SDK_V1_App_With_Java_Agent:
-    name: Test Spark App (AWS SDK v1) with AWS OTel Java agent
-    needs: build_Images_For_Testing_Sample_App_With_Java_Agent
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: 'temurin'
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v3
-        with:
-          registry: public.ecr.aws
-
-      - name: Run test containers
-        run: docker-compose up --abort-on-container-exit
-        working-directory: .github/collector
-        env:
-          INSTANCE_ID: ${{ github.run_id }}-${{ github.run_number }}
-          LISTEN_ADDRESS: 0.0.0.0:4567
-          APP_IMAGE: public.ecr.aws/aws-otel-test/aws-otel-java-spark-awssdkv1:${{ github.sha }}
-          VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
-
-  e2e-test:
+  # AppSignals specific e2e tests
+  appsignals-e2e-eks-test:
     concurrency:
       group: e2e-adot-test
       cancel-in-progress: false
-    needs: build
+    needs: [build, default-region-output]
     uses: ./.github/workflows/appsignals-e2e-eks-test.yml
     secrets: inherit
     with:
-      aws-region: us-east-1
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image-name }}
+      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
+      caller-workflow-name: 'main-build'
+
+  # AppSignals specific e2e tests for ec2
+  appsignals-e2e-ec2-test:
+    needs: [build, default-region-output]
+    uses: ./.github/workflows/appsignals-e2e-ec2-test.yml
+    secrets: inherit
+    with:
+      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
       caller-workflow-name: 'main-build'
 
   publish-build-status:
-    needs: [test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent, run-batch-job]
+    needs: [ build, contract-tests ]
     if: ${{ always() }}
     uses: ./.github/workflows/publish-status.yml
     with:
@@ -478,10 +255,8 @@ jobs:
       repository: ${{ github.repository }}
       branch: ${{ github.ref_name }}
       workflow: main-build
-      success: ${{ needs.test_Spring_App_With_Java_Agent.result == 'success'  &&
-                   needs.test_Spark_App_With_Java_Agent.result == 'success'  &&
-                   needs.test_Spark_AWS_SDK_V1_App_With_Java_Agent.result == 'success' &&
-                   needs.run-batch-job.result == 'success' }}
+      success: ${{  needs.build.result == 'success' &&
+                    needs.contract-tests.result == 'success'  }}
       region: us-west-2
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}

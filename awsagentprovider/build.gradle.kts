@@ -34,6 +34,8 @@ dependencies {
   implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
   // AWS Resource Detectors
   implementation("io.opentelemetry.contrib:opentelemetry-aws-resources")
+  // Json file reader
+  implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
 
@@ -45,7 +47,7 @@ dependencies {
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.3.1")
-  testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
+  testImplementation("org.mockito:mockito-junit-jupiter:5.8.0")
 }
 
 tasks {
