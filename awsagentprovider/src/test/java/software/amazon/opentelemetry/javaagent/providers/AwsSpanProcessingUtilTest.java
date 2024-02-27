@@ -22,19 +22,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getDialectKeywords;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class AwsSpanProcessingUtilTest {
   private static final String DEFAULT_PATH_VALUE = "/";
   private static final String UNKNOWN_OPERATION = "UnknownOperation";
-  private String INTERNAL_OPERATIONN = "InternalOperation";
+  private static final String INTERNAL_OPERATION = "InternalOperation";
 
   private Attributes attributesMock;
   private SpanData spanDataMock;
@@ -62,7 +65,7 @@ public class AwsSpanProcessingUtilTest {
     when(spanDataMock.getName()).thenReturn(validName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
-    assertThat(actualOperation).isEqualTo(INTERNAL_OPERATIONN);
+    assertThat(actualOperation).isEqualTo(INTERNAL_OPERATION);
   }
 
   @Test
@@ -123,7 +126,7 @@ public class AwsSpanProcessingUtilTest {
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     String actualOperation = AwsSpanProcessingUtil.getEgressOperation(spanDataMock);
-    assertThat(actualOperation).isEqualTo(AwsSpanProcessingUtil.INTERNAL_OPERATION);
+    assertThat(actualOperation).isEqualTo(INTERNAL_OPERATION);
   }
 
   @Test
@@ -158,14 +161,14 @@ public class AwsSpanProcessingUtilTest {
   }
 
   @Test
-  public void testExtractAPIPathValueNOnlySlash() {
+  public void testExtractAPIPathValueOnlySlash() {
     String invalidTarget = "/";
     String pathValue = AwsSpanProcessingUtil.extractAPIPathValue(invalidTarget);
     assertThat(pathValue).isEqualTo(DEFAULT_PATH_VALUE);
   }
 
   @Test
-  public void testExtractAPIPathValueNOnlySlashAtEnd() {
+  public void testExtractAPIPathValueOnlySlashAtEnd() {
     String invalidTarget = "users/";
     String pathValue = AwsSpanProcessingUtil.extractAPIPathValue(invalidTarget);
     assertThat(pathValue).isEqualTo(DEFAULT_PATH_VALUE);
@@ -380,5 +383,24 @@ public class AwsSpanProcessingUtilTest {
     assertThat(AwsSpanProcessingUtil.shouldGenerateServiceMetricAttributes(spanDataMock)).isTrue();
     assertThat(AwsSpanProcessingUtil.shouldGenerateDependencyMetricAttributes(spanDataMock))
         .isTrue();
+  }
+
+  @Test
+  public void testSqlDialectKeywordsOrder() {
+    List<String> keywords = getDialectKeywords();
+    int prevKeywordLength = Integer.MAX_VALUE;
+    for (String keyword : keywords) {
+      int currKeywordLength = keyword.length();
+      assertThat(prevKeywordLength >= currKeywordLength);
+      prevKeywordLength = currKeywordLength;
+    }
+  }
+
+  @Test
+  public void testSqlDialectKeywordsMaxLength() {
+    List<String> keywords = getDialectKeywords();
+    for (String keyword : keywords) {
+      assertThat(MAX_KEYWORD_LENGTH >= keyword.length());
+    }
   }
 }

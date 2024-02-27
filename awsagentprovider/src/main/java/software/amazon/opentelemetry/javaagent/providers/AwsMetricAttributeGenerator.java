@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import static io.opentelemetry.semconv.ResourceAttributes.SERVICE_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_INVOKED_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_TRIGGER;
@@ -37,12 +38,15 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_TARGET;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
@@ -67,6 +71,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
 import javax.annotation.Nullable;
 
 /**
@@ -144,13 +149,27 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    */
   private static Optional<String> getRemoteTarget(SpanData span) {
     if (isKeyPresent(span, AWS_BUCKET_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_BUCKET_NAME));
-    } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_QUEUE_NAME));
-    } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_STREAM_NAME));
-    } else if (isKeyPresent(span, AWS_TABLE_NAME)) {
-      return Optional.ofNullable(span.getAttributes().get(AWS_TABLE_NAME));
+      return Optional.ofNullable("::s3:::" + span.getAttributes().get(AWS_BUCKET_NAME));
+    }
+
+    if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      String arn = SqsUrlParser.getSqsRemoteTarget(span.getAttributes().get(AWS_QUEUE_URL));
+
+      if (arn != null) {
+        return Optional.ofNullable(arn);
+      }
+    }
+
+    if (isKeyPresent(span, AWS_QUEUE_NAME)) {
+      return Optional.ofNullable("::sqs:::" + span.getAttributes().get(AWS_QUEUE_NAME));
+    }
+
+    if (isKeyPresent(span, AWS_STREAM_NAME)) {
+      return Optional.ofNullable("::kinesis:::stream/" + span.getAttributes().get(AWS_STREAM_NAME));
+    }
+
+    if (isKeyPresent(span, AWS_TABLE_NAME)) {
+      return Optional.ofNullable("::dynamodb:::table/" + span.getAttributes().get(AWS_TABLE_NAME));
     }
     return Optional.empty();
   }
@@ -197,10 +216,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   // add `AWS.SDK.` as prefix to indicate the metrics resulted from current span is from AWS SDK
   private static String normalizeServiceName(SpanData span, String serviceName) {
     if (AwsSpanProcessingUtil.isAwsSDKSpan(span)) {
-      String scopeName = span.getInstrumentationScopeInfo().getName();
-      if (scopeName.contains("aws-sdk-2.")) {
-        return "AWS.SDK." + serviceName;
-      }
+      return "AWS.SDK." + serviceName;
     }
     return serviceName;
   }
@@ -238,9 +254,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * </ul>
    *
    * if the selected attributes are still producing the UnknownRemoteService or
-   * UnknownRemoteOperation, `net.peer.name`, `net.peer.port`, `net.peer.sock.addr` and
-   * `net.peer.sock.port` will be used to derive the RemoteService. And `http.method` and `http.url`
-   * will be used to derive the RemoteOperation.
+   * UnknownRemoteOperation, `net.peer.name`, `net.peer.port`, `net.peer.sock.addr`,
+   * `net.peer.sock.port` and `http.url` will be used to derive the RemoteService. And `http.method`
+   * and `http.url` will be used to derive the RemoteOperation.
    */
   private static void setRemoteServiceAndOperation(SpanData span, AttributesBuilder builder) {
     String remoteService = UNKNOWN_REMOTE_SERVICE;
@@ -251,9 +267,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     } else if (isKeyPresent(span, RPC_SERVICE) || isKeyPresent(span, RPC_METHOD)) {
       remoteService = normalizeServiceName(span, getRemoteService(span, RPC_SERVICE));
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
-    } else if (isKeyPresent(span, DB_SYSTEM) || isKeyPresent(span, DB_OPERATION)) {
+    } else if (isKeyPresent(span, DB_SYSTEM)
+        || isKeyPresent(span, DB_OPERATION)
+        || isKeyPresent(span, DB_STATEMENT)) {
       remoteService = getRemoteService(span, DB_SYSTEM);
-      remoteOperation = getRemoteOperation(span, DB_OPERATION);
+      if (isKeyPresent(span, DB_OPERATION)) {
+        remoteOperation = getRemoteOperation(span, DB_OPERATION);
+      } else {
+        remoteOperation = getDBStatementRemoteOperation(span, DB_STATEMENT);
+      }
     } else if (isKeyPresent(span, FAAS_INVOKED_NAME) || isKeyPresent(span, FAAS_TRIGGER)) {
       remoteService = getRemoteService(span, FAAS_INVOKED_NAME);
       remoteOperation = getRemoteOperation(span, FAAS_TRIGGER);
@@ -323,6 +345,19 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       if (isKeyPresent(span, NET_SOCK_PEER_PORT)) {
         Long port = span.getAttributes().get(NET_SOCK_PEER_PORT);
         remoteService += ":" + port;
+      }
+    } else if (isKeyPresent(span, HTTP_URL)) {
+      String httpUrl = span.getAttributes().get(HTTP_URL);
+      try {
+        URL url = new URL(httpUrl);
+        if (!url.getHost().isEmpty()) {
+          remoteService = url.getHost();
+          if (url.getPort() != -1) {
+            remoteService += ":" + url.getPort();
+          }
+        }
+      } catch (MalformedURLException e) {
+        logger.log(Level.FINEST, "invalid http.url attribute: ", httpUrl);
       }
     } else {
       logUnknownAttribute(AWS_REMOTE_SERVICE, span);
@@ -418,6 +453,36 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     if (remoteOperation == null) {
       remoteOperation = UNKNOWN_REMOTE_OPERATION;
     }
+    return remoteOperation;
+  }
+
+  /**
+   * If no db.operation attribute provided in the span, we use db.statement to compute a valid
+   * remote operation in a best-effort manner. To do this, we take the first substring of the
+   * statement and compare to a regex list of known SQL keywords. The substring length is determined
+   * by the longest known SQL keywords.
+   */
+  private static String getDBStatementRemoteOperation(
+      SpanData span, AttributeKey<String> remoteOperationKey) {
+    String remoteOperation = span.getAttributes().get(remoteOperationKey);
+    if (remoteOperation == null) {
+      remoteOperation = UNKNOWN_REMOTE_OPERATION;
+    }
+
+    // Remove all whitespace and newline characters from the beginning of remote_operation
+    // and retrieve the first MAX_KEYWORD_LENGTH characters
+    remoteOperation = remoteOperation.stripLeading();
+    if (remoteOperation.length() > MAX_KEYWORD_LENGTH) {
+      remoteOperation = remoteOperation.substring(0, MAX_KEYWORD_LENGTH);
+    }
+
+    Matcher matcher = SQL_DIALECT_PATTERN.matcher(remoteOperation.toUpperCase());
+    if (matcher.find() && !matcher.group(0).isEmpty()) {
+      remoteOperation = matcher.group(0);
+    } else {
+      remoteOperation = UNKNOWN_REMOTE_OPERATION;
+    }
+
     return remoteOperation;
   }
 

@@ -27,8 +27,16 @@ locals {
 }
 
 data "aws_ami" "ami" {
-  executable_users = ["self"]
+  owners = ["amazon"]
   most_recent      = true
+  filter {
+    name   = "name"
+    values = ["al20*-ami-minimal-*-x86_64"]
+  }
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
   filter {
     name   = "architecture"
     values = ["x86_64"]
@@ -81,20 +89,20 @@ resource "null_resource" "main_service_setup" {
 
   provisioner "remote-exec" {
     inline = [
-      # Install Java 11 and tmux
-      "yes | sudo amazon-linux-extras install java-openjdk11",
+      # Install Java 11 and wget
+      "sudo yum install wget java-11-amazon-corretto -y",
 
       # Copy in CW Agent configuration
       "agent_config='${replace(replace(file("./amazon-cloudwatch-agent.json"), "/\\s+/", ""), "$REGION", var.aws_region)}'",
       "echo $agent_config > amazon-cloudwatch-agent.json",
 
       # Get and run CW agent rpm
-      "wget -O cw-agent.rpm ${var.cw_agent_rpm}",
+      "${var.get_cw_agent_rpm_command}",
       "sudo rpm -U ./cw-agent.rpm",
       "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:./amazon-cloudwatch-agent.json",
 
       # Get ADOT
-      "wget -O adot.jar ${var.adot_jar}",
+      "${var.get_adot_jar_command}",
 
       # Get and run the sample application with configuration
       "aws s3 cp ${var.sample_app_jar} ./main-service.jar",
@@ -142,20 +150,20 @@ resource "null_resource" "remote_service_setup" {
 
   provisioner "remote-exec" {
     inline = [
-      # Install Java 11 and tmux
-      "yes | sudo amazon-linux-extras install java-openjdk11",
+      # Install Java 11 and wget
+      "sudo yum install wget java-11-amazon-corretto -y",
 
       # Copy in CW Agent configuration
       "agent_config='${replace(replace(file("./amazon-cloudwatch-agent.json"), "/\\s+/", ""), "$REGION", var.aws_region)}'",
       "echo $agent_config > amazon-cloudwatch-agent.json",
 
       # Get and run CW agent rpm
-      "wget -O cw-agent.rpm ${var.cw_agent_rpm}",
+       "${var.get_cw_agent_rpm_command}",
       "sudo rpm -U ./cw-agent.rpm",
       "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:./amazon-cloudwatch-agent.json",
 
       # Get ADOT
-      "wget -O adot.jar ${var.adot_jar}",
+      "${var.get_adot_jar_command}",
 
       # Get and run the sample application with configuration
       "aws s3 cp ${var.sample_remote_app_jar} ./remote-service.jar",

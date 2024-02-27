@@ -46,6 +46,7 @@ final class AwsAttributeKeys {
   // https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/8710
 
   static final AttributeKey<String> AWS_BUCKET_NAME = AttributeKey.stringKey("aws.bucket.name");
+  static final AttributeKey<String> AWS_QUEUE_URL = AttributeKey.stringKey("aws.queue.url");
   static final AttributeKey<String> AWS_QUEUE_NAME = AttributeKey.stringKey("aws.queue.name");
   static final AttributeKey<String> AWS_STREAM_NAME = AttributeKey.stringKey("aws.stream.name");
   static final AttributeKey<String> AWS_TABLE_NAME = AttributeKey.stringKey("aws.table.name");
