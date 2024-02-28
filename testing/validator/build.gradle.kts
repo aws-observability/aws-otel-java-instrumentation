@@ -56,9 +56,9 @@ dependencies {
   implementation(group = "com.github.fge", name = "json-schema-validator", version = "2.0.0")
 
   // command cli
-  implementation("info.picocli:picocli:4.7.3")
+  implementation("info.picocli:picocli:4.7.5")
 
-  compileOnly("info.picocli:picocli-codegen:4.7.3")
+  compileOnly("info.picocli:picocli-codegen:4.7.5")
 
   // aws sdk
   implementation(platform("com.amazonaws:aws-java-sdk-bom:1.12.506"))
@@ -78,9 +78,9 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp:4.9.3")
 
   // command cli
-  implementation("info.picocli:picocli:4.7.3")
+  implementation("info.picocli:picocli:4.7.5")
 
-  compileOnly("info.picocli:picocli-codegen:4.7.3")
+  compileOnly("info.picocli:picocli-codegen:4.7.5")
 
   // mockito
   testImplementation("org.mockito:mockito-core:5.3.1")
