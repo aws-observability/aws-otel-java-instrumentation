@@ -332,13 +332,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String spanKind) {
 
     assertThat(attributesList)
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_OPERATION, localOperation))
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_SERVICE, localService))
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_OPERATION, operation))
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_SERVICE, service))
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, spanKind))
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_TARGET, target));
-
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_OPERATION, localOperation))
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_SERVICE, localService))
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_OPERATION, operation))
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_SERVICE, service))
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, spanKind))
+        .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_TARGET, target));
   }
 
   private void assertSqsConsumerAwsAttributes(List<KeyValue> attributesList, String operation) {
