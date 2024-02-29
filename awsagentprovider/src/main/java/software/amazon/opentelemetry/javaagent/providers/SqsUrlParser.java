@@ -15,6 +15,9 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.RegionMetadata;
+
 public class SqsUrlParser {
   private static final char ARN_DELIMETER = ':';
   private static final String HTTP_SCHEMA = "http://";
@@ -35,6 +38,10 @@ public class SqsUrlParser {
     StringBuilder remoteTarget = new StringBuilder();
 
     if (region == null && accountId == null && partition == null && queueName == null) {
+      return null;
+    }
+
+    if (region != null && partition == null) {
       return null;
     }
 
@@ -120,10 +127,10 @@ public class SqsUrlParser {
       return false;
     }
 
-    try {
-      Long.valueOf(input);
-    } catch (Exception e) {
-      return false;
+    for (Character c : input.toCharArray()) {
+      if (!Character.isDigit(c)) {
+        return false;
+      }
     }
 
     return true;
@@ -164,13 +171,13 @@ public class SqsUrlParser {
       return null;
     }
 
-    if (region.startsWith("us-gov-")) {
-      return "aws-us-gov";
-    } else if (region.startsWith("cn-")) {
-      return "aws-cn";
-    } else {
-      return "aws";
+    RegionMetadata regionMetadata = Region.of(region).metadata();
+
+    if (regionMetadata == null) {
+      return null;
     }
+
+    return regionMetadata.partition().id();
   }
 
   private static String getQueueName(String sqsUrl) {
