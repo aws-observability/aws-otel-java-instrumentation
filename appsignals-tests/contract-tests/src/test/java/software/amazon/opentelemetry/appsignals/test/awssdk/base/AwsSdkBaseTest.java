@@ -1055,7 +1055,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/publishqueue/:queuename";
-    String target = "::sqs:::some-queue";
+    String target = "::sqs::000000000000:some-queue";
 
     assertSpanProducerAttributes(
         traces,
@@ -1117,7 +1117,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "InternalOperation";
-    String target = "::sqs:::some-queue";
+    String target = "::sqs::000000000000:some-queue";
 
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
@@ -1166,7 +1166,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/error";
-    String target = "::sqs:::some-queue";
+    String target = "::sqs::000000000000:some-queue";
 
     assertSpanProducerAttributes(
         traces,
@@ -1224,7 +1224,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/fault";
-    String target = "::sqs:::some-queue";
+    String target = "::sqs::000000000000:some-queue";
 
     assertSpanProducerAttributes(
         traces,
