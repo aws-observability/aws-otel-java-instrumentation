@@ -331,17 +331,14 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String target,
       String spanKind) {
 
-    var assertions =
-        assertThat(attributesList)
-            .satisfiesOnlyOnce(
-                assertAttribute(AppSignalsConstants.AWS_LOCAL_OPERATION, localOperation))
+    assertThat(attributesList)
+            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_OPERATION, localOperation))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_LOCAL_SERVICE, localService))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_OPERATION, operation))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_SERVICE, service))
-            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, spanKind));
-    if (target != null) {
-      assertions.satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_TARGET, target));
-    }
+            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, spanKind))
+            .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_TARGET, target));
+
   }
 
   private void assertSqsConsumerAwsAttributes(List<KeyValue> attributesList, String operation) {
@@ -1059,8 +1056,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/publishqueue/:queuename";
-    // SendMessage does not capture aws.queue.name
-    String target = null;
+    String target = "::sqs:::some-queue";
 
     assertSpanProducerAttributes(
         traces,
@@ -1122,8 +1118,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "InternalOperation";
-    // ReceiveMessage does not capture aws.queue.name
-    String target = null;
+    String target = "::sqs:::some-queue";
+
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
     assertSpanConsumerAttributes(
@@ -1171,8 +1167,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/error";
-    // SendMessage does not capture aws.queue.name
-    String target = null;
+    String target = "::sqs:::some-queue";
 
     assertSpanProducerAttributes(
         traces,
@@ -1230,8 +1225,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/fault";
-    // SendMessage does not capture aws.queue.name
-    String target = null;
+    String target = "::sqs:::some-queue";
 
     assertSpanProducerAttributes(
         traces,
