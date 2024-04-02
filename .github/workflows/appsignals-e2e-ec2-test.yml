@@ -24,7 +24,7 @@ env:
   SAMPLE_APP_FRONTEND_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_FE_SA_JAR }}
   SAMPLE_APP_REMOTE_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_RE_SA_JAR }}
   APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
-  GET_CW_AGENT_RPM_COMMAND: "wget -O cw-agent.rpm https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/1.300031.0b313/amazon-cloudwatch-agent.rpm"
+  GET_CW_AGENT_RPM_COMMAND: "wget -O cw-agent.rpm https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
   GET_ADOT_JAR_COMMAND: "aws s3 cp s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar ./adot.jar"
   METRIC_NAMESPACE: AppSignals
   LOG_GROUP_NAME: /aws/appsignals/generic
@@ -104,10 +104,13 @@ jobs:
       - name: Call all test APIs
         continue-on-error: true
         run: |
-          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/outgoing-http-call/
-          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/aws-sdk-call/
-          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/remote-service?ip=${{ env.REMOTE_SERVICE_IP }}/
-          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/client-call/
+          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/outgoing-http-call/; echo
+          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/aws-sdk-call/; echo
+          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/remote-service?ip=${{ env.REMOTE_SERVICE_IP }}/; echo
+          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/client-call/; echo
+
+      - name: Build Gradle
+        run: ./gradlew
 
       # Validation for pulse telemetry data
       - name: Validate generated EMF logs
