@@ -29,6 +29,7 @@ public class AppSignalsConstants {
   public static final String AWS_LOCAL_OPERATION = "aws.local.operation";
   public static final String AWS_REMOTE_SERVICE = "aws.remote.service";
   public static final String AWS_REMOTE_OPERATION = "aws.remote.operation";
-  public static final String AWS_REMOTE_TARGET = "aws.remote.target";
+  public static final String AWS_REMOTE_RESOURCE_TYPE = "aws.remote.resource.type";
+  public static final String AWS_REMOTE_RESOURCE_IDENTIFIER = "aws.remote.resource.identifier";
   public static final String AWS_SPAN_KIND = "aws.span.kind";
 }
