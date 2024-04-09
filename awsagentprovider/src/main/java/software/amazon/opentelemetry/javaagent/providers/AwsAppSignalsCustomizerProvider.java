@@ -52,13 +52,23 @@ import java.util.logging.Logger;
  * </ul>
  *
  * <p>You can control when these customizations are applied using the property
- * otel.aws.app.signals.enabled or the environment variable OTEL_AWS_APP_SIGNALS_ENABLED. This flag
- * is disabled by default.
+ * otel.aws.application.signals.enabled or the environment variable
+ * OTEL_AWS_APPLICATION_SIGNALS_ENABLED. This flag is disabled by default.
  */
 public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomizerProvider {
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
       Logger.getLogger(AwsAppSignalsCustomizerProvider.class.getName());
+
+  private static final String SMP_ENABLED_CONFIG = "otel.smp.enabled";
+  private static final String APP_SIGNALS_ENABLED_CONFIG = "otel.aws.app.signals.enabled";
+  private static final String APPLICATION_SIGNALS_ENABLED_CONFIG =
+      "otel.aws.application.signals.enabled";
+  private static final String SMP_EXPORTER_ENDPOINT_CONFIG = "otel.aws.smp.exporter.endpoint";
+  private static final String APP_SIGNALS_EXPORTER_ENDPOINT_CONFIG =
+      "otel.aws.app.signals.exporter.endpoint";
+  private static final String APPLICATION_SIGNALS_EXPORTER_ENDPOINT_CONFIG =
+      "otel.aws.application.signals.exporter.endpoint";
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addSamplerCustomizer(this::customizeSampler);
@@ -68,7 +78,9 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
 
   private boolean isAppSignalsEnabled(ConfigProperties configProps) {
     return configProps.getBoolean(
-        "otel.aws.app.signals.enabled", configProps.getBoolean("otel.smp.enabled", false));
+        APPLICATION_SIGNALS_ENABLED_CONFIG,
+        configProps.getBoolean(
+            APP_SIGNALS_ENABLED_CONFIG, configProps.getBoolean(SMP_ENABLED_CONFIG, false)));
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
@@ -141,9 +153,10 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
         appSignalsEndpoint =
             configProps.getString(
-                "otel.aws.app.signals.exporter.endpoint",
+                APPLICATION_SIGNALS_EXPORTER_ENDPOINT_CONFIG,
                 configProps.getString(
-                    "otel.aws.smp.exporter.endpoint", "http://localhost:4316/v1/metrics"));
+                    APP_SIGNALS_EXPORTER_ENDPOINT_CONFIG,
+                    configProps.getString(SMP_EXPORTER_ENDPOINT_CONFIG, "http://localhost:4316/v1/metrics")));
         logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
         return OtlpHttpMetricExporter.builder()
             .setEndpoint(appSignalsEndpoint)
@@ -153,8 +166,10 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
       } else if (protocol.equals(OtlpConfigUtil.PROTOCOL_GRPC)) {
         appSignalsEndpoint =
             configProps.getString(
-                "otel.aws.app.signals.exporter.endpoint",
-                configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
+                APPLICATION_SIGNALS_EXPORTER_ENDPOINT_CONFIG,
+                configProps.getString(
+                    APP_SIGNALS_EXPORTER_ENDPOINT_CONFIG,
+                    configProps.getString(SMP_EXPORTER_ENDPOINT_CONFIG, "http://localhost:4315")));
         logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
         return OtlpGrpcMetricExporter.builder()
             .setEndpoint(appSignalsEndpoint)
