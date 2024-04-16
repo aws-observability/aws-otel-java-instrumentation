@@ -39,7 +39,7 @@ jobs:
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-test-cache-pnpm-modules
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v3
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
@@ -76,7 +76,7 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v3
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -193,7 +193,7 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v3
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
