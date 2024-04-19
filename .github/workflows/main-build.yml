@@ -94,8 +94,8 @@ jobs:
         with:
           arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
-          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
-          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
