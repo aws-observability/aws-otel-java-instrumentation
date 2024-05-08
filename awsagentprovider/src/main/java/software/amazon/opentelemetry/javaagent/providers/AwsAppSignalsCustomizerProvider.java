@@ -137,19 +137,25 @@ public class AwsAppSignalsCustomizerProvider implements AutoConfigurationCustomi
           OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
       logger.log(Level.FINE, String.format("AppSignals export protocol: %s", protocol));
 
-      String appSignalsEndpoint =
-          configProps.getString(
-              "otel.aws.app.signals.exporter.endpoint",
-              configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
-      logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
-
+      String appSignalsEndpoint;
       if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
+        appSignalsEndpoint =
+            configProps.getString(
+                "otel.aws.app.signals.exporter.endpoint",
+                configProps.getString(
+                    "otel.aws.smp.exporter.endpoint", "http://localhost:4316/v1/metrics"));
+        logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
         return OtlpHttpMetricExporter.builder()
             .setEndpoint(appSignalsEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
             .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
             .build();
       } else if (protocol.equals(OtlpConfigUtil.PROTOCOL_GRPC)) {
+        appSignalsEndpoint =
+            configProps.getString(
+                "otel.aws.app.signals.exporter.endpoint",
+                configProps.getString("otel.aws.smp.exporter.endpoint", "http://localhost:4315"));
+        logger.log(Level.FINE, String.format("AppSignals export endpoint: %s", appSignalsEndpoint));
         return OtlpGrpcMetricExporter.builder()
             .setEndpoint(appSignalsEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
