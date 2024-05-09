@@ -23,7 +23,6 @@ env:
   TEST_ACCOUNT: ${{ secrets.APP_SIGNALS_E2E_TEST_ACC }}
   SAMPLE_APP_FRONTEND_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_FE_SA_JAR }}
   SAMPLE_APP_REMOTE_SERVICE_JAR: ${{ secrets.APP_SIGNALS_E2E_RE_SA_JAR }}
-  APP_SIGNALS_ADOT_JAR: "https://github.com/aws-observability/aws-otel-java-instrumentation/releases/latest/download/aws-opentelemetry-agent.jar"
   GET_CW_AGENT_RPM_COMMAND: "wget -O cw-agent.rpm https://amazoncloudwatch-agent-us-east-1.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
   GET_ADOT_JAR_COMMAND: "aws s3 cp s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar ./adot.jar"
   METRIC_NAMESPACE: AppSignals
@@ -37,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: aws-observability/aws-application-signals-test-framework
-          ref: main
+          ref: adot-pending-release
 
       - name: Generate testing id
         run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
@@ -125,7 +124,7 @@ jobs:
           --log-group ${{ env.LOG_GROUP_NAME }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
-          --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_IP }}
           --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
@@ -142,7 +141,7 @@ jobs:
           --log-group ${{ env.LOG_GROUP_NAME }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
-          --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_IP }}
           --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
@@ -159,7 +158,7 @@ jobs:
           --log-group ${{ env.LOG_GROUP_NAME }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
-          --request-body ip=${{ env.REMOTE_SERVICE_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_IP }}
           --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
