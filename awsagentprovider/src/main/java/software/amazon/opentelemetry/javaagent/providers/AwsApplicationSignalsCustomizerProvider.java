@@ -160,10 +160,12 @@ public class AwsApplicationSignalsCustomizerProvider
                 APPLICATION_SIGNALS_EXPORTER_ENDPOINT_CONFIG,
                 configProps.getString(
                     APP_SIGNALS_EXPORTER_ENDPOINT_CONFIG,
-                    configProps.getString(SMP_EXPORTER_ENDPOINT_CONFIG, "http://localhost:4316/v1/metrics")));
+                    configProps.getString(
+                        SMP_EXPORTER_ENDPOINT_CONFIG, "http://localhost:4316/v1/metrics")));
         logger.log(
             Level.FINE,
-            String.format("AWS Application Signals export endpoint: %s", applicationSignalsEndpoint));
+            String.format(
+                "AWS Application Signals export endpoint: %s", applicationSignalsEndpoint));
         return OtlpHttpMetricExporter.builder()
             .setEndpoint(applicationSignalsEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
@@ -178,7 +180,8 @@ public class AwsApplicationSignalsCustomizerProvider
                     configProps.getString(SMP_EXPORTER_ENDPOINT_CONFIG, "http://localhost:4315")));
         logger.log(
             Level.FINE,
-            String.format("AWS Application Signals export endpoint: %s", applicationSignalsEndpoint));
+            String.format(
+                "AWS Application Signals export endpoint: %s", applicationSignalsEndpoint));
         return OtlpGrpcMetricExporter.builder()
             .setEndpoint(applicationSignalsEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
