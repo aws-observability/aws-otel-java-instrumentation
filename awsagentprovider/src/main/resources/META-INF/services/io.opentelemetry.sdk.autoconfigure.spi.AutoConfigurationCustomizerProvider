@@ -15,4 +15,4 @@
 
 software.amazon.opentelemetry.javaagent.providers.AwsAgentPropertiesCustomizerProvider
 software.amazon.opentelemetry.javaagent.providers.AwsTracerCustomizerProvider
-software.amazon.opentelemetry.javaagent.providers.AwsAppSignalsCustomizerProvider
+software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider

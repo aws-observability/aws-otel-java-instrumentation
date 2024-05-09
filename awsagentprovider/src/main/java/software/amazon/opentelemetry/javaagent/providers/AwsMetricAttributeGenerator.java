@@ -40,8 +40,9 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_TARGET;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
@@ -88,6 +89,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final Logger logger =
       Logger.getLogger(AwsMetricAttributeGenerator.class.getName());
 
+  // Normalized remote service names for supported AWS services
+  private static final String NORMALIZED_DYNAMO_DB_SERVICE_NAME = "AWS::DynamoDB";
+  private static final String NORMALIZED_KINESIS_SERVICE_NAME = "AWS::Kinesis";
+  private static final String NORMALIZED_S3_SERVICE_NAME = "AWS::S3";
+  private static final String NORMALIZED_SQS_SERVICE_NAME = "AWS::SQS";
+
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
 
@@ -129,49 +136,11 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setService(resource, span, builder);
     setEgressOperation(span, builder);
     setRemoteServiceAndOperation(span, builder);
-    setRemoteTarget(span, builder);
+    setRemoteResourceTypeAndIdentifier(span, builder);
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
 
     return builder.build();
-  }
-
-  private static void setRemoteTarget(SpanData span, AttributesBuilder builder) {
-    Optional<String> remoteTarget = getRemoteTarget(span);
-    remoteTarget.ifPresent(s -> builder.put(AWS_REMOTE_TARGET, s));
-  }
-
-  /**
-   * RemoteTarget attribute {@link AwsAttributeKeys#AWS_REMOTE_TARGET} is used to store the resource
-   * name of the remote invokes, such as S3 bucket name, mysql table name, etc. TODO: currently only
-   * support AWS resource name, will be extended to support the general remote targets, such as
-   * ActiveMQ name, etc.
-   */
-  private static Optional<String> getRemoteTarget(SpanData span) {
-    if (isKeyPresent(span, AWS_BUCKET_NAME)) {
-      return Optional.ofNullable("::s3:::" + span.getAttributes().get(AWS_BUCKET_NAME));
-    }
-
-    if (isKeyPresent(span, AWS_QUEUE_URL)) {
-      String arn = SqsUrlParser.getSqsRemoteTarget(span.getAttributes().get(AWS_QUEUE_URL));
-
-      if (arn != null) {
-        return Optional.ofNullable(arn);
-      }
-    }
-
-    if (isKeyPresent(span, AWS_QUEUE_NAME)) {
-      return Optional.ofNullable("::sqs:::" + span.getAttributes().get(AWS_QUEUE_NAME));
-    }
-
-    if (isKeyPresent(span, AWS_STREAM_NAME)) {
-      return Optional.ofNullable("::kinesis:::stream/" + span.getAttributes().get(AWS_STREAM_NAME));
-    }
-
-    if (isKeyPresent(span, AWS_TABLE_NAME)) {
-      return Optional.ofNullable("::dynamodb:::table/" + span.getAttributes().get(AWS_TABLE_NAME));
-    }
-    return Optional.empty();
   }
 
   /** Service is always derived from {@link ResourceAttributes#SERVICE_NAME} */
@@ -211,14 +180,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       operation = UNKNOWN_OPERATION;
     }
     builder.put(AWS_LOCAL_OPERATION, operation);
-  }
-
-  // add `AWS.SDK.` as prefix to indicate the metrics resulted from current span is from AWS SDK
-  private static String normalizeServiceName(SpanData span, String serviceName) {
-    if (AwsSpanProcessingUtil.isAwsSDKSpan(span)) {
-      return "AWS.SDK." + serviceName;
-    }
-    return serviceName;
   }
 
   /**
@@ -265,7 +226,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteService = getRemoteService(span, AWS_REMOTE_SERVICE);
       remoteOperation = getRemoteOperation(span, AWS_REMOTE_OPERATION);
     } else if (isKeyPresent(span, RPC_SERVICE) || isKeyPresent(span, RPC_METHOD)) {
-      remoteService = normalizeServiceName(span, getRemoteService(span, RPC_SERVICE));
+      remoteService = normalizeRemoteServiceName(span, getRemoteService(span, RPC_SERVICE));
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
     } else if (isKeyPresent(span, DB_SYSTEM)
         || isKeyPresent(span, DB_OPERATION)
@@ -363,6 +324,72 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       logUnknownAttribute(AWS_REMOTE_SERVICE, span);
     }
     return remoteService;
+  }
+
+  /**
+   * If the span is an AWS SDK span, normalize the name to align with <a
+   * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
+   * Cloud Control resource format</a> as much as possible, with special attention to services we
+   * can detect remote resource information for. Long term, we would like to normalize service name
+   * in the upstream.
+   */
+  private static String normalizeRemoteServiceName(SpanData span, String serviceName) {
+    if (AwsSpanProcessingUtil.isAwsSDKSpan(span)) {
+      switch (serviceName) {
+        case "AmazonDynamoDBv2": // AWS SDK v1
+        case "DynamoDb": // AWS SDK v2
+          return NORMALIZED_DYNAMO_DB_SERVICE_NAME;
+        case "AmazonKinesis": // AWS SDK v1
+        case "Kinesis": // AWS SDK v2
+          return NORMALIZED_KINESIS_SERVICE_NAME;
+        case "Amazon S3": // AWS SDK v1
+        case "S3": // AWS SDK v2
+          return NORMALIZED_S3_SERVICE_NAME;
+        case "AmazonSQS": // AWS SDK v1
+        case "Sqs": // AWS SDK v2
+          return NORMALIZED_SQS_SERVICE_NAME;
+        default:
+          return "AWS::" + serviceName;
+      }
+    }
+    return serviceName;
+  }
+
+  /**
+   * Remote resource attributes {@link AwsAttributeKeys#AWS_REMOTE_RESOURCE_TYPE} and {@link
+   * AwsAttributeKeys#AWS_REMOTE_RESOURCE_IDENTIFIER} are used to store information about the
+   * resource associated with the remote invocation, such as S3 bucket name, etc. We should only
+   * ever set both type and identifier or neither.
+   *
+   * <p>AWS resources type and identifier adhere to <a
+   * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
+   * Cloud Control resource format</a>.
+   */
+  private static void setRemoteResourceTypeAndIdentifier(SpanData span, AttributesBuilder builder) {
+    Optional<String> remoteResourceType = Optional.empty();
+    Optional<String> remoteResourceIdentifier = Optional.empty();
+
+    if (isKeyPresent(span, AWS_TABLE_NAME)) {
+      remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
+      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_TABLE_NAME));
+    } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
+      remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
+      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_STREAM_NAME));
+    } else if (isKeyPresent(span, AWS_BUCKET_NAME)) {
+      remoteResourceType = Optional.of(NORMALIZED_S3_SERVICE_NAME + "::Bucket");
+      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_BUCKET_NAME));
+    } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
+      remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
+      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_QUEUE_NAME));
+    } else if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
+      remoteResourceIdentifier = SqsUrlParser.getQueueName(span.getAttributes().get(AWS_QUEUE_URL));
+    }
+
+    if (remoteResourceType.isPresent() && remoteResourceIdentifier.isPresent()) {
+      builder.put(AWS_REMOTE_RESOURCE_TYPE, remoteResourceType.get());
+      builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
+    }
   }
 
   /** Span kind is needed for differentiating metrics in the EMF exporter */
