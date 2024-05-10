@@ -69,9 +69,3 @@ include("appsignals-tests:images:grpc:grpc-client")
 include("appsignals-tests:images:jdbc")
 include("appsignals-tests:images:kafka:kafka-producers")
 include("appsignals-tests:images:kafka:kafka-consumers")
-
-
-// End to end tests
-include(":testing:validator")
-include(":testing:sample-apps:springboot")
-include(":testing:sample-apps:springboot-remote-service")
