@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: aws-observability/aws-application-signals-test-framework
-          ref: main
+          ref: adot-pending-release
 
       - name: Download enablement script
         uses: actions/checkout@v4
@@ -134,7 +134,8 @@ jobs:
           kubectl patch deploy -namazon-cloudwatch amazon-cloudwatch-observability-controller-manager --type='json' \
           -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args/1", "value": "--auto-instrumentation-java-image=${{ inputs.appsignals-adot-image-name }}"}]'
           kubectl delete pods --all -n amazon-cloudwatch
-          kubectl wait --for=condition=Ready pod --all -n amazon-cloudwatch
+          sleep 5
+          kubectl wait --for=condition=Ready pod --request-timeout '5m' --all -n amazon-cloudwatch
 
       - name: Restart the app pods
         run: kubectl delete pods --all -n ${{ env.SAMPLE_APP_NAMESPACE }}
@@ -205,7 +206,7 @@ jobs:
           --platform-info ${{ inputs.test-cluster-name }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-deployment-name ${{ env.REMOTE_SERVICE_DEPLOYMENT_NAME }}
-          --request-body ip=${{ env.REMOTE_SERVICE_POD_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_POD_IP }}
           --rollup'
 
       - name: Call endpoints and validate generated metrics
@@ -223,7 +224,7 @@ jobs:
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
           --remote-service-deployment-name ${{ env.REMOTE_SERVICE_DEPLOYMENT_NAME }}
-          --request-body ip=${{ env.REMOTE_SERVICE_POD_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_POD_IP }}
           --rollup'
 
       - name: Call endpoints and validate generated traces
@@ -240,7 +241,7 @@ jobs:
           --platform-info ${{ inputs.test-cluster-name }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-deployment-name ${{ env.REMOTE_SERVICE_DEPLOYMENT_NAME }}
-          --request-body ip=${{ env.REMOTE_SERVICE_POD_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_POD_IP }}
           --rollup'
 
       - name: Publish metric on test result
