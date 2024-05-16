@@ -31,6 +31,7 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-jdbc:3.1.4")
   implementation("com.h2database:h2:2.2.224")
   implementation("org.slf4j:slf4j-simple")
+  implementation("org.postgresql:postgresql:42.2.0")
 }
 
 // not publishing images to hubs in this configuration - local build only through jibDockerBuild
