@@ -17,14 +17,21 @@ package software.amazon.opentelemetry.appsignals.test.jdbc;
 
 import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_CLIENT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThat;
 
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.images.PullPolicy;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.lifecycle.Startable;
 import software.amazon.opentelemetry.appsignals.test.base.ContractTestBase;
 import software.amazon.opentelemetry.appsignals.test.utils.AppSignalsConstants;
 import software.amazon.opentelemetry.appsignals.test.utils.ResourceScopeMetric;
@@ -33,12 +40,23 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class JDBC extends ContractTestBase {
+public class JdbcPostgresTest extends ContractTestBase {
 
-  private static final String DB_SYSTEM = "h2";
+  private static final String DB_SYSTEM = "postgresql";
   private static final String DB_NAME = "testdb";
   private static final String DB_USER = "sa";
+  private static final String DB_PASSWORD = "password";
   private static final String DB_OPERATION = "SELECT";
+
+  private static final String NETWORK_ALIAS = "postgres";
+
+  private PostgreSQLContainer<?> postgreSqlContainer;
+
+  @AfterEach
+  public void afterEach() {
+    // dependent containers are not stopped between tests, only the application container.
+    postgreSqlContainer.stop();
+  }
 
   @Test
   public void testSuccess() {
@@ -69,7 +87,7 @@ public class JDBC extends ContractTestBase {
     var path = "fault";
     var method = "GET";
     var otelStatusCode = "STATUS_CODE_ERROR";
-    var dbSqlTable = "user";
+    var dbSqlTable = "userrr";
     var response = appClient.get(path).aggregate().join();
     assertThat(response.status().isServerError()).isTrue();
 
@@ -96,6 +114,31 @@ public class JDBC extends ContractTestBase {
   @Override
   protected String getApplicationWaitPattern() {
     return ".*Application Ready.*";
+  }
+
+  @Override
+  protected Map<String, String> getApplicationExtraEnvironmentVariables() {
+    return Map.of(
+        "DB_URL", String.format("jdbc:postgresql://%s:5432/%s", NETWORK_ALIAS, DB_NAME),
+        "DB_DRIVER", "org.postgresql.Driver",
+        "DB_USERNAME", DB_USER,
+        "DB_PASSWORD", DB_PASSWORD,
+        "DB_PLATFORM", "org.hibernate.dialect.PostgreSQLDialect");
+  }
+
+  @Override
+  protected List<Startable> getApplicationDependsOnContainers() {
+    this.postgreSqlContainer =
+        new PostgreSQLContainer<>("postgres:16.3")
+            .withImagePullPolicy(PullPolicy.alwaysPull())
+            .withUsername(DB_USER)
+            .withPassword(DB_PASSWORD)
+            .withDatabaseName(DB_NAME)
+            .withNetworkAliases(NETWORK_ALIAS)
+            .withNetwork(network)
+            .waitingFor(
+                Wait.forLogMessage(".*database system is ready to accept connections.*", 1));
+    return List.of(postgreSqlContainer);
   }
 
   protected void assertAwsSpanAttributes(
@@ -171,7 +214,7 @@ public class JDBC extends ContractTestBase {
               assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.DB_CONNECTION_STRING);
               assertThat(attribute.getValue().getStringValue())
-                  .isEqualTo(String.format("%s:mem:", DB_SYSTEM));
+                  .isEqualTo(String.format("postgresql://%s:5432", NETWORK_ALIAS));
             })
         .satisfiesOnlyOnce(
             attribute -> {
