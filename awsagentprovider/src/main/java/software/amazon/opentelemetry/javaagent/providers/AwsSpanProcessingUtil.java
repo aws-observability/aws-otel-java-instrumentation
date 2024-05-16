@@ -15,6 +15,9 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
@@ -217,5 +220,12 @@ final class AwsSpanProcessingUtil {
       }
     }
     return operation;
+  }
+
+  // Check if the current Span adheres to database semantic conventions
+  static boolean isDBSpan(SpanData span) {
+    return isKeyPresent(span, DB_SYSTEM)
+        || isKeyPresent(span, DB_OPERATION)
+        || isKeyPresent(span, DB_STATEMENT);
   }
 }

@@ -653,7 +653,8 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testClientSpanWithRemoteResourceAttributes() {
+  public void testSdkClientSpanWithRemoteResourceAttributes() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
     // Validate behaviour of aws bucket name attribute, then remove it.
     mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "aws_s3_bucket_name");
@@ -688,6 +689,173 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(AWS_TABLE_NAME, "aws_table_name");
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table_name");
     mockAttribute(AWS_TABLE_NAME, null);
+
+    // Validate behaviour of AWS_TABLE_NAME attribute with special chars(|), then remove it.
+    mockAttribute(AWS_TABLE_NAME, "aws_table|name");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^|name");
+    mockAttribute(AWS_TABLE_NAME, null);
+
+    // Validate behaviour of AWS_TABLE_NAME attribute with special chars(^), then remove it.
+    mockAttribute(AWS_TABLE_NAME, "aws_table^name");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^^name");
+    mockAttribute(AWS_TABLE_NAME, null);
+
+    mockAttribute(RPC_SYSTEM, "null");
+  }
+
+  @Test
+  public void testDBClientSpanWithRemoteResourceAttributes() {
+    mockAttribute(DB_SYSTEM, "mysql");
+    // Validate behaviour of DB_NAME, SERVER_ADDRESS and SERVER_PORT exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME with '|' char, SERVER_ADDRESS and SERVER_PORT exist, then
+    // remove it.
+    mockAttribute(DB_NAME, "db_name|special");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name^|special|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME with '^' char, SERVER_ADDRESS and SERVER_PORT exist, then
+    // remove it.
+    mockAttribute(DB_NAME, "db_name^special");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name^^special|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME, SERVER_ADDRESS exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+
+    // Validate behaviour of SERVER_ADDRESS exist, then remove it.
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "abc.com");
+    mockAttribute(SERVER_ADDRESS, null);
+
+    // Validate behaviour of SERVER_PORT exist, then remove it.
+    mockAttribute(SERVER_PORT, 3306L);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME, NET_PEER_NAME and NET_PEER_PORT exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(NET_PEER_NAME, "abc.com");
+    mockAttribute(NET_PEER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(NET_PEER_NAME, null);
+    mockAttribute(NET_PEER_PORT, null);
+
+    // Validate behaviour of DB_NAME, NET_PEER_NAME exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(NET_PEER_NAME, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(NET_PEER_NAME, null);
+
+    // Validate behaviour of NET_PEER_NAME exist, then remove it.
+    mockAttribute(NET_PEER_NAME, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "abc.com");
+    mockAttribute(NET_PEER_NAME, null);
+
+    // Validate behaviour of NET_PEER_PORT exist, then remove it.
+    mockAttribute(NET_PEER_PORT, 3306L);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(NET_PEER_PORT, null);
+
+    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS and SERVER_SOCKET_PORT exist, then
+    // remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_SOCKET_ADDRESS, "abc.com");
+    mockAttribute(SERVER_SOCKET_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_SOCKET_ADDRESS, null);
+    mockAttribute(SERVER_SOCKET_PORT, null);
+
+    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_SOCKET_ADDRESS, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_SOCKET_ADDRESS, null);
+
+    // Validate behaviour of SERVER_SOCKET_PORT exist, then remove it.
+    mockAttribute(SERVER_SOCKET_PORT, 3306L);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(SERVER_SOCKET_PORT, null);
+
+    // Validate behaviour of only DB_NAME exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(DB_NAME, null);
+
+    // Validate behaviour of DB_NAME and DB_CONNECTION_STRING exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(
+        DB_CONNECTION_STRING,
+        "mysql://test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com:3306/petclinic");
+    validateRemoteResourceAttributes(
+        "DB::Connection", "db_name|test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    // Validate behaviour of DB_CONNECTION_STRING exist, then remove it.
+    mockAttribute(
+        DB_CONNECTION_STRING,
+        "mysql://test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com:3306/petclinic");
+    validateRemoteResourceAttributes(
+        "DB::Connection", "test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com|3306");
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    // Validate behaviour of DB_CONNECTION_STRING exist without port, then remove it.
+    mockAttribute(DB_CONNECTION_STRING, "http://dbserver");
+    validateRemoteResourceAttributes("DB::Connection", "dbserver");
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    // Validate behaviour of DB_NAME and invalid DB_CONNECTION_STRING exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(DB_CONNECTION_STRING, "hsqldb:mem:");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(DB_NAME, null);
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    mockAttribute(DB_SYSTEM, null);
   }
 
   @Test
