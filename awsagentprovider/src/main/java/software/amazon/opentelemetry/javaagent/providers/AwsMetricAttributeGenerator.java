@@ -16,6 +16,8 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import static io.opentelemetry.semconv.ResourceAttributes.SERVICE_NAME;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_CONNECTION_STRING;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
@@ -34,6 +36,10 @@ import static io.opentelemetry.semconv.SemanticAttributes.NET_SOCK_PEER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.PEER_SERVICE;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SERVICE;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
+import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
@@ -52,6 +58,8 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -66,6 +74,8 @@ import io.opentelemetry.semconv.ResourceAttributes;
 import io.opentelemetry.semconv.SemanticAttributes;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -97,6 +107,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
+
+  private static final String DB_CONNECTION_RESOURCE_TYPE = "DB::Connection";
 
   // As per
   // https://github.com/open-telemetry/opentelemetry-java/tree/main/sdk-extensions/autoconfigure#opentelemetry-resource
@@ -222,15 +234,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static void setRemoteServiceAndOperation(SpanData span, AttributesBuilder builder) {
     String remoteService = UNKNOWN_REMOTE_SERVICE;
     String remoteOperation = UNKNOWN_REMOTE_OPERATION;
+
     if (isKeyPresent(span, AWS_REMOTE_SERVICE) || isKeyPresent(span, AWS_REMOTE_OPERATION)) {
       remoteService = getRemoteService(span, AWS_REMOTE_SERVICE);
       remoteOperation = getRemoteOperation(span, AWS_REMOTE_OPERATION);
     } else if (isKeyPresent(span, RPC_SERVICE) || isKeyPresent(span, RPC_METHOD)) {
       remoteService = normalizeRemoteServiceName(span, getRemoteService(span, RPC_SERVICE));
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
-    } else if (isKeyPresent(span, DB_SYSTEM)
-        || isKeyPresent(span, DB_OPERATION)
-        || isKeyPresent(span, DB_STATEMENT)) {
+
+    } else if (isDBSpan(span)) {
       remoteService = getRemoteService(span, DB_SYSTEM);
       if (isKeyPresent(span, DB_OPERATION)) {
         remoteOperation = getRemoteOperation(span, DB_OPERATION);
@@ -359,7 +371,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * Remote resource attributes {@link AwsAttributeKeys#AWS_REMOTE_RESOURCE_TYPE} and {@link
    * AwsAttributeKeys#AWS_REMOTE_RESOURCE_IDENTIFIER} are used to store information about the
    * resource associated with the remote invocation, such as S3 bucket name, etc. We should only
-   * ever set both type and identifier or neither.
+   * ever set both type and identifier or neither. If any identifier value contains | or ^ , they
+   * will be replaced with ^| or ^^.
    *
    * <p>AWS resources type and identifier adhere to <a
    * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
@@ -369,27 +382,119 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     Optional<String> remoteResourceType = Optional.empty();
     Optional<String> remoteResourceIdentifier = Optional.empty();
 
-    if (isKeyPresent(span, AWS_TABLE_NAME)) {
-      remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
-      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_TABLE_NAME));
-    } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
-      remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
-      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_STREAM_NAME));
-    } else if (isKeyPresent(span, AWS_BUCKET_NAME)) {
-      remoteResourceType = Optional.of(NORMALIZED_S3_SERVICE_NAME + "::Bucket");
-      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_BUCKET_NAME));
-    } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
-      remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
-      remoteResourceIdentifier = Optional.ofNullable(span.getAttributes().get(AWS_QUEUE_NAME));
-    } else if (isKeyPresent(span, AWS_QUEUE_URL)) {
-      remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
-      remoteResourceIdentifier = SqsUrlParser.getQueueName(span.getAttributes().get(AWS_QUEUE_URL));
+    if (isAwsSDKSpan(span)) {
+      if (isKeyPresent(span, AWS_TABLE_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_TABLE_NAME)));
+      } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STREAM_NAME)));
+      } else if (isKeyPresent(span, AWS_BUCKET_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_S3_SERVICE_NAME + "::Bucket");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_BUCKET_NAME)));
+      } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_QUEUE_NAME)));
+      } else if (isKeyPresent(span, AWS_QUEUE_URL)) {
+        remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
+        remoteResourceIdentifier =
+            SqsUrlParser.getQueueName(escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL)));
+      }
+    } else if (isDBSpan(span)) {
+      remoteResourceType = Optional.of(DB_CONNECTION_RESOURCE_TYPE);
+      remoteResourceIdentifier = getDbConnection(span);
     }
 
     if (remoteResourceType.isPresent() && remoteResourceIdentifier.isPresent()) {
       builder.put(AWS_REMOTE_RESOURCE_TYPE, remoteResourceType.get());
       builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
     }
+  }
+
+  /**
+   * RemoteResourceIdentifier is populated with rule <code>
+   *     ^[{db.name}|]?{address}[|{port}]?
+   * </code>
+   *
+   * <pre>
+   * {address} attribute is retrieved in priority order:
+   * - {@link SemanticAttributes#SERVER_ADDRESS},
+   * - {@link SemanticAttributes#NET_PEER_NAME},
+   * - {@link SemanticAttributes#SERVER_SOCKET_ADDRESS}
+   * - {@link SemanticAttributes#DB_CONNECTION_STRING}-Hostname
+   * </pre>
+   *
+   * <pre>
+   * {port} attribute is retrieved in priority order:
+   * - {@link SemanticAttributes#SERVER_PORT},
+   * - {@link SemanticAttributes#NET_PEER_PORT},
+   * - {@link SemanticAttributes#SERVER_SOCKET_PORT}
+   * - {@link SemanticAttributes#DB_CONNECTION_STRING}-Port
+   * </pre>
+   *
+   * If address is not present, neither RemoteResourceType nor RemoteResourceIdentifier will be
+   * provided.
+   */
+  private static Optional<String> getDbConnection(SpanData span) {
+    String dbName = span.getAttributes().get(DB_NAME);
+    Optional<String> dbConnection = Optional.empty();
+
+    if (isKeyPresent(span, SERVER_ADDRESS)) {
+      String serverAddress = span.getAttributes().get(SERVER_ADDRESS);
+      Long serverPort = span.getAttributes().get(SERVER_PORT);
+      dbConnection = buildDbConnection(serverAddress, serverPort);
+    } else if (isKeyPresent(span, NET_PEER_NAME)) {
+      String networkPeerAddress = span.getAttributes().get(NET_PEER_NAME);
+      Long networkPeerPort = span.getAttributes().get(NET_PEER_PORT);
+      dbConnection = buildDbConnection(networkPeerAddress, networkPeerPort);
+    } else if (isKeyPresent(span, SERVER_SOCKET_ADDRESS)) {
+      String serverSocketAddress = span.getAttributes().get(SERVER_SOCKET_ADDRESS);
+      Long serverSocketPort = span.getAttributes().get(SERVER_SOCKET_PORT);
+      dbConnection = buildDbConnection(serverSocketAddress, serverSocketPort);
+    } else if (isKeyPresent(span, DB_CONNECTION_STRING)) {
+      String connectionString = span.getAttributes().get(DB_CONNECTION_STRING);
+      dbConnection = buildDbConnection(connectionString);
+    }
+
+    // return empty resource identifier if db server is not found
+    if (dbConnection.isPresent() && dbName != null) {
+      return Optional.of(escapeDelimiters(dbName) + "|" + dbConnection.get());
+    }
+    return dbConnection;
+  }
+
+  private static Optional<String> buildDbConnection(String address, Long port) {
+    return Optional.of(escapeDelimiters(address) + (port != null ? "|" + port : ""));
+  }
+
+  private static Optional<String> buildDbConnection(String connectionString) {
+    URI uri;
+    String address;
+    int port;
+    try {
+      uri = new URI(connectionString);
+      address = uri.getHost();
+      port = uri.getPort();
+    } catch (URISyntaxException e) {
+      logger.log(Level.FINEST, "invalid DB ConnectionString: ", connectionString);
+      return Optional.empty();
+    }
+
+    if (address == null) {
+      return Optional.empty();
+    }
+    return Optional.of(escapeDelimiters(address) + (port != -1 ? "|" + port : ""));
+  }
+
+  private static String escapeDelimiters(String input) {
+    if (input == null) {
+      return null;
+    }
+    return input.replace("^", "^^").replace("|", "^|");
   }
 
   /** Span kind is needed for differentiating metrics in the EMF exporter */
