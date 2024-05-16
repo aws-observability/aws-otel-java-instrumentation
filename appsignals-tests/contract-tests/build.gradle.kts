@@ -57,6 +57,7 @@ dependencies {
   testImplementation(kotlin("test"))
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
   testImplementation("org.testcontainers:kafka:1.19.3")
+  testImplementation("org.testcontainers:postgresql:1.19.3")
 }
 
 project.evaluationDependsOn(":otelagent")
