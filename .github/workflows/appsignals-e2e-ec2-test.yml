@@ -104,8 +104,8 @@ jobs:
         continue-on-error: true
         run: |
           curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/outgoing-http-call/; echo
-          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/aws-sdk-call/; echo
-          curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/remote-service?ip=${{ env.REMOTE_SERVICE_IP }}/; echo
+          curl -S -s "http://${{ env.MAIN_SERVICE_ENDPOINT }}/aws-sdk-call?ip=${{ env.REMOTE_SERVICE_IP }}&testingId=${{ env.TESTING_ID }}"
+          curl -S -s "http://${{ env.MAIN_SERVICE_ENDPOINT }}/remote-service?ip=${{ env.REMOTE_SERVICE_IP }}&testingId=${{ env.TESTING_ID }}"
           curl -S -s http://${{ env.MAIN_SERVICE_ENDPOINT }}/client-call/; echo
 
       - name: Build Gradle
@@ -124,7 +124,7 @@ jobs:
           --log-group ${{ env.LOG_GROUP_NAME }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
-          --query-string ip=${{ env.REMOTE_SERVICE_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_IP }}&testingId=${{ env.TESTING_ID }}
           --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
@@ -141,7 +141,7 @@ jobs:
           --log-group ${{ env.LOG_GROUP_NAME }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
-          --query-string ip=${{ env.REMOTE_SERVICE_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_IP }}&testingId=${{ env.TESTING_ID }}
           --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
@@ -158,7 +158,7 @@ jobs:
           --log-group ${{ env.LOG_GROUP_NAME }}
           --service-name sample-application-${{ env.TESTING_ID }}
           --remote-service-name sample-remote-application-${{ env.TESTING_ID }}
-          --query-string ip=${{ env.REMOTE_SERVICE_IP }}
+          --query-string ip=${{ env.REMOTE_SERVICE_IP }}&testingId=${{ env.TESTING_ID }}
           --instance-ami ${{ env.EC2_INSTANCE_AMI }}
           --rollup'
 
