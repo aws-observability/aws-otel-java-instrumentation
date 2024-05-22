@@ -119,11 +119,16 @@ public class JdbcPostgresTest extends ContractTestBase {
   @Override
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {
     return Map.of(
-        "DB_URL", String.format("jdbc:postgresql://%s:5432/%s", NETWORK_ALIAS, DB_NAME),
-        "DB_DRIVER", "org.postgresql.Driver",
-        "DB_USERNAME", DB_USER,
-        "DB_PASSWORD", DB_PASSWORD,
-        "DB_PLATFORM", "org.hibernate.dialect.PostgreSQLDialect");
+        "DB_URL",
+        String.format("jdbc:postgresql://%s:5432/%s", NETWORK_ALIAS, DB_NAME),
+        "DB_DRIVER",
+        "org.postgresql.Driver",
+        "DB_USERNAME",
+        DB_USER,
+        "DB_PASSWORD",
+        DB_PASSWORD,
+        "DB_PLATFORM",
+        "org.hibernate.dialect.PostgreSQLDialect");
   }
 
   @Override
