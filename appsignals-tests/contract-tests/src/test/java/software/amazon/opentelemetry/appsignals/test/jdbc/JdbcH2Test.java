@@ -103,11 +103,16 @@ public class JdbcH2Test extends ContractTestBase {
   @Override
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {
     return Map.of(
-        "DB_URL", String.format("jdbc:h2:mem:%s", DB_NAME),
-        "DB_DRIVER", "org.h2.Driver",
-        "DB_USERNAME", DB_USER,
-        "DB_PASSWORD", DB_PASSWORD,
-        "DB_PLATFORM", "org.hibernate.dialect.H2Dialect");
+        "DB_URL",
+        String.format("jdbc:h2:mem:%s", DB_NAME),
+        "DB_DRIVER",
+        "org.h2.Driver",
+        "DB_USERNAME",
+        DB_USER,
+        "DB_PASSWORD",
+        DB_PASSWORD,
+        "DB_PLATFORM",
+        "org.hibernate.dialect.H2Dialect");
   }
 
   protected void assertAwsSpanAttributes(
