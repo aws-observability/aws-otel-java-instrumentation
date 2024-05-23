@@ -32,6 +32,7 @@ dependencies {
   implementation("com.h2database:h2:2.2.224")
   implementation("org.slf4j:slf4j-simple")
   implementation("org.postgresql:postgresql:42.2.0")
+  implementation("com.mysql:mysql-connector-j:8.4.0")
 }
 
 // not publishing images to hubs in this configuration - local build only through jibDockerBuild

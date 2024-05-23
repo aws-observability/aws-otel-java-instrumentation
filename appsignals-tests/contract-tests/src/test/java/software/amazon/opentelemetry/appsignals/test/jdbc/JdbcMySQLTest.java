@@ -20,30 +20,30 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.PullPolicy;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startable;
 
 @Testcontainers(disabledWithoutDocker = true)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class JdbcPostgresTest extends JdbcContractTestBase {
+@TestInstance(Lifecycle.PER_CLASS)
+public class JdbcMySQLTest extends JdbcContractTestBase {
 
-  private static final String NETWORK_ALIAS = "postgres";
-  private static final String DB_SYSTEM = "postgresql";
+  private static final String NETWORK_ALIAS = "mysql";
+  private static final String DB_SYSTEM = "mysql";
   private static final String DB_CONNECTION_STRING =
-      String.format("%s://%s:%s", DB_SYSTEM, NETWORK_ALIAS, PostgreSQLContainer.POSTGRESQL_PORT);
+      String.format("%s://%s:%s", DB_SYSTEM, NETWORK_ALIAS, MySQLContainer.MYSQL_PORT);
   private static final String DB_URL = String.format("jdbc:%s/%s", DB_CONNECTION_STRING, DB_NAME);
-  private static final String DB_DRIVER = "org.postgresql.Driver";
-  private static final String DB_PLATFORM = "org.hibernate.dialect.PostgreSQLDialect";
+  private static final String DB_DRIVER = "com.mysql.cj.jdbc.Driver";
+  private static final String DB_PLATFORM = "org.hibernate.dialect.MySQL8Dialect";
 
-  private PostgreSQLContainer<?> postgreSqlContainer;
+  private MySQLContainer<?> mySQLContainer;
 
   @AfterEach
   public void afterEach() {
-    // dependent containers are not stopped between tests, only the application container.
-    postgreSqlContainer.stop();
+    mySQLContainer.stop();
   }
 
   @Test
@@ -68,8 +68,8 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
 
   @Override
   protected List<Startable> getApplicationDependsOnContainers() {
-    this.postgreSqlContainer =
-        new PostgreSQLContainer<>("postgres:16.3")
+    mySQLContainer =
+        new MySQLContainer<>("mysql:8.4")
             .withImagePullPolicy(PullPolicy.alwaysPull())
             .withUsername(DB_USER)
             .withPassword(DB_PASSWORD)
@@ -78,6 +78,6 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
             .withNetwork(network)
             .waitingFor(
                 Wait.forLogMessage(".*database system is ready to accept connections.*", 1));
-    return List.of(postgreSqlContainer);
+    return List.of(mySQLContainer);
   }
 }

@@ -41,7 +41,7 @@ public class AppController {
 
   @EventListener(ApplicationReadyEvent.class)
   public void prepareDB() {
-    jdbcTemplate.execute("create table employee (id int, name varchar)");
+    jdbcTemplate.execute("create table employee (id int, name varchar(255))");
     jdbcTemplate.execute("insert into employee (id, name) values (1, 'A')");
     logger.info("Application Ready");
   }
