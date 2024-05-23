@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -33,11 +34,12 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class JDBC extends ContractTestBase {
+public class JdbcH2Test extends ContractTestBase {
 
   private static final String DB_SYSTEM = "h2";
   private static final String DB_NAME = "testdb";
   private static final String DB_USER = "sa";
+  private static final String DB_PASSWORD = "password";
   private static final String DB_OPERATION = "SELECT";
 
   @Test
@@ -69,7 +71,7 @@ public class JDBC extends ContractTestBase {
     var path = "fault";
     var method = "GET";
     var otelStatusCode = "STATUS_CODE_ERROR";
-    var dbSqlTable = "user";
+    var dbSqlTable = "userrr";
     var response = appClient.get(path).aggregate().join();
     assertThat(response.status().isServerError()).isTrue();
 
@@ -96,6 +98,21 @@ public class JDBC extends ContractTestBase {
   @Override
   protected String getApplicationWaitPattern() {
     return ".*Application Ready.*";
+  }
+
+  @Override
+  protected Map<String, String> getApplicationExtraEnvironmentVariables() {
+    return Map.of(
+        "DB_URL",
+        String.format("jdbc:h2:mem:%s", DB_NAME),
+        "DB_DRIVER",
+        "org.h2.Driver",
+        "DB_USERNAME",
+        DB_USER,
+        "DB_PASSWORD",
+        DB_PASSWORD,
+        "DB_PLATFORM",
+        "org.hibernate.dialect.H2Dialect");
   }
 
   protected void assertAwsSpanAttributes(

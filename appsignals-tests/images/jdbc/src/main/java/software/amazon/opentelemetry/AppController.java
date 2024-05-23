@@ -58,7 +58,7 @@ public class AppController {
   @GetMapping("/fault")
   @ResponseBody
   public ResponseEntity<String> failure() {
-    int count = jdbcTemplate.queryForObject("select count(*) from user", Integer.class);
+    int count = jdbcTemplate.queryForObject("select count(*) from userrr", Integer.class);
     return ResponseEntity.ok().body("success");
   }
 
