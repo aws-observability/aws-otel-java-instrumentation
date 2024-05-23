@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
-import io.opentelemetry.proto.trace.v1.Status.StatusCode;
 import java.util.List;
 import java.util.Set;
 import software.amazon.opentelemetry.appsignals.test.base.ContractTestBase;
@@ -98,7 +97,7 @@ public class JdbcContractTestBase extends ContractTestBase {
 
   protected void assertSemanticConventionsSpanAttributes(
       List<ResourceScopeSpan> resourceScopeSpans,
-      StatusCode otelStatusCode,
+      String otelStatusCode,
       String dbSqlTable,
       String dbSystem,
       String dbOperation,
@@ -111,7 +110,7 @@ public class JdbcContractTestBase extends ContractTestBase {
               assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
               assertThat(rss.getSpan().getName())
                   .isEqualTo(String.format("%s %s.%s", dbOperation, dbName, dbSqlTable));
-              assertThat(rss.getSpan().getStatus().getCode()).isEqualTo(otelStatusCode);
+              assertThat(rss.getSpan().getStatus().getCode().toString()).isEqualTo(otelStatusCode);
               var attributesList = rss.getSpan().getAttributesList();
               assertSemanticConventionsAttributes(
                   attributesList, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
@@ -249,7 +248,7 @@ public class JdbcContractTestBase extends ContractTestBase {
       String dbSystem, String dbOperation, String dbUser, String dbName, String jdbcUrl) {
     var path = "success";
     var method = "GET";
-    var otelStatusCode = StatusCode.STATUS_CODE_UNSET;
+    var otelStatusCode = "STATUS_CODE_UNSET";
     var dbSqlTable = "employee";
 
     var response = appClient.get(path).aggregate().join();
@@ -278,7 +277,7 @@ public class JdbcContractTestBase extends ContractTestBase {
       String dbSystem, String dbOperation, String dbUser, String dbName, String jdbcUrl) {
     var path = "fault";
     var method = "GET";
-    var otelStatusCode = StatusCode.STATUS_CODE_ERROR;
+    var otelStatusCode = "STATUS_CODE_ERROR";
     var dbSqlTable = "userrr";
     var response = appClient.get(path).aggregate().join();
     assertThat(response.status().isServerError()).isTrue();
