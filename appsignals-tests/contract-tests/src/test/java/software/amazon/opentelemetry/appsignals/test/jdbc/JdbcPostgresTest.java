@@ -37,6 +37,8 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
   private static final String DB_URL = String.format("jdbc:%s/%s", DB_CONNECTION_STRING, DB_NAME);
   private static final String DB_DRIVER = "org.postgresql.Driver";
   private static final String DB_PLATFORM = "org.hibernate.dialect.PostgreSQLDialect";
+  private static final String POSTGRES_IDENTIFIER =
+      String.format("%s|%s|%s", DB_NAME, NETWORK_ALIAS, PostgreSQLContainer.POSTGRESQL_PORT);
 
   private PostgreSQLContainer<?> postgreSqlContainer;
 
@@ -48,12 +50,26 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
 
   @Test
   public void testSuccess() {
-    assertSuccess(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING);
+    assertSuccess(
+        DB_SYSTEM,
+        DB_OPERATION,
+        DB_USER,
+        DB_NAME,
+        DB_CONNECTION_STRING,
+        DB_RESOURCE_TYPE,
+        POSTGRES_IDENTIFIER);
   }
 
   @Test
   public void testFault() {
-    assertFault(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING);
+    assertFault(
+        DB_SYSTEM,
+        DB_OPERATION,
+        DB_USER,
+        DB_NAME,
+        DB_CONNECTION_STRING,
+        DB_RESOURCE_TYPE,
+        POSTGRES_IDENTIFIER);
   }
 
   @Override
