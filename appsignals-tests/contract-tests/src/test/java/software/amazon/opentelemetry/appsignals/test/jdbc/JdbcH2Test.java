@@ -32,12 +32,12 @@ public class JdbcH2Test extends JdbcContractTestBase {
 
   @Test
   public void testSuccess() {
-    assertSuccess(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING);
+    assertSuccess(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
   }
 
   @Test
   public void testFault() {
-    assertFault(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING);
+    assertFault(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
   }
 
   @Override
