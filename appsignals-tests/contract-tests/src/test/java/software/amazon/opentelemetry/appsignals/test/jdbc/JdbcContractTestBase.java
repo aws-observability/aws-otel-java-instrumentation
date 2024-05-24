@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.appsignals.test.jdbc;
 
 import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_CLIENT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThat;
 
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
@@ -33,6 +34,7 @@ public class JdbcContractTestBase extends ContractTestBase {
   protected static final String DB_USER = "sa";
   protected static final String DB_PASSWORD = "password";
   protected static final String DB_OPERATION = "SELECT";
+  protected static final String DB_RESOURCE_TYPE = "DB::Connection";
 
   @Override
   protected String getApplicationImageName() {
@@ -49,13 +51,16 @@ public class JdbcContractTestBase extends ContractTestBase {
       String method,
       String path,
       String dbSystem,
-      String dbOperation) {
+      String dbOperation,
+      String type,
+      String identifier) {
     assertThat(resourceScopeSpans)
         .satisfiesOnlyOnce(
             rss -> {
               assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
               var attributesList = rss.getSpan().getAttributesList();
-              assertAwsAttributes(attributesList, method, path, dbSystem, dbOperation);
+              assertAwsAttributes(
+                  attributesList, method, path, dbSystem, dbOperation, type, identifier);
             });
   }
 
@@ -64,35 +69,52 @@ public class JdbcContractTestBase extends ContractTestBase {
       String method,
       String endpoint,
       String dbSystem,
-      String dbOperation) {
-    assertThat(attributesList)
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_LOCAL_OPERATION);
-              assertThat(attribute.getValue().getStringValue())
-                  .isEqualTo(String.format("%s /%s", method, endpoint));
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_LOCAL_SERVICE);
-              assertThat(attribute.getValue().getStringValue())
-                  .isEqualTo(getApplicationOtelServiceName());
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_SERVICE);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo(dbSystem);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo(dbOperation);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_SPAN_KIND);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("CLIENT");
-            });
+      String dbOperation,
+      String type,
+      String identifier) {
+    var assertions =
+        assertThat(attributesList)
+            .satisfiesOnlyOnce(
+                attribute -> {
+                  assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_LOCAL_OPERATION);
+                  assertThat(attribute.getValue().getStringValue())
+                      .isEqualTo(String.format("%s /%s", method, endpoint));
+                })
+            .satisfiesOnlyOnce(
+                attribute -> {
+                  assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_LOCAL_SERVICE);
+                  assertThat(attribute.getValue().getStringValue())
+                      .isEqualTo(getApplicationOtelServiceName());
+                })
+            .satisfiesOnlyOnce(
+                attribute -> {
+                  assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_SERVICE);
+                  assertThat(attribute.getValue().getStringValue()).isEqualTo(dbSystem);
+                })
+            .satisfiesOnlyOnce(
+                attribute -> {
+                  assertThat(attribute.getKey())
+                      .isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
+                  assertThat(attribute.getValue().getStringValue()).isEqualTo(dbOperation);
+                })
+            .satisfiesOnlyOnce(
+                attribute -> {
+                  assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_SPAN_KIND);
+                  assertThat(attribute.getValue().getStringValue()).isEqualTo("CLIENT");
+                });
+    if (type != null && identifier != null) {
+      assertions.satisfiesOnlyOnce(
+          (attribute) -> {
+            assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE);
+            assertThat(attribute.getValue().getStringValue()).isEqualTo(type);
+          });
+      assertions.satisfiesOnlyOnce(
+          (attribute) -> {
+            assertThat(attribute.getKey())
+                .isEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER);
+            assertThat(attribute.getValue().getStringValue()).isEqualTo(identifier);
+          });
+    }
   }
 
   protected void assertSemanticConventionsSpanAttributes(
@@ -181,7 +203,9 @@ public class JdbcContractTestBase extends ContractTestBase {
       String metricName,
       Double expectedSum,
       String dbSystem,
-      String dbOperation) {
+      String dbOperation,
+      String type,
+      String identifier) {
     assertThat(resourceScopeMetrics)
         .anySatisfy(
             metric -> {
@@ -193,42 +217,58 @@ public class JdbcContractTestBase extends ContractTestBase {
                       dp -> {
                         List<KeyValue> attributesList = dp.getAttributesList();
                         assertThat(attributesList).isNotNull();
-                        assertThat(attributesList)
-                            .satisfiesOnlyOnce(
-                                attribute -> {
-                                  assertThat(attribute.getKey())
-                                      .isEqualTo(AppSignalsConstants.AWS_SPAN_KIND);
-                                  assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo("CLIENT");
-                                })
-                            .satisfiesOnlyOnce(
-                                attribute -> {
-                                  assertThat(attribute.getKey())
-                                      .isEqualTo(AppSignalsConstants.AWS_LOCAL_OPERATION);
-                                  assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo(String.format("%s /%s", method, path));
-                                })
-                            .satisfiesOnlyOnce(
-                                attribute -> {
-                                  assertThat(attribute.getKey())
-                                      .isEqualTo(AppSignalsConstants.AWS_LOCAL_SERVICE);
-                                  assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo(getApplicationOtelServiceName());
-                                })
-                            .satisfiesOnlyOnce(
-                                attribute -> {
-                                  assertThat(attribute.getKey())
-                                      .isEqualTo(AppSignalsConstants.AWS_REMOTE_SERVICE);
-                                  assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo(dbSystem);
-                                })
-                            .satisfiesOnlyOnce(
-                                attribute -> {
-                                  assertThat(attribute.getKey())
-                                      .isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
-                                  assertThat(attribute.getValue().getStringValue())
-                                      .isEqualTo(dbOperation);
-                                });
+                        var assertions =
+                            assertThat(attributesList)
+                                .satisfiesOnlyOnce(
+                                    attribute -> {
+                                      assertThat(attribute.getKey())
+                                          .isEqualTo(AppSignalsConstants.AWS_SPAN_KIND);
+                                      assertThat(attribute.getValue().getStringValue())
+                                          .isEqualTo("CLIENT");
+                                    })
+                                .satisfiesOnlyOnce(
+                                    attribute -> {
+                                      assertThat(attribute.getKey())
+                                          .isEqualTo(AppSignalsConstants.AWS_LOCAL_OPERATION);
+                                      assertThat(attribute.getValue().getStringValue())
+                                          .isEqualTo(String.format("%s /%s", method, path));
+                                    })
+                                .satisfiesOnlyOnce(
+                                    attribute -> {
+                                      assertThat(attribute.getKey())
+                                          .isEqualTo(AppSignalsConstants.AWS_LOCAL_SERVICE);
+                                      assertThat(attribute.getValue().getStringValue())
+                                          .isEqualTo(getApplicationOtelServiceName());
+                                    })
+                                .satisfiesOnlyOnce(
+                                    attribute -> {
+                                      assertThat(attribute.getKey())
+                                          .isEqualTo(AppSignalsConstants.AWS_REMOTE_SERVICE);
+                                      assertThat(attribute.getValue().getStringValue())
+                                          .isEqualTo(dbSystem);
+                                    })
+                                .satisfiesOnlyOnce(
+                                    attribute -> {
+                                      assertThat(attribute.getKey())
+                                          .isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
+                                      assertThat(attribute.getValue().getStringValue())
+                                          .isEqualTo(dbOperation);
+                                    });
+                        if (type != null && identifier != null) {
+                          assertions.satisfiesOnlyOnce(
+                              (attribute) -> {
+                                assertThat(attribute.getKey())
+                                    .isEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE);
+                                assertThat(attribute.getValue().getStringValue()).isEqualTo(type);
+                              });
+                          assertions.satisfiesOnlyOnce(
+                              (attribute) -> {
+                                assertThat(attribute.getKey())
+                                    .isEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER);
+                                assertThat(attribute.getValue().getStringValue())
+                                    .isEqualTo(identifier);
+                              });
+                        }
 
                         if (expectedSum != null) {
                           double actualSum = dp.getSum();
@@ -245,7 +285,13 @@ public class JdbcContractTestBase extends ContractTestBase {
   }
 
   protected void assertSuccess(
-      String dbSystem, String dbOperation, String dbUser, String dbName, String jdbcUrl) {
+      String dbSystem,
+      String dbOperation,
+      String dbUser,
+      String dbName,
+      String jdbcUrl,
+      String type,
+      String identifier) {
     var path = "success";
     var method = "GET";
     var otelStatusCode = "STATUS_CODE_UNSET";
@@ -255,7 +301,7 @@ public class JdbcContractTestBase extends ContractTestBase {
     assertThat(response.status().isSuccess()).isTrue();
 
     var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation);
+    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, type, identifier);
     assertSemanticConventionsSpanAttributes(
         traces, otelStatusCode, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
 
@@ -266,15 +312,45 @@ public class JdbcContractTestBase extends ContractTestBase {
                 AppSignalsConstants.ERROR_METRIC,
                 AppSignalsConstants.FAULT_METRIC));
     assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, dbSystem, dbOperation);
+        metrics,
+        method,
+        path,
+        AppSignalsConstants.LATENCY_METRIC,
+        5000.0,
+        dbSystem,
+        dbOperation,
+        type,
+        identifier);
     assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, dbSystem, dbOperation);
+        metrics,
+        method,
+        path,
+        AppSignalsConstants.ERROR_METRIC,
+        0.0,
+        dbSystem,
+        dbOperation,
+        type,
+        identifier);
     assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 0.0, dbSystem, dbOperation);
+        metrics,
+        method,
+        path,
+        AppSignalsConstants.FAULT_METRIC,
+        0.0,
+        dbSystem,
+        dbOperation,
+        type,
+        identifier);
   }
 
   protected void assertFault(
-      String dbSystem, String dbOperation, String dbUser, String dbName, String jdbcUrl) {
+      String dbSystem,
+      String dbOperation,
+      String dbUser,
+      String dbName,
+      String jdbcUrl,
+      String type,
+      String identifier) {
     var path = "fault";
     var method = "GET";
     var otelStatusCode = "STATUS_CODE_ERROR";
@@ -283,7 +359,7 @@ public class JdbcContractTestBase extends ContractTestBase {
     assertThat(response.status().isServerError()).isTrue();
 
     var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation);
+    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, type, identifier);
     assertSemanticConventionsSpanAttributes(
         traces, otelStatusCode, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
 
@@ -294,10 +370,34 @@ public class JdbcContractTestBase extends ContractTestBase {
                 AppSignalsConstants.ERROR_METRIC,
                 AppSignalsConstants.FAULT_METRIC));
     assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, dbSystem, dbOperation);
+        metrics,
+        method,
+        path,
+        AppSignalsConstants.LATENCY_METRIC,
+        5000.0,
+        dbSystem,
+        dbOperation,
+        type,
+        identifier);
     assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, dbSystem, dbOperation);
+        metrics,
+        method,
+        path,
+        AppSignalsConstants.ERROR_METRIC,
+        0.0,
+        dbSystem,
+        dbOperation,
+        type,
+        identifier);
     assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0, dbSystem, dbOperation);
+        metrics,
+        method,
+        path,
+        AppSignalsConstants.FAULT_METRIC,
+        1.0,
+        dbSystem,
+        dbOperation,
+        type,
+        identifier);
   }
 }

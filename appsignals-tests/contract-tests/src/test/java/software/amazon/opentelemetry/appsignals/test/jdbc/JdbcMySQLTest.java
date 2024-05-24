@@ -38,6 +38,8 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
   private static final String DB_URL = String.format("jdbc:%s/%s", DB_CONNECTION_STRING, DB_NAME);
   private static final String DB_DRIVER = "com.mysql.cj.jdbc.Driver";
   private static final String DB_PLATFORM = "org.hibernate.dialect.MySQL8Dialect";
+  private static final String MYSQL_IDENTIFIER =
+      String.format("%s|%s|%s", DB_NAME, NETWORK_ALIAS, MySQLContainer.MYSQL_PORT);
 
   private MySQLContainer<?> mySQLContainer;
 
@@ -48,12 +50,26 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
 
   @Test
   public void testSuccess() {
-    assertSuccess(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING);
+    assertSuccess(
+        DB_SYSTEM,
+        DB_OPERATION,
+        DB_USER,
+        DB_NAME,
+        DB_CONNECTION_STRING,
+        DB_RESOURCE_TYPE,
+        MYSQL_IDENTIFIER);
   }
 
   @Test
   public void testFault() {
-    assertFault(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING);
+    assertFault(
+        DB_SYSTEM,
+        DB_OPERATION,
+        DB_USER,
+        DB_NAME,
+        DB_CONNECTION_STRING,
+        DB_RESOURCE_TYPE,
+        MYSQL_IDENTIFIER);
   }
 
   @Override
