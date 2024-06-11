@@ -156,7 +156,7 @@ public class AwsApplicationSignalsCustomizerProvider
     return spanExporter;
   }
 
-  protected enum ApplicationSignalsExporterProvider {
+  private enum ApplicationSignalsExporterProvider {
     INSTANCE;
 
     public MetricExporter createExporter(ConfigProperties configProps) {
