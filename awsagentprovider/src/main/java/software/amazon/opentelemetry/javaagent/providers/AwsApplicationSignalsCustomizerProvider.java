@@ -71,6 +71,18 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String APPLICATION_SIGNALS_EXPORTER_ENDPOINT_CONFIG =
       "otel.aws.application.signals.exporter.endpoint";
 
+  // Histograms must only be exported with no more than 100 buckets per EMF specifications. Per OTEL
+  // documentation,
+  // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#base2-exponential-bucket-histogram-aggregation
+  // max total buckets = max_size*2+1; *2 is because of positive and negative buckets, +1 because of
+  // the zero
+  // bucket. Negatives are not a concern for Application Signals use-case, which only measures
+  // latency, so max_size
+  // of 99 gives total buckets of 100.
+  // MaxScale is being set as the default value as per the OTEL spec.
+  private static final int MAX_HISTOGRAM_BUCKETS = 99;
+  private static final int MAX_HISTOGRAM_SCALE = 20;
+
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addSamplerCustomizer(this::customizeSampler);
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
@@ -144,7 +156,7 @@ public class AwsApplicationSignalsCustomizerProvider
     return spanExporter;
   }
 
-  private enum ApplicationSignalsExporterProvider {
+  protected enum ApplicationSignalsExporterProvider {
     INSTANCE;
 
     public MetricExporter createExporter(ConfigProperties configProps) {
@@ -194,7 +206,8 @@ public class AwsApplicationSignalsCustomizerProvider
 
     private Aggregation getAggregation(InstrumentType instrumentType) {
       if (instrumentType == InstrumentType.HISTOGRAM) {
-        return Aggregation.base2ExponentialBucketHistogram();
+        return Aggregation.base2ExponentialBucketHistogram(
+            MAX_HISTOGRAM_BUCKETS, MAX_HISTOGRAM_SCALE);
       }
       return Aggregation.defaultAggregation();
     }
