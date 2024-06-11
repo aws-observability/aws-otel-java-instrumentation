@@ -72,14 +72,12 @@ public class AwsApplicationSignalsCustomizerProvider
       "otel.aws.application.signals.exporter.endpoint";
 
   // Histograms must only be exported with no more than 100 buckets per EMF specifications. Per OTEL
-  // documentation,
+  // specification, max total buckets = max_size*2+1; *2 is because of positive and negative
+  // buckets, +1 because of the zero bucket. Negatives are not a concern for Application Signals
+  // use-case, which only measures latency, so max_size of 99 gives total buckets of 100. MaxScale
+  // is being set as the default value as per the OTEL spec.
+  // OTEL Specification:
   // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#base2-exponential-bucket-histogram-aggregation
-  // max total buckets = max_size*2+1; *2 is because of positive and negative buckets, +1 because of
-  // the zero
-  // bucket. Negatives are not a concern for Application Signals use-case, which only measures
-  // latency, so max_size
-  // of 99 gives total buckets of 100.
-  // MaxScale is being set as the default value as per the OTEL spec.
   private static final int MAX_HISTOGRAM_BUCKETS = 99;
   private static final int MAX_HISTOGRAM_SCALE = 20;
 
