@@ -17,14 +17,18 @@ package software.amazon.opentelemetry.appsignals.test.jdbc;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.PullPolicy;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startable;
+import software.amazon.opentelemetry.appsignals.test.jdbc.operationtests.DBOperation;
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -48,11 +52,16 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
     postgreSqlContainer.stop();
   }
 
-  @Test
-  public void testSuccess() {
+  private static Stream<DBOperation> dbOperations() {
+    return Stream.of(DBOperation.SELECT, DBOperation.CREATE_DATABASE);
+  }
+
+  @ParameterizedTest
+  @MethodSource("dbOperations")
+  public void testSuccess(DBOperation operation) {
     assertSuccess(
         DB_SYSTEM,
-        DB_OPERATION,
+        operation,
         DB_USER,
         DB_NAME,
         DB_CONNECTION_STRING,
@@ -64,7 +73,7 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
   public void testFault() {
     assertFault(
         DB_SYSTEM,
-        DB_OPERATION,
+        DBOperation.SELECT,
         DB_USER,
         DB_NAME,
         DB_CONNECTION_STRING,
