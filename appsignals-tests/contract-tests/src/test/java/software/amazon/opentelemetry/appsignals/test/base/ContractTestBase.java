@@ -87,7 +87,7 @@ public abstract class ContractTestBase {
           .withEnv(
               "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
               "http://" + COLLECTOR_HOSTNAME + ":" + COLLECTOR_PORT)
-          .withEnv("OTEL_RESOURCE_ATTRIBUTES", getApplicationOtelResourceAttributes())
+          .withEnv("OTEL_RESOURCE_ATTRIBUTES", getApplicationOtelResourceAttributes()).withReuse(true)
           .withEnv(getApplicationExtraEnvironmentVariables())
           .withNetworkAliases(getApplicationNetworkAliases().toArray(new String[0]));
 

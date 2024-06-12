@@ -16,9 +16,14 @@
 package software.amazon.opentelemetry.appsignals.test.jdbc;
 
 import java.util.Map;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import software.amazon.opentelemetry.appsignals.test.jdbc.operationtests.DBOperation;
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -32,12 +37,12 @@ public class JdbcH2Test extends JdbcContractTestBase {
 
   @Test
   public void testSuccess() {
-    assertSuccess(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
+    assertSuccess(DB_SYSTEM, DBOperation.SELECT, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
   }
 
   @Test
   public void testFault() {
-    assertFault(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
+    assertFault(DB_SYSTEM, DBOperation.SELECT, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
   }
 
   @Override

@@ -46,18 +46,30 @@ public class AppController {
     logger.info("Application Ready");
   }
 
-  @GetMapping("/success")
+
+  @GetMapping("/success/CREATE_DATABASE")
   @ResponseBody
-  public ResponseEntity<String> success() {
+  public ResponseEntity<String> successCreateDatabase() {
+    try {
+      jdbcTemplate.execute("create database testdb2");
+    } catch (Exception ex) {
+      return ResponseEntity.badRequest().body("failed");
+    }
+    return ResponseEntity.ok().body("success");
+  }
+
+  @GetMapping("/success/SELECT")
+  @ResponseBody
+  public ResponseEntity<String> successSelect() {
     int count = jdbcTemplate.queryForObject("select count(*) from employee", Integer.class);
     return (count == 1)
         ? ResponseEntity.ok().body("success")
         : ResponseEntity.badRequest().body("failed");
   }
 
-  @GetMapping("/fault")
+  @GetMapping("/fault/SELECT")
   @ResponseBody
-  public ResponseEntity<String> failure() {
+  public ResponseEntity<String> failureSelect() {
     int count = jdbcTemplate.queryForObject("select count(*) from userrr", Integer.class);
     return ResponseEntity.ok().body("success");
   }
