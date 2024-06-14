@@ -1,0 +1,8 @@
+- selector:
+    meter_name: io.opentelemetry.jmx
+  view:
+    aggregation: default
+- selector:
+    instrument_name: "*"
+  view:
+    aggregation: drop
