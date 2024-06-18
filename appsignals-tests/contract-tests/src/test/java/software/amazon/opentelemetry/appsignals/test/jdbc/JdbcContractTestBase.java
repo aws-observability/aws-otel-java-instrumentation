@@ -365,7 +365,6 @@ public class JdbcContractTestBase extends ContractTestBase {
     assertThat(response.status().isServerError()).isTrue();
 
     var traces = mockCollectorClient.getTraces();
-    System.out.println("Traces----------" + traces);
     assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, dbUser, type, identifier);
     assertSemanticConventionsSpanAttributes(
         traces, otelStatusCode, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
