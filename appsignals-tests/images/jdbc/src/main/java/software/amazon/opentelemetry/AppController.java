@@ -46,14 +46,10 @@ public class AppController {
     logger.info("Application Ready");
   }
 
-  @GetMapping("/success/CREATE_DATABASE")
+  @GetMapping("/success/CREATE DATABASE")
   @ResponseBody
   public ResponseEntity<String> successCreateDatabase() {
-    try {
-      jdbcTemplate.execute("create database testdb2");
-    } catch (Exception ex) {
-      return ResponseEntity.badRequest().body("failed");
-    }
+    jdbcTemplate.execute("create database testdb2");
     return ResponseEntity.ok().body("success");
   }
 
