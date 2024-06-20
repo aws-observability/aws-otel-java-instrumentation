@@ -49,10 +49,10 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
   }
 
   @Test
-  public void testSuccess() {
+  public void testSuccessCreateDatabase() {
     assertSuccess(
         DB_SYSTEM,
-        DB_OPERATION,
+        DB_CREATE_DATABASE_OPERATION,
         DB_USER,
         DB_NAME,
         DB_CONNECTION_STRING,
@@ -61,10 +61,22 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
   }
 
   @Test
-  public void testFault() {
+  public void testSuccessSelect() {
+    assertSuccess(
+        DB_SYSTEM,
+        DB_SELECT_OPERATION,
+        DB_USER,
+        DB_NAME,
+        DB_CONNECTION_STRING,
+        DB_RESOURCE_TYPE,
+        POSTGRES_IDENTIFIER);
+  }
+
+  @Test
+  public void testFaultSelect() {
     assertFault(
         DB_SYSTEM,
-        DB_OPERATION,
+        DB_SELECT_OPERATION,
         DB_USER,
         DB_NAME,
         DB_CONNECTION_STRING,

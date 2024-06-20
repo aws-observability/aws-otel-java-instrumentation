@@ -31,13 +31,14 @@ public class JdbcH2Test extends JdbcContractTestBase {
   private static final String DB_PLATFORM = "org.hibernate.dialect.H2Dialect";
 
   @Test
-  public void testSuccess() {
-    assertSuccess(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
+  public void testSuccessSelect() {
+    assertSuccess(
+        DB_SYSTEM, DB_SELECT_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
   }
 
   @Test
-  public void testFault() {
-    assertFault(DB_SYSTEM, DB_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
+  public void testFaultSelect() {
+    assertFault(DB_SYSTEM, DB_SELECT_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
   }
 
   @Override
