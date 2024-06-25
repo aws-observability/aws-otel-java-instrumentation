@@ -30,9 +30,11 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 
 public class JdbcContractTestBase extends ContractTestBase {
   protected static final String DB_NAME = "testdb";
-  protected static final String DB_USER = "sa";
+  protected static final String CREATE_DB_NAME = "testdb2";
+  protected static final String DB_USER = "root";
   protected static final String DB_PASSWORD = "password";
-  protected static final String DB_OPERATION = "SELECT";
+  protected static final String DB_SELECT_OPERATION = "SELECT";
+  protected static final String DB_CREATE_DATABASE_OPERATION = "CREATE DATABASE";
   protected static final String DB_RESOURCE_TYPE = "DB::Connection";
 
   @Override
@@ -136,20 +138,29 @@ public class JdbcContractTestBase extends ContractTestBase {
         .satisfiesOnlyOnce(
             rss -> {
               assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
-              assertThat(rss.getSpan().getName())
-                  .isEqualTo(String.format("%s %s.%s", dbOperation, dbName, dbSqlTable));
               assertThat(rss.getSpan().getStatus().getCode().toString()).isEqualTo(otelStatusCode);
+              assertSemanticConventionForOperation(rss, dbOperation, dbName, dbSqlTable);
               var attributesList = rss.getSpan().getAttributesList();
               assertSemanticConventionsAttributes(
-                  attributesList, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
+                  attributesList, dbSystem, dbUser, dbName, jdbcUrl);
+              assertSemanticConventionsAttributesForOperation(
+                  attributesList, dbOperation, dbSqlTable);
             });
+  }
+
+  private void assertSemanticConventionForOperation(
+      ResourceScopeSpan rss, String dbOperation, String dbName, String dbSqlTable) {
+    if (dbOperation.equals(DB_CREATE_DATABASE_OPERATION)) {
+      assertThat(rss.getSpan().getName()).isEqualTo(String.format("%s", dbName));
+    } else if (dbOperation.equals(DB_SELECT_OPERATION)) {
+      assertThat(rss.getSpan().getName())
+          .isEqualTo(String.format("%s %s.%s", dbOperation, dbName, dbSqlTable));
+    }
   }
 
   protected void assertSemanticConventionsAttributes(
       List<KeyValue> attributesList,
-      String dbSqlTable,
       String dbSystem,
-      String dbOperation,
       String dbUser,
       String dbName,
       String jdbcUrl) {
@@ -175,31 +186,47 @@ public class JdbcContractTestBase extends ContractTestBase {
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_SQL_TABLE);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo(dbSqlTable);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_STATEMENT);
-              assertThat(attribute.getValue().getStringValue())
-                  .isEqualTo(
-                      String.format("%s count(*) from %s", dbOperation.toLowerCase(), dbSqlTable));
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_USER);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(dbUser);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_OPERATION);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo(dbOperation);
             })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_SYSTEM);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(dbSystem);
             });
+  }
+
+  private void assertSemanticConventionsAttributesForOperation(
+      List<KeyValue> attributesList, String dbOperation, String dbSqlTable) {
+    if (dbOperation.equals(DB_CREATE_DATABASE_OPERATION)) {
+      assertThat(attributesList)
+          .satisfiesOnlyOnce(
+              attribute -> {
+                assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_STATEMENT);
+                assertThat(attribute.getValue().getStringValue())
+                    .isEqualTo(String.format("%s %s", dbOperation.toLowerCase(), CREATE_DB_NAME));
+              });
+    } else if (dbOperation.equals(DB_SELECT_OPERATION)) {
+      assertThat(attributesList)
+          .satisfiesOnlyOnce(
+              attribute -> {
+                assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_SQL_TABLE);
+                assertThat(attribute.getValue().getStringValue()).isEqualTo(dbSqlTable);
+              })
+          .satisfiesOnlyOnce(
+              attribute -> {
+                assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_STATEMENT);
+                assertThat(attribute.getValue().getStringValue())
+                    .isEqualTo(
+                        String.format(
+                            "%s count(*) from %s", dbOperation.toLowerCase(), dbSqlTable));
+              })
+          .satisfiesOnlyOnce(
+              attribute -> {
+                assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.DB_OPERATION);
+                assertThat(attribute.getValue().getStringValue()).isEqualTo(dbOperation);
+              });
+    }
   }
 
   protected void assertMetricAttributes(
@@ -298,7 +325,7 @@ public class JdbcContractTestBase extends ContractTestBase {
       String jdbcUrl,
       String type,
       String identifier) {
-    var path = "success";
+    var path = "success/" + dbOperation;
     var method = "GET";
     var otelStatusCode = "STATUS_CODE_UNSET";
     var dbSqlTable = "employee";
@@ -357,7 +384,7 @@ public class JdbcContractTestBase extends ContractTestBase {
       String jdbcUrl,
       String type,
       String identifier) {
-    var path = "fault";
+    var path = "fault/" + dbOperation;
     var method = "GET";
     var otelStatusCode = "STATUS_CODE_ERROR";
     var dbSqlTable = "userrr";
