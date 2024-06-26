@@ -27,6 +27,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.GRAPHQL_OPERATION_TYPE
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_URL;
+import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_DESTINATION_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.NET_PEER_NAME;
@@ -40,7 +41,15 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_ACTIVITY_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BEDROCK_RUNTIME_MODEL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGEBASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_SOURCE_MAPPING_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
@@ -49,7 +58,10 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_CONSUMER_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
@@ -104,6 +116,11 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final String NORMALIZED_KINESIS_SERVICE_NAME = "AWS::Kinesis";
   private static final String NORMALIZED_S3_SERVICE_NAME = "AWS::S3";
   private static final String NORMALIZED_SQS_SERVICE_NAME = "AWS::SQS";
+  private static final String NORMALIZED_SECRETSMANAGER_SERVICE_NAME = "AWS::SecretsManager";
+  private static final String NORMALIZED_STEPFUNCTIONS_SERVICE_NAME = "AWS::StepFunctions";
+  private static final String NORMALIZED_SNS_SERVICE_NAME = "AWS::SNS";
+  private static final String NORMALIZED_LAMBDA_SERVICE_NAME = "AWS::Lambda";
+  private static final String NORMALIZED_BEDROCK_SERVICE_NAME = "AWS::Bedrock";
 
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
@@ -360,6 +377,26 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AmazonSQS": // AWS SDK v1
         case "Sqs": // AWS SDK v2
           return NORMALIZED_SQS_SERVICE_NAME;
+        case "Bedrock": // AWS SDK v2 & v1
+        case "AWSBedrockAgentRuntime": // AWS SDK v1
+        case "BedrockAgentRuntime": // AWS SDK v2
+        case "AWSBedrockAgent": // AWS SDK v1
+        case "BedrockAgent": // AWS SDK v2
+        case "AmazonBedrockRuntime": // AWS SDK v1
+        case "BedrockRuntime": // AWS SDK v2
+          return NORMALIZED_BEDROCK_SERVICE_NAME;
+        case "AWSLambda": // AWS SDK v1
+        case "Lambda": // AWS SDK v2
+          return NORMALIZED_LAMBDA_SERVICE_NAME;
+        case "AWSStepFunctions": // AWS SDK v1
+        case "Sfn": // AWS SDK v2
+          return NORMALIZED_STEPFUNCTIONS_SERVICE_NAME;
+        case "AWSSecretsManager": // AWS SDK v1
+        case "SecretsManager": // AWS SDK v2
+          return NORMALIZED_SECRETSMANAGER_SERVICE_NAME;
+        case "AmazonSNS": // AWS SDK v1
+        case "Sns": // AWS SDK v2
+          return NORMALIZED_SNS_SERVICE_NAME;
         default:
           return "AWS::" + serviceName;
       }
@@ -391,6 +428,11 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STREAM_NAME)));
+      } else if (isKeyPresent(span, AWS_STREAM_CONSUMER_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::StreamConsumer");
+        remoteResourceIdentifier =
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(AWS_STREAM_CONSUMER_NAME)));
       } else if (isKeyPresent(span, AWS_BUCKET_NAME)) {
         remoteResourceType = Optional.of(NORMALIZED_S3_SERVICE_NAME + "::Bucket");
         remoteResourceIdentifier =
@@ -403,6 +445,56 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
         remoteResourceIdentifier =
             SqsUrlParser.getQueueName(escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL)));
+      } else if (isKeyPresent(span, AWS_SECRET_ARN)) {
+        remoteResourceType = Optional.of(NORMALIZED_SECRETSMANAGER_SERVICE_NAME + "::Secret");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN)));
+      } else if (isKeyPresent(span, AWS_STATE_MACHINE_ARN)) {
+        remoteResourceType = Optional.of(NORMALIZED_STEPFUNCTIONS_SERVICE_NAME + "::StateMachine");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STATE_MACHINE_ARN)));
+      } else if (isKeyPresent(span, AWS_ACTIVITY_ARN)) {
+        remoteResourceType = Optional.of(NORMALIZED_STEPFUNCTIONS_SERVICE_NAME + "::Activity");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_ACTIVITY_ARN)));
+      } else if (isKeyPresent(span, MESSAGING_DESTINATION_NAME)
+          && normalizeRemoteServiceName(span, getRemoteService(span, RPC_SERVICE))
+              .equals(NORMALIZED_SNS_SERVICE_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_SNS_SERVICE_NAME + "::Topic");
+        remoteResourceIdentifier =
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(MESSAGING_DESTINATION_NAME)));
+      } else if (isKeyPresent(span, AWS_LAMBDA_SOURCE_MAPPING_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
+        remoteResourceIdentifier =
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_SOURCE_MAPPING_ID)));
+      } else if (isKeyPresent(span, AWS_LAMBDA_FUNCTION_NAME)) {
+        remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
+        remoteResourceIdentifier =
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_FUNCTION_NAME)));
+      } else if (isKeyPresent(span, AWS_AGENT_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Agent");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_AGENT_ID)));
+      } else if (isKeyPresent(span, AWS_KNOWLEDGEBASE_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::KnowledgeBase");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_KNOWLEDGEBASE_ID)));
+      } else if (isKeyPresent(span, AWS_DATASOURCE_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::DataSource");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_DATASOURCE_ID)));
+      } else if (isKeyPresent(span, AWS_GUARDRAIL_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Guardrail");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_GUARDRAIL_ID)));
+      } else if (isKeyPresent(span, AWS_BEDROCK_RUNTIME_MODEL_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Model");
+        remoteResourceIdentifier =
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(AWS_BEDROCK_RUNTIME_MODEL_ID)));
       }
     } else if (isDBSpan(span)) {
       remoteResourceType = Optional.of(DB_CONNECTION_RESOURCE_TYPE);
