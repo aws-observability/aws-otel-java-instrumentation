@@ -21,7 +21,15 @@ import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValu
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_ACTIVITY_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BEDROCK_RUNTIME_MODEL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGEBASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_SOURCE_MAPPING_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
@@ -30,7 +38,10 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_CONSUMER_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
@@ -700,6 +711,96 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^^name");
     mockAttribute(AWS_TABLE_NAME, null);
 
+    // Validate behaviour of MESSAGING_DESTINATION_NAME attribute for SNS service, then remove it.
+    mockAttribute(MESSAGING_DESTINATION_NAME, "arn:aws:sns:us-west-2:012345678901:test_topic");
+    mockAttribute(RPC_SERVICE, "Sns");
+    validateRemoteResourceAttributes(
+        "AWS::SNS::Topic", "arn:aws:sns:us-west-2:012345678901:test_topic");
+    mockAttribute(MESSAGING_DESTINATION_NAME, null);
+    mockAttribute(RPC_SERVICE, null);
+
+    // Validate behaviour of AWS_STREAM_CONSUMER_NAME attribute, then remove it.
+    mockAttribute(AWS_STREAM_CONSUMER_NAME, "aws_stream_consumer_name");
+    validateRemoteResourceAttributes("AWS::Kinesis::StreamConsumer", "aws_stream_consumer_name");
+    mockAttribute(AWS_STREAM_CONSUMER_NAME, null);
+
+    // Validate both AWS_STREAM_NAME and AWS_STREAM_CONSUMER_ARN present, then remove it.
+    mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
+    mockAttribute(AWS_STREAM_CONSUMER_NAME, "aws_stream_consumer_name");
+    validateRemoteResourceAttributes("AWS::Kinesis::Stream", "aws_stream_name");
+    mockAttribute(AWS_STREAM_NAME, null);
+    mockAttribute(AWS_STREAM_CONSUMER_NAME, null);
+
+    // Validate behaviour of AWS_SECRET_ARN attribute, then remove it.
+    mockAttribute(
+        AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret_name-lERW9H");
+    validateRemoteResourceAttributes(
+        "AWS::SecretsManager::Secret",
+        "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret_name-lERW9H");
+    mockAttribute(AWS_SECRET_ARN, null);
+
+    // Validate behaviour of AWS_STATE_MACHINE_ARN attribute, then remove it.
+    mockAttribute(
+        AWS_STATE_MACHINE_ARN,
+        "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
+    validateRemoteResourceAttributes(
+        "AWS::StepFunctions::StateMachine",
+        "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
+    mockAttribute(AWS_STATE_MACHINE_ARN, null);
+
+    // Validate behaviour of AWS_ACTIVITY_ARN attribute, then remove it.
+    mockAttribute(
+        AWS_ACTIVITY_ARN, "arn:aws:states:us-east-1:007003123456789012:activity:testActivity");
+    validateRemoteResourceAttributes(
+        "AWS::StepFunctions::Activity",
+        "arn:aws:states:us-east-1:007003123456789012:activity:testActivity");
+    mockAttribute(AWS_ACTIVITY_ARN, null);
+
+    // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute, then remove it.
+    mockAttribute(AWS_AGENT_ID, "test_agent_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_id");
+    mockAttribute(AWS_AGENT_ID, null);
+
+    // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute, then remove it.
+    mockAttribute(AWS_KNOWLEDGEBASE_ID, "test_knowledgeBase_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
+    mockAttribute(AWS_KNOWLEDGEBASE_ID, null);
+
+    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute, then remove it.
+    mockAttribute(AWS_DATASOURCE_ID, "test_datasource_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
+    mockAttribute(AWS_DATASOURCE_ID, null);
+
+    // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_id");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
+
+    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute, then remove it.
+    mockAttribute(AWS_BEDROCK_RUNTIME_MODEL_ID, "test.service-id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service-id");
+    mockAttribute(AWS_BEDROCK_RUNTIME_MODEL_ID, null);
+
+    // Validate behaviour of AWS_LAMBDA_FUNCTION_NAME attribute, then remove it.
+    mockAttribute(AWS_LAMBDA_FUNCTION_NAME, "aws_lambda_function_name");
+    validateRemoteResourceAttributes("AWS::Lambda::Function", "aws_lambda_function_name");
+    mockAttribute(AWS_LAMBDA_FUNCTION_NAME, null);
+
+    // Validate behaviour of AWS_LAMBDA_SOURCE_MAPPING_ID attribute, then remove it.
+    mockAttribute(AWS_LAMBDA_SOURCE_MAPPING_ID, "aws_event_source_mapping_id");
+    validateRemoteResourceAttributes(
+        "AWS::Lambda::EventSourceMapping", "aws_event_source_mapping_id");
+    mockAttribute(AWS_LAMBDA_SOURCE_MAPPING_ID, null);
+
+    // Validate both AWS_LAMBDA_FUNCTION_NAME and AWS_LAMBDA_SOURCE_MAPPING_ID exist, then remove
+    // it.
+    mockAttribute(AWS_LAMBDA_FUNCTION_NAME, "aws_lambda_function_name");
+    mockAttribute(AWS_LAMBDA_SOURCE_MAPPING_ID, "aws_event_source_mapping_id");
+    validateRemoteResourceAttributes(
+        "AWS::Lambda::EventSourceMapping", "aws_event_source_mapping_id");
+    mockAttribute(AWS_LAMBDA_FUNCTION_NAME, null);
+    mockAttribute(AWS_LAMBDA_SOURCE_MAPPING_ID, null);
+
     mockAttribute(RPC_SYSTEM, "null");
   }
 
@@ -1047,12 +1148,28 @@ class AwsMetricAttributeGeneratorTest {
     testAwsSdkServiceNormalization("AmazonKinesis", "AWS::Kinesis");
     testAwsSdkServiceNormalization("Amazon S3", "AWS::S3");
     testAwsSdkServiceNormalization("AmazonSQS", "AWS::SQS");
+    testAwsSdkServiceNormalization("AmazonSNS", "AWS::SNS");
+    testAwsSdkServiceNormalization("Bedrock", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSBedrockAgentRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSBedrockAgent", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AmazonBedrockRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSLambda", "AWS::Lambda");
+    testAwsSdkServiceNormalization("AWSStepFunctions", "AWS::StepFunctions");
+    testAwsSdkServiceNormalization("AWSSecretsManager", "AWS::SecretsManager");
 
     // AWS SDK V2
     testAwsSdkServiceNormalization("DynamoDb", "AWS::DynamoDB");
     testAwsSdkServiceNormalization("Kinesis", "AWS::Kinesis");
     testAwsSdkServiceNormalization("S3", "AWS::S3");
     testAwsSdkServiceNormalization("Sqs", "AWS::SQS");
+    testAwsSdkServiceNormalization("Sns", "AWS::SNS");
+    testAwsSdkServiceNormalization("Bedrock", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockAgentRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockAgent", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("Lambda", "AWS::Lambda");
+    testAwsSdkServiceNormalization("Sfn", "AWS::StepFunctions");
+    testAwsSdkServiceNormalization("SecretsManager", "AWS::SecretsManager");
   }
 
   private void testAwsSdkServiceNormalization(String serviceName, String expectedRemoteService) {

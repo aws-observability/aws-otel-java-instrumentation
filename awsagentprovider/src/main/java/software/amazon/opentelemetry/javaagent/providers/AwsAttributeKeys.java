@@ -55,5 +55,26 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_QUEUE_URL = AttributeKey.stringKey("aws.queue.url");
   static final AttributeKey<String> AWS_QUEUE_NAME = AttributeKey.stringKey("aws.queue.name");
   static final AttributeKey<String> AWS_STREAM_NAME = AttributeKey.stringKey("aws.stream.name");
+  static final AttributeKey<String> AWS_STREAM_CONSUMER_NAME =
+      AttributeKey.stringKey("aws.stream.consumer_name");
   static final AttributeKey<String> AWS_TABLE_NAME = AttributeKey.stringKey("aws.table.name");
+  static final AttributeKey<String> AWS_AGENT_ID = AttributeKey.stringKey("aws.bedrock.agent_id");
+  static final AttributeKey<String> AWS_KNOWLEDGEBASE_ID =
+      AttributeKey.stringKey("aws.bedrock.knowledgebase_id");
+  static final AttributeKey<String> AWS_DATASOURCE_ID =
+      AttributeKey.stringKey("aws.bedrock.datasource_id");
+  static final AttributeKey<String> AWS_GUARDRAIL_ID =
+      AttributeKey.stringKey("aws.bedrock.guardrail_id");
+  static final AttributeKey<String> AWS_BEDROCK_RUNTIME_MODEL_ID =
+      AttributeKey.stringKey("gen_ai.request.model");
+  static final AttributeKey<String> AWS_SECRET_ARN =
+      AttributeKey.stringKey("aws.secretsmanager.secret_arn");
+  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
+      AttributeKey.stringKey("aws.stepfunctions.state_machine_arn");
+  static final AttributeKey<String> AWS_ACTIVITY_ARN =
+      AttributeKey.stringKey("aws.stepfunctions.activity_arn");
+  static final AttributeKey<String> AWS_LAMBDA_FUNCTION_NAME =
+      AttributeKey.stringKey("aws.lambda.function_name");
+  static final AttributeKey<String> AWS_LAMBDA_SOURCE_MAPPING_ID =
+      AttributeKey.stringKey("aws.lambda.resource_mapping_id");
 }
