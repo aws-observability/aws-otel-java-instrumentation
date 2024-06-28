@@ -21,7 +21,12 @@ import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValu
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BEDROCK_RUNTIME_MODEL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGEBASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
@@ -700,6 +705,30 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^^name");
     mockAttribute(AWS_TABLE_NAME, null);
 
+    // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute, then remove it.
+    mockAttribute(AWS_AGENT_ID, "test_agent_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_id");
+    mockAttribute(AWS_AGENT_ID, null);
+
+    // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute, then remove it.
+    mockAttribute(AWS_KNOWLEDGEBASE_ID, "test_knowledgeBase_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
+    mockAttribute(AWS_KNOWLEDGEBASE_ID, null);
+
+    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute, then remove it.
+    mockAttribute(AWS_DATASOURCE_ID, "test_datasource_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
+    mockAttribute(AWS_DATASOURCE_ID, null);
+
+    // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_id");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
+
+    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute, then remove it.
+    mockAttribute(AWS_BEDROCK_RUNTIME_MODEL_ID, "test.service-id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service-id");
+    mockAttribute(AWS_BEDROCK_RUNTIME_MODEL_ID, null);
     mockAttribute(RPC_SYSTEM, "null");
   }
 
@@ -1047,12 +1076,20 @@ class AwsMetricAttributeGeneratorTest {
     testAwsSdkServiceNormalization("AmazonKinesis", "AWS::Kinesis");
     testAwsSdkServiceNormalization("Amazon S3", "AWS::S3");
     testAwsSdkServiceNormalization("AmazonSQS", "AWS::SQS");
+    testAwsSdkServiceNormalization("Bedrock", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSBedrockAgentRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSBedrockAgent", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AmazonBedrockRuntime", "AWS::BedrockRuntime");
 
     // AWS SDK V2
     testAwsSdkServiceNormalization("DynamoDb", "AWS::DynamoDB");
     testAwsSdkServiceNormalization("Kinesis", "AWS::Kinesis");
     testAwsSdkServiceNormalization("S3", "AWS::S3");
     testAwsSdkServiceNormalization("Sqs", "AWS::SQS");
+    testAwsSdkServiceNormalization("Bedrock", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockAgentRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockAgent", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockRuntime", "AWS::BedrockRuntime");
   }
 
   private void testAwsSdkServiceNormalization(String serviceName, String expectedRemoteService) {
