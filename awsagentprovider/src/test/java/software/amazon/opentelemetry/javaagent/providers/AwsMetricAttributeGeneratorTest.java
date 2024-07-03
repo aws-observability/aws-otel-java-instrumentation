@@ -1031,7 +1031,7 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  void testDBUserAttribute() {
+  public void testDBUserAttribute() {
     mockAttribute(DB_SYSTEM, "db_system");
     mockAttribute(DB_OPERATION, "db_operation");
     mockAttribute(DB_STATEMENT, "db_statement");
@@ -1045,7 +1045,7 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  void testDBUserAttributeAbsent() {
+  public void testDBUserAttributeAbsent() {
     mockAttribute(DB_USER, null);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
@@ -1055,7 +1055,7 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  void testDBUserAttributeWithDifferentValues() {
+  public void testDBUserAttributeWithDifferentValues() {
     mockAttribute(DB_SYSTEM, "db_system");
     mockAttribute(DB_OPERATION, "db_operation");
     mockAttribute(DB_STATEMENT, "db_statement");
@@ -1068,7 +1068,7 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  void testDBUserAttributeNotPresentInServiceMetricForServerSpan() {
+  public void testDBUserAttributeNotPresentInServiceMetricForServerSpan() {
     String dbUser = "db_user";
     mockAttribute(DB_USER, dbUser);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
