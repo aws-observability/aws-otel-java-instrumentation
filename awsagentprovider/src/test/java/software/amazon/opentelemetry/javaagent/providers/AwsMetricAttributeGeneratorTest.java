@@ -1032,9 +1032,7 @@ class AwsMetricAttributeGeneratorTest {
 
   @Test
   public void testDBUserAttribute() {
-    mockAttribute(DB_SYSTEM, "db_system");
     mockAttribute(DB_OPERATION, "db_operation");
-    mockAttribute(DB_STATEMENT, "db_statement");
     mockAttribute(DB_USER, "db_user");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
@@ -1046,6 +1044,7 @@ class AwsMetricAttributeGeneratorTest {
 
   @Test
   public void testDBUserAttributeAbsent() {
+    mockAttribute(DB_SYSTEM, "db_system");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
@@ -1055,9 +1054,7 @@ class AwsMetricAttributeGeneratorTest {
 
   @Test
   public void testDBUserAttributeWithDifferentValues() {
-    mockAttribute(DB_SYSTEM, "db_system");
     mockAttribute(DB_OPERATION, "db_operation");
-    mockAttribute(DB_STATEMENT, "db_statement");
     mockAttribute(DB_USER, "non_db_user");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
@@ -1068,8 +1065,8 @@ class AwsMetricAttributeGeneratorTest {
 
   @Test
   public void testDBUserAttributeNotPresentInServiceMetricForServerSpan() {
-    String dbUser = "db_user";
-    mockAttribute(DB_USER, dbUser);
+    mockAttribute(DB_USER, "db_user");
+    mockAttribute(DB_SYSTEM, "db_system");
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
 
     Attributes actualAttributes =
@@ -1078,34 +1075,13 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testIsDbSpanTrueWhenDbSystemKeyIsPresent() {
-    mockAttribute(DB_SYSTEM, "DB system");
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
-
-    assertThat(AwsSpanProcessingUtil.isDBSpan(spanDataMock)).isTrue();
-  }
-
-  @Test
-  public void testIsDbSpanTrueWhenDbOperationKeyIsPresent() {
-    mockAttribute(DB_OPERATION, "DB operation");
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
-
-    assertThat(AwsSpanProcessingUtil.isDBSpan(spanDataMock)).isTrue();
-  }
-
-  @Test
-  public void testIsDbSpanFalseWhenOnlyDbUserKeyIsPresent() {
+  public void testDbUserPresentAndIsDbSpanFalse() {
     mockAttribute(DB_USER, "DB user");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
-    assertThat(AwsSpanProcessingUtil.isDBSpan(spanDataMock)).isFalse();
-  }
-
-  @Test
-  public void testIsDbSpanFalse() {
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
-
-    assertThat(AwsSpanProcessingUtil.isDBSpan(spanDataMock)).isFalse();
+    Attributes actualAttributes =
+            GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
   }
 
   @Test
