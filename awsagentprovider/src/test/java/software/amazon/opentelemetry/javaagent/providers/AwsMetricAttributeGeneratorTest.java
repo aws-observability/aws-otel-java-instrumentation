@@ -1094,7 +1094,7 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testIsDbSpanFalseWhenDbUserKeyIsPresent() {
+  public void testIsDbSpanFalseWhenOnlyDbUserKeyIsPresent() {
     mockAttribute(DB_USER, "DB user");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
