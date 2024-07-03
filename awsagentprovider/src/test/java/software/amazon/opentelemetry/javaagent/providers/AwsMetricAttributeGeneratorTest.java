@@ -26,6 +26,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
@@ -1027,6 +1028,60 @@ class AwsMetricAttributeGeneratorTest {
     if (expectedStatusCode == null) {
       assertThat(actualAttributes.asMap().containsKey(HTTP_STATUS_CODE)).isFalse();
     }
+  }
+
+  @Test
+  public void testDBUserAttribute() {
+    mockAttribute(DB_OPERATION, "db_operation");
+    mockAttribute(DB_USER, "db_user");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_OPERATION)).isEqualTo("db_operation");
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isEqualTo("db_user");
+  }
+
+  @Test
+  public void testDBUserAttributeAbsent() {
+    mockAttribute(DB_SYSTEM, "db_system");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
+  }
+
+  @Test
+  public void testDBUserAttributeWithDifferentValues() {
+    mockAttribute(DB_OPERATION, "db_operation");
+    mockAttribute(DB_USER, "non_db_user");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isEqualTo("non_db_user");
+  }
+
+  @Test
+  public void testDBUserAttributeNotPresentInServiceMetricForServerSpan() {
+    mockAttribute(DB_USER, "db_user");
+    mockAttribute(DB_SYSTEM, "db_system");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
+  }
+
+  @Test
+  public void testDbUserPresentAndIsDbSpanFalse() {
+    mockAttribute(DB_USER, "DB user");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
   }
 
   @Test

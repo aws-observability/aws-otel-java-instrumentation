@@ -21,6 +21,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.DB_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_USER;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_INVOKED_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_TRIGGER;
 import static io.opentelemetry.semconv.SemanticAttributes.GRAPHQL_OPERATION_TYPE;
@@ -45,6 +46,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
@@ -151,6 +153,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setRemoteResourceTypeAndIdentifier(span, builder);
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
+    setRemoteDbUser(span, builder);
 
     return builder.build();
   }
@@ -523,6 +526,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     Long statusCode = getAwsStatusCode(span);
     if (statusCode != null) {
       builder.put(HTTP_STATUS_CODE, statusCode);
+    }
+  }
+
+  private static void setRemoteDbUser(SpanData span, AttributesBuilder builder) {
+    if (isDBSpan(span) && isKeyPresent(span, DB_USER)) {
+      builder.put(AWS_REMOTE_DB_USER, span.getAttributes().get(DB_USER));
     }
   }
 

@@ -53,6 +53,7 @@ public class JdbcContractTestBase extends ContractTestBase {
       String path,
       String dbSystem,
       String dbOperation,
+      String dbUser,
       String type,
       String identifier) {
     assertThat(resourceScopeSpans)
@@ -61,7 +62,7 @@ public class JdbcContractTestBase extends ContractTestBase {
               assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
               var attributesList = rss.getSpan().getAttributesList();
               assertAwsAttributes(
-                  attributesList, method, path, dbSystem, dbOperation, type, identifier);
+                  attributesList, method, path, dbSystem, dbOperation, dbUser, type, identifier);
             });
   }
 
@@ -71,6 +72,7 @@ public class JdbcContractTestBase extends ContractTestBase {
       String endpoint,
       String dbSystem,
       String dbOperation,
+      String dbUser,
       String type,
       String identifier) {
     var assertions =
@@ -97,6 +99,11 @@ public class JdbcContractTestBase extends ContractTestBase {
                   assertThat(attribute.getKey())
                       .isEqualTo(AppSignalsConstants.AWS_REMOTE_OPERATION);
                   assertThat(attribute.getValue().getStringValue()).isEqualTo(dbOperation);
+                })
+            .satisfiesOnlyOnce(
+                attribute -> {
+                  assertThat(attribute.getKey()).isEqualTo(AppSignalsConstants.AWS_REMOTE_DB_USER);
+                  assertThat(attribute.getValue().getStringValue()).isEqualTo(dbUser);
                 })
             .satisfiesOnlyOnce(
                 attribute -> {
@@ -327,7 +334,7 @@ public class JdbcContractTestBase extends ContractTestBase {
     assertThat(response.status().isSuccess()).isTrue();
 
     var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, type, identifier);
+    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, dbUser, type, identifier);
     assertSemanticConventionsSpanAttributes(
         traces, otelStatusCode, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
 
@@ -385,7 +392,7 @@ public class JdbcContractTestBase extends ContractTestBase {
     assertThat(response.status().isServerError()).isTrue();
 
     var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, type, identifier);
+    assertAwsSpanAttributes(traces, method, path, dbSystem, dbOperation, dbUser, type, identifier);
     assertSemanticConventionsSpanAttributes(
         traces, otelStatusCode, dbSqlTable, dbSystem, dbOperation, dbUser, dbName, jdbcUrl);
 

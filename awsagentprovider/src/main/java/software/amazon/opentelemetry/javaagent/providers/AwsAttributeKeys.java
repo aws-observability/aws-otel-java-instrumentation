@@ -41,6 +41,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_REMOTE_RESOURCE_TYPE =
       AttributeKey.stringKey("aws.remote.resource.type");
 
+  static final AttributeKey<String> AWS_REMOTE_DB_USER =
+      AttributeKey.stringKey("aws.remote.db.user");
+
   static final AttributeKey<String> AWS_SDK_DESCENDANT =
       AttributeKey.stringKey("aws.sdk.descendant");
 
