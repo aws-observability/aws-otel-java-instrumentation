@@ -1080,7 +1080,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-            GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
   }
 
