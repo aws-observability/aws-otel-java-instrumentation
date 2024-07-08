@@ -58,9 +58,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_TABLE_NAME = AttributeKey.stringKey("aws.table.name");
   static final AttributeKey<String> AWS_AGENT_ID = AttributeKey.stringKey("aws.bedrock.agent.id");
   static final AttributeKey<String> AWS_KNOWLEDGEBASE_ID =
-          AttributeKey.stringKey("aws.bedrock.knowledgebase.id");
+      AttributeKey.stringKey("aws.bedrock.knowledgebase.id");
   static final AttributeKey<String> AWS_DATASOURCE_ID =
-          AttributeKey.stringKey("aws.bedrock.datasource.id");
+      AttributeKey.stringKey("aws.bedrock.datasource.id");
   static final AttributeKey<String> AWS_GUARDRAIL_ID =
-          AttributeKey.stringKey("aws.bedrock.guardrail.id");
+      AttributeKey.stringKey("aws.bedrock.guardrail.id");
 }

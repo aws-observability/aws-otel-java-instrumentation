@@ -37,9 +37,9 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.SERVICE_METRIC;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -730,7 +730,8 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
     mockAttribute(AWS_DATASOURCE_ID, null);
 
-    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute with special chars(^), then remove it.
+    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute with special chars(^), then remove
+    // it.
     mockAttribute(AWS_DATASOURCE_ID, "test_datasource_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_^^id");
     mockAttribute(AWS_DATASOURCE_ID, null);
@@ -749,9 +750,9 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_id");
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_id");
     mockAttribute(GEN_AI_REQUEST_MODEL, null);
-    mockAttribute(RPC_SYSTEM, "null");
 
-    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute with special chars(^), then remove it.
+    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute with special chars(^), then
+    // remove it.
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_^^id");
     mockAttribute(GEN_AI_REQUEST_MODEL, null);
