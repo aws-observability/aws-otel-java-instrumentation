@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BEDROCK_RUNTIME_MODEL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
@@ -41,6 +40,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.SERVICE_METRIC;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -711,9 +711,19 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_id");
     mockAttribute(AWS_AGENT_ID, null);
 
+    // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_AGENT_ID, "test_agent_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_^^id");
+    mockAttribute(AWS_AGENT_ID, null);
+
     // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute, then remove it.
     mockAttribute(AWS_KNOWLEDGEBASE_ID, "test_knowledgeBase_id");
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
+    mockAttribute(AWS_KNOWLEDGEBASE_ID, null);
+
+    // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_KNOWLEDGEBASE_ID, "test_knowledgeBase_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_^^id");
     mockAttribute(AWS_KNOWLEDGEBASE_ID, null);
 
     // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute, then remove it.
@@ -721,15 +731,31 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
     mockAttribute(AWS_DATASOURCE_ID, null);
 
+    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_DATASOURCE_ID, "test_datasource_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_^^id");
+    mockAttribute(AWS_DATASOURCE_ID, null);
+
     // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
     mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
     validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_id");
     mockAttribute(AWS_GUARDRAIL_ID, null);
 
+    // Validate behaviour of AWS_GUARDRAIL_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_^^id");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
+
     // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute, then remove it.
-    mockAttribute(AWS_BEDROCK_RUNTIME_MODEL_ID, "test.service-id");
-    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service-id");
-    mockAttribute(AWS_BEDROCK_RUNTIME_MODEL_ID, null);
+    mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_id");
+    mockAttribute(GEN_AI_REQUEST_MODEL, null);
+    mockAttribute(RPC_SYSTEM, "null");
+
+    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute with special chars(^), then remove it.
+    mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_^^id");
+    mockAttribute(GEN_AI_REQUEST_MODEL, null);
     mockAttribute(RPC_SYSTEM, "null");
   }
 
