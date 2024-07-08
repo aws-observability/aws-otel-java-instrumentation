@@ -41,8 +41,8 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGEBASE_ID;
@@ -58,13 +58,13 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
@@ -370,14 +370,16 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AmazonSQS": // AWS SDK v1
         case "Sqs": // AWS SDK v2
           return NORMALIZED_SQS_SERVICE_NAME;
-        // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud Control and use AWS::Bedrock for RemoteService.
+          // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
+          // Control and use AWS::Bedrock for RemoteService.
         case "Bedrock": // AWS SDK v2 & v1
         case "AWSBedrockAgentRuntime": // AWS SDK v1
         case "BedrockAgentRuntime": // AWS SDK v2
         case "AWSBedrockAgent": // AWS SDK v1
         case "BedrockAgent": // AWS SDK v2
           return NORMALIZED_BEDROCK_SERVICE_NAME;
-        // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource (Model) is not listed in Cloud Control.
+          // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource
+          // (Model) is not listed in Cloud Control.
         case "AmazonBedrockRuntime": // AWS SDK v1
         case "BedrockRuntime": // AWS SDK v2
           return NORMALIZED_BEDROCK_RUNTIME_SERVICE_NAME;
@@ -443,8 +445,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       } else if (isKeyPresent(span, GEN_AI_REQUEST_MODEL)) {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Model");
         remoteResourceIdentifier =
-            Optional.ofNullable(
-                escapeDelimiters(span.getAttributes().get(GEN_AI_REQUEST_MODEL)));
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(GEN_AI_REQUEST_MODEL)));
       }
     } else if (isDBSpan(span)) {
       remoteResourceType = Optional.of(DB_CONNECTION_RESOURCE_TYPE);
