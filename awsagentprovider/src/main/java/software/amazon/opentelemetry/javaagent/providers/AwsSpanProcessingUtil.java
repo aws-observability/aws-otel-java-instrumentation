@@ -56,6 +56,9 @@ final class AwsSpanProcessingUtil {
   // The current longest command word is DATETIME_INTERVAL_PRECISION at 27 characters.
   // If we add a longer keyword to the sql dialect keyword list, need to update the constant below.
   static final int MAX_KEYWORD_LENGTH = 27;
+  // TODO: Use Semantic Conventions once upgrade once upgrade to v1.26.0
+  static final AttributeKey<String> GEN_AI_REQUEST_MODEL =
+          AttributeKey.stringKey("gen_ai.request.model");
   static final Pattern SQL_DIALECT_PATTERN =
       Pattern.compile("^(?:" + String.join("|", getDialectKeywords()) + ")\\b");
 
