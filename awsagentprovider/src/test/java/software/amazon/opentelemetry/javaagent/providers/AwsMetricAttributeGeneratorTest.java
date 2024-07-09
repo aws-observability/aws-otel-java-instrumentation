@@ -715,22 +715,22 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_^^id");
     mockAttribute(AWS_AGENT_ID, null);
 
-    // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute, then remove it.
+    // Validate behaviour of AWS_KNOWLEDGE_BASE_ID attribute, then remove it.
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_id");
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
 
-    // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute with special chars(^), then remove it.
+    // Validate behaviour of AWS_KNOWLEDGE_BASE_ID attribute with special chars(^), then remove it.
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_^^id");
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
 
-    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute, then remove it.
+    // Validate behaviour of AWS_DATA_SOURCE_ID attribute, then remove it.
     mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_id");
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
     mockAttribute(AWS_DATA_SOURCE_ID, null);
 
-    // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute with special chars(^), then remove
+    // Validate behaviour of AWS_DATA_SOURCE_ID attribute with special chars(^), then remove
     // it.
     mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_^^id");
