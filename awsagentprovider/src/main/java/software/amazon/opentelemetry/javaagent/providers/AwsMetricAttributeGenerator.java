@@ -372,7 +372,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
           return NORMALIZED_SQS_SERVICE_NAME;
           // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
           // Control and use AWS::Bedrock for RemoteService.
-        case "Bedrock": // AWS SDK v2 & v1
+        case "AmazonBedrock": // AWS SDK v1
+        case "Bedrock": // AWS SDK v2
         case "AWSBedrockAgentRuntime": // AWS SDK v1
         case "BedrockAgentRuntime": // AWS SDK v2
         case "AWSBedrockAgent": // AWS SDK v1
