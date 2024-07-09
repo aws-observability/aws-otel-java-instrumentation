@@ -23,9 +23,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGEBASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
@@ -716,25 +716,25 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(AWS_AGENT_ID, null);
 
     // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute, then remove it.
-    mockAttribute(AWS_KNOWLEDGEBASE_ID, "test_knowledgeBase_id");
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_id");
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
-    mockAttribute(AWS_KNOWLEDGEBASE_ID, null);
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
 
     // Validate behaviour of AWS_KNOWLEDGEBASE_ID attribute with special chars(^), then remove it.
-    mockAttribute(AWS_KNOWLEDGEBASE_ID, "test_knowledgeBase_^id");
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_^^id");
-    mockAttribute(AWS_KNOWLEDGEBASE_ID, null);
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
 
     // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute, then remove it.
-    mockAttribute(AWS_DATASOURCE_ID, "test_datasource_id");
+    mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_id");
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
-    mockAttribute(AWS_DATASOURCE_ID, null);
+    mockAttribute(AWS_DATA_SOURCE_ID, null);
 
     // Validate behaviour of AWS_BEDROCK_DATASOURCE_ID attribute with special chars(^), then remove
     // it.
-    mockAttribute(AWS_DATASOURCE_ID, "test_datasource_^id");
+    mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_^^id");
-    mockAttribute(AWS_DATASOURCE_ID, null);
+    mockAttribute(AWS_DATA_SOURCE_ID, null);
 
     // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
     mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");

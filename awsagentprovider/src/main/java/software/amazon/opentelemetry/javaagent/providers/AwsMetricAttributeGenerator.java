@@ -42,9 +42,9 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATASOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGEBASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
@@ -428,14 +428,14 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Agent");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_AGENT_ID)));
-      } else if (isKeyPresent(span, AWS_KNOWLEDGEBASE_ID)) {
+      } else if (isKeyPresent(span, AWS_KNOWLEDGE_BASE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::KnowledgeBase");
         remoteResourceIdentifier =
-            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_KNOWLEDGEBASE_ID)));
-      } else if (isKeyPresent(span, AWS_DATASOURCE_ID)) {
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_KNOWLEDGE_BASE_ID)));
+      } else if (isKeyPresent(span, AWS_DATA_SOURCE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::DataSource");
         remoteResourceIdentifier =
-            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_DATASOURCE_ID)));
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_DATA_SOURCE_ID)));
       } else if (isKeyPresent(span, AWS_GUARDRAIL_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Guardrail");
         remoteResourceIdentifier =
