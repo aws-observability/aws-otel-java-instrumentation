@@ -21,6 +21,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.DB_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_USER;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_INVOKED_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.FAAS_TRIGGER;
 import static io.opentelemetry.semconv.SemanticAttributes.GRAPHQL_OPERATION_TYPE;
@@ -40,11 +41,16 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
@@ -52,6 +58,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
@@ -104,6 +111,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final String NORMALIZED_KINESIS_SERVICE_NAME = "AWS::Kinesis";
   private static final String NORMALIZED_S3_SERVICE_NAME = "AWS::S3";
   private static final String NORMALIZED_SQS_SERVICE_NAME = "AWS::SQS";
+  private static final String NORMALIZED_BEDROCK_SERVICE_NAME = "AWS::Bedrock";
+  private static final String NORMALIZED_BEDROCK_RUNTIME_SERVICE_NAME = "AWS::BedrockRuntime";
 
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
@@ -151,6 +160,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setRemoteResourceTypeAndIdentifier(span, builder);
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
+    setRemoteDbUser(span, builder);
 
     return builder.build();
   }
@@ -360,6 +370,20 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AmazonSQS": // AWS SDK v1
         case "Sqs": // AWS SDK v2
           return NORMALIZED_SQS_SERVICE_NAME;
+          // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
+          // Control and use AWS::Bedrock for RemoteService.
+        case "AmazonBedrock": // AWS SDK v1
+        case "Bedrock": // AWS SDK v2
+        case "AWSBedrockAgentRuntime": // AWS SDK v1
+        case "BedrockAgentRuntime": // AWS SDK v2
+        case "AWSBedrockAgent": // AWS SDK v1
+        case "BedrockAgent": // AWS SDK v2
+          return NORMALIZED_BEDROCK_SERVICE_NAME;
+          // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource
+          // (Model) is not listed in Cloud Control.
+        case "AmazonBedrockRuntime": // AWS SDK v1
+        case "BedrockRuntime": // AWS SDK v2
+          return NORMALIZED_BEDROCK_RUNTIME_SERVICE_NAME;
         default:
           return "AWS::" + serviceName;
       }
@@ -403,6 +427,26 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
         remoteResourceIdentifier =
             SqsUrlParser.getQueueName(escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL)));
+      } else if (isKeyPresent(span, AWS_AGENT_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Agent");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_AGENT_ID)));
+      } else if (isKeyPresent(span, AWS_KNOWLEDGE_BASE_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::KnowledgeBase");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_KNOWLEDGE_BASE_ID)));
+      } else if (isKeyPresent(span, AWS_DATA_SOURCE_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::DataSource");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_DATA_SOURCE_ID)));
+      } else if (isKeyPresent(span, AWS_GUARDRAIL_ID)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Guardrail");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_GUARDRAIL_ID)));
+      } else if (isKeyPresent(span, GEN_AI_REQUEST_MODEL)) {
+        remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Model");
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(GEN_AI_REQUEST_MODEL)));
       }
     } else if (isDBSpan(span)) {
       remoteResourceType = Optional.of(DB_CONNECTION_RESOURCE_TYPE);
@@ -523,6 +567,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     Long statusCode = getAwsStatusCode(span);
     if (statusCode != null) {
       builder.put(HTTP_STATUS_CODE, statusCode);
+    }
+  }
+
+  private static void setRemoteDbUser(SpanData span, AttributesBuilder builder) {
+    if (isDBSpan(span) && isKeyPresent(span, DB_USER)) {
+      builder.put(AWS_REMOTE_DB_USER, span.getAttributes().get(DB_USER));
     }
   }
 
