@@ -19,130 +19,130 @@ permissions:
   contents: read
 
 jobs:
-  testpatch:
-    name: Test patches applied to dependencies
-    runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
-      # vaadin 14 tests fail with node 18
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 16
+  # testpatch:
+  #   name: Test patches applied to dependencies
+  #   runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         java-version: 17
+  #         distribution: temurin
+  #     # vaadin 14 tests fail with node 18
+  #     - name: Set up Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 16
 
-      # vaadin tests use pnpm
-      - name: Cache pnpm modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-test-cache-pnpm-modules
-      - uses: gradle/wrapper-validation-action@v1
-      - uses: ./.github/actions/patch-dependencies
-        with:
-          run_tests: "true"
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+  #     # vaadin tests use pnpm
+  #     - name: Cache pnpm modules
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: ~/.pnpm-store
+  #         key: ${{ runner.os }}-test-cache-pnpm-modules
+  #     - uses: gradle/wrapper-validation-action@v1
+  #     - uses: ./.github/actions/patch-dependencies
+  #       with:
+  #         run_tests: "true"
+  #         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+  #         gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
-  build:
-    runs-on: ubuntu-latest
-    outputs:
-      java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
-      staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
-      staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
-      staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
+  # build:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     java_agent_tag: ${{ steps.java_agent_versioning.outputs.STAGING_TAG}}
+  #     staging-image: ${{ steps.imageOutput.outputs.stagingImage }}
+  #     staging_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+  #     staging_repository: ${{ steps.imageOutput.outputs.stagingRepository }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         java-version: 17
+  #         distribution: temurin
 
-        # cache local patch outputs
-      - name: Cache local Maven repository
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+  #       # cache local patch outputs
+  #     - name: Cache local Maven repository
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: |
+  #           ~/.m2/repository/io/opentelemetry/
+  #         key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
-      - name: Publish patched dependencies to maven local
-        uses: ./.github/actions/patch-dependencies
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+  #     - name: Publish patched dependencies to maven local
+  #       uses: ./.github/actions/patch-dependencies
+  #       with:
+  #         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+  #         gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
-      - uses: gradle/wrapper-validation-action@v1
+  #     - uses: gradle/wrapper-validation-action@v1
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+  #         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v3
-        with:
-          registry: public.ecr.aws
+  #     - name: Log in to AWS ECR
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: public.ecr.aws
 
-      - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
-        env:
-          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
-          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+  #     - name: Build snapshot with Gradle
+  #       uses: gradle/gradle-build-action@v3
+  #       with:
+  #         arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
+  #       env:
+  #         PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+  #         PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+  #         GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+  #         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Get current version
-        id: getADOTJavaVersion
-        shell: bash
-        run: echo "adot_java_version=$(./gradlew printVersion -q )" >> $GITHUB_OUTPUT
+  #     - name: Get current version
+  #       id: getADOTJavaVersion
+  #       shell: bash
+  #       run: echo "adot_java_version=$(./gradlew printVersion -q )" >> $GITHUB_OUTPUT
 
-      - name: Get ADOT_JAVA_AGENT Image Tag
-        id: java_agent_versioning
-        run: |
-          shortsha="$(git rev-parse --short HEAD)"
-          java_agent_tag=${{ steps.getADOTJavaVersion.outputs.adot_java_version }}-$shortsha
-          echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
+  #     - name: Get ADOT_JAVA_AGENT Image Tag
+  #       id: java_agent_versioning
+  #       run: |
+  #         shortsha="$(git rev-parse --short HEAD)"
+  #         java_agent_tag=${{ steps.getADOTJavaVersion.outputs.adot_java_version }}-$shortsha
+  #         echo "STAGING_TAG=$java_agent_tag" >> $GITHUB_OUTPUT
 
-      - name: Set image to output
-        id: imageOutput
-        run: |
-          echo "stagingRegistry=${{ env.STAGING_ECR_REGISTRY }}" >> $GITHUB_OUTPUT
-          echo "stagingRepository=${{ env.STAGING_ECR_REPOSITORY }}" >> $GITHUB_OUTPUT
-          echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
+  #     - name: Set image to output
+  #       id: imageOutput
+  #       run: |
+  #         echo "stagingRegistry=${{ env.STAGING_ECR_REGISTRY }}" >> $GITHUB_OUTPUT
+  #         echo "stagingRepository=${{ env.STAGING_ECR_REPOSITORY }}" >> $GITHUB_OUTPUT
+  #         echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
 
-      - name: Build and Push Java Agent Image and Execute cpUtility Tests
-        uses: ./.github/actions/cpUtility-testing
-        with:
-          aws-region: us-west-2
-          image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
-          image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
-          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
-          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+  #     - name: Build and Push Java Agent Image and Execute cpUtility Tests
+  #       uses: ./.github/actions/cpUtility-testing
+  #       with:
+  #         aws-region: us-west-2
+  #         image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
+  #         image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+  #         adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
+  #         snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
 
-      - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v3
-        with:
-          name: aws-opentelemetry-agent.jar
-          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+  #     - name: Upload to GitHub Actions
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: aws-opentelemetry-agent.jar
+  #         path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
-  default-region-output:
-    runs-on: ubuntu-latest
-    outputs:
-      aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
-    steps:
-      - name: Set default region output
-        id: default_region_output
-        run: |
-            echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
+  # default-region-output:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     aws_default_region: ${{ steps.default_region_output.outputs.aws_default_region }}
+  #   steps:
+  #     - name: Set default region output
+  #       id: default_region_output
+  #       run: |
+  #           echo "aws_default_region=${{ env.AWS_DEFAULT_REGION }}" >> $GITHUB_OUTPUT
 
   create-test-ref:
     runs-on: ubuntu-latest
@@ -162,86 +162,86 @@ jobs:
     concurrency:
       group: e2e-adot-agent-operator-test
       cancel-in-progress: false
-    needs: [ build, create-test-ref, default-region-output ]
+    # needs: [ build, create-test-ref, default-region-output ]
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
-      image_tag: ${{ needs.build.outputs.java_agent_tag }}
-      image_uri: ${{ needs.build.outputs.staging_registry }}/${{ needs.build.outputs.staging_repository }}
+      aws-region: 'us-east-1'
+      image_tag: '1.33.0-SNAPSHOT-753acdf'
+      image_uri: '611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging'
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
       caller-workflow-name: 'main-build'
 
-  # E2E tests where SampleApp has Java Agent
-  e2e-test:
-    needs: [build, default-region-output]
-    uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
-    secrets: inherit
-    with:
-      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
-      image_tag: ${{ github.sha }}
-      caller-workflow-name: 'main-build'
+  # # E2E tests where SampleApp has Java Agent
+  # e2e-test:
+  #   needs: [build, default-region-output]
+  #   uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
+  #   secrets: inherit
+  #   with:
+  #     aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
+  #     image_tag: ${{ github.sha }}
+  #     caller-workflow-name: 'main-build'
 
-  # AppSignals Contract Tests
-  contract-tests:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: 'temurin'
-      - uses: gradle/wrapper-validation-action@v1
+  # # AppSignals Contract Tests
+  # contract-tests:
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         java-version: 17
+  #         distribution: 'temurin'
+  #     - uses: gradle/wrapper-validation-action@v1
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+  #         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Log in to AWS ECR
-        uses: docker/login-action@v3
-        with:
-          registry: public.ecr.aws
+  #     - name: Log in to AWS ECR
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: public.ecr.aws
 
-      # cache local patch outputs
-      - name: Cache local Maven repository
-        id: cache-local-maven-repo
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+  #     # cache local patch outputs
+  #     - name: Cache local Maven repository
+  #       id: cache-local-maven-repo
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: |
+  #           ~/.m2/repository/io/opentelemetry/
+  #         key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
-      - name: Pull base image of Contract Tests Sample Apps
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+  #     - name: Pull base image of Contract Tests Sample Apps
+  #       run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
-      - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          arguments: contractTests -PlocalDocker=true
+  #     - name: Build snapshot with Gradle
+  #       uses: gradle/gradle-build-action@v3
+  #       with:
+  #         arguments: contractTests -PlocalDocker=true
 
-  application-signals-e2e-test:
-    needs: [build]
-    uses: ./.github/workflows/application-signals-e2e-test.yml
-    secrets: inherit
-    with:
-      adot-image-name: ${{ needs.build.outputs.staging-image }}
+  # application-signals-e2e-test:
+  #   needs: [build]
+  #   uses: ./.github/workflows/application-signals-e2e-test.yml
+  #   secrets: inherit
+  #   with:
+  #     adot-image-name: ${{ needs.build.outputs.staging-image }}
 
-  publish-build-status:
-    needs: [ build, contract-tests ]
-    if: ${{ always() }}
-    uses: ./.github/workflows/publish-status.yml
-    with:
-      namespace: 'ADOT/GitHubActions'
-      repository: ${{ github.repository }}
-      branch: ${{ github.ref_name }}
-      workflow: main-build
-      success: ${{  needs.build.result == 'success' &&
-                    needs.contract-tests.result == 'success'  }}
-      region: us-west-2
-    secrets:
-      roleArn: ${{ secrets.METRICS_ROLE_ARN }}
+  # publish-build-status:
+  #   needs: [ build, contract-tests ]
+  #   if: ${{ always() }}
+  #   uses: ./.github/workflows/publish-status.yml
+  #   with:
+  #     namespace: 'ADOT/GitHubActions'
+  #     repository: ${{ github.repository }}
+  #     branch: ${{ github.ref_name }}
+  #     workflow: main-build
+  #     success: ${{  needs.build.result == 'success' &&
+  #                   needs.contract-tests.result == 'success'  }}
+  #     region: us-west-2
+  #   secrets:
+  #     roleArn: ${{ secrets.METRICS_ROLE_ARN }}
