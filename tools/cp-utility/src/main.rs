@@ -118,9 +118,7 @@ fn copy_recursive(source: &Path, dest: &Path) -> io::Result<()> {
                 stack.push_back((next_source, next_dest));
             }
         } else if current_source.is_symlink() {
-            // Follow symbolic links as regular files/directories
-            //             let target = fs::read_link(current_source)?;
-            //             stack.push_back((target, current_dest));
+            // Follow symbolic links as regular files
             fs::copy(current_source, current_dest)?;
         } else if current_source.is_file() {
             fs::copy(current_source, current_dest)?;
@@ -324,7 +322,7 @@ mod tests {
             &test_base.join("bar/symlink1.txt"),
         );
         // recursive copy will treat symlink as a file
-        assert_same_link(
+        assert_recursive_same_link(
             &test_base.join("foo/symlink1.txt"),
             &test_base.join("bar/symlink1.txt"),
         )
@@ -453,12 +451,15 @@ mod tests {
         assert_eq!(fs::read_link(source).unwrap(), fs::read_link(dest).unwrap());
     }
 
-    fn assert_same_link(source: &Path, dest: &Path) {
+    fn assert_recursive_same_link(source: &Path, dest: &Path) {
         assert!(source.exists());
         assert!(dest.exists());
         assert!(source.is_symlink());
-        assert!(dest.is_symlink());
+        assert!(dest.is_file());
 
-        assert_eq!(fs::read_link(source).unwrap(), fs::read_link(dest).unwrap());
+        assert_eq!(
+            fs::read_to_string(source).unwrap(),
+            fs::read_to_string(dest).unwrap()
+        );
     }
 }
