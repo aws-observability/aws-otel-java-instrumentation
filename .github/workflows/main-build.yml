@@ -7,7 +7,7 @@ on:
       - operator-fix-v1.32.x
 env:
   AWS_DEFAULT_REGION: us-east-1
-  STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
+  STAGING_ECR_REGISTRY: 992382537080.dkr.ecr.us-west-2.amazonaws.com
   STAGING_ECR_REPOSITORY: adot-autoinstrumentation-java-operator-staging
 
 concurrency:
@@ -82,7 +82,7 @@ jobs:
   #     - name: Configure AWS Credentials
   #       uses: aws-actions/configure-aws-credentials@v4
   #       with:
-  #         role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+  #         role-to-assume: ${{ secrets.TEMP_JAVA_INSTRUMENTATION_INTEG_TEST_ARN }}
   #         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
   #     - name: Log in to AWS ECR
@@ -126,7 +126,7 @@ jobs:
   #         image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
   #         image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
   #         adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
-  #         snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+  #         snapshot-ecr-role: ${{ secrets.TEMP_JAVA_INSTRUMENTATION_INTEG_TEST_ARN }}
 
   #     - name: Upload to GitHub Actions
   #       uses: actions/upload-artifact@v3
@@ -163,12 +163,13 @@ jobs:
       group: e2e-adot-agent-operator-test
       cancel-in-progress: false
     # needs: [ build, create-test-ref, default-region-output ]
+    needs: [ create-test-ref ]
     uses: ./.github/workflows/e2e-tests-with-operator.yml
     secrets: inherit
     with:
       aws-region: 'us-east-1'
-      image_tag: '1.33.0-SNAPSHOT-753acdf'
-      image_uri: '611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging'
+      image_tag: '1.33.0-SNAPSHOT-bca35b5'
+      image_uri: '992382537080.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging'
       test_ref: ${{ needs.create-test-ref.outputs.testRef }}
       caller-workflow-name: 'main-build'
 
