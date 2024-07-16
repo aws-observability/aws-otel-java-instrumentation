@@ -44,13 +44,10 @@ struct CopyOperation {
 
 /// Parse command line arguments and transform into `CopyOperation`
 fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
-    if !(args.len() == 3
-        || args.len() == 4 && args[1].eq("-a")
-        || args.len() == 4 && args[1].eq("-r"))
-    {
+    if !(args.len() == 3 || (args.len() == 4 && (args[1] == "-a" || args[1] == "-r"))) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Invalid parameters. Expected cp [-a] <source> <destination> or  cp [-r] <source> <destination>",
+            "Invalid parameters. Expected cp [-a | -r] <source> <destination>",
         ));
     }
 
@@ -237,6 +234,24 @@ mod tests {
 
             // assert
             assert!(result.is_err(), "input should fail {:?}", input);
+        }
+    }
+
+    #[test]
+    fn parser_correct() {
+        // prepare
+        let inputs = vec![
+            vec!["cp", "-r", "foo.txt", "bar.txt"],
+            vec!["cp", "-a", "param1", "param2"],
+            vec!["cp", "param1", "param2"],
+        ];
+
+        for input in inputs.into_iter() {
+            // act
+            let result = parse_args(input.clone());
+
+            // assert
+            assert!(result.is_ok(), "input should fail {:?}", input);
         }
     }
 
