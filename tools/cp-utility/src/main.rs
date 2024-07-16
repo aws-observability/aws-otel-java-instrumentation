@@ -50,24 +50,24 @@ fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
     {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Invalid parameters. Expected cp [-a] <source> <destination> or  Expected cp [-r] <source> <destination>",
+            "Invalid parameters. Expected cp [-a] <source> <destination> or  cp [-r] <source> <destination>",
         ));
     }
 
-    if args.len() == 4 && args[1].eq("-a") {
-        return Ok(CopyOperation {
-            source: PathBuf::from(args[2]),
-            destination: PathBuf::from(args[3]),
-            copy_type: CopyType::Archive,
-        });
-    }
-
-    if args.len() == 4 && args[1].eq("-r") {
-        return Ok(CopyOperation {
-            source: PathBuf::from(args[2]),
-            destination: PathBuf::from(args[3]),
-            copy_type: CopyType::Recursive,
-        });
+    if args.len() == 4 {
+        if args[1].eq("-a") {
+            return Ok(CopyOperation {
+                source: PathBuf::from(args[2]),
+                destination: PathBuf::from(args[3]),
+                copy_type: CopyType::Archive,
+            });
+        } else if args[1].eq("-r") {
+            return Ok(CopyOperation {
+                source: PathBuf::from(args[2]),
+                destination: PathBuf::from(args[3]),
+                copy_type: CopyType::Recursive,
+            });
+        }
     }
 
     Ok(CopyOperation {
