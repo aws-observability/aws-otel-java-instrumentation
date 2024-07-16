@@ -52,19 +52,15 @@ fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
     }
 
     if args.len() == 4 {
-        if args[1].eq("-a") {
-            return Ok(CopyOperation {
-                source: PathBuf::from(args[2]),
-                destination: PathBuf::from(args[3]),
-                copy_type: CopyType::Archive,
-            });
-        } else if args[1].eq("-r") {
-            return Ok(CopyOperation {
-                source: PathBuf::from(args[2]),
-                destination: PathBuf::from(args[3]),
-                copy_type: CopyType::Recursive,
-            });
-        }
+        return Ok(CopyOperation {
+            source: PathBuf::from(args[2]),
+            destination: PathBuf::from(args[3]),
+            copy_type: match args[1] {
+                "-a" => CopyType::Archive,
+                "-r" => CopyType::Recursive,
+                _ => panic!("Invalid option. Expected -a or -r"),
+            },
+        });
     }
 
     Ok(CopyOperation {
