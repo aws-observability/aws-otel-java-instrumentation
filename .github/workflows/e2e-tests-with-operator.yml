@@ -189,11 +189,7 @@ jobs:
       # file locks are being held from SIGTERMS dispatched in previous
       # steps.
       - name: Destroy resources
-<<<<<<< HEAD
         if: ${{ cancelled() || failure() }}
-=======
-        if: ${{ cancelled() }}
->>>>>>> release/v1.32.x
         shell: bash {0}
         working-directory: testing-framework/terraform
         run: |
