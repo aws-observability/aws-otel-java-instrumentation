@@ -209,8 +209,4 @@ jobs:
       success: ${{  needs.run-batch-job.result == 'success' }}
       region: us-west-2
     secrets:
-<<<<<<< HEAD
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}
-=======
-      roleArn: ${{ secrets.METRICS_ROLE_ARN }}
->>>>>>> release/v1.32.x
