@@ -27,13 +27,18 @@ dependencies {
   implementation("com.sparkjava:spark-core")
   implementation("com.google.code.gson:gson:2.10.1")
   implementation("org.slf4j:slf4j-simple")
-  implementation(enforcedPlatform("software.amazon.awssdk:bom:2.20.102"))
+  implementation(enforcedPlatform("software.amazon.awssdk:bom:2.26.20"))
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:dynamodb")
   implementation("software.amazon.awssdk:sqs")
   implementation("software.amazon.awssdk:kinesis")
+  implementation("software.amazon.awssdk:bedrock:2.26.20")
+  implementation("software.amazon.awssdk:bedrockagent:2.26.20")
+  implementation("software.amazon.awssdk:bedrockruntime:2.26.20")
+  implementation("software.amazon.awssdk:bedrockagentruntime:2.26.20")
   implementation("commons-logging:commons-logging")
   implementation("com.linecorp.armeria:armeria")
+  implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 }
 
 java {
