@@ -57,6 +57,25 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
     return "Kinesis";
   }
 
+  protected String getBedrockSpanNamePrefix() {
+    return "Bedrock";
+  }
+
+  @Override
+  protected String getBedrockAgentSpanNamePrefix() {
+    return "AWSBedrockAgent";
+  }
+
+  @Override
+  protected String getBedrockRuntimeSpanNamePrefix() {
+    return "BedrockRuntime";
+  }
+
+  @Override
+  protected String getBedrockAgentRuntimeSpanNamePrefix() {
+    return "AWSBedrockAgentRuntime";
+  }
+
   protected String getS3RpcServiceName() {
     return "Amazon S3";
   }
@@ -73,6 +92,22 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
 
   protected String getKinesisRpcServiceName() {
     return "AmazonKinesis";
+  }
+
+  protected String getBedrockRpcServiceName() {
+    return "AmazonBedrock";
+  }
+
+  protected String getBedrockAgentRpcServiceName() {
+    return "AWSBedrockAgent";
+  }
+
+  protected String getBedrockRuntimeRpcServiceName() {
+    return "AmazonBedrockRuntime";
+  }
+
+  protected String getBedrockAgentRuntimeRpcServiceName() {
+    return "AWSBedrockAgentRuntime";
   }
 
   @Test
@@ -164,5 +199,35 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   @Test
   void testKinesisFault() throws Exception {
     doTestKinesisFault();
+  }
+
+  @Test
+  void testBedrockGetKnowlesgeBase() {
+    doTestBedrockGetKnowlesgeBase();
+  }
+
+  @Test
+  void testBedrockGetAgent() {
+    doTestBedrockGetAgent();
+  }
+
+  @Test
+  void testBedrockFault() throws Exception {
+    doTestBedrockFault();
+  }
+
+  @Test
+  void testBedrockRuntimeError() throws Exception {
+    doTestBedrockRuntimeError();
+  }
+
+  @Test
+  void testBedrockGetguardrail() throws Exception {
+    doTestBedrockGetGuardrail();
+  }
+
+  @Test
+  void testBedrockAgentRuntimeGetAgentMemory() throws Exception {
+    doTestBedrockAgentRuntimeGetAgentMemory();
   }
 }
