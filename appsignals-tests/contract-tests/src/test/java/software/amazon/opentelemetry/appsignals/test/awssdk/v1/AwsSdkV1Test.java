@@ -202,32 +202,37 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   }
 
   @Test
-  void testBedrockGetKnowlesgeBase() {
-    doTestBedrockGetKnowlesgeBase();
+  void testBedrockAgentGetKnowledgeBaseIdFromRequest() {
+    doTestBedrockAgentKnowledgeBaseId();
   }
 
   @Test
-  void testBedrockGetAgent() {
-    doTestBedrockGetAgent();
+  void testBedrockAgentAgentId() {
+    doTestBedrockAgentAgentId();
   }
 
   @Test
-  void testBedrockFault() throws Exception {
-    doTestBedrockFault();
+  void testBedrockAgentDataSourceId() {
+    doTestBedrockAgentDataSourceId();
   }
 
   @Test
-  void testBedrockRuntimeError() throws Exception {
-    doTestBedrockRuntimeError();
+  void testBedrockRuntimeModelId() {
+    doTestBedrockRuntimeModelId();
   }
 
   @Test
-  void testBedrockGetguardrail() throws Exception {
-    doTestBedrockGetGuardrail();
+  void testBedrockGuardrailId() {
+    doTestBedrockGuardrailId();
   }
 
   @Test
-  void testBedrockAgentRuntimeGetAgentMemory() throws Exception {
-    doTestBedrockAgentRuntimeGetAgentMemory();
+  void testBedrockAgentRuntimeAgentId() {
+    doTestBedrockAgentRuntimeAgentId();
+  }
+
+  @Test
+  void testBedrockAgentRuntimeKnowledgeBaseId() {
+    doTestBedrockAgentRuntimeKnowledgeBaseId();
   }
 }

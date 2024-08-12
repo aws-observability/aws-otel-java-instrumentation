@@ -22,16 +22,12 @@ import static spark.Spark.port;
 import static spark.Spark.post;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.Charset;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +46,7 @@ import software.amazon.awssdk.services.bedrockagent.model.GetDataSourceRequest;
 import software.amazon.awssdk.services.bedrockagent.model.GetKnowledgeBaseRequest;
 import software.amazon.awssdk.services.bedrockagentruntime.BedrockAgentRuntimeClient;
 import software.amazon.awssdk.services.bedrockagentruntime.model.GetAgentMemoryRequest;
+import software.amazon.awssdk.services.bedrockagentruntime.model.RetrieveRequest;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -562,140 +559,36 @@ public class App {
             .region(Region.US_WEST_2)
             .credentialsProvider(CREDENTIALS_PROVIDER)
             .build();
+    var bedrockRuntimeClient =
+        BedrockRuntimeClient.builder()
+            .endpointOverride(URI.create("http://bedrock.test:8080"))
+            .region(Region.US_WEST_2)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
 
-    // Response with GetKnowledgeBaseRequest.
-    get(
-        "/knowledgebases/:knowledgeBaseId",
-        (req, res) -> {
-          String knowledgeBaseId = req.params(":knowledgeBaseId");
-          String createdAt =
-              Instant.ofEpochSecond(1720600797L)
-                  .atOffset(ZoneOffset.UTC)
-                  .format(DateTimeFormatter.ISO_INSTANT);
-          String updatedAt =
-              Instant.ofEpochSecond(1720773597L)
-                  .atOffset(ZoneOffset.UTC)
-                  .format(DateTimeFormatter.ISO_INSTANT);
-          ObjectNode knowledgeBase = objectMapper.createObjectNode();
-          knowledgeBase.put("createdAt", createdAt);
-          knowledgeBase.put(
-              "knowledgeBaseArn",
-              "arn:aws:bedrock:us-west-2:000000000000:knowledge-base/" + knowledgeBaseId);
-          ObjectNode knowledgeBaseConfiguration = objectMapper.createObjectNode();
-          knowledgeBaseConfiguration.put("type", "VECTOR");
-          knowledgeBase.set("knowledgeBaseConfiguration", knowledgeBaseConfiguration);
-          knowledgeBase.put("knowledgeBaseId", knowledgeBaseId);
-          knowledgeBase.put("name", "test-knowledge-base");
-          knowledgeBase.put("roleArn", "arn:aws:iam::000000000000:role/TestKnowledgeBase");
-          knowledgeBase.put("status", "ACTIVE");
-          ObjectNode storageConfiguration = objectMapper.createObjectNode();
-          storageConfiguration.put("type", "OPENSEARCH_SERVERLESS");
-          knowledgeBase.set("storageConfiguration", storageConfiguration);
-          knowledgeBase.put("updatedAt", updatedAt);
-          ObjectNode responseBody = objectMapper.createObjectNode();
-          responseBody.set("knowledgeBase", knowledgeBase);
-          String jsonResponse = objectMapper.writeValueAsString(responseBody);
-
-          res.status(mainStatus);
-          res.type("application/json");
-          return jsonResponse;
-        });
-
-    // Response with GetAgentRequest.
-    get(
-        "/agents/:agentId/",
-        (req, res) -> {
-          String agentId = req.params(":agentId");
-          ObjectNode agentNode = objectMapper.createObjectNode();
-          agentNode.put("agentArn", "arn:aws:bedrock:us-east-1:000000000000:agent/" + agentId);
-          agentNode.put("agentId", agentId);
-          agentNode.put("agentName", "test-bedrock-agent");
-          agentNode.put("agentResourceRoleArn", "arn:aws:iam::000000000000:role/TestAgent");
-          agentNode.put("agentStatus", "PREPARED");
-          agentNode.put("agentVersion", "DRAFT");
-          agentNode.put("createdAt", "2024-07-17T12:00:00Z");
-          agentNode.put("idleSessionTTLInSeconds", 60);
-          agentNode.put("updatedAt", "2024-07-17T12:30:00Z");
-          ObjectNode responseBody = objectMapper.createObjectNode();
-          responseBody.set("agent", agentNode);
-          String jsonResponse = responseBody.toString();
-
-          res.status(mainStatus);
-          res.type("application/json");
-          return jsonResponse;
-        });
-
-    // Response with GetDataSourceRequest.
-    get(
-        "/knowledgebases/:knowledgeBaseId/datasources/:dataSourceId",
-        (req, res) -> {
-          res.status(mainStatus);
-          return res;
-        });
-
-    // Response with GetGuardrailRequest.
-    get(
-        "/guardrails/:guardrailIdentifier",
-        (req, res) -> {
-          String guardrailId = "test-bedrock-guardrail";
-          ObjectNode jsonResponse = objectMapper.createObjectNode();
-          jsonResponse.put(
-              "guardrailArn", "arn:aws:bedrock:us-east-1:000000000000:guardrail/" + guardrailId);
-          jsonResponse.put("guardrailId", guardrailId);
-          jsonResponse.put("version", "DRAFT");
-          jsonResponse.put("createdAt", "2024-07-17T12:00:00Z");
-          jsonResponse.put("updatedAt", "2024-07-17T12:30:00Z");
-          jsonResponse.put("blockedInputMessaging", "InputBlocked");
-          jsonResponse.put("blockedOutputsMessaging", "OutputBlocked");
-          jsonResponse.put("name", "test-guardrail");
-          jsonResponse.put("status", "READY");
-
-          res.status(mainStatus);
-          res.type("application/json");
-          return jsonResponse;
-        });
-
-    // Response with GetAgentMemoryRequest.
-    get(
-        "/agents/:agentId/agentAliases/:agentAliasId/memories",
-        (req, res) -> {
-          ObjectNode jsonResponse = objectMapper.createObjectNode();
-          jsonResponse.put("nextToken", "testToken");
-
-          ArrayNode memoryContents = objectMapper.createArrayNode();
-          jsonResponse.set("memoryContents", memoryContents);
-
-          res.status(mainStatus);
-          res.type("application/json");
-          return jsonResponse;
-        });
+    // Setup API routes for Bedrock， BedrockAgent, BedrockAgentRuntime, and BedrockRuntime services.
+    Utils.setupGetKnowledgeBaseRoute(mainStatus);
+    Utils.setupGetAgentRoute(mainStatus);
+    Utils.setupGetGuardrailRoute(mainStatus);
+    Utils.setupGetAgentMemoryRoute(mainStatus);
+    Utils.setupGetDataSourceRoute(mainStatus);
+    Utils.setupInvokeModelRoute(mainStatus);
+    Utils.setupRetrieveRoute(mainStatus);
 
     get(
         "/bedrockagent/getknowledgeBase/:knowledgeBaseId",
         (req, res) -> {
           setMainStatus(200);
           String knowledgeBaseId = req.params(":knowledgeBaseId");
-          try {
-            GetKnowledgeBaseRequest request =
-                GetKnowledgeBaseRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
-            bedrockAgentClient.getKnowledgeBase(request);
-          } catch (Exception ex) {
-            ex.printStackTrace();
-          }
+          GetKnowledgeBaseRequest request =
+              GetKnowledgeBaseRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
+          bedrockAgentClient.getKnowledgeBase(request);
           return "";
         });
-
     get(
-        "/bedrockruntime/error",
+        "/bedrockruntime/invokeModel",
         (req, res) -> {
-          setMainStatus(404);
-          BedrockRuntimeClient errorClient =
-              BedrockRuntimeClient.builder()
-                  .endpointOverride(URI.create("http://error.test:8080"))
-                  .region(Region.US_WEST_2)
-                  .credentialsProvider(CREDENTIALS_PROVIDER)
-                  .build();
-
+          setMainStatus(200);
           String llama2ModelId = "anthropic.claude-v2";
           ObjectNode payload = objectMapper.createObjectNode();
           payload.put("prompt", "test prompt");
@@ -709,84 +602,64 @@ public class App {
                   .contentType("application/json")
                   .accept("application/json")
                   .build();
-          errorClient.invokeModel(request);
+          bedrockRuntimeClient.invokeModel(request);
           return "";
         });
-
     get(
-        "/bedrockagent/fault",
+        "/bedrockagent/get-data-source",
         (req, res) -> {
-          setMainStatus(500);
-          BedrockAgentClient faultClient =
-              BedrockAgentClient.builder()
-                  .endpointOverride(URI.create("http://fault.test:8080"))
-                  .overrideConfiguration(
-                      ClientOverrideConfiguration.builder()
-                          .retryPolicy(RetryPolicy.builder().numRetries(0).build())
-                          .build())
-                  .region(Region.US_WEST_2)
-                  .credentialsProvider(CREDENTIALS_PROVIDER)
-                  .build();
+          setMainStatus(200);
 
-          try {
-            GetDataSourceRequest request =
-                GetDataSourceRequest.builder()
-                    .dataSourceId("nonExistDatasourceId")
-                    .knowledgeBaseId("nonExistKnowledgeBaseId")
-                    .build();
-            faultClient.getDataSource(request);
-          } catch (Exception ex) {
-            ex.printStackTrace();
-          }
+          GetDataSourceRequest request =
+              GetDataSourceRequest.builder()
+                  .dataSourceId("nonExistDatasourceId")
+                  .knowledgeBaseId("nonExistKnowledgeBaseId")
+                  .build();
+          bedrockAgentClient.getDataSource(request);
           return "";
         });
-
     get(
         "/bedrockagent/getagent/:agentId",
         (req, res) -> {
           setMainStatus(200);
           String agentId = req.params(":agentId");
-          try {
-            GetAgentRequest request = GetAgentRequest.builder().agentId(agentId).build();
-            bedrockAgentClient.getAgent(request);
-          } catch (Exception ex) {
-            ex.printStackTrace();
-          }
+          GetAgentRequest request = GetAgentRequest.builder().agentId(agentId).build();
+          bedrockAgentClient.getAgent(request);
           return "";
         });
-
     get(
         "/bedrockagentruntime/getmemory/:agentId",
         (req, res) -> {
           setMainStatus(200);
           String agentId = req.params(":agentId");
-          try {
-            GetAgentMemoryRequest request =
-                GetAgentMemoryRequest.builder()
-                    .agentId(agentId)
-                    .agentAliasId("agent-alias-id")
-                    .build();
-            bedrockAgentRuntimeClient.getAgentMemory(request);
-          } catch (Exception ex) {
-            ex.printStackTrace();
-          }
+          GetAgentMemoryRequest request =
+              GetAgentMemoryRequest.builder()
+                  .agentId(agentId)
+                  .agentAliasId("agent-alias-id")
+                  .build();
+          bedrockAgentRuntimeClient.getAgentMemory(request);
           return "";
         });
-
     get(
         "/bedrock/getguardrail",
         (req, res) -> {
           setMainStatus(200);
-          try {
-            GetGuardrailRequest request =
-                GetGuardrailRequest.builder()
-                    .guardrailIdentifier("test-bedrock-guardrail")
-                    .guardrailVersion("DRAFT")
-                    .build();
-            bedrockClient.getGuardrail(request);
-          } catch (Exception ex) {
-            ex.printStackTrace();
-          }
+          GetGuardrailRequest request =
+              GetGuardrailRequest.builder()
+                  .guardrailIdentifier("test-bedrock-guardrail")
+                  .guardrailVersion("DRAFT")
+                  .build();
+          bedrockClient.getGuardrail(request);
+          return "";
+        });
+    get(
+        "/bedrockagentruntime/retrieve/:knowledgeBaseId",
+        (req, res) -> {
+          setMainStatus(200);
+          String knowledgeBaseId = req.params(":knowledgeBaseId");
+          RetrieveRequest request =
+              RetrieveRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
+          var repo = bedrockAgentRuntimeClient.retrieve(request);
           return "";
         });
   }

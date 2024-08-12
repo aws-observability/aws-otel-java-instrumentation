@@ -23,8 +23,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
@@ -39,14 +37,6 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 
 public abstract class AwsSdkBaseTest extends ContractTestBase {
   protected static final Logger LOGGER = Logger.getLogger(AwsSdkBaseTest.class.getName());
-
-  static {
-    ConsoleHandler handler = new ConsoleHandler();
-    handler.setLevel(Level.INFO);
-    LOGGER.addHandler(handler);
-    LOGGER.setLevel(Level.INFO);
-    LOGGER.setUseParentHandlers(false);
-  }
 
   private final LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.5.0"))
@@ -1622,7 +1612,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         0.0);
   }
 
-  protected void doTestBedrockGetKnowlesgeBase() {
+  protected void doTestBedrockAgentKnowledgeBaseId() {
     var response =
         appClient.get("/bedrockagent/getknowledgeBase/knowledge-base-id").aggregate().join();
     var traces = mockCollectorClient.getTraces();
@@ -1653,7 +1643,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         200,
         List.of(
             assertAttribute(
-                SemanticConventionsConstants.AWS_KNOWLEDGEBASE_ID, "knowledge-base-id")));
+                SemanticConventionsConstants.AWS_KNOWLEDGE_BASE_ID, "knowledge-base-id")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1686,70 +1676,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         0.0);
   }
 
-  protected void doTestBedrockFault() {
-    var response = appClient.get("/bedrockagent/fault").aggregate().join();
-    var traces = mockCollectorClient.getTraces();
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC,
-                AppSignalsConstants.LATENCY_METRIC));
-
-    var localService = getApplicationOtelServiceName();
-    var localOperation = "GET /bedrockagent/fault";
-    String type = "AWS::Bedrock::DataSource";
-    String identifier = "nonExistDatasourceId";
-    assertSpanClientAttributes(
-        traces,
-        bedrockAgentSpanName("GetDataSource"),
-        getBedrockAgentRpcServiceName(),
-        localService,
-        localOperation,
-        getBedrockAgentServiceName(),
-        "GetDataSource",
-        type,
-        identifier,
-        "fault.test",
-        8080,
-        "http://fault.test:8080",
-        500,
-        List.of(
-            assertAttribute(
-                SemanticConventionsConstants.AWS_DATASOURCE_ID, "nonExistDatasourceId")));
-    assertMetricClientAttributes(
-        metrics,
-        AppSignalsConstants.LATENCY_METRIC,
-        localService,
-        localOperation,
-        getBedrockAgentServiceName(),
-        "GetDataSource",
-        type,
-        identifier,
-        5000.0);
-    assertMetricClientAttributes(
-        metrics,
-        AppSignalsConstants.FAULT_METRIC,
-        localService,
-        localOperation,
-        getBedrockAgentServiceName(),
-        "GetDataSource",
-        type,
-        identifier,
-        1.0);
-    assertMetricClientAttributes(
-        metrics,
-        AppSignalsConstants.ERROR_METRIC,
-        localService,
-        localOperation,
-        getBedrockAgentServiceName(),
-        "GetDataSource",
-        type,
-        identifier,
-        0.0);
-  }
-
-  protected void doTestBedrockGetAgent() {
+  protected void doTestBedrockAgentAgentId() {
     var response = appClient.get("/bedrockagent/getagent/test-agent-id").aggregate().join();
     var traces = mockCollectorClient.getTraces();
     var metrics =
@@ -1810,8 +1737,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         0.0);
   }
 
-  protected void doTestBedrockRuntimeError() {
-    var response = appClient.get("/bedrockruntime/error").aggregate().join();
+  protected void doTestBedrockAgentDataSourceId() {
+    var response = appClient.get("/bedrockagent/get-data-source").aggregate().join();
     var traces = mockCollectorClient.getTraces();
     var metrics =
         mockCollectorClient.getMetrics(
@@ -1821,7 +1748,70 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                 AppSignalsConstants.LATENCY_METRIC));
 
     var localService = getApplicationOtelServiceName();
-    var localOperation = "GET /bedrockruntime/error";
+    var localOperation = "GET /bedrockagent/get-data-source";
+    String type = "AWS::Bedrock::DataSource";
+    String identifier = "nonExistDatasourceId";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentSpanName("GetDataSource"),
+        getBedrockAgentRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_DATA_SOURCE_ID, "nonExistDatasourceId")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockRuntimeModelId() {
+    var response = appClient.get("/bedrockruntime/invokeModel").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockruntime/invokeModel";
     String type = "AWS::Bedrock::Model";
     String identifier = "anthropic.claude-v2";
     assertSpanClientAttributes(
@@ -1834,13 +1824,13 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
-        "error.test",
+        "bedrock.test",
         8080,
-        "http://error.test:8080",
-        404,
+        "http://bedrock.test:8080",
+        200,
         List.of(
             assertAttribute(
-                SemanticConventionsConstants.AWS_BEDROCK_RUNTIME_MODEL_ID, "anthropic.claude-v2")));
+                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "anthropic.claude-v2")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1870,10 +1860,10 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
-        1.0);
+        0.0);
   }
 
-  protected void doTestBedrockGetGuardrail() {
+  protected void doTestBedrockGuardrailId() {
     var response = appClient.get("/bedrock/getguardrail").aggregate().join();
     var traces = mockCollectorClient.getTraces();
     var metrics =
@@ -1936,7 +1926,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         0.0);
   }
 
-  protected void doTestBedrockAgentRuntimeGetAgentMemory() {
+  protected void doTestBedrockAgentRuntimeAgentId() {
     var response = appClient.get("/bedrockagentruntime/getmemory/test-agent-id").aggregate().join();
     var traces = mockCollectorClient.getTraces();
     var metrics =
@@ -1992,6 +1982,70 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getBedrockAgentRuntimeServiceName(),
         "GetAgentMemory",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockAgentRuntimeKnowledgeBaseId() {
+    var response =
+        appClient.get("/bedrockagentruntime/retrieve/test-knowledge-base-id").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockagentruntime/retrieve/:knowledgeBaseId";
+    String type = "AWS::Bedrock::KnowledgeBase";
+    String identifier = "test-knowledge-base-id";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentRuntimeSpanName("Retrieve"),
+        getBedrockAgentRuntimeRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_KNOWLEDGE_BASE_ID, "test-knowledge-base-id")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
         type,
         identifier,
         0.0);

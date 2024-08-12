@@ -58,11 +58,11 @@ public class SemanticConventionsConstants {
   public static final String AWS_QUEUE_URL = "aws.queue.url";
   public static final String AWS_QUEUE_NAME = "aws.queue.name";
   public static final String AWS_STREAM_NAME = "aws.stream.name";
-  public static final String AWS_KNOWLEDGEBASE_ID = "aws.bedrock.knowledge_base.id";
-  public static final String AWS_DATASOURCE_ID = "aws.bedrock.data_source.id";
+  public static final String AWS_KNOWLEDGE_BASE_ID = "aws.bedrock.knowledge_base.id";
+  public static final String AWS_DATA_SOURCE_ID = "aws.bedrock.data_source.id";
   public static final String AWS_AGENT_ID = "aws.bedrock.agent.id";
   public static final String AWS_GUARDRAIL_ID = "aws.bedrock.guardrail.id";
-  public static final String AWS_BEDROCK_RUNTIME_MODEL_ID = "gen_ai.request.model";
+  public static final String GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
 
   // kafka
   public static final String MESSAGING_CLIENT_ID = "messaging.client_id";
