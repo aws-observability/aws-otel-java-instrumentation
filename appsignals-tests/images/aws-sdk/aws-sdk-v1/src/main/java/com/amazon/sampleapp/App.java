@@ -56,7 +56,6 @@ import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.net.http.HttpClient;
@@ -489,7 +488,7 @@ public class App {
           try {
             var response =
                 errorClient.getObject(new GetObjectRequest("error-bucket", "error-object"));
-          } catch (Exception ex) {
+          } catch (Exception e) {
 
           }
           return "";
@@ -508,7 +507,7 @@ public class App {
           try {
             var response =
                 faultClient.getObject(new GetObjectRequest("fault-bucket", "fault-object"));
-          } catch (Exception ex) {
+          } catch (Exception e) {
 
           }
           return "";
@@ -521,7 +520,6 @@ public class App {
     // and then specifically handle each request to return the expected response.
     // For the full list of services supported by Localstack, see:
     // https://github.com/testcontainers/testcontainers-java/blob/1f38f0d9604edb9e89fd3b3ee1eff6728e2d1e07/modules/localstack/src/main/java/org/testcontainers/containers/localstack/LocalStackContainer.java#L402
-    var objectMapper = new ObjectMapper();
     var bedrockAgentClient =
         AWSBedrockAgentClient.builder()
             .withCredentials(CREDENTIALS_PROVIDER)
