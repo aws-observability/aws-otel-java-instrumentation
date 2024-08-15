@@ -220,7 +220,6 @@ public class App {
           try {
             errorClient.sendMessage(sendMessageRequest);
           } catch (Exception ex) {
-            ex.printStackTrace();
           }
           return "";
         });
@@ -310,7 +309,6 @@ public class App {
                     "nonexistanttable", Map.of("partitionKey", new AttributeValue("value")));
             errorClient.putItem(putItemRequest);
           } catch (Exception ex) {
-            ex.printStackTrace();
           }
           return "";
         });
@@ -333,7 +331,6 @@ public class App {
                     "nonexistanttable", Map.of("partitionKey", new AttributeValue("value")));
             faultClient.putItem(putItemRequest);
           } catch (Exception ex) {
-            ex.printStackTrace();
           }
           return "";
         });
@@ -364,7 +361,6 @@ public class App {
             try {
               Thread.sleep(1000);
             } catch (Exception ex) {
-              ex.printStackTrace();
             }
             var streamDescription = kinesisClient.describeStream(streamName);
             if (streamDescription.getStreamDescription().getStreamStatus().equals("ACTIVE")) {
@@ -494,7 +490,7 @@ public class App {
             var response =
                 errorClient.getObject(new GetObjectRequest("error-bucket", "error-object"));
           } catch (Exception ex) {
-            ex.printStackTrace();
+
           }
           return "";
         });
@@ -513,7 +509,7 @@ public class App {
             var response =
                 faultClient.getObject(new GetObjectRequest("fault-bucket", "fault-object"));
           } catch (Exception ex) {
-            ex.printStackTrace();
+
           }
           return "";
         });

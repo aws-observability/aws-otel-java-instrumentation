@@ -220,7 +220,7 @@ public class App {
           try {
             errorClient.sendMessage(sendMessageRequest);
           } catch (Exception ex) {
-            ex.printStackTrace();
+
           }
           return "";
         });
@@ -317,7 +317,6 @@ public class App {
                     .build();
             errorClient.putItem(putItemRequest);
           } catch (Exception ex) {
-            ex.printStackTrace();
           }
           return "";
         });
@@ -340,7 +339,6 @@ public class App {
                     .build();
             faultClient.putItem(putItemRequest);
           } catch (Exception ex) {
-            ex.printStackTrace();
           }
           return "";
         });
@@ -369,7 +367,6 @@ public class App {
             try {
               Thread.sleep(1000);
             } catch (Exception ex) {
-              ex.printStackTrace();
             }
             var streamDescription =
                 kinesisClient.describeStream(
@@ -503,8 +500,7 @@ public class App {
             var response =
                 errorClient.getObject(
                     GetObjectRequest.builder().bucket("error-bucket").key("error-object").build());
-          } catch (Exception ex) {
-            ex.printStackTrace();
+          } catch (Exception e) {
           }
           return "";
         });
@@ -527,8 +523,7 @@ public class App {
             var response =
                 faultClient.getObject(
                     GetObjectRequest.builder().bucket("fault-bucket").key("fault-object").build());
-          } catch (Exception ex) {
-            ex.printStackTrace();
+          } catch (Exception e) {
           }
           return "";
         });

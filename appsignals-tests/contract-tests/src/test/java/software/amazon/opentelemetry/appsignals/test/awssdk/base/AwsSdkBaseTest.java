@@ -23,7 +23,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,7 +35,6 @@ import software.amazon.opentelemetry.appsignals.test.utils.ResourceScopeSpan;
 import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsConstants;
 
 public abstract class AwsSdkBaseTest extends ContractTestBase {
-  protected static final Logger LOGGER = Logger.getLogger(AwsSdkBaseTest.class.getName());
 
   private final LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.5.0"))
