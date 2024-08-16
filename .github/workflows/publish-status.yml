@@ -41,7 +41,6 @@ jobs:
         with:
           role-to-assume: ${{ secrets.roleArn }}
           aws-region: ${{ inputs.region }}
-          role-duration-seconds: 21600
 
       - name: Publish status success
         if: ${{ inputs.success }}
