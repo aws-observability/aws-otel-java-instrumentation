@@ -66,5 +66,5 @@ jobs:
                    needs.check-dependencies-otel-java.result == 'success'}}
       region: us-west-2
     secrets:
-      roleArn: ${{ secrets.NEW_METRICS_ROLE_ARN }}
+      roleArn: ${{ secrets.METRICS_ROLE_ARN }}
 
