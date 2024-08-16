@@ -205,7 +205,7 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Test
-  void testBedrockAgentGetKnowlesgeBaseIdFromRequest() {
+  void testBedrockAgentGetKnowlesgeBaseId() {
     doTestBedrockAgentKnowledgeBaseId();
   }
 
