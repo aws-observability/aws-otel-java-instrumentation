@@ -149,13 +149,10 @@ jobs:
       group: e2e-adot-test
       cancel-in-progress: false
     needs: [build,default-region-output]
-    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    uses: ./.github/workflows/application-signals-e2e-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
-      test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
-      caller-workflow-name: 'nightly-upstream-snapshot-build'
+      adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
 
   publish-build-status:
     needs: [ build, contract-tests ]
