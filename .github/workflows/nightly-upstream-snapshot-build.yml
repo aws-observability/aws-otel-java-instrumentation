@@ -145,9 +145,6 @@ jobs:
 
   # AppSignals specific e2e tests
   appsignals-e2e-test:
-    concurrency:
-      group: e2e-adot-test
-      cancel-in-progress: false
     needs: [build,default-region-output]
     uses: ./.github/workflows/application-signals-e2e-test.yml
     secrets: inherit
