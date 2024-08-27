@@ -20,10 +20,23 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
+      - name: Configure AWS credentials for dependency scan
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Get NVD API key for dependency scan
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        id: nvd_api_key
+        with:
+          secret-ids: ${{ secrets.NVD_API_KEY_SECRET_ARN }}
+          parse-json-secrets: true
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: ":otelagent:dependencyCheckAnalyze"
+          arguments: ":otelagent:dependencyCheckAnalyze --scan"
+        env:
+            NVD_API_KEY: ${{ env.NVD_API_KEY_NVD_API_KEY }}
       - name: Upload report
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
@@ -42,10 +55,23 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
+      - name: Configure AWS credentials for dependency scan
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Get NVD API key for dependency scan
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        id: nvd_api_key
+        with:
+          secret-ids: ${{ secrets.NVD_API_KEY_SECRET_ARN }}
+          parse-json-secrets: true
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v3
         with:
           arguments: ":javaagent:dependencyCheckAnalyze"
+        env:
+            NVD_API_KEY: ${{ env.NVD_API_KEY_NVD_API_KEY }}
       - name: Upload report
         if: ${{ always() }}
         uses: actions/upload-artifact@v3

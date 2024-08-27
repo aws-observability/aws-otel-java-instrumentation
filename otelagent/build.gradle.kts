@@ -29,6 +29,10 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+dependencyCheck {
+  nvd.apiKey = System.getenv("NVD_API_KEY")
+}
+
 base {
   archivesName.set("aws-opentelemetry-agent")
 }
