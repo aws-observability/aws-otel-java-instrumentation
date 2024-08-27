@@ -28,7 +28,7 @@ dependencies {
   implementation("com.google.code.gson:gson:2.10.1")
   implementation("org.slf4j:slf4j-simple")
   implementation(project(":appsignals-tests:images:aws-sdk:aws-sdk-base"))
-  implementation(enforcedPlatform("com.amazonaws:aws-java-sdk-bom:1.12.761"))
+  implementation(enforcedPlatform("com.amazonaws:aws-java-sdk-bom:1.12.770"))
   implementation("com.amazonaws:aws-java-sdk-s3")
   implementation("com.amazonaws:aws-java-sdk-dynamodb")
   implementation("com.amazonaws:aws-java-sdk-sqs")
