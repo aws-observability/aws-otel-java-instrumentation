@@ -34,7 +34,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: ":otelagent:dependencyCheckAnalyze --scan"
+          arguments: ":otelagent:dependencyCheckAnalyze --stacktrace"
         env:
             NVD_API_KEY: ${{ env.NVD_API_KEY_NVD_API_KEY }}
       - name: Upload report
