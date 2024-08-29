@@ -144,7 +144,7 @@ jobs:
           # MATRIX_COMMIT_COMBO
           # GITHUB_RUN_ID
         run: |-
-          docker-compose up --build;
+          docker compose up --build;
           RUN_TESTS_EXIT_CODE=$(
             docker inspect $(
               docker ps --quiet --all --filter "name=docker-performance-tests_alarms-poller"

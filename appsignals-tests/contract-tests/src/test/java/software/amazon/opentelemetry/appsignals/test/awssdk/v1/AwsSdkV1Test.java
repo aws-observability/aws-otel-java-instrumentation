@@ -57,24 +57,23 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
     return "Kinesis";
   }
 
-  @Override
-  protected String getS3ServiceName() {
-    return "AWS.SDK.Amazon S3";
+  protected String getBedrockSpanNamePrefix() {
+    return "Bedrock";
   }
 
   @Override
-  protected String getDynamoDbServiceName() {
-    return "AWS.SDK.AmazonDynamoDBv2";
+  protected String getBedrockAgentSpanNamePrefix() {
+    return "AWSBedrockAgent";
   }
 
   @Override
-  protected String getSqsServiceName() {
-    return "AWS.SDK.AmazonSQS";
+  protected String getBedrockRuntimeSpanNamePrefix() {
+    return "BedrockRuntime";
   }
 
   @Override
-  protected String getKinesisServiceName() {
-    return "AWS.SDK.AmazonKinesis";
+  protected String getBedrockAgentRuntimeSpanNamePrefix() {
+    return "AWSBedrockAgentRuntime";
   }
 
   protected String getS3RpcServiceName() {
@@ -93,6 +92,22 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
 
   protected String getKinesisRpcServiceName() {
     return "AmazonKinesis";
+  }
+
+  protected String getBedrockRpcServiceName() {
+    return "AmazonBedrock";
+  }
+
+  protected String getBedrockAgentRpcServiceName() {
+    return "AWSBedrockAgent";
+  }
+
+  protected String getBedrockRuntimeRpcServiceName() {
+    return "AmazonBedrockRuntime";
+  }
+
+  protected String getBedrockAgentRuntimeRpcServiceName() {
+    return "AWSBedrockAgentRuntime";
   }
 
   @Test
@@ -184,5 +199,40 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   @Test
   void testKinesisFault() throws Exception {
     doTestKinesisFault();
+  }
+
+  @Test
+  void testBedrockAgentGetKnowledgeBaseId() {
+    doTestBedrockAgentKnowledgeBaseId();
+  }
+
+  @Test
+  void testBedrockAgentAgentId() {
+    doTestBedrockAgentAgentId();
+  }
+
+  @Test
+  void testBedrockAgentDataSourceId() {
+    doTestBedrockAgentDataSourceId();
+  }
+
+  @Test
+  void testBedrockRuntimeModelId() {
+    doTestBedrockRuntimeModelId();
+  }
+
+  @Test
+  void testBedrockGuardrailId() {
+    doTestBedrockGuardrailId();
+  }
+
+  @Test
+  void testBedrockAgentRuntimeAgentId() {
+    doTestBedrockAgentRuntimeAgentId();
+  }
+
+  @Test
+  void testBedrockAgentRuntimeKnowledgeBaseId() {
+    doTestBedrockAgentRuntimeKnowledgeBaseId();
   }
 }
