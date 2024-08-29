@@ -64,7 +64,7 @@ jobs:
       workflow: owasp
       success: ${{ needs.check-dependencies-adot-java.result == 'success' &&
                    needs.check-dependencies-otel-java.result == 'success'}}
-      region: us-west-2
+      region: us-east-1
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}
 

@@ -25,6 +25,17 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.regions.Regions;
+import com.amazonaws.services.bedrock.AmazonBedrockClient;
+import com.amazonaws.services.bedrock.model.GetGuardrailRequest;
+import com.amazonaws.services.bedrockagent.AWSBedrockAgentClient;
+import com.amazonaws.services.bedrockagent.model.GetAgentRequest;
+import com.amazonaws.services.bedrockagent.model.GetDataSourceRequest;
+import com.amazonaws.services.bedrockagent.model.GetKnowledgeBaseRequest;
+import com.amazonaws.services.bedrockagentruntime.AWSBedrockAgentRuntimeClient;
+import com.amazonaws.services.bedrockagentruntime.model.GetAgentMemoryRequest;
+import com.amazonaws.services.bedrockagentruntime.model.RetrieveRequest;
+import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntimeClient;
+import com.amazonaws.services.bedrockruntime.model.InvokeModelRequest;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
@@ -49,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -109,6 +121,7 @@ public class App {
     setupS3();
     setupSqs();
     setupKinesis();
+    setupBedrock();
 
     // Add this log line so that we only start testing after all routes are configured.
     awaitInitialization();
@@ -206,7 +219,6 @@ public class App {
           try {
             errorClient.sendMessage(sendMessageRequest);
           } catch (Exception ex) {
-
           }
           return "";
         });
@@ -498,6 +510,124 @@ public class App {
           } catch (Exception e) {
 
           }
+          return "";
+        });
+  }
+
+  private static void setupBedrock() {
+    // Localstack does not support Bedrock related services.
+    // We point all Bedrock related request endpoints to the local app,
+    // and then specifically handle each request to return the expected response.
+    // For the full list of services supported by Localstack, see:
+    // https://github.com/testcontainers/testcontainers-java/blob/1f38f0d9604edb9e89fd3b3ee1eff6728e2d1e07/modules/localstack/src/main/java/org/testcontainers/containers/localstack/LocalStackContainer.java#L402
+    var bedrockAgentClient =
+        AWSBedrockAgentClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(
+                new EndpointConfiguration("http://bedrock.test:8080", Regions.US_WEST_2.getName()))
+            .build();
+    var bedrockClient =
+        AmazonBedrockClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(
+                new EndpointConfiguration("http://bedrock.test:8080", Regions.US_WEST_2.getName()))
+            .build();
+    var bedrockAgentRuntimeClient =
+        AWSBedrockAgentRuntimeClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(
+                new EndpointConfiguration("http://bedrock.test:8080", Regions.US_WEST_2.getName()))
+            .build();
+    var bedrockRuntimeClient =
+        AmazonBedrockRuntimeClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(
+                new EndpointConfiguration("http://bedrock.test:8080", Regions.US_WEST_2.getName()))
+            .build();
+
+    // Setup API routes for Bedrock， BedrockAgent, BedrockAgentRuntime, and BedrockRuntime services.
+    Utils.setupGetKnowledgeBaseRoute(mainStatus);
+    Utils.setupGetAgentRoute(mainStatus);
+    Utils.setupGetGuardrailRoute(mainStatus);
+    Utils.setupGetAgentMemoryRoute(mainStatus);
+    Utils.setupGetDataSourceRoute(mainStatus);
+    Utils.setupInvokeModelRoute(mainStatus);
+    Utils.setupRetrieveRoute(mainStatus);
+
+    get(
+        "/bedrockagent/getknowledgeBase/:knowledgeBaseId",
+        (req, res) -> {
+          setMainStatus(200);
+          String knowledgeBaseId = req.params(":knowledgeBaseId");
+          GetKnowledgeBaseRequest request =
+              new GetKnowledgeBaseRequest().withKnowledgeBaseId(knowledgeBaseId);
+          bedrockAgentClient.getKnowledgeBase(request);
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel",
+        (req, res) -> {
+          setMainStatus(200);
+          String modelId = "anthropic.claude-v2";
+          InvokeModelRequest invokeModelRequest =
+              new InvokeModelRequest()
+                  .withModelId(modelId)
+                  .withBody(
+                      StandardCharsets.UTF_8.encode(
+                          "{\"prompt\":\"Hello, world!\",\"temperature\":0.7,\"top_p\":0.9,\"max_tokens_to_sample\":100}\n"));
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+          return "";
+        });
+
+    get(
+        "/bedrockagent/get-data-source",
+        (req, res) -> {
+          setMainStatus(200);
+
+          GetDataSourceRequest request =
+              new GetDataSourceRequest()
+                  .withDataSourceId("nonExistDatasourceId")
+                  .withKnowledgeBaseId("nonExistKnowledgeBaseId");
+          bedrockAgentClient.getDataSource(request);
+          return "";
+        });
+    get(
+        "/bedrockagent/getagent/:agentId",
+        (req, res) -> {
+          setMainStatus(200);
+          String testAgentId = req.params(":agentId");
+          GetAgentRequest request = new GetAgentRequest().withAgentId(testAgentId);
+          bedrockAgentClient.getAgent(request);
+          return "";
+        });
+    get(
+        "/bedrock/getguardrail",
+        (req, res) -> {
+          setMainStatus(200);
+          GetGuardrailRequest request =
+              new GetGuardrailRequest()
+                  .withGuardrailIdentifier("test-bedrock-guardrail")
+                  .withGuardrailVersion("DRAFT");
+          bedrockClient.getGuardrail(request);
+          return "";
+        });
+    get(
+        "/bedrockagentruntime/getmemory/:agentId",
+        (req, res) -> {
+          setMainStatus(200);
+          String agentId = req.params(":agentId");
+          GetAgentMemoryRequest request =
+              new GetAgentMemoryRequest().withAgentId(agentId).withAgentAliasId("agent-alias-id");
+          var repo = bedrockAgentRuntimeClient.getAgentMemory(request);
+          return "";
+        });
+    get(
+        "/bedrockagentruntime/retrieve/:knowledgeBaseId",
+        (req, res) -> {
+          setMainStatus(200);
+          String knowledgeBaseId = req.params(":knowledgeBaseId");
+          RetrieveRequest request = new RetrieveRequest().withKnowledgeBaseId(knowledgeBaseId);
+          var repo = bedrockAgentRuntimeClient.retrieve(request);
           return "";
         });
   }
