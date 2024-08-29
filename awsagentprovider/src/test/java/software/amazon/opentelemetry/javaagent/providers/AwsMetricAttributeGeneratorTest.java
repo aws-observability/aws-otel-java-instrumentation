@@ -21,16 +21,24 @@ import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValu
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_TARGET;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.SERVICE_METRIC;
 
@@ -436,6 +444,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, "TestString");
     mockAttribute(DB_SYSTEM, "TestString");
     mockAttribute(DB_OPERATION, "TestString");
+    mockAttribute(DB_STATEMENT, "TestString");
     mockAttribute(FAAS_INVOKED_PROVIDER, "TestString");
     mockAttribute(FAAS_INVOKED_NAME, "TestString");
     mockAttribute(MESSAGING_SYSTEM, "TestString");
@@ -459,6 +468,21 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of various combinations of DB attributes, then remove them.
     validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, "DB operation");
+
+    // Validate db.operation not exist, but db.statement exist, where SpanAttributes.DB_STATEMENT is
+    // invalid
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "invalid DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateAndRemoveRemoteAttributes(
+        DB_SYSTEM, "DB system", DB_OPERATION, UNKNOWN_REMOTE_OPERATION);
+
+    // Validate both db.operation and db.statement not exist.
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_OPERATION, null);
+    mockAttribute(DB_STATEMENT, null);
+    validateAndRemoveRemoteAttributes(
+        DB_SYSTEM, "DB system", DB_OPERATION, UNKNOWN_REMOTE_OPERATION);
 
     // Validate behaviour of various combinations of FAAS attributes, then remove them.
     validateAndRemoveRemoteAttributes(
@@ -498,14 +522,36 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_SOCK_PEER_ADDR, null);
     mockAttribute(NET_SOCK_PEER_PORT, null);
 
-    // Validate behavior of Remote Operation from HttpTarget - with 1st api part, then remove it
+    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates
+    // that RemoteService is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com/payment/123");
-    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, "/payment");
+    validateExpectedRemoteAttributes("www.example.com", "/payment");
     mockAttribute(HTTP_URL, null);
 
-    // Validate behavior of Remote Operation from HttpTarget - without 1st api part, then remove it
+    // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates
+    // that RemoteService is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com");
-    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, "/");
+    validateExpectedRemoteAttributes("www.example.com", "/");
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, "http://192.168.1.1:8000");
+    validateExpectedRemoteAttributes("192.168.1.1:8000", "/");
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, "http://192.168.1.1");
+    validateExpectedRemoteAttributes("192.168.1.1", "/");
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, "");
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from HttpUrl
+    mockAttribute(HTTP_URL, null);
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
     mockAttribute(HTTP_URL, null);
 
     // Validate behavior of Remote Operation from HttpTarget - invalid url, then remove it
@@ -520,6 +566,72 @@ class AwsMetricAttributeGeneratorTest {
 
     // Once we have removed all usable metrics, we only have "unknown" attributes, which are unused.
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+  }
+
+  // Validate behaviour of various combinations of DB attributes.
+  @Test
+  public void testGetDBStatementRemoteOperation() {
+    // Set all expected fields to a test string, we will overwrite them in descending order to test
+    mockAttribute(DB_SYSTEM, "TestString");
+    mockAttribute(DB_OPERATION, "TestString");
+    mockAttribute(DB_STATEMENT, "TestString");
+
+    // Validate SpanAttributes.DB_OPERATION not exist, but SpanAttributes.DB_STATEMENT exist,
+    // where SpanAttributes.DB_STATEMENT is valid
+    // Case 1: Only 1 valid keywords match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 2: More than 1 valid keywords match, we want to pick the longest match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "DROP VIEW DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "DROP VIEW");
+
+    // Case 3: More than 1 valid keywords match, but the other keywords is not
+    // at the start of the SpanAttributes.DB_STATEMENT. We want to only pick start match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT data FROM domains");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 4: Have valid keywords，but it is not at the start of SpanAttributes.DB_STATEMENT
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "invalid SELECT DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
+
+    // Case 5: Have valid keywords, match the longest word
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "UUID");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "UUID");
+
+    // Case 6: Have valid keywords, match with first word
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "FROM SELECT *");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "FROM");
+
+    // Case 7: Have valid keyword, match with first word
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT FROM *");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 8: Have valid keywords, match with upper case
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "seLeCt *");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 9: Both DB_OPERATION and DB_STATEMENT are set but the former takes precedence
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "SELECT FROM *");
+    mockAttribute(DB_OPERATION, "DB operation");
+    validateExpectedRemoteAttributes("DB system", "DB operation");
   }
 
   @Test
@@ -547,26 +659,260 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testClientSpanWithRemoteTargetAttributes() {
+  public void testSdkClientSpanWithRemoteResourceAttributes() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
     // Validate behaviour of aws bucket name attribute, then remove it.
     mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_s3_bucket_name");
+    validateRemoteResourceAttributes("AWS::S3::Bucket", "aws_s3_bucket_name");
     mockAttribute(AWS_BUCKET_NAME, null);
 
     // Validate behaviour of AWS_QUEUE_NAME attribute, then remove it.
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_queue_name");
+    validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
+    mockAttribute(AWS_QUEUE_NAME, null);
+
+    // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove
+    // them. Queue name is more reliable than queue URL, so we prefer to use name over URL.
+    mockAttribute(AWS_QUEUE_URL, "https://sqs.us-east-2.amazonaws.com/123456789012/Queue");
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
+    validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
+    mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_QUEUE_NAME, null);
+
+    // Valid queue name with invalid queue URL, we should default to using the queue name.
+    mockAttribute(AWS_QUEUE_URL, "invalidUrl");
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
+    validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
+    mockAttribute(AWS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Validate behaviour of AWS_STREAM_NAME attribute, then remove it.
     mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_stream_name");
+    validateRemoteResourceAttributes("AWS::Kinesis::Stream", "aws_stream_name");
     mockAttribute(AWS_STREAM_NAME, null);
 
     // Validate behaviour of AWS_TABLE_NAME attribute, then remove it.
     mockAttribute(AWS_TABLE_NAME, "aws_table_name");
-    validateRemoteTargetAttributes(AWS_REMOTE_TARGET, "aws_table_name");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table_name");
     mockAttribute(AWS_TABLE_NAME, null);
+
+    // Validate behaviour of AWS_TABLE_NAME attribute with special chars(|), then remove it.
+    mockAttribute(AWS_TABLE_NAME, "aws_table|name");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^|name");
+    mockAttribute(AWS_TABLE_NAME, null);
+
+    // Validate behaviour of AWS_TABLE_NAME attribute with special chars(^), then remove it.
+    mockAttribute(AWS_TABLE_NAME, "aws_table^name");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^^name");
+    mockAttribute(AWS_TABLE_NAME, null);
+
+    // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute, then remove it.
+    mockAttribute(AWS_AGENT_ID, "test_agent_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_id");
+    mockAttribute(AWS_AGENT_ID, null);
+
+    // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_AGENT_ID, "test_agent_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_^^id");
+    mockAttribute(AWS_AGENT_ID, null);
+
+    // Validate behaviour of AWS_KNOWLEDGE_BASE_ID attribute, then remove it.
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
+
+    // Validate behaviour of AWS_KNOWLEDGE_BASE_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_^^id");
+    mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
+
+    // Validate behaviour of AWS_DATA_SOURCE_ID attribute, then remove it.
+    mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
+    mockAttribute(AWS_DATA_SOURCE_ID, null);
+
+    // Validate behaviour of AWS_DATA_SOURCE_ID attribute with special chars(^), then remove
+    // it.
+    mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_^^id");
+    mockAttribute(AWS_DATA_SOURCE_ID, null);
+
+    // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_id");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
+
+    // Validate behaviour of AWS_GUARDRAIL_ID attribute with special chars(^), then remove it.
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_^^id");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
+
+    // Validate behaviour of GEN_AI_REQUEST_MODEL attribute, then remove it.
+    mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_id");
+    mockAttribute(GEN_AI_REQUEST_MODEL, null);
+
+    // Validate behaviour of GEN_AI_REQUEST_MODEL attribute with special chars(^), then
+    // remove it.
+    mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_^id");
+    validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_^^id");
+    mockAttribute(GEN_AI_REQUEST_MODEL, null);
+    mockAttribute(RPC_SYSTEM, "null");
+  }
+
+  @Test
+  public void testDBClientSpanWithRemoteResourceAttributes() {
+    mockAttribute(DB_SYSTEM, "mysql");
+    // Validate behaviour of DB_NAME, SERVER_ADDRESS and SERVER_PORT exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME with '|' char, SERVER_ADDRESS and SERVER_PORT exist, then
+    // remove it.
+    mockAttribute(DB_NAME, "db_name|special");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name^|special|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME with '^' char, SERVER_ADDRESS and SERVER_PORT exist, then
+    // remove it.
+    mockAttribute(DB_NAME, "db_name^special");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name^^special|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME, SERVER_ADDRESS exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_ADDRESS, null);
+
+    // Validate behaviour of SERVER_ADDRESS exist, then remove it.
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "abc.com");
+    mockAttribute(SERVER_ADDRESS, null);
+
+    // Validate behaviour of SERVER_PORT exist, then remove it.
+    mockAttribute(SERVER_PORT, 3306L);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(SERVER_PORT, null);
+
+    // Validate behaviour of DB_NAME, NET_PEER_NAME and NET_PEER_PORT exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(NET_PEER_NAME, "abc.com");
+    mockAttribute(NET_PEER_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(NET_PEER_NAME, null);
+    mockAttribute(NET_PEER_PORT, null);
+
+    // Validate behaviour of DB_NAME, NET_PEER_NAME exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(NET_PEER_NAME, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(NET_PEER_NAME, null);
+
+    // Validate behaviour of NET_PEER_NAME exist, then remove it.
+    mockAttribute(NET_PEER_NAME, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "abc.com");
+    mockAttribute(NET_PEER_NAME, null);
+
+    // Validate behaviour of NET_PEER_PORT exist, then remove it.
+    mockAttribute(NET_PEER_PORT, 3306L);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(NET_PEER_PORT, null);
+
+    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS and SERVER_SOCKET_PORT exist, then
+    // remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_SOCKET_ADDRESS, "abc.com");
+    mockAttribute(SERVER_SOCKET_PORT, 3306L);
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_SOCKET_ADDRESS, null);
+    mockAttribute(SERVER_SOCKET_PORT, null);
+
+    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_SOCKET_ADDRESS, "abc.com");
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(SERVER_SOCKET_ADDRESS, null);
+
+    // Validate behaviour of SERVER_SOCKET_PORT exist, then remove it.
+    mockAttribute(SERVER_SOCKET_PORT, 3306L);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(SERVER_SOCKET_PORT, null);
+
+    // Validate behaviour of only DB_NAME exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(DB_NAME, null);
+
+    // Validate behaviour of DB_NAME and DB_CONNECTION_STRING exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(
+        DB_CONNECTION_STRING,
+        "mysql://test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com:3306/petclinic");
+    validateRemoteResourceAttributes(
+        "DB::Connection", "db_name|test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com|3306");
+    mockAttribute(DB_NAME, null);
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    // Validate behaviour of DB_CONNECTION_STRING exist, then remove it.
+    mockAttribute(
+        DB_CONNECTION_STRING,
+        "mysql://test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com:3306/petclinic");
+    validateRemoteResourceAttributes(
+        "DB::Connection", "test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com|3306");
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    // Validate behaviour of DB_CONNECTION_STRING exist without port, then remove it.
+    mockAttribute(DB_CONNECTION_STRING, "http://dbserver");
+    validateRemoteResourceAttributes("DB::Connection", "dbserver");
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    // Validate behaviour of DB_NAME and invalid DB_CONNECTION_STRING exist, then remove it.
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(DB_CONNECTION_STRING, "hsqldb:mem:");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    mockAttribute(DB_NAME, null);
+    mockAttribute(DB_CONNECTION_STRING, null);
+
+    mockAttribute(DB_SYSTEM, null);
   }
 
   @Test
@@ -679,31 +1025,32 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(PEER_SERVICE, null);
   }
 
-  private void validateRemoteTargetAttributes(
-      AttributeKey<String> remoteTargetKey, String remoteTarget) {
-    // Client, Producer and Consumer spans should generate the expected RemoteTarget attribute
+  private void validateRemoteResourceAttributes(String type, String identifier) {
+    // Client, Producer and Consumer spans should generate the expected remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(remoteTargetKey)).isEqualTo(remoteTarget);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.PRODUCER);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-
-    assertThat(actualAttributes.get(remoteTargetKey)).isEqualTo(remoteTarget);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(remoteTargetKey)).isEqualTo(remoteTarget);
-    assertThat(actualAttributes.get(remoteTargetKey)).isEqualTo(remoteTarget);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
 
-    // Server span should not generate RemoteTarget attribute
+    // Server span should not generate remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
-    assertThat(actualAttributes.get(remoteTargetKey)).isEqualTo(null);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(null);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(null);
   }
 
   private void validateHttpStatusWithThrowable(Throwable throwable, Long expectedStatusCode) {
@@ -740,7 +1087,61 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testNormalizeServiceNameNonAwsSdkSpan() {
+  public void testDBUserAttribute() {
+    mockAttribute(DB_OPERATION, "db_operation");
+    mockAttribute(DB_USER, "db_user");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_OPERATION)).isEqualTo("db_operation");
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isEqualTo("db_user");
+  }
+
+  @Test
+  public void testDBUserAttributeAbsent() {
+    mockAttribute(DB_SYSTEM, "db_system");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
+  }
+
+  @Test
+  public void testDBUserAttributeWithDifferentValues() {
+    mockAttribute(DB_OPERATION, "db_operation");
+    mockAttribute(DB_USER, "non_db_user");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isEqualTo("non_db_user");
+  }
+
+  @Test
+  public void testDBUserAttributeNotPresentInServiceMetricForServerSpan() {
+    mockAttribute(DB_USER, "db_user");
+    mockAttribute(DB_SYSTEM, "db_system");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
+  }
+
+  @Test
+  public void testDbUserPresentAndIsDbSpanFalse() {
+    mockAttribute(DB_USER, "DB user");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
+  }
+
+  @Test
+  public void testNormalizeRemoteServiceName_NoNormalization() {
     String serviceName = "non aws service";
     mockAttribute(RPC_SERVICE, serviceName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
@@ -751,31 +1152,36 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testNormalizeServiceNameAwsSdkV1Span() {
-    String serviceName = "Amazon S3";
-    mockAttribute(RPC_SYSTEM, "aws-api");
-    mockAttribute(RPC_SERVICE, serviceName);
-    when(spanDataMock.getInstrumentationScopeInfo())
-        .thenReturn(InstrumentationScopeInfo.create("io.opentelemetry.aws-sdk-1.11 1.28.0-alpha"));
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+  public void testNormalizeRemoteServiceName_AwsSdk() {
+    // AWS SDK V1
+    testAwsSdkServiceNormalization("AmazonDynamoDBv2", "AWS::DynamoDB");
+    testAwsSdkServiceNormalization("AmazonKinesis", "AWS::Kinesis");
+    testAwsSdkServiceNormalization("Amazon S3", "AWS::S3");
+    testAwsSdkServiceNormalization("AmazonSQS", "AWS::SQS");
+    testAwsSdkServiceNormalization("Bedrock", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSBedrockAgentRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AWSBedrockAgent", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("AmazonBedrockRuntime", "AWS::BedrockRuntime");
 
-    Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("Amazon S3");
+    // AWS SDK V2
+    testAwsSdkServiceNormalization("DynamoDb", "AWS::DynamoDB");
+    testAwsSdkServiceNormalization("Kinesis", "AWS::Kinesis");
+    testAwsSdkServiceNormalization("S3", "AWS::S3");
+    testAwsSdkServiceNormalization("Sqs", "AWS::SQS");
+    testAwsSdkServiceNormalization("Bedrock", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockAgentRuntime", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockAgent", "AWS::Bedrock");
+    testAwsSdkServiceNormalization("BedrockRuntime", "AWS::BedrockRuntime");
   }
 
-  @Test
-  public void testNormalizeServiceNameAwsSdkV2Span() {
-    String serviceName = "DynamoDb";
+  private void testAwsSdkServiceNormalization(String serviceName, String expectedRemoteService) {
     mockAttribute(RPC_SYSTEM, "aws-api");
     mockAttribute(RPC_SERVICE, serviceName);
-    when(spanDataMock.getInstrumentationScopeInfo())
-        .thenReturn(InstrumentationScopeInfo.create("io.opentelemetry.aws-sdk-2.2 1.28.0-alpha"));
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("AWS.SDK.DynamoDb");
+    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo(expectedRemoteService);
   }
 
   @Test

@@ -103,9 +103,9 @@ public final class AttributePropagatingSpanProcessor implements SpanProcessor {
       if (!isServerKind(spanData)) {
         propagationData = propagationDataExtractor.apply(spanData);
       }
-    } else if (isServerKind(parentReadableSpan.toSpanData())) {
+    } else if (parentReadableSpan != null && isServerKind(parentReadableSpan.toSpanData())) {
       propagationData = propagationDataExtractor.apply(parentReadableSpan.toSpanData());
-    } else {
+    } else if (parentReadableSpan != null) {
       propagationData = parentReadableSpan.getAttribute(propagationDataKey);
     }
 

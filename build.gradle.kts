@@ -42,8 +42,8 @@ nexusPublishing {
     sonatype {
       nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/"))
       snapshotRepositoryUrl.set(uri("https://aws.oss.sonatype.org/content/repositories/snapshots/"))
-      username.set(System.getenv("PUBLISH_USERNAME"))
-      password.set(System.getenv("PUBLISH_PASSWORD"))
+      username.set(System.getenv("PUBLISH_TOKEN_USERNAME"))
+      password.set(System.getenv("PUBLISH_TOKEN_PASSWORD"))
     }
   }
 }

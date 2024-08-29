@@ -90,12 +90,12 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
-          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
-          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -219,32 +219,16 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
 
       - name: Build snapshot with Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: contractTests -PlocalDocker=true --no-build-cache
 
-  # AppSignals specific e2e tests
-  appsignals-e2e-eks-test:
-    concurrency:
-      group: e2e-adot-test
-      cancel-in-progress: false
-    needs: [build, default-region-output]
-    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+  application-signals-e2e-test:
+    needs: [build]
+    uses: ./.github/workflows/application-signals-e2e-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
-      test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ needs.build.outputs.staging-image }}
-      caller-workflow-name: 'main-build'
-
-  # AppSignals specific e2e tests for ec2
-  appsignals-e2e-ec2-test:
-    needs: [build, default-region-output]
-    uses: ./.github/workflows/appsignals-e2e-ec2-test.yml
-    secrets: inherit
-    with:
-      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
-      caller-workflow-name: 'main-build'
+      adot-image-name: ${{ needs.build.outputs.staging-image }}
 
   publish-build-status:
     needs: [ build, contract-tests ]
@@ -257,6 +241,6 @@ jobs:
       workflow: main-build
       success: ${{  needs.build.result == 'success' &&
                     needs.contract-tests.result == 'success'  }}
-      region: us-west-2
+      region: us-east-1
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}
