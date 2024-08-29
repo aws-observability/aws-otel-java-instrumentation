@@ -41,19 +41,18 @@ jobs:
         with:
           role-to-assume: ${{ secrets.roleArn }}
           aws-region: ${{ inputs.region }}
-          role-duration-seconds: 21600
 
       - name: Publish status success
         if: ${{ inputs.success }}
         run: |
           aws cloudwatch put-metric-data --namespace '${{ inputs.namespace }}' \
-            --metric-name Success \
+            --metric-name Failure \
             --dimensions repository=${{ inputs.repository }},branch=${{ inputs.branch }},workflow=${{ inputs.workflow }} \
-            --value 1.0
+            --value 0.0
       - name: Publish status failure
         if: ${{ !inputs.success }}
         run: |
           aws cloudwatch put-metric-data --namespace '${{ inputs.namespace }}' \
-            --metric-name Success \
+            --metric-name Failure \
             --dimensions repository=${{ inputs.repository }},branch=${{ inputs.branch }},workflow=${{ inputs.workflow }} \
-            --value 0.0
+            --value 1.0

@@ -747,12 +747,12 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_^^id");
     mockAttribute(AWS_GUARDRAIL_ID, null);
 
-    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute, then remove it.
+    // Validate behaviour of GEN_AI_REQUEST_MODEL attribute, then remove it.
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_id");
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_id");
     mockAttribute(GEN_AI_REQUEST_MODEL, null);
 
-    // Validate behaviour of AWS_BEDROCK_RUNTIME_MODEL_ID attribute with special chars(^), then
+    // Validate behaviour of GEN_AI_REQUEST_MODEL attribute with special chars(^), then
     // remove it.
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_^^id");
