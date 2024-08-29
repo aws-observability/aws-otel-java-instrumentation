@@ -116,6 +116,13 @@ jobs:
           tags: ${{ env.TEST_TAG }}
           load: true
 
+      - name: Perform image scan
+        uses: ./.github/actions/image_scan
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          image-ref: ${{ env.TEST_TAG }}
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+
       - name: Test docker image
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
@@ -127,3 +134,4 @@ jobs:
         with:
           arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@v3
+
