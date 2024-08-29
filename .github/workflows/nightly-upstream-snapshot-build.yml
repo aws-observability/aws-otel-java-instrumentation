@@ -50,8 +50,8 @@ jobs:
         with:
           arguments: build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
         env:
-          PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
-          PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -145,17 +145,11 @@ jobs:
 
   # AppSignals specific e2e tests
   appsignals-e2e-test:
-    concurrency:
-      group: e2e-adot-test
-      cancel-in-progress: false
     needs: [build,default-region-output]
-    uses: ./.github/workflows/appsignals-e2e-eks-test.yml
+    uses: ./.github/workflows/application-signals-e2e-test.yml
     secrets: inherit
     with:
-      aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
-      test-cluster-name: "e2e-adot-test"
-      appsignals-adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
-      caller-workflow-name: 'nightly-upstream-snapshot-build'
+      adot-image-name: ${{ needs.build.outputs.release-candidate-image }}
 
   publish-build-status:
     needs: [ build, contract-tests ]
@@ -168,6 +162,6 @@ jobs:
       workflow: nightly-upstream-snapshot-build
       success: ${{  needs.build.result == 'success' &&
                     needs.contract-tests.result == 'success'  }}
-      region: us-west-2
+      region: us-east-1
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}

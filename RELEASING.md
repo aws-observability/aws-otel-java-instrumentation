@@ -81,16 +81,16 @@ is`v1.2.3-RC$`, where `$` denotes a release candidate version, e.g. `v1.2.3-RC1`
 
 The following credentials are required for publishing (and automatically set in CI):
 
-* `PUBLISH_USERNAME` and `PUBLISH_PASSWORD`: Sonatype credentials for publishing.
+* `PUBLISH_TOKEN_USERNAME` and `PUBLISH_TOKEN_PASSWORD`: Sonatype credentials for publishing.
 
 ## Releasing from the local setup
 
 Releasing from the local setup can be done providing the previously mentioned four credential values, i.e.
-`PUBLISH_USERNAME`, `PUBLISH_PASSWORD`
+`PUBLISH_TOKEN_USERNAME`, `PUBLISH_TOKEN_PASSWORD`
 
 ```sh
-export PUBLISH_USERNAME=my_sonatype_user
-export PUBLISH_PASSWORD=my_sonatype_key
+export PUBLISH_TOKEN_USERNAME=my_sonatype_user
+export PUBLISH_TOKEN_PASSWORD=my_sonatype_key
 export RELEASE_VERSION=2.4.5 # Set version you want to release
 ./gradlew build final -Prelease.version=${RELEASE_VERSION}
 ```
