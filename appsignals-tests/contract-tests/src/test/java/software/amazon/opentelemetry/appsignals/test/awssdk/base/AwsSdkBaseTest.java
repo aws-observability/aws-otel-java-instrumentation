@@ -37,7 +37,7 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   private final LocalStackContainer localstack =
-      new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.1.0"))
+      new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.5.0"))
           .withServices(
               LocalStackContainer.Service.S3,
               LocalStackContainer.Service.DYNAMODB,
@@ -45,6 +45,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               LocalStackContainer.Service.KINESIS)
           .withEnv("DEFAULT_REGION", "us-west-2")
           .withNetwork(network)
+          .withEnv("LOCALSTACK_HOST", "127.0.0.1")
           .withNetworkAliases(
               "localstack",
               "s3.localstack",
@@ -75,7 +76,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     // aliases used for the case there are errors or fault. In this case the target of the http
     // requests in the aws sdk is the instrumented service itself. We have to do this because
     // we cannot force localstack to return specific error codes.
-    return List.of("error-bucket.s3.test", "fault-bucket.s3.test", "error.test", "fault.test");
+    return List.of(
+        "error-bucket.s3.test", "fault-bucket.s3.test", "error.test", "fault.test", "bedrock.test");
   }
 
   @Override
@@ -92,13 +94,13 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   protected abstract String getKinesisSpanNamePrefix();
 
-  protected abstract String getS3ServiceName();
+  protected abstract String getBedrockSpanNamePrefix();
 
-  protected abstract String getDynamoDbServiceName();
+  protected abstract String getBedrockAgentSpanNamePrefix();
 
-  protected abstract String getSqsServiceName();
+  protected abstract String getBedrockRuntimeSpanNamePrefix();
 
-  protected abstract String getKinesisServiceName();
+  protected abstract String getBedrockAgentRuntimeSpanNamePrefix();
 
   protected abstract String getS3RpcServiceName();
 
@@ -107,6 +109,46 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   protected abstract String getSqsRpcServiceName();
 
   protected abstract String getKinesisRpcServiceName();
+
+  protected abstract String getBedrockRpcServiceName();
+
+  protected abstract String getBedrockAgentRpcServiceName();
+
+  protected abstract String getBedrockRuntimeRpcServiceName();
+
+  protected abstract String getBedrockAgentRuntimeRpcServiceName();
+
+  private String getS3ServiceName() {
+    return "AWS::S3";
+  }
+
+  private String getDynamoDbServiceName() {
+    return "AWS::DynamoDB";
+  }
+
+  private String getSqsServiceName() {
+    return "AWS::SQS";
+  }
+
+  private String getKinesisServiceName() {
+    return "AWS::Kinesis";
+  }
+
+  private String getBedrockServiceName() {
+    return "AWS::Bedrock";
+  }
+
+  private String getBedrockAgentServiceName() {
+    return "AWS::Bedrock";
+  }
+
+  private String getBedrockAgentRuntimeServiceName() {
+    return "AWS::Bedrock";
+  }
+
+  private String getBedrockRuntimeServiceName() {
+    return "AWS::BedrockRuntime";
+  }
 
   private String s3SpanName(String operation) {
     return String.format("%s.%s", getS3SpanNamePrefix(), operation);
@@ -122,6 +164,22 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   private String kinesisSpanName(String operation) {
     return String.format("%s.%s", getKinesisSpanNamePrefix(), operation);
+  }
+
+  private String bedrockSpanName(String operation) {
+    return String.format("%s.%s", getBedrockSpanNamePrefix(), operation);
+  }
+
+  private String bedrockAgentSpanName(String operation) {
+    return String.format("%s.%s", getBedrockAgentSpanNamePrefix(), operation);
+  }
+
+  private String bedrockRuntimeSpanName(String operation) {
+    return String.format("%s.%s", getBedrockRuntimeSpanNamePrefix(), operation);
+  }
+
+  private String bedrockAgentRuntimeSpanName(String operation) {
+    return String.format("%s.%s", getBedrockAgentRuntimeSpanNamePrefix(), operation);
   }
 
   protected ThrowingConsumer<KeyValue> assertAttribute(String key, String value) {
@@ -198,7 +256,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       String peerName,
       int peerPort,
       String url,
@@ -215,7 +274,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         service,
         method,
-        target,
+        type,
+        identifier,
         peerName,
         peerPort,
         url,
@@ -231,7 +291,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       String peerName,
       int peerPort,
       String url,
@@ -247,7 +308,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         service,
         method,
-        target,
+        type,
+        identifier,
         peerName,
         peerPort,
         url,
@@ -294,7 +356,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       String peerName,
       int peerPort,
       String url,
@@ -316,7 +379,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                   localOperation,
                   service,
                   method,
-                  target,
+                  type,
+                  identifier,
                   awsSpanKind);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -330,7 +394,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String operation,
-      String target,
+      String type,
+      String identifier,
       String spanKind) {
 
     var assertions =
@@ -341,8 +406,11 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_OPERATION, operation))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_SERVICE, service))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, spanKind));
-    if (target != null) {
-      assertions.satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_TARGET, target));
+    if (type != null && identifier != null) {
+      assertions.satisfiesOnlyOnce(
+          assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE, type));
+      assertions.satisfiesOnlyOnce(
+          assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER, identifier));
     }
   }
 
@@ -365,7 +433,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -375,7 +444,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         service,
         method,
-        target,
+        type,
+        identifier,
         expectedSum);
   }
 
@@ -386,7 +456,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -396,7 +467,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         service,
         method,
-        target,
+        type,
+        identifier,
         expectedSum);
   }
 
@@ -407,7 +479,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -417,7 +490,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         service,
         method,
-        target,
+        type,
+        identifier,
         expectedSum);
   }
 
@@ -429,7 +503,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String localOperation,
       String service,
       String method,
-      String target,
+      String type,
+      String identifier,
       Double expectedSum) {
     assertThat(resourceScopeMetrics)
         .anySatisfy(
@@ -447,7 +522,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                             localOperation,
                             service,
                             method,
-                            target,
+                            type,
+                            identifier,
                             spanKind);
                         if (expectedSum != null) {
                           double actualSum = dataPoint.getSum();
@@ -476,7 +552,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/createbucket/:bucketname";
-    var target = "::s3:::create-bucket";
+    var type = "AWS::S3::Bucket";
+    var identifier = "create-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -486,7 +563,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "CreateBucket",
-        target,
+        type,
+        identifier,
         "create-bucket.s3.localstack",
         4566,
         "http://create-bucket.s3.localstack:4566",
@@ -499,7 +577,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "CreateBucket",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -508,7 +587,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "CreateBucket",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -517,7 +597,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "CreateBucket",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -534,7 +615,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/createobject/:bucketname/:objectname";
-    var target = "::s3:::put-object";
+    var type = "AWS::S3::Bucket";
+    var identifier = "put-object";
 
     assertSpanClientAttributes(
         traces,
@@ -544,7 +626,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "PutObject",
-        target,
+        type,
+        identifier,
         "put-object.s3.localstack",
         4566,
         "http://put-object.s3.localstack:4566",
@@ -557,7 +640,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "PutObject",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -566,7 +650,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "PutObject",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -575,7 +660,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "PutObject",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -591,7 +677,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/getobject/:bucketName/:objectname";
-    var target = "::s3:::get-object";
+    var type = "AWS::S3::Bucket";
+    var identifier = "get-object";
 
     assertSpanClientAttributes(
         traces,
@@ -601,7 +688,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         "get-object.s3.localstack",
         4566,
         "http://get-object.s3.localstack:4566",
@@ -614,7 +702,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -623,7 +712,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -632,7 +722,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -648,7 +739,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/error";
-    var target = "::s3:::error-bucket";
+    var type = "AWS::S3::Bucket";
+    var identifier = "error-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -658,7 +750,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         "error-bucket.s3.test",
         8080,
         "http://error-bucket.s3.test:8080",
@@ -671,7 +764,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -680,7 +774,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -689,7 +784,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         1.0);
   }
 
@@ -705,7 +801,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /s3/fault";
-    var target = "::s3:::fault-bucket";
+    var type = "AWS::S3::Bucket";
+    var identifier = "fault-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -715,7 +812,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         "fault-bucket.s3.test",
         8080,
         "http://fault-bucket.s3.test:8080",
@@ -728,7 +826,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -737,7 +836,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -746,7 +846,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getS3ServiceName(),
         "GetObject",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -770,7 +871,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/createtable/:tablename";
-    var target = "::dynamodb:::table/some-table";
+    var type = "AWS::DynamoDB::Table";
+    var identifier = "some-table";
 
     assertSpanClientAttributes(
         traces,
@@ -780,7 +882,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "CreateTable",
-        target,
+        type,
+        identifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -793,7 +896,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "CreateTable",
-        target,
+        type,
+        identifier,
         20000.0);
     assertMetricClientAttributes(
         metrics,
@@ -802,7 +906,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "CreateTable",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -811,7 +916,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "CreateTable",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -827,7 +933,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/putitem/:tablename/:partitionkey";
-    var target = "::dynamodb:::table/putitem-table";
+    var type = "AWS::DynamoDB::Table";
+    var identifier = "putitem-table";
 
     assertSpanClientAttributes(
         traces,
@@ -837,7 +944,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -850,7 +958,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -859,7 +968,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -868,7 +978,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -884,7 +995,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/error";
-    var target = "::dynamodb:::table/nonexistanttable";
+    var type = "AWS::DynamoDB::Table";
+    var identifier = "nonexistanttable";
 
     assertSpanClientAttributes(
         traces,
@@ -894,7 +1006,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -907,7 +1020,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -916,7 +1030,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -925,7 +1040,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         1.0);
   }
 
@@ -947,7 +1063,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /ddb/fault";
-    var target = "::dynamodb:::table/nonexistanttable";
+    var type = "AWS::DynamoDB::Table";
+    var identifier = "nonexistanttable";
 
     assertSpanClientAttributes(
         traces,
@@ -957,7 +1074,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -970,7 +1088,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         20000.0);
     assertMetricClientAttributes(
         metrics,
@@ -979,7 +1098,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -988,7 +1108,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getDynamoDbServiceName(),
         "PutItem",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -1004,7 +1125,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/createqueue/:queuename";
-    var target = "::sqs:::some-queue";
+    var type = "AWS::SQS::Queue";
+    var identifier = "some-queue";
 
     assertSpanClientAttributes(
         traces,
@@ -1014,7 +1136,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "CreateQueue",
-        target,
+        type,
+        identifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1027,7 +1150,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "CreateQueue",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1036,7 +1160,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "CreateQueue",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1045,7 +1170,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "CreateQueue",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -1062,7 +1188,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/publishqueue/:queuename";
     // SendMessage does not capture aws.queue.name
-    String target = null;
+    String type = null;
+    String identifier = null;
 
     assertSpanProducerAttributes(
         traces,
@@ -1072,7 +1199,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1086,7 +1214,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1095,7 +1224,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1104,7 +1234,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -1125,7 +1256,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localService = getApplicationOtelServiceName();
     var localOperation = "InternalOperation";
     // ReceiveMessage does not capture aws.queue.name
-    String target = null;
+    String type = null;
+    String identifier = null;
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
     assertSpanConsumerAttributes(
@@ -1148,7 +1280,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "ReceiveMessage",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricConsumerAttributes(
         metrics,
@@ -1157,7 +1290,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "ReceiveMessage",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -1174,7 +1308,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/error";
     // SendMessage does not capture aws.queue.name
-    String target = null;
+    String type = null;
+    String identifier = null;
 
     assertSpanProducerAttributes(
         traces,
@@ -1184,7 +1319,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1198,7 +1334,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1207,7 +1344,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1216,7 +1354,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         1.0);
   }
 
@@ -1233,7 +1372,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /sqs/fault";
     // SendMessage does not capture aws.queue.name
-    String target = null;
+    String type = null;
+    String identifier = null;
 
     assertSpanProducerAttributes(
         traces,
@@ -1243,7 +1383,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1257,7 +1398,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1266,7 +1408,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         1.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1275,7 +1418,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSqsServiceName(),
         "SendMessage",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -1291,7 +1435,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /kinesis/putrecord/:streamname";
-    var target = "::kinesis:::stream/my-stream";
+    var type = "AWS::Kinesis::Stream";
+    var identifier = "my-stream";
 
     assertSpanClientAttributes(
         traces,
@@ -1301,7 +1446,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1314,7 +1460,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1323,7 +1470,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1332,7 +1480,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         0.0);
   }
 
@@ -1348,7 +1497,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /kinesis/error";
-    var target = "::kinesis:::stream/nonexistantstream";
+    var type = "AWS::Kinesis::Stream";
+    var identifier = "nonexistantstream";
 
     assertSpanClientAttributes(
         traces,
@@ -1358,7 +1508,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1372,7 +1523,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1381,7 +1533,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1390,7 +1543,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         1.0);
   }
 
@@ -1406,7 +1560,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /kinesis/fault";
-    var target = "::kinesis:::stream/faultstream";
+    var type = "AWS::Kinesis::Stream";
+    var identifier = "faultstream";
 
     assertSpanClientAttributes(
         traces,
@@ -1416,7 +1571,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1429,7 +1585,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1438,7 +1595,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -1447,7 +1605,447 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getKinesisServiceName(),
         "PutRecord",
-        target,
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockAgentKnowledgeBaseId() {
+    var response =
+        appClient.get("/bedrockagent/getknowledgeBase/knowledge-base-id").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockagent/getknowledgeBase/:knowledgeBaseId";
+    String type = "AWS::Bedrock::KnowledgeBase";
+    String identifier = "knowledge-base-id";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentSpanName("GetKnowledgeBase"),
+        getBedrockAgentRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetKnowledgeBase",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_KNOWLEDGE_BASE_ID, "knowledge-base-id")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetKnowledgeBase",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetKnowledgeBase",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetKnowledgeBase",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockAgentAgentId() {
+    var response = appClient.get("/bedrockagent/getagent/test-agent-id").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockagent/getagent/:agentId";
+    String type = "AWS::Bedrock::Agent";
+    String identifier = "test-agent-id";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentSpanName("GetAgent"),
+        getBedrockAgentRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetAgent",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_AGENT_ID, "test-agent-id")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetAgent",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetAgent",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetAgent",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockAgentDataSourceId() {
+    var response = appClient.get("/bedrockagent/get-data-source").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockagent/get-data-source";
+    String type = "AWS::Bedrock::DataSource";
+    String identifier = "nonExistDatasourceId";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentSpanName("GetDataSource"),
+        getBedrockAgentRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_DATA_SOURCE_ID, "nonExistDatasourceId")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentServiceName(),
+        "GetDataSource",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockRuntimeModelId() {
+    var response = appClient.get("/bedrockruntime/invokeModel").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockruntime/invokeModel";
+    String type = "AWS::Bedrock::Model";
+    String identifier = "anthropic.claude-v2";
+    assertSpanClientAttributes(
+        traces,
+        bedrockRuntimeSpanName("InvokeModel"),
+        getBedrockRuntimeRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockRuntimeServiceName(),
+        "InvokeModel",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "anthropic.claude-v2")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockRuntimeServiceName(),
+        "InvokeModel",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockRuntimeServiceName(),
+        "InvokeModel",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockRuntimeServiceName(),
+        "InvokeModel",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockGuardrailId() {
+    var response = appClient.get("/bedrock/getguardrail").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrock/getguardrail";
+    String type = "AWS::Bedrock::Guardrail";
+    String identifier = "test-bedrock-guardrail";
+    assertSpanClientAttributes(
+        traces,
+        bedrockSpanName("GetGuardrail"),
+        getBedrockRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockServiceName(),
+        "GetGuardrail",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_GUARDRAIL_ID, "test-bedrock-guardrail")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockServiceName(),
+        "GetGuardrail",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockServiceName(),
+        "GetGuardrail",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockServiceName(),
+        "GetGuardrail",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockAgentRuntimeAgentId() {
+    var response = appClient.get("/bedrockagentruntime/getmemory/test-agent-id").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockagentruntime/getmemory/:agentId";
+    String type = "AWS::Bedrock::Agent";
+    String identifier = "test-agent-id";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentRuntimeSpanName("GetAgentMemory"),
+        getBedrockAgentRuntimeRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "GetAgentMemory",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_AGENT_ID, "test-agent-id")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "GetAgentMemory",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "GetAgentMemory",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "GetAgentMemory",
+        type,
+        identifier,
+        0.0);
+  }
+
+  protected void doTestBedrockAgentRuntimeKnowledgeBaseId() {
+    var response =
+        appClient.get("/bedrockagentruntime/retrieve/test-knowledge-base-id").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /bedrockagentruntime/retrieve/:knowledgeBaseId";
+    String type = "AWS::Bedrock::KnowledgeBase";
+    String identifier = "test-knowledge-base-id";
+    assertSpanClientAttributes(
+        traces,
+        bedrockAgentRuntimeSpanName("Retrieve"),
+        getBedrockAgentRuntimeRpcServiceName(),
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
+        "bedrock.test",
+        8080,
+        "http://bedrock.test:8080",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_KNOWLEDGE_BASE_ID, "test-knowledge-base-id")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getBedrockAgentRuntimeServiceName(),
+        "Retrieve",
+        type,
+        identifier,
         0.0);
   }
 }

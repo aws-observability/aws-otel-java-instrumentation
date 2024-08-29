@@ -41,24 +41,31 @@ public class AppController {
 
   @EventListener(ApplicationReadyEvent.class)
   public void prepareDB() {
-    jdbcTemplate.execute("create table employee (id int, name varchar)");
+    jdbcTemplate.execute("create table employee (id int, name varchar(255))");
     jdbcTemplate.execute("insert into employee (id, name) values (1, 'A')");
     logger.info("Application Ready");
   }
 
-  @GetMapping("/success")
+  @GetMapping("/success/CREATE DATABASE")
   @ResponseBody
-  public ResponseEntity<String> success() {
+  public ResponseEntity<String> successCreateDatabase() {
+    jdbcTemplate.execute("create database testdb2");
+    return ResponseEntity.ok().body("success");
+  }
+
+  @GetMapping("/success/SELECT")
+  @ResponseBody
+  public ResponseEntity<String> successSelect() {
     int count = jdbcTemplate.queryForObject("select count(*) from employee", Integer.class);
     return (count == 1)
         ? ResponseEntity.ok().body("success")
         : ResponseEntity.badRequest().body("failed");
   }
 
-  @GetMapping("/fault")
+  @GetMapping("/fault/SELECT")
   @ResponseBody
-  public ResponseEntity<String> failure() {
-    int count = jdbcTemplate.queryForObject("select count(*) from user", Integer.class);
+  public ResponseEntity<String> failureSelect() {
+    int count = jdbcTemplate.queryForObject("select count(*) from userrr", Integer.class);
     return ResponseEntity.ok().body("success");
   }
 

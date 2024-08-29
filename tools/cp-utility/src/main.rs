@@ -28,6 +28,8 @@ enum CopyType {
     SingleFile,
     /// equivalent to cp -a <source> <dest>
     Archive,
+    /// equivalent to cp -r <source> <dest>
+    Recursive,
 }
 
 /// Encapsulate a copy operation
@@ -42,10 +44,10 @@ struct CopyOperation {
 
 /// Parse command line arguments and transform into `CopyOperation`
 fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
-    if !(args.len() == 3 || args.len() == 4 && args[1].eq("-a")) {
+    if !(args.len() == 3 || (args.len() == 4 && (args[1] == "-a" || args[1] == "-r"))) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Invalid parameters. Expected cp [-a] <source> <destination>",
+            "Invalid parameters. Expected cp [-a | -r] <source> <destination>",
         ));
     }
 
@@ -53,7 +55,11 @@ fn parse_args(args: Vec<&str>) -> io::Result<CopyOperation> {
         return Ok(CopyOperation {
             source: PathBuf::from(args[2]),
             destination: PathBuf::from(args[3]),
-            copy_type: CopyType::Archive,
+            copy_type: match args[1] {
+                "-a" => CopyType::Archive,
+                "-r" => CopyType::Recursive,
+                _ => panic!("Invalid option. Expected -a or -r"),
+            },
         });
     }
 
@@ -69,7 +75,48 @@ fn do_copy(operation: CopyOperation) -> io::Result<()> {
     match operation.copy_type {
         CopyType::Archive => copy_archive(&operation.source, &operation.destination)?,
         CopyType::SingleFile => fs::copy(&operation.source, &operation.destination).map(|_| ())?,
+        CopyType::Recursive => copy_recursive(&operation.source, &operation.destination)?,
     };
+    Ok(())
+}
+
+fn copy_recursive(source: &Path, dest: &Path) -> io::Result<()> {
+    // This will cover the case in which the destination exists
+    let sanitized_dest: PathBuf = if dest.exists() {
+        // If the path is a normal file, this is the file name. If it’s the path of a directory, this is the directory name.s
+        dest.to_path_buf()
+            .join(source.file_name().ok_or(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Invalid source file",
+            ))?)
+    } else {
+        dest.to_path_buf()
+    };
+
+    let mut stack = VecDeque::new();
+    stack.push_back((source.to_path_buf(), sanitized_dest));
+
+    while let Some((current_source, current_dest)) = stack.pop_back() {
+        if current_source.is_dir() {
+            fs::create_dir(&current_dest)?;
+            for entry in fs::read_dir(current_source)? {
+                let next_source = entry?.path();
+                let next_dest =
+                    current_dest
+                        .clone()
+                        .join(next_source.file_name().ok_or(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "Invalid source file",
+                        ))?);
+                stack.push_back((next_source, next_dest));
+            }
+        } else if current_source.is_symlink() {
+            // Follow symbolic links as regular files
+            fs::copy(current_source, current_dest)?;
+        } else if current_source.is_file() {
+            fs::copy(current_source, current_dest)?;
+        }
+    }
     Ok(())
 }
 
@@ -172,7 +219,7 @@ mod tests {
     fn parser_failure() {
         // prepare
         let inputs = vec![
-            vec!["cp", "-r", "foo.txt", "bar.txt"],
+            vec!["cp", "-r", "foo.txt", "bar.txt", "foo1.txt"],
             vec!["cp", "-a", "param1", "param2", "param3"],
             vec!["cp", "param1", "param2", "param3"],
         ];
@@ -183,6 +230,24 @@ mod tests {
 
             // assert
             assert!(result.is_err(), "input should fail {:?}", input);
+        }
+    }
+
+    #[test]
+    fn parser_correct() {
+        // prepare
+        let inputs = vec![
+            vec!["cp", "-r", "foo.txt", "bar.txt"],
+            vec!["cp", "-a", "param1", "param2"],
+            vec!["cp", "param1", "param2"],
+        ];
+
+        for input in inputs.into_iter() {
+            // act
+            let result = parse_args(input.clone());
+
+            // assert
+            assert!(result.is_ok(), "input should fail {:?}", input);
         }
     }
 
@@ -227,6 +292,51 @@ mod tests {
 
         // assert
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_copy_recursive() {
+        // prepare
+        let tempdir = tempfile::tempdir().unwrap();
+        let test_base = tempdir.path().to_path_buf();
+        ["foo", "foo/foo0", "foo/foo1", "foo/bar"]
+            .iter()
+            .for_each(|x| create_dir(&test_base, x));
+        let files = [
+            "foo/file1.txt",
+            "foo/file2.txt",
+            "foo/foo1/file3.txt",
+            "foo/bar/file4.txt",
+        ];
+        files.iter().for_each(|x| create_file(&test_base, x));
+        [("foo/symlink1.txt", "./file1.txt")]
+            .iter()
+            .for_each(|(x, y)| create_symlink(&test_base, x, y));
+
+        // act
+        let recursive_copy = CopyOperation {
+            copy_type: CopyType::Recursive,
+            source: test_base.join("foo"),
+            destination: test_base.join("bar"),
+        };
+        do_copy(recursive_copy).unwrap();
+
+        // assert
+        files.iter().for_each(|x| {
+            assert_same_file(
+                &test_base.join(x),
+                &test_base.join(x.replace("foo/", "bar/")),
+            )
+        });
+        assert_same_file(
+            &test_base.join("foo/symlink1.txt"),
+            &test_base.join("bar/symlink1.txt"),
+        );
+        // recursive copy will treat symlink as a file
+        assert_recursive_same_link(
+            &test_base.join("foo/symlink1.txt"),
+            &test_base.join("bar/symlink1.txt"),
+        )
     }
 
     #[test]
@@ -350,5 +460,17 @@ mod tests {
         assert!(dest.is_symlink());
 
         assert_eq!(fs::read_link(source).unwrap(), fs::read_link(dest).unwrap());
+    }
+
+    fn assert_recursive_same_link(source: &Path, dest: &Path) {
+        assert!(source.exists());
+        assert!(dest.exists());
+        assert!(source.is_symlink());
+        assert!(dest.is_file());
+
+        assert_eq!(
+            fs::read_to_string(source).unwrap(),
+            fs::read_to_string(dest).unwrap()
+        );
     }
 }
