@@ -1,25 +1,756 @@
-diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java
-index a3e2d0e770..41c772692d 100644
---- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java
-+++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/SqsImpl.java
-@@ -137,7 +137,7 @@ final class SqsImpl {
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
+index f357a19f88..d1e3cffcef 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
+@@ -47,6 +47,10 @@ dependencies {
+   testLibrary("com.amazonaws:aws-java-sdk-kinesis:1.11.106")
+   testLibrary("com.amazonaws:aws-java-sdk-dynamodb:1.11.106")
+   testLibrary("com.amazonaws:aws-java-sdk-sns:1.11.106")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
+ 
+   testImplementation(project(":instrumentation:aws-sdk:aws-sdk-1.11:testing"))
+ 
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
+index 6cf49a21c4..d3287a87d7 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
+@@ -18,6 +18,10 @@ dependencies {
+   testLibrary("com.amazonaws:aws-java-sdk-dynamodb:1.11.106")
+   testLibrary("com.amazonaws:aws-java-sdk-sns:1.11.106")
+   testLibrary("com.amazonaws:aws-java-sdk-sqs:1.11.106")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
+ 
+   // last version that does not use json protocol
+   latestDepTestLibrary("com.amazonaws:aws-java-sdk-sqs:1.12.583")
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts
+index bfe844e413..521e6a3dd9 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts
+@@ -17,6 +17,10 @@ dependencies {
+   testLibrary("com.amazonaws:aws-java-sdk-kinesis:1.11.106")
+   testLibrary("com.amazonaws:aws-java-sdk-dynamodb:1.11.106")
+   testLibrary("com.amazonaws:aws-java-sdk-sns:1.11.106")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
++  testLibrary("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
+ 
+   // last version that does not use json protocol
+   latestDepTestLibrary("com.amazonaws:aws-java-sdk-sqs:1.12.583")
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsBedrockResourceType.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsBedrockResourceType.java
+new file mode 100644
+index 0000000000..e890cb3c0f
+--- /dev/null
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsBedrockResourceType.java
+@@ -0,0 +1,133 @@
++/*
++ * Copyright The OpenTelemetry Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package io.opentelemetry.instrumentation.awssdk.v1_11;
++
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_AGENT_ID;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_DATA_SOURCE_ID;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_KNOWLEDGE_BASE_ID;
++
++import io.opentelemetry.api.common.AttributeKey;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.function.Function;
++
++enum AwsBedrockResourceType {
++  AGENT_TYPE(AWS_AGENT_ID, RequestAccess::getAgentId),
++  DATA_SOURCE_TYPE(AWS_DATA_SOURCE_ID, RequestAccess::getDataSourceId),
++  KNOWLEDGE_BASE_TYPE(AWS_KNOWLEDGE_BASE_ID, RequestAccess::getKnowledgeBaseId);
++
++  @SuppressWarnings("ImmutableEnumChecker")
++  private final AttributeKey<String> keyAttribute;
++
++  @SuppressWarnings("ImmutableEnumChecker")
++  private final Function<Object, String> attributeValueAccessor;
++
++  AwsBedrockResourceType(
++      AttributeKey<String> keyAttribute, Function<Object, String> attributeValueAccessor) {
++    this.keyAttribute = keyAttribute;
++    this.attributeValueAccessor = attributeValueAccessor;
++  }
++
++  public AttributeKey<String> getKeyAttribute() {
++    return keyAttribute;
++  }
++
++  public Function<Object, String> getAttributeValueAccessor() {
++    return attributeValueAccessor;
++  }
++
++  public static AwsBedrockResourceType getRequestType(String requestClass) {
++    return AwsBedrockResourceTypeMap.BEDROCK_REQUEST_MAP.get(requestClass);
++  }
++
++  public static AwsBedrockResourceType getResponseType(String responseClass) {
++    return AwsBedrockResourceTypeMap.BEDROCK_RESPONSE_MAP.get(responseClass);
++  }
++
++  private static class AwsBedrockResourceTypeMap {
++    private static final Map<String, AwsBedrockResourceType> BEDROCK_REQUEST_MAP = new HashMap<>();
++    private static final Map<String, AwsBedrockResourceType> BEDROCK_RESPONSE_MAP = new HashMap<>();
++
++    // Bedrock request/response mapping
++    // We only support operations that are related to the resource and where the context contains
++    // the AgentID/DataSourceID/KnowledgeBaseID.
++    // AgentID
++    private static final List<String> agentRequestClasses =
++        Arrays.asList(
++            "CreateAgentActionGroupRequest",
++            "CreateAgentAliasRequest",
++            "DeleteAgentActionGroupRequest",
++            "DeleteAgentAliasRequest",
++            "DeleteAgentRequest",
++            "DeleteAgentVersionRequest",
++            "GetAgentActionGroupRequest",
++            "GetAgentAliasRequest",
++            "GetAgentRequest",
++            "GetAgentVersionRequest",
++            "ListAgentActionGroupsRequest",
++            "ListAgentAliasesRequest",
++            "ListAgentKnowledgeBasesRequest",
++            "ListAgentVersionsRequest",
++            "PrepareAgentRequest",
++            "UpdateAgentActionGroupRequest",
++            "UpdateAgentAliasRequest",
++            "UpdateAgentRequest");
++    private static final List<String> agentResponseClasses =
++        Arrays.asList(
++            "DeleteAgentAliasResult",
++            "DeleteAgentResult",
++            "DeleteAgentVersionResult",
++            "PrepareAgentResult");
++    // DataSourceID
++    private static final List<String> dataSourceRequestClasses =
++        Arrays.asList("DeleteDataSourceRequest", "GetDataSourceRequest", "UpdateDataSourceRequest");
++    private static final List<String> dataSourceResponseClasses =
++        Arrays.asList("DeleteDataSourceResult");
++    // KnowledgeBaseID
++    private static final List<String> knowledgeBaseRequestClasses =
++        Arrays.asList(
++            "AssociateAgentKnowledgeBaseRequest",
++            "CreateDataSourceRequest",
++            "DeleteKnowledgeBaseRequest",
++            "DisassociateAgentKnowledgeBaseRequest",
++            "GetAgentKnowledgeBaseRequest",
++            "GetKnowledgeBaseRequest",
++            "ListDataSourcesRequest",
++            "UpdateAgentKnowledgeBaseRequest");
++    private static final List<String> knowledgeBaseResponseClasses =
++        Arrays.asList("DeleteKnowledgeBaseResult");
++
++    private AwsBedrockResourceTypeMap() {}
++
++    static {
++      // Populate the BEDROCK_REQUEST_MAP
++      for (String agentRequestClass : agentRequestClasses) {
++        BEDROCK_REQUEST_MAP.put(agentRequestClass, AwsBedrockResourceType.AGENT_TYPE);
++      }
++      for (String dataSourceRequestClass : dataSourceRequestClasses) {
++        BEDROCK_REQUEST_MAP.put(dataSourceRequestClass, AwsBedrockResourceType.DATA_SOURCE_TYPE);
++      }
++      for (String knowledgeBaseRequestClass : knowledgeBaseRequestClasses) {
++        BEDROCK_REQUEST_MAP.put(
++            knowledgeBaseRequestClass, AwsBedrockResourceType.KNOWLEDGE_BASE_TYPE);
++      }
++
++      // Populate the BEDROCK_RESPONSE_MAP
++      for (String agentResponseClass : agentResponseClasses) {
++        BEDROCK_REQUEST_MAP.put(agentResponseClass, AwsBedrockResourceType.AGENT_TYPE);
++      }
++      for (String dataSourceResponseClass : dataSourceResponseClasses) {
++        BEDROCK_REQUEST_MAP.put(dataSourceResponseClass, AwsBedrockResourceType.DATA_SOURCE_TYPE);
++      }
++      for (String knowledgeBaseResponseClass : knowledgeBaseResponseClasses) {
++        BEDROCK_REQUEST_MAP.put(
++            knowledgeBaseResponseClass, AwsBedrockResourceType.KNOWLEDGE_BASE_TYPE);
++      }
++    }
++  }
++}
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
+index 3e8fddec5c..ec85c5bd41 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
+@@ -18,6 +18,16 @@ final class AwsExperimentalAttributes {
+   static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
+   static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
+   static final AttributeKey<String> AWS_REQUEST_ID = stringKey("aws.requestId");
++  static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
++  static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =
++      stringKey("aws.bedrock.knowledge_base.id");
++  static final AttributeKey<String> AWS_DATA_SOURCE_ID = stringKey("aws.bedrock.data_source.id");
++  static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
++
++  // TODO: Merge in gen_ai attributes in opentelemetry-semconv-incubating once upgrade to v1.26.0
++  static final AttributeKey<String> AWS_BEDROCK_RUNTIME_MODEL_ID =
++      stringKey("gen_ai.request.model");
++  static final AttributeKey<String> AWS_BEDROCK_SYSTEM = stringKey("gen_ai.system");
+ 
+   private AwsExperimentalAttributes() {}
+ }
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
+index 245f09a5d8..1a107ab5fd 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
+@@ -6,8 +6,13 @@
+ package io.opentelemetry.instrumentation.awssdk.v1_11;
+ 
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_AGENT;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_AGENT_ID;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_BEDROCK_RUNTIME_MODEL_ID;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_BEDROCK_SYSTEM;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_BUCKET_NAME;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_ENDPOINT;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_GUARDRAIL_ID;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_KNOWLEDGE_BASE_ID;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_QUEUE_NAME;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_QUEUE_URL;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_REQUEST_ID;
+@@ -21,12 +26,17 @@ import io.opentelemetry.api.common.AttributeKey;
+ import io.opentelemetry.api.common.AttributesBuilder;
+ import io.opentelemetry.context.Context;
+ import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor;
++import java.util.Objects;
+ import java.util.function.Function;
+ import javax.annotation.Nullable;
+ 
+ class AwsSdkExperimentalAttributesExtractor
+     implements AttributesExtractor<Request<?>, Response<?>> {
+   private static final String COMPONENT_NAME = "java-aws-sdk";
++  private static final String BEDROCK_SERVICE = "AmazonBedrock";
++  private static final String BEDROCK_AGENT_SERVICE = "AWSBedrockAgent";
++  private static final String BEDROCK_AGENT_RUNTIME_SERVICE = "AWSBedrockAgentRuntime";
++  private static final String BEDROCK_RUNTIME_SERVICE = "AmazonBedrockRuntime";
+ 
+   @Override
+   public void onStart(AttributesBuilder attributes, Context parentContext, Request<?> request) {
+@@ -34,21 +44,18 @@ class AwsSdkExperimentalAttributesExtractor
+     attributes.put(AWS_ENDPOINT, request.getEndpoint().toString());
+ 
+     Object originalRequest = request.getOriginalRequest();
+-    setRequestAttribute(attributes, AWS_BUCKET_NAME, originalRequest, RequestAccess::getBucketName);
+-    setRequestAttribute(attributes, AWS_QUEUE_URL, originalRequest, RequestAccess::getQueueUrl);
+-    setRequestAttribute(attributes, AWS_QUEUE_NAME, originalRequest, RequestAccess::getQueueName);
+-    setRequestAttribute(attributes, AWS_STREAM_NAME, originalRequest, RequestAccess::getStreamName);
+-    setRequestAttribute(attributes, AWS_TABLE_NAME, originalRequest, RequestAccess::getTableName);
+-  }
++    String requestClassName = originalRequest.getClass().getSimpleName();
++    setAttribute(attributes, AWS_BUCKET_NAME, originalRequest, RequestAccess::getBucketName);
++    setAttribute(attributes, AWS_QUEUE_URL, originalRequest, RequestAccess::getQueueUrl);
++    setAttribute(attributes, AWS_QUEUE_NAME, originalRequest, RequestAccess::getQueueName);
++    setAttribute(attributes, AWS_STREAM_NAME, originalRequest, RequestAccess::getStreamName);
++    setAttribute(attributes, AWS_TABLE_NAME, originalRequest, RequestAccess::getTableName);
+ 
+-  private static void setRequestAttribute(
+-      AttributesBuilder attributes,
+-      AttributeKey<String> key,
+-      Object request,
+-      Function<Object, String> getter) {
+-    String value = getter.apply(request);
+-    if (value != null) {
+-      attributes.put(key, value);
++    // Get serviceName defined in the AWS Java SDK V1 Request class.
++    String serviceName = request.getServiceName();
++    // Extract request attributes only for Bedrock services.
++    if (isBedrockService(serviceName)) {
++      bedrockOnStart(attributes, originalRequest, requestClassName, serviceName);
+     }
    }
  
-   static String getMessageId(Response<?> response) {
--    if (response.getAwsResponse() instanceof SendMessageResult) {
-+    if (response != null && response.getAwsResponse() instanceof SendMessageResult) {
-       return ((SendMessageResult) response.getAwsResponse()).getMessageId();
+@@ -59,12 +66,108 @@ class AwsSdkExperimentalAttributesExtractor
+       Request<?> request,
+       @Nullable Response<?> response,
+       @Nullable Throwable error) {
+-    if (response != null && response.getAwsResponse() instanceof AmazonWebServiceResponse) {
+-      AmazonWebServiceResponse<?> awsResp = (AmazonWebServiceResponse<?>) response.getAwsResponse();
+-      String requestId = awsResp.getRequestId();
+-      if (requestId != null) {
+-        attributes.put(AWS_REQUEST_ID, requestId);
++    if (response != null) {
++      Object awsResp = response.getAwsResponse();
++      if (awsResp instanceof AmazonWebServiceResponse) {
++        AmazonWebServiceResponse<?> awsWebServiceResponse = (AmazonWebServiceResponse<?>) awsResp;
++        String requestId = awsWebServiceResponse.getRequestId();
++        if (requestId != null) {
++          attributes.put(AWS_REQUEST_ID, requestId);
++        }
++      }
++      // Get serviceName defined in the AWS Java SDK V1 Request class.
++      String serviceName = request.getServiceName();
++      // Extract response attributes for Bedrock services
++      if (awsResp != null && isBedrockService(serviceName)) {
++        bedrockOnEnd(attributes, awsResp, serviceName);
+       }
      }
-     return null;
+   }
++
++  private static void bedrockOnStart(
++      AttributesBuilder attributes,
++      Object originalRequest,
++      String requestClassName,
++      String serviceName) {
++    switch (serviceName) {
++      case BEDROCK_SERVICE:
++        setAttribute(attributes, AWS_GUARDRAIL_ID, originalRequest, RequestAccess::getGuardrailId);
++        break;
++      case BEDROCK_AGENT_SERVICE:
++        AwsBedrockResourceType resourceType =
++            AwsBedrockResourceType.getRequestType(requestClassName);
++        if (resourceType != null) {
++          setAttribute(
++              attributes,
++              resourceType.getKeyAttribute(),
++              originalRequest,
++              resourceType.getAttributeValueAccessor());
++        }
++        break;
++      case BEDROCK_AGENT_RUNTIME_SERVICE:
++        setAttribute(attributes, AWS_AGENT_ID, originalRequest, RequestAccess::getAgentId);
++        setAttribute(
++            attributes, AWS_KNOWLEDGE_BASE_ID, originalRequest, RequestAccess::getKnowledgeBaseId);
++        break;
++      case BEDROCK_RUNTIME_SERVICE:
++        if (!Objects.equals(requestClassName, "InvokeModelRequest")) {
++          break;
++        }
++        attributes.put(AWS_BEDROCK_SYSTEM, "aws_bedrock");
++        Function<Object, String> getter = RequestAccess::getModelId;
++        String modelId = getter.apply(originalRequest);
++        attributes.put(AWS_BEDROCK_RUNTIME_MODEL_ID, modelId);
++        break;
++      default:
++        break;
++    }
++  }
++
++  private static void bedrockOnEnd(
++      AttributesBuilder attributes, Object awsResp, String serviceName) {
++    switch (serviceName) {
++      case BEDROCK_SERVICE:
++        setAttribute(attributes, AWS_GUARDRAIL_ID, awsResp, RequestAccess::getGuardrailId);
++        break;
++      case BEDROCK_AGENT_SERVICE:
++        String responseClassName = awsResp.getClass().getSimpleName();
++        AwsBedrockResourceType resourceType =
++            AwsBedrockResourceType.getResponseType(responseClassName);
++        if (resourceType != null) {
++          setAttribute(
++              attributes,
++              resourceType.getKeyAttribute(),
++              awsResp,
++              resourceType.getAttributeValueAccessor());
++        }
++        break;
++      case BEDROCK_AGENT_RUNTIME_SERVICE:
++        setAttribute(attributes, AWS_AGENT_ID, awsResp, RequestAccess::getAgentId);
++        setAttribute(attributes, AWS_KNOWLEDGE_BASE_ID, awsResp, RequestAccess::getKnowledgeBaseId);
++        break;
++      default:
++        break;
++    }
++  }
++
++  private static boolean isBedrockService(String serviceName) {
++    // Check if the serviceName belongs to Bedrock Services defined in AWS Java SDK V1.
++    // For example <a
++    // href="https://github.com/aws/aws-sdk-java/blob/38031248a696468e19a4670c0c4585637d5e7cc6/aws-java-sdk-bedrock/src/main/java/com/amazonaws/services/bedrock/AmazonBedrock.java#L34">AmazonBedrock</a>
++    return serviceName.equals(BEDROCK_SERVICE)
++        || serviceName.equals(BEDROCK_AGENT_SERVICE)
++        || serviceName.equals(BEDROCK_AGENT_RUNTIME_SERVICE)
++        || serviceName.equals(BEDROCK_RUNTIME_SERVICE);
++  }
++
++  private static void setAttribute(
++      AttributesBuilder attributes,
++      AttributeKey<String> key,
++      Object request,
++      Function<Object, String> getter) {
++    String value = getter.apply(request);
++    if (value != null) {
++      attributes.put(key, value);
++    }
++  }
+ }
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
+index bb2ae9266c..8cf71b6a38 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
+@@ -50,6 +50,36 @@ final class RequestAccess {
+     return invokeOrNull(access.getTableName, request);
+   }
+ 
++  @Nullable
++  static String getAgentId(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getAgentId, request);
++  }
++
++  @Nullable
++  static String getKnowledgeBaseId(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getKnowledgeBaseId, request);
++  }
++
++  @Nullable
++  static String getDataSourceId(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getDataSourceId, request);
++  }
++
++  @Nullable
++  static String getGuardrailId(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getGuardrailId, request);
++  }
++
++  @Nullable
++  static String getModelId(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getModelId, request);
++  }
++
+   @Nullable
+   private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
+     if (method == null) {
+@@ -67,6 +97,11 @@ final class RequestAccess {
+   @Nullable private final MethodHandle getQueueName;
+   @Nullable private final MethodHandle getStreamName;
+   @Nullable private final MethodHandle getTableName;
++  @Nullable private final MethodHandle getAgentId;
++  @Nullable private final MethodHandle getKnowledgeBaseId;
++  @Nullable private final MethodHandle getDataSourceId;
++  @Nullable private final MethodHandle getGuardrailId;
++  @Nullable private final MethodHandle getModelId;
+ 
+   private RequestAccess(Class<?> clz) {
+     getBucketName = findAccessorOrNull(clz, "getBucketName");
+@@ -74,6 +109,11 @@ final class RequestAccess {
+     getQueueName = findAccessorOrNull(clz, "getQueueName");
+     getStreamName = findAccessorOrNull(clz, "getStreamName");
+     getTableName = findAccessorOrNull(clz, "getTableName");
++    getAgentId = findAccessorOrNull(clz, "getAgentId");
++    getKnowledgeBaseId = findAccessorOrNull(clz, "getKnowledgeBaseId");
++    getDataSourceId = findAccessorOrNull(clz, "getDataSourceId");
++    getGuardrailId = findAccessorOrNull(clz, "getGuardrailId");
++    getModelId = findAccessorOrNull(clz, "getModelId");
+   }
+ 
+   @Nullable
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
+index 548631e9f1..6223dd1df0 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
+@@ -14,6 +14,10 @@ dependencies {
+   compileOnly("com.amazonaws:aws-java-sdk-dynamodb:1.11.106")
+   compileOnly("com.amazonaws:aws-java-sdk-sns:1.11.106")
+   compileOnly("com.amazonaws:aws-java-sdk-sqs:1.11.106")
++  compileOnly("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
++  compileOnly("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
++  compileOnly("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
++  compileOnly("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
+ 
+   // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
+   implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
+index 95e6ed8985..648d5973e0 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
+@@ -27,6 +27,14 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
+ import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
+ import com.amazonaws.services.s3.AmazonS3Client
+ import com.amazonaws.services.s3.AmazonS3ClientBuilder
++import com.amazonaws.services.bedrockagent.AWSBedrockAgentClientBuilder
++import com.amazonaws.services.bedrockagent.model.GetAgentRequest
++import com.amazonaws.services.bedrockagent.model.GetKnowledgeBaseRequest
++import com.amazonaws.services.bedrockagent.model.GetDataSourceRequest
++import com.amazonaws.services.bedrock.AmazonBedrockClientBuilder
++import com.amazonaws.services.bedrock.model.GetGuardrailRequest
++import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntimeClientBuilder
++import com.amazonaws.services.bedrockruntime.model.InvokeModelRequest
+ import io.opentelemetry.api.trace.Span
+ import io.opentelemetry.instrumentation.test.InstrumentationSpecification
+ import io.opentelemetry.semconv.SemanticAttributes
+@@ -38,6 +46,7 @@ import spock.lang.Shared
+ import spock.lang.Unroll
+ 
+ import java.time.Duration
++import java.nio.charset.StandardCharsets
+ 
+ import static io.opentelemetry.api.trace.SpanKind.CLIENT
+ import static io.opentelemetry.api.trace.SpanKind.PRODUCER
+@@ -156,6 +165,48 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
+           </ResponseMetadata>
+         </DeleteOptionGroupResponse>
+       """
++    "Bedrock"    | "GetGuardrail"      | "GET" | "/"                   | AmazonBedrockClientBuilder.standard()                             | { c -> c.getGuardrail(new GetGuardrailRequest().withGuardrailIdentifier("guardrailId")) } | ["aws.bedrock.guardrail.id": "guardrailId"] | """
++        {
++           "blockedInputMessaging": "string",
++           "blockedOutputsMessaging": "string",
++           "contentPolicy": {},
++           "createdAt": "2024-06-12T18:31:45Z",
++           "description": "string",
++           "guardrailArn": "string",
++           "guardrailId": "guardrailId",
++           "kmsKeyArn": "string",
++           "name": "string",
++           "sensitiveInformationPolicy": {},
++           "status": "READY",
++           "topicPolicy": {
++              "topics": [
++                 {
++                    "definition": "string",
++                    "examples": [ "string" ],
++                    "name": "string",
++                    "type": "string"
++                 }
++              ]
++           },
++           "updatedAt": "2024-06-12T18:31:48Z",
++           "version": "DRAFT",
++           "wordPolicy": {}
++        }
++      """
++    "AWSBedrockAgent"    | "GetAgent"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getAgent(new GetAgentRequest().withAgentId("agentId")) } | ["aws.bedrock.agent.id": "agentId"] | ""
++    "AWSBedrockAgent"    | "GetKnowledgeBase"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getKnowledgeBase(new GetKnowledgeBaseRequest().withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.knowledge_base.id": "knowledgeBaseId"] | ""
++    "AWSBedrockAgent"    | "GetDataSource"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getDataSource(new GetDataSourceRequest().withDataSourceId("datasourceId").withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.data_source.id": "datasourceId"] | ""
++    "BedrockRuntime"    | "InvokeModel"      | "POST" | "/"                   | AmazonBedrockRuntimeClientBuilder.standard()                             |
++      { c -> c.invokeModel(
++        new InvokeModelRequest().withModelId("anthropic.claude-v2").withBody(StandardCharsets.UTF_8.encode(
++          "{\"prompt\":\"Hello, world!\",\"temperature\":0.7,\"top_p\":0.9,\"max_tokens_to_sample\":100}\n"
++        ))) } | ["gen_ai.request.model": "anthropic.claude-v2", "gen_ai.system": "aws_bedrock"] | """
++        {
++            "completion": " Here is a simple explanation of black ",
++            "stop_reason": "length",
++            "stop": "holes"
++        }
++      """
+   }
+ 
+   def "send #operation request to closed port"() {
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
+new file mode 100644
+index 0000000000..ce068a4c05
+--- /dev/null
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
+@@ -0,0 +1,29 @@
++/*
++ * Copyright The OpenTelemetry Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package io.opentelemetry.instrumentation.awssdk.v2_2;
++
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++
++import io.opentelemetry.api.common.AttributeKey;
++
++final class AwsExperimentalAttributes {
++  static final AttributeKey<String> AWS_BUCKET_NAME = stringKey("aws.bucket.name");
++  static final AttributeKey<String> AWS_QUEUE_URL = stringKey("aws.queue.url");
++  static final AttributeKey<String> AWS_QUEUE_NAME = stringKey("aws.queue.name");
++  static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
++  static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
++  static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
++  static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
++  static final AttributeKey<String> AWS_DATA_SOURCE_ID = stringKey("aws.bedrock.data_source.id");
++  static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =
++      stringKey("aws.bedrock.knowledge_base.id");
++
++  // TODO: Merge in gen_ai attributes in opentelemetry-semconv-incubating once upgrade to v1.26.0
++  static final AttributeKey<String> GEN_AI_MODEL = stringKey("gen_ai.request.model");
++  static final AttributeKey<String> GEN_AI_SYSTEM = stringKey("gen_ai.system");
++
++  private AwsExperimentalAttributes() {}
++}
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
+index 54253d0f7b..aa570c8ce3 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
+@@ -5,6 +5,11 @@
+ 
+ package io.opentelemetry.instrumentation.awssdk.v2_2;
+ 
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCK;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKAGENTOPERATION;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKDATASOURCEOPERATION;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKKNOWLEDGEBASEOPERATION;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.DYNAMODB;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.KINESIS;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.S3;
+@@ -32,6 +37,45 @@ enum AwsSdkRequest {
+   S3Request(S3, "S3Request"),
+   SqsRequest(SQS, "SqsRequest"),
+   KinesisRequest(KINESIS, "KinesisRequest"),
++  BedrockRequest(BEDROCK, "BedrockRequest"),
++  BedrockAgentRuntimeRequest(BEDROCKAGENTOPERATION, "BedrockAgentRuntimeRequest"),
++  BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),
++  // BedrockAgent API based requests. We only support operations that are related to
++  // Agent/DataSources/KnowledgeBases
++  // resources and the request/response context contains the resource ID.
++  BedrockCreateAgentActionGroupRequest(BEDROCKAGENTOPERATION, "CreateAgentActionGroupRequest"),
++  BedrockCreateAgentAliasRequest(BEDROCKAGENTOPERATION, "CreateAgentAliasRequest"),
++  BedrockDeleteAgentActionGroupRequest(BEDROCKAGENTOPERATION, "DeleteAgentActionGroupRequest"),
++  BedrockDeleteAgentAliasRequest(BEDROCKAGENTOPERATION, "DeleteAgentAliasRequest"),
++  BedrockDeleteAgentVersionRequest(BEDROCKAGENTOPERATION, "DeleteAgentVersionRequest"),
++  BedrockGetAgentActionGroupRequest(BEDROCKAGENTOPERATION, "GetAgentActionGroupRequest"),
++  BedrockGetAgentAliasRequest(BEDROCKAGENTOPERATION, "GetAgentAliasRequest"),
++  BedrockGetAgentRequest(BEDROCKAGENTOPERATION, "GetAgentRequest"),
++  BedrockGetAgentVersionRequest(BEDROCKAGENTOPERATION, "GetAgentVersionRequest"),
++  BedrockListAgentActionGroupsRequest(BEDROCKAGENTOPERATION, "ListAgentActionGroupsRequest"),
++  BedrockListAgentAliasesRequest(BEDROCKAGENTOPERATION, "ListAgentAliasesRequest"),
++  BedrockListAgentKnowledgeBasesRequest(BEDROCKAGENTOPERATION, "ListAgentKnowledgeBasesRequest"),
++  BedrocListAgentVersionsRequest(BEDROCKAGENTOPERATION, "ListAgentVersionsRequest"),
++  BedrockPrepareAgentRequest(BEDROCKAGENTOPERATION, "PrepareAgentRequest"),
++  BedrockUpdateAgentActionGroupRequest(BEDROCKAGENTOPERATION, "UpdateAgentActionGroupRequest"),
++  BedrockUpdateAgentAliasRequest(BEDROCKAGENTOPERATION, "UpdateAgentAliasRequest"),
++  BedrockUpdateAgentRequest(BEDROCKAGENTOPERATION, "UpdateAgentRequest"),
++  BedrockBedrockAgentRequest(BEDROCKAGENTOPERATION, "BedrockAgentRequest"),
++  BedrockDeleteDataSourceRequest(BEDROCKDATASOURCEOPERATION, "DeleteDataSourceRequest"),
++  BedrockGetDataSourceRequest(BEDROCKDATASOURCEOPERATION, "GetDataSourceRequest"),
++  BedrockUpdateDataSourceRequest(BEDROCKDATASOURCEOPERATION, "UpdateDataSourceRequest"),
++  BedrocAssociateAgentKnowledgeBaseRequest(
++      BEDROCKKNOWLEDGEBASEOPERATION, "AssociateAgentKnowledgeBaseRequest"),
++  BedrockCreateDataSourceRequest(BEDROCKKNOWLEDGEBASEOPERATION, "CreateDataSourceRequest"),
++  BedrockDeleteKnowledgeBaseRequest(BEDROCKKNOWLEDGEBASEOPERATION, "DeleteKnowledgeBaseRequest"),
++  BedrockDisassociateAgentKnowledgeBaseRequest(
++      BEDROCKKNOWLEDGEBASEOPERATION, "DisassociateAgentKnowledgeBaseRequest"),
++  BedrockGetAgentKnowledgeBaseRequest(
++      BEDROCKKNOWLEDGEBASEOPERATION, "GetAgentKnowledgeBaseRequest"),
++  BedrockGetKnowledgeBaseRequest(BEDROCKKNOWLEDGEBASEOPERATION, "GetKnowledgeBaseRequest"),
++  BedrockListDataSourcesRequest(BEDROCKKNOWLEDGEBASEOPERATION, "ListDataSourcesRequest"),
++  BedrockUpdateAgentKnowledgeBaseRequest(
++      BEDROCKKNOWLEDGEBASEOPERATION, "UpdateAgentKnowledgeBaseRequest"),
+   // specific requests
+   BatchGetItem(
+       DYNAMODB,
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
+index 9062f2aa17..523bd2661e 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
+@@ -5,17 +5,38 @@
+ 
+ package io.opentelemetry.instrumentation.awssdk.v2_2;
+ 
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_AGENT_ID;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_BUCKET_NAME;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_DATA_SOURCE_ID;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_GUARDRAIL_ID;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_KNOWLEDGE_BASE_ID;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_QUEUE_NAME;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_QUEUE_URL;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_STREAM_NAME;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_TABLE_NAME;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_MODEL;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.request;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.response;
+ 
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.Map;
+ 
+ enum AwsSdkRequestType {
+-  S3(request("aws.bucket.name", "Bucket")),
+-  SQS(request("aws.queue.url", "QueueUrl"), request("aws.queue.name", "QueueName")),
+-  KINESIS(request("aws.stream.name", "StreamName")),
+-  DYNAMODB(request("aws.table.name", "TableName"));
++  S3(request(AWS_BUCKET_NAME.getKey(), "Bucket")),
++  SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
++  KINESIS(request(AWS_STREAM_NAME.getKey(), "StreamName")),
++  DYNAMODB(request(AWS_TABLE_NAME.getKey(), "TableName")),
++  BEDROCK(request(AWS_GUARDRAIL_ID.getKey(), "guardrailIdentifier")),
++  BEDROCKAGENTOPERATION(
++      request(AWS_AGENT_ID.getKey(), "agentId"), response(AWS_AGENT_ID.getKey(), "agentId")),
++  BEDROCKDATASOURCEOPERATION(
++      request(AWS_DATA_SOURCE_ID.getKey(), "dataSourceId"),
++      response(AWS_DATA_SOURCE_ID.getKey(), "dataSourceId")),
++  BEDROCKKNOWLEDGEBASEOPERATION(
++      request(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId"),
++      response(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId")),
++  BEDROCKRUNTIME(request(GEN_AI_MODEL.getKey(), "modelId"));
+ 
+   // Wrapping in unmodifiableMap
+   @SuppressWarnings("ImmutableEnumChecker")
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java
+index f717b1efc4..352b02093e 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java
+@@ -5,6 +5,8 @@
+ 
+ package io.opentelemetry.instrumentation.awssdk.v2_2;
+ 
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_SYSTEM;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.DYNAMODB;
+ 
+ import io.opentelemetry.api.common.AttributeKey;
+@@ -42,6 +44,7 @@ import software.amazon.awssdk.http.SdkHttpResponse;
+ 
+ /** AWS request execution interceptor. */
+ final class TracingExecutionInterceptor implements ExecutionInterceptor {
++  private static final String GEN_AI_SYSTEM_BEDROCK = "aws_bedrock";
+ 
+   // the class name is part of the attribute name, so that it will be shaded when used in javaagent
+   // instrumentation, and won't conflict with usage outside javaagent instrumentation
+@@ -317,6 +320,10 @@ final class TracingExecutionInterceptor implements ExecutionInterceptor {
+         span.setAttribute(SemanticAttributes.DB_OPERATION, operation);
+       }
+     }
++
++    if (awsSdkRequest.type() == BEDROCKRUNTIME) {
++      span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
++    }
+   }
+ 
+   @Override
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
+index 53390c8d85..2833570ca2 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
+@@ -120,7 +120,19 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+               "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
+             } else if (service == "Kinesis") {
+               "aws.stream.name" "somestream"
++            } else if (service == "Bedrock" && operation == "GetGuardrail") {
++              "aws.bedrock.guardrail.id" "guardrailId"
++            } else if (service == "BedrockAgent" && operation == "GetAgent") {
++              "aws.bedrock.agent.id" "agentId"
++            } else if (service == "BedrockAgent" && operation == "GetKnowledgeBase") {
++              "aws.bedrock.knowledge_base.id" "knowledgeBaseId"
++            } else if (service == "BedrockAgent" && operation == "GetDataSource") {
++              "aws.bedrock.data_source.id" "datasourceId"
++            } else if (service == "BedrockRuntime" && operation == "InvokeModel") {
++              "gen_ai.request.model" "meta.llama2-13b-chat-v1"
++              "gen_ai.system" "aws_bedrock"
+             }
++
+           }
+         }
+       }
 diff --git a/version.gradle.kts b/version.gradle.kts
-index a2bacc6f04..0890062291 100644
+index fdf57bdbea..69ff27a9a3 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.32.0"
--val alphaVersion = "1.32.0-alpha"
-+val stableVersion = "1.32.0-adot1"
-+val alphaVersion = "1.32.0-adot1-alpha"
+-val stableVersion = "1.32.1"
+-val alphaVersion = "1.32.1-alpha"
++val stableVersion = "1.32.1-adot1"
++val alphaVersion = "1.32.1-adot1-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {

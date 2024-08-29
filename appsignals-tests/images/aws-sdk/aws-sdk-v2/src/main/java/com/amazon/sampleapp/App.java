@@ -21,6 +21,8 @@ import static spark.Spark.ipAddress;
 import static spark.Spark.port;
 import static spark.Spark.post;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -36,6 +38,17 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.bedrock.BedrockClient;
+import software.amazon.awssdk.services.bedrock.model.GetGuardrailRequest;
+import software.amazon.awssdk.services.bedrockagent.BedrockAgentClient;
+import software.amazon.awssdk.services.bedrockagent.model.GetAgentRequest;
+import software.amazon.awssdk.services.bedrockagent.model.GetDataSourceRequest;
+import software.amazon.awssdk.services.bedrockagent.model.GetKnowledgeBaseRequest;
+import software.amazon.awssdk.services.bedrockagentruntime.BedrockAgentRuntimeClient;
+import software.amazon.awssdk.services.bedrockagentruntime.model.GetAgentMemoryRequest;
+import software.amazon.awssdk.services.bedrockagentruntime.model.RetrieveRequest;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
+import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -105,6 +118,7 @@ public class App {
     setupS3();
     setupSqs();
     setupKinesis();
+    setupBedrock();
     // Add this log line so that we only start testing after all routes are configured.
     awaitInitialization();
     logger.info("All routes initialized");
@@ -511,6 +525,136 @@ public class App {
                     GetObjectRequest.builder().bucket("fault-bucket").key("fault-object").build());
           } catch (Exception e) {
           }
+          return "";
+        });
+  }
+
+  private static void setupBedrock() {
+    // Localstack does not support Bedrock related services.
+    // We point all Bedrock related request endpoints to the local app,
+    // and then specifically handle each request to return the expected response.
+    // For the full list of services supported by Localstack, see:
+    // https://github.com/testcontainers/testcontainers-java/blob/1f38f0d9604edb9e89fd3b3ee1eff6728e2d1e07/modules/localstack/src/main/java/org/testcontainers/containers/localstack/LocalStackContainer.java#L402
+    var objectMapper = new ObjectMapper();
+    var bedrockClient =
+        BedrockClient.builder()
+            .endpointOverride(URI.create("http://bedrock.test:8080"))
+            .region(Region.US_WEST_2)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+    var bedrockAgentClient =
+        BedrockAgentClient.builder()
+            .endpointOverride(URI.create("http://bedrock.test:8080"))
+            .region(Region.US_WEST_2)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+    var bedrockAgentRuntimeClient =
+        BedrockAgentRuntimeClient.builder()
+            .endpointOverride(URI.create("http://bedrock.test:8080"))
+            .region(Region.US_WEST_2)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+    var bedrockRuntimeClient =
+        BedrockRuntimeClient.builder()
+            .endpointOverride(URI.create("http://bedrock.test:8080"))
+            .region(Region.US_WEST_2)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+
+    // Setup API routes for Bedrock， BedrockAgent, BedrockAgentRuntime, and BedrockRuntime services.
+    Utils.setupGetKnowledgeBaseRoute(mainStatus);
+    Utils.setupGetAgentRoute(mainStatus);
+    Utils.setupGetGuardrailRoute(mainStatus);
+    Utils.setupGetAgentMemoryRoute(mainStatus);
+    Utils.setupGetDataSourceRoute(mainStatus);
+    Utils.setupInvokeModelRoute(mainStatus);
+    Utils.setupRetrieveRoute(mainStatus);
+
+    get(
+        "/bedrockagent/getknowledgeBase/:knowledgeBaseId",
+        (req, res) -> {
+          setMainStatus(200);
+          String knowledgeBaseId = req.params(":knowledgeBaseId");
+          GetKnowledgeBaseRequest request =
+              GetKnowledgeBaseRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
+          bedrockAgentClient.getKnowledgeBase(request);
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel",
+        (req, res) -> {
+          setMainStatus(200);
+          String llama2ModelId = "anthropic.claude-v2";
+          ObjectNode payload = objectMapper.createObjectNode();
+          payload.put("prompt", "test prompt");
+          payload.put("max_gen_len", 1000);
+          payload.put("temperature", 0.5);
+          payload.put("top_p", 0.9);
+          InvokeModelRequest request =
+              InvokeModelRequest.builder()
+                  .body(SdkBytes.fromUtf8String(payload.toString()))
+                  .modelId(llama2ModelId)
+                  .contentType("application/json")
+                  .accept("application/json")
+                  .build();
+          bedrockRuntimeClient.invokeModel(request);
+          return "";
+        });
+    get(
+        "/bedrockagent/get-data-source",
+        (req, res) -> {
+          setMainStatus(200);
+
+          GetDataSourceRequest request =
+              GetDataSourceRequest.builder()
+                  .dataSourceId("nonExistDatasourceId")
+                  .knowledgeBaseId("nonExistKnowledgeBaseId")
+                  .build();
+          bedrockAgentClient.getDataSource(request);
+          return "";
+        });
+    get(
+        "/bedrockagent/getagent/:agentId",
+        (req, res) -> {
+          setMainStatus(200);
+          String agentId = req.params(":agentId");
+          GetAgentRequest request = GetAgentRequest.builder().agentId(agentId).build();
+          bedrockAgentClient.getAgent(request);
+          return "";
+        });
+    get(
+        "/bedrockagentruntime/getmemory/:agentId",
+        (req, res) -> {
+          setMainStatus(200);
+          String agentId = req.params(":agentId");
+          GetAgentMemoryRequest request =
+              GetAgentMemoryRequest.builder()
+                  .agentId(agentId)
+                  .agentAliasId("agent-alias-id")
+                  .build();
+          bedrockAgentRuntimeClient.getAgentMemory(request);
+          return "";
+        });
+    get(
+        "/bedrock/getguardrail",
+        (req, res) -> {
+          setMainStatus(200);
+          GetGuardrailRequest request =
+              GetGuardrailRequest.builder()
+                  .guardrailIdentifier("test-bedrock-guardrail")
+                  .guardrailVersion("DRAFT")
+                  .build();
+          bedrockClient.getGuardrail(request);
+          return "";
+        });
+    get(
+        "/bedrockagentruntime/retrieve/:knowledgeBaseId",
+        (req, res) -> {
+          setMainStatus(200);
+          String knowledgeBaseId = req.params(":knowledgeBaseId");
+          RetrieveRequest request =
+              RetrieveRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
+          var repo = bedrockAgentRuntimeClient.retrieve(request);
           return "";
         });
   }

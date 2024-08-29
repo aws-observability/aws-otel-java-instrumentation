@@ -15,6 +15,9 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
@@ -22,11 +25,20 @@ import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValu
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /** Utility class designed to support shared logic across AWS Span Processors. */
 final class AwsSpanProcessingUtil {
@@ -40,6 +52,32 @@ final class AwsSpanProcessingUtil {
   static final String LOCAL_ROOT = "LOCAL_ROOT";
   static final String SQS_RECEIVE_MESSAGE_SPAN_NAME = "Sqs.ReceiveMessage";
   static final String AWS_SDK_INSTRUMENTATION_SCOPE_PREFIX = "io.opentelemetry.aws-sdk-";
+  // Max keyword length supported by parsing into remote_operation from DB_STATEMENT.
+  // The current longest command word is DATETIME_INTERVAL_PRECISION at 27 characters.
+  // If we add a longer keyword to the sql dialect keyword list, need to update the constant below.
+  static final int MAX_KEYWORD_LENGTH = 27;
+  // TODO: Use Semantic Conventions once upgrade once upgrade to v1.26.0
+  static final AttributeKey<String> GEN_AI_REQUEST_MODEL =
+      AttributeKey.stringKey("gen_ai.request.model");
+  static final Pattern SQL_DIALECT_PATTERN =
+      Pattern.compile("^(?:" + String.join("|", getDialectKeywords()) + ")\\b");
+
+  private static final String SQL_DIALECT_KEYWORDS_JSON = "configuration/sql_dialect_keywords.json";
+
+  static List<String> getDialectKeywords() {
+    try (InputStream jsonFile =
+        AwsSpanProcessingUtil.class
+            .getClassLoader()
+            .getResourceAsStream(SQL_DIALECT_KEYWORDS_JSON)) {
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode jsonNode = mapper.readValue(jsonFile, JsonNode.class);
+      JsonNode arrayNode = jsonNode.get("keywords");
+      ObjectReader reader = mapper.readerFor(new TypeReference<List<String>>() {});
+      return reader.readValue(arrayNode);
+    } catch (IOException e) {
+      return new ArrayList<>();
+    }
+  }
 
   /**
    * Ingress operation (i.e. operation for Server and Consumer spans) will be generated from
@@ -185,5 +223,12 @@ final class AwsSpanProcessingUtil {
       }
     }
     return operation;
+  }
+
+  // Check if the current Span adheres to database semantic conventions
+  static boolean isDBSpan(SpanData span) {
+    return isKeyPresent(span, DB_SYSTEM)
+        || isKeyPresent(span, DB_OPERATION)
+        || isKeyPresent(span, DB_STATEMENT);
   }
 }

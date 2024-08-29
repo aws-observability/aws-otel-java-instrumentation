@@ -45,6 +45,9 @@ From the root of this project execute:
 ## login to public ECR
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
+# Run the patching script
+./scripts/local_patch.sh
+
 # Run the tests
 ./gradlew appsignals-tests:contract-tests:contractTests
 ```

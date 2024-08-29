@@ -46,3 +46,9 @@ atlassian-ide-plugin.xml
 
 # rust
 tools/cp-utility/target
+
+# lsp
+**/.project
+**/.classpath
+**/.settings
+**/bin

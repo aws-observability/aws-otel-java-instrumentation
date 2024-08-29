@@ -56,23 +56,23 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
     return "Kinesis";
   }
 
-  @Override
-  protected String getS3ServiceName() {
-    return "AWS.SDK.S3";
+  protected String getBedrockSpanNamePrefix() {
+    return "Bedrock";
   }
 
   @Override
-  protected String getDynamoDbServiceName() {
-    return "AWS.SDK.DynamoDb";
+  protected String getBedrockAgentSpanNamePrefix() {
+    return "BedrockAgent";
   }
 
   @Override
-  protected String getSqsServiceName() {
-    return "AWS.SDK.Sqs";
+  protected String getBedrockRuntimeSpanNamePrefix() {
+    return "BedrockRuntime";
   }
 
-  protected String getKinesisServiceName() {
-    return "AWS.SDK.Kinesis";
+  @Override
+  protected String getBedrockAgentRuntimeSpanNamePrefix() {
+    return "BedrockAgentRuntime";
   }
 
   @Override
@@ -92,6 +92,26 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
 
   protected String getKinesisRpcServiceName() {
     return "Kinesis";
+  }
+
+  @Override
+  protected String getBedrockRpcServiceName() {
+    return "Bedrock";
+  }
+
+  @Override
+  protected String getBedrockAgentRpcServiceName() {
+    return "BedrockAgent";
+  }
+
+  @Override
+  protected String getBedrockRuntimeRpcServiceName() {
+    return "BedrockRuntime";
+  }
+
+  @Override
+  protected String getBedrockAgentRuntimeRpcServiceName() {
+    return "BedrockAgentRuntime";
   }
 
   @Test
@@ -183,4 +203,41 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   void testKinesisFault() throws Exception {
     doTestKinesisFault();
   }
+
+  @Test
+  void testBedrockAgentGetKnowlesgeBaseId() {
+    doTestBedrockAgentKnowledgeBaseId();
+  }
+
+  @Test
+  void testBedrockAgentAgentId() {
+    doTestBedrockAgentAgentId();
+  }
+
+  @Test
+  void testBedrockAgentDataSourceId() {
+    doTestBedrockAgentDataSourceId();
+  }
+
+  @Test
+  void testBedrockRuntimeModelId() {
+    doTestBedrockRuntimeModelId();
+  }
+
+  @Test
+  void testBedrockGuardrailId() {
+    doTestBedrockGuardrailId();
+  }
+
+  @Test
+  void testBedrockAgentRuntimeAgentId() {
+    doTestBedrockAgentRuntimeAgentId();
+  }
+
+  // TODO: Enable testBedrockAgentRuntimeKnowledgeBaseId test after KnowledgeBaseId is supported in
+  // OTEL BedrockAgentRuntime instrumentation
+  //  @Test
+  //  void testBedrockAgentRuntimeKnowledgeBaseId() {
+  //    doTestBedrockAgentRuntimeKnowledgeBaseId();
+  //  }
 }
