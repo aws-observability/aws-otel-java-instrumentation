@@ -189,7 +189,7 @@ jobs:
       # file locks are being held from SIGTERMS dispatched in previous
       # steps.
       - name: Destroy resources
-        if: ${{ cancelled() }}
+        if: ${{ cancelled() || failure() }}
         shell: bash {0}
         working-directory: testing-framework/terraform
         run: |
@@ -207,6 +207,6 @@ jobs:
       branch: ${{ github.ref_name }}
       workflow: ${{ inputs.caller-workflow-name }}
       success: ${{  needs.run-batch-job.result == 'success' }}
-      region: us-west-2
+      region: us-east-1
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}

@@ -5,6 +5,16 @@ documentation, we really appreciate your help. Take a look through this document
 experience with your contribution.
 
 
+## Build ADOT Java Agent Locally
+
+This ADOT repository includes patching logic for OpenTelemetry upstream repositories. To build the ADOT Java agent locally, you need to run the patching script first:
+
+```bash
+./scripts/local_patch.sh
+./gradlew build
+```
+
+
 ## Reporting Bugs/Feature Requests
 
 We're always happy to hear about any bugs or features requests using GitHub issues.
