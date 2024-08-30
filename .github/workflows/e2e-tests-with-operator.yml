@@ -145,7 +145,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.TEMP_JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
+          role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
           aws-region: us-west-2
           # 4 hours
           role-duration-seconds: 14400
