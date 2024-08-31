@@ -79,6 +79,7 @@ public abstract class ContractTestBase {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_METRIC_EXPORT_INTERVAL", "100") // 100 ms
           .withEnv("OTEL_AWS_APPLICATION_SIGNALS_ENABLED", "true")
+          .withEnv("OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED", "false")
           .withEnv("OTEL_METRICS_EXPORTER", "none")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "0") // Don't wait to export spans to the collector
           .withEnv(
