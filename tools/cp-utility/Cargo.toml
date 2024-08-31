@@ -11,7 +11,7 @@ edition = "2021"
 [dev-dependencies]
 # dependencies only used during tests
 tempfile = "3.9.0"
-uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+uuid = { version = "1.8.0", features = ["v4", "fast-rng"] }
 
 [profile.release]
 # Levers to optimize the binary for size
