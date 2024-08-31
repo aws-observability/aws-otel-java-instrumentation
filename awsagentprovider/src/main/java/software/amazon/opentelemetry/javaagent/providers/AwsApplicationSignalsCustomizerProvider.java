@@ -124,9 +124,11 @@ public class AwsApplicationSignalsCustomizerProvider
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
               .build();
+
       // Construct and set application signals metrics processor
       SpanProcessor spanMetricsProcessor =
-          AwsSpanMetricsProcessorBuilder.create(meterProvider, ResourceHolder.getResource())
+          AwsSpanMetricsProcessorBuilder.create(
+                  meterProvider, ResourceHolder.getResource(), metricsExporter::flush)
               .build();
       tracerProviderBuilder.addSpanProcessor(spanMetricsProcessor);
     }
