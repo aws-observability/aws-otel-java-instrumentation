@@ -16,12 +16,15 @@
 package software.amazon.opentelemetry.appsignals.test.jdbc;
 
 import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_CLIENT;
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import software.amazon.opentelemetry.appsignals.test.base.ContractTestBase;
 import software.amazon.opentelemetry.appsignals.test.utils.AppSignalsConstants;
 import software.amazon.opentelemetry.appsignals.test.utils.ResourceScopeMetric;
@@ -64,6 +67,18 @@ public class JdbcContractTestBase extends ContractTestBase {
               assertAwsAttributes(
                   attributesList, method, path, dbSystem, dbOperation, dbUser, type, identifier);
             });
+    if(dbOperation.equals(DB_SELECT_OPERATION)) {
+        // assert an extra select that happens under the hood during connect operation
+        assertThat(resourceScopeSpans)
+            .satisfiesOnlyOnce(
+                rss -> {
+                  assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
+                  var attributesList = rss.getSpan().getAttributesList();
+                  assertAwsAttributes(
+                      attributesList, method, path, dbSystem, dbOperation, dbUser, null, null);
+                }
+            );
+    }
   }
 
   protected void assertAwsAttributes(
@@ -122,6 +137,13 @@ public class JdbcContractTestBase extends ContractTestBase {
                 .isEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER);
             assertThat(attribute.getValue().getStringValue()).isEqualTo(identifier);
           });
+    } else {
+      assertions.allSatisfy(
+          (attribute) -> {
+            assertThat(attribute.getKey()).isNotEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE);
+            assertThat(attribute.getKey()).isNotEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER);
+          });
+
     }
   }
 
