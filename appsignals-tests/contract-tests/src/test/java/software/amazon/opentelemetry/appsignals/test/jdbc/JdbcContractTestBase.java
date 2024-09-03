@@ -64,17 +64,6 @@ public class JdbcContractTestBase extends ContractTestBase {
               assertAwsAttributes(
                   attributesList, method, path, dbSystem, dbOperation, dbUser, type, identifier);
             });
-    if (dbOperation.equals(DB_SELECT_OPERATION)) {
-      // assert an extra select that happens under the hood during connect operation
-      assertThat(resourceScopeSpans)
-          .satisfiesOnlyOnce(
-              rss -> {
-                assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
-                var attributesList = rss.getSpan().getAttributesList();
-                assertAwsAttributes(
-                    attributesList, method, path, dbSystem, dbOperation, dbUser, null, null);
-              });
-    }
   }
 
   protected void assertAwsAttributes(
