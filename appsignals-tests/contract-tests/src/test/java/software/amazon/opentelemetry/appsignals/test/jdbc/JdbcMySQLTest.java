@@ -113,7 +113,7 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
     return List.of(mySQLContainer);
   }
 
-  private void assertExtraSelectSpans() {
+  private void assertExtraSelectSpan() {
     var resourceScopeSpans = mockCollectorClient.getTraces();
     assertThat(resourceScopeSpans)
         .satisfiesOnlyOnce(
