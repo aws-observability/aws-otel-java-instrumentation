@@ -80,7 +80,7 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String APPLICATION_SIGNALS_ENABLED_CONFIG =
       "otel.aws.application.signals.enabled";
   private static final String APPLICATION_SIGNALS_RUNTIME_ENABLED_CONFIG =
-      "otel.aws.app.signals.exporter.runtime.enabled";
+      "otel.aws.application.signals.runtime.enabled";
   private static final String DEPRECATED_SMP_EXPORTER_ENDPOINT_CONFIG =
       "otel.aws.smp.exporter.endpoint";
   private static final String DEPRECATED_APP_SIGNALS_EXPORTER_ENDPOINT_CONFIG =
