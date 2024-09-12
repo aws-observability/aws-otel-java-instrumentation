@@ -60,7 +60,7 @@ rules:
     mapping:
       ProcessCpuTime:
         metric: time
-        unit: s
+        unit: ns
         desc: CPU time used
       ProcessCpuLoad:
         metric: recent_utilization
