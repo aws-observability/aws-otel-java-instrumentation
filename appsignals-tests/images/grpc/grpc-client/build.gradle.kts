@@ -30,7 +30,7 @@ dependencies {
 
   implementation("io.grpc:grpc-api:1.56.1")
   implementation("io.grpc:grpc-protobuf:1.56.1")
-  implementation("io.grpc:grpc-stub:1.56.1")
+  implementation("io.grpc:grpc-stub:1.66.0")
 
   runtimeOnly("io.grpc:grpc-netty-shaded")
 }
