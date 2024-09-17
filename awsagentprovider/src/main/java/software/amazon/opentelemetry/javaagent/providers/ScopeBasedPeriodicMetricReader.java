@@ -42,6 +42,8 @@ import javax.annotation.Nullable;
  * fact that {@link io.opentelemetry.sdk.metrics.export.PeriodicMetricReader} is a final class and
  * cannot be directly extended, this class duplicates and modifies the relevant code to support
  * scope-based metric reading.
+ *
+ * <p>Source code based on opentelemetry-java v1.34.1.
  */
 public class ScopeBasedPeriodicMetricReader implements MetricReader {
   private static final Logger logger =
