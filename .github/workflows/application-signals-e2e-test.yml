@@ -80,3 +80,11 @@ jobs:
       aws-region: us-east-1
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+
+  java-ecs-e2e-test:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ecs-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
