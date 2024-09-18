@@ -51,4 +51,4 @@ ARG ADOT_JAVA_VERSION
 COPY --from=builder /usr/src/cp-utility/bin/cp-utility /bin/cp
 
 
-COPY --chmod=0644 ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar  /javaagent.jar
+COPY ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar  /javaagent.jar
