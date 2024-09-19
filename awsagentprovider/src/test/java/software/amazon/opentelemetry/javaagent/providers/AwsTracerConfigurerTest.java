@@ -39,6 +39,8 @@ class AwsTracerConfigurerTest {
               return tracerProviderBuilder.addSpanProcessor(
                   SimpleSpanProcessor.create(spanExporter));
             })
+        .addPropertiesSupplier(
+            () -> singletonMap("otel.aws.application.signals.runtime.enabled", "false"))
         .addPropertiesSupplier(() -> singletonMap("otel.metrics.exporter", "none"))
         .addPropertiesSupplier(() -> singletonMap("otel.traces.exporter", "none"))
         .addPropertiesSupplier(() -> singletonMap("otel.logs.exporter", "none"));
