@@ -35,8 +35,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +45,6 @@ import org.curioswitch.common.protobuf.json.MessageMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.shaded.com.google.common.util.concurrent.Uninterruptibles;
-import software.amazon.awssdk.utils.CollectionUtils;
 
 /**
  * The mock collector client is used to interact with the Mock collector image, used in the tests.
