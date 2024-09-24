@@ -29,7 +29,7 @@ This configuration includes being able to reconfigure the [IdsGenerator](https:/
 which we need to support X-Ray compatible trace IDs. Because the SDK uses SPI, it is sufficient for
 the custom implementation to be on the classpath to be recognized. The AWS distribution of the
 OpenTelemetry Java Agent repackages the upstream agent by simply adding our SPI implementation for
-reconfiguring the ID generator. In addition, it includes [AWS resource providers](https://github.com/open-telemetry/opentelemetry-java/tree/main/sdk-extensions/aws/src/main/java/io/opentelemetry/sdk/extension/aws/resource) 
+reconfiguring the ID generator. In addition, it includes [AWS resource providers](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/aws-resources/src/main/java/io/opentelemetry/contrib/aws/resource) 
 by default, and it sets a system property to configure the agent to use multiple trace ID propagators, 
 defaulting to maximum interoperability.
 
