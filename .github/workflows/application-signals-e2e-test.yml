@@ -38,23 +38,67 @@ jobs:
       - name: Upload main-build adot.jar to s3
         run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
 
-  java-ec2-default-e2e-test:
+  #
+  # PACKAGED DISTRIBUTION LANGUAGE VERSION COVERAGE
+  # DEFAULT SETTING: {Java Version}, EC2, AMD64, AL2
+  #
+
+  ec2-default-v8-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
+      java-version: '8'
+      cpu-architecture: 'x86_64'
 
-  java-ec2-asg-e2e-test:
+  ec2-default-v11-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
+      java-version: '11'
+      cpu-architecture: 'x86_64'
 
-  java-eks-e2e-test:
+  ec2-default-v17-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '17'
+      cpu-architecture: 'x86_64'
+
+  ec2-default-v21-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '21'
+      cpu-architecture: 'x86_64'
+
+  ec2-default-v22-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '22'
+      cpu-architecture: 'x86_64'
+
+  #
+  # DOCKER DISTRIBUTION LANGUAGE VERSION COVERAGE
+  # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
+  #
+
+  eks-v8-amd64:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
@@ -62,9 +106,73 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+      java-version: '8'
 
-  java-metric-limiter-e2e-test:
-    needs: [ java-eks-e2e-test ]
+  eks-v11-amd64:
+    needs: eks-v8-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
+  eks-v17-amd64:
+    needs: eks-v11-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '17'
+
+  eks-v21-amd64:
+    needs: eks-v17-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '21'
+
+  eks-v22-amd64:
+    needs: eks-v21-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '22'
+
+  #
+  # PACKAGED DISTRIBUTION PLATFORM COVERAGE
+  # DEFAULT SETTING: Java 11, {Platform}, AMD64, AL2
+  #
+
+  ec2-asg-v11-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
+  #
+  # DOCKER DISTRIBUTION PLATFORM COVERAGE
+  # DEFAULT SETTING: Java 11, {Platform}, AMD64, AL2
+  #
+
+  metric-limiter-v11-amd64:
+    needs: [ eks-v22-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
@@ -72,19 +180,38 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+      java-version: '11'
 
-  java-k8s-e2e-test:
+  k8s-v11-amd64:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-k8s-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+      java-version: '11'
 
-  java-ecs-e2e-test:
+
+  ecs-v11-amd64:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ecs-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+      java-version: '11'
+
+  #
+  # CPU ARCHITECTURE COVERAGE
+  # DEFAULT SETTING: Java 11, EC2, {CPU Architecture}, AL2
+  #
+
+  ec2-default-v11-arm64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+      cpu-architecture: 'arm64'
