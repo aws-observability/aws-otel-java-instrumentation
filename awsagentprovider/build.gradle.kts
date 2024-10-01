@@ -36,8 +36,12 @@ dependencies {
   implementation("io.opentelemetry.contrib:opentelemetry-aws-resources")
   // Json file reader
   implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+  // Import AWS SDK v1 core for ARN parsing utilities
+  implementation("com.amazonaws:aws-java-sdk-core")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
+  // SDK Lambda for Lambda ARN retrieval
+  implementation("com.amazonaws:aws-java-sdk-lambda")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
