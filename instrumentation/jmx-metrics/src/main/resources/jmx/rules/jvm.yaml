@@ -58,7 +58,6 @@ rules:
         metric: daemon
         desc: Number of daemon threads
   - bean: java.lang:type=OperatingSystem,*
-    prefix: jvm.cpu.
     type: gauge
     mapping:
       TotalSwapSpaceSize:
@@ -86,11 +85,11 @@ rules:
         desc: The current load of CPU in host
         unit: "1"
       ProcessCpuTime:
-        metric: time
+        metric: jvm.cpu.time
         unit: ns
         desc: CPU time used
       ProcessCpuLoad:
-        metric: recent_utilization
+        metric: jvm.cpu.recent_utilization
         unit: "1"
         desc: Recent CPU utilization for the process
       OpenFileDescriptorCount:
