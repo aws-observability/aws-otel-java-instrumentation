@@ -77,10 +77,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 
 import com.amazonaws.arn.Arn;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.model.GetFunctionRequest;
-import com.amazonaws.services.lambda.model.GetFunctionResult;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -510,46 +506,37 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
         remoteResourceIdentifier =
-            getLambdaNameFromArbitraryName(
-                Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
-        cloudformationPrimaryIdentifier =
-            getLambdaArnFromArbitraryName(
+            getLambdaResourceNameFromAribitraryName(
                 Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
       } else if (isKeyPresent(span, AWS_LAMBDA_RESOURCE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_RESOURCE_ID)));
-        cloudformationPrimaryIdentifier = remoteResourceIdentifier;
       }
     } else if (isDBSpan(span)) {
       remoteResourceType = Optional.of(DB_CONNECTION_RESOURCE_TYPE);
       remoteResourceIdentifier = getDbConnection(span);
     }
 
+    if (cloudformationPrimaryIdentifier.isEmpty()) {
+      cloudformationPrimaryIdentifier = remoteResourceIdentifier;
+    }
+
     if (remoteResourceType.isPresent() && remoteResourceIdentifier.isPresent()) {
       builder.put(AWS_REMOTE_RESOURCE_TYPE, remoteResourceType.get());
       builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
-    }
-    if (cloudformationPrimaryIdentifier.isPresent()) {
       builder.put(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, cloudformationPrimaryIdentifier.get());
     }
   }
 
-  private static Optional<String> getLambdaNameFromArbitraryName(Optional<String> arbitraryName) {
-    AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
-    GetFunctionRequest getFunctionRequest =
-        new GetFunctionRequest().withFunctionName(arbitraryName.get());
-    GetFunctionResult getFunctionResult = lambdaClient.getFunction(getFunctionRequest);
-    return Optional.of(getFunctionResult.getConfiguration().getFunctionName());
-  }
-
   // NOTE: "name" in this case can be either the lambda name or lambda arn
-  private static Optional<String> getLambdaArnFromArbitraryName(Optional<String> arbitraryName) {
-    AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
-    GetFunctionRequest getFunctionRequest =
-        new GetFunctionRequest().withFunctionName(arbitraryName.get());
-    GetFunctionResult getFunctionResult = lambdaClient.getFunction(getFunctionRequest);
-    return Optional.of(getFunctionResult.getConfiguration().getFunctionArn());
+  private static Optional<String> getLambdaResourceNameFromAribitraryName(
+      Optional<String> arbitraryName) {
+    if (arbitraryName != null && arbitraryName.get().startsWith("arn:aws:lambda:")) {
+      Arn resourceArn = Arn.fromString(arbitraryName.get());
+      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    }
+    return arbitraryName;
   }
 
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {

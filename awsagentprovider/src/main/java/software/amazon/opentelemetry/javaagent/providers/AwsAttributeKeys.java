@@ -67,6 +67,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_LAMBDA_NAME =
       AttributeKey.stringKey("aws.lambda.function.name");
 
+  static final AttributeKey<String> AWS_LAMBDA_ARN =
+      AttributeKey.stringKey("aws.lambda.function.arn");
+
   static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
       AttributeKey.stringKey("aws.lambda.resource_mapping.id");
 
