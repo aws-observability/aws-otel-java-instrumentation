@@ -43,7 +43,7 @@ jobs:
   # DEFAULT SETTING: {Java Version}, EC2, AMD64, AL2
   #
 
-  ec2-default-v8-amd64:
+  default-v8-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
@@ -53,7 +53,7 @@ jobs:
       java-version: '8'
       cpu-architecture: 'x86_64'
 
-  ec2-default-v11-amd64:
+  default-v11-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
@@ -63,7 +63,7 @@ jobs:
       java-version: '11'
       cpu-architecture: 'x86_64'
 
-  ec2-default-v17-amd64:
+  default-v17-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
@@ -73,7 +73,7 @@ jobs:
       java-version: '17'
       cpu-architecture: 'x86_64'
 
-  ec2-default-v21-amd64:
+  default-v21-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
@@ -83,7 +83,7 @@ jobs:
       java-version: '21'
       cpu-architecture: 'x86_64'
 
-  ec2-default-v22-amd64:
+  default-v22-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
@@ -157,7 +157,7 @@ jobs:
   # DEFAULT SETTING: Java 11, {Platform}, AMD64, AL2
   #
 
-  ec2-asg-v11-amd64:
+  asg-v11-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@main
     secrets: inherit
@@ -170,17 +170,6 @@ jobs:
   # DOCKER DISTRIBUTION PLATFORM COVERAGE
   # DEFAULT SETTING: Java 11, {Platform}, AMD64, AL2
   #
-
-  metric-limiter-v11-amd64:
-    needs: [ eks-v22-amd64 ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
-    secrets: inherit
-    with:
-      aws-region: us-east-1
-      test-cluster-name: 'e2e-adot-test'
-      adot-image-name: ${{ inputs.adot-image-name }}
-      caller-workflow-name: 'main-build'
-      java-version: '11'
 
   k8s-v11-amd64:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-k8s-test.yml@main
@@ -206,7 +195,7 @@ jobs:
   # DEFAULT SETTING: Java 11, EC2, {CPU Architecture}, AL2
   #
 
-  ec2-default-v11-arm64:
+  default-v11-arm64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
@@ -215,3 +204,18 @@ jobs:
       caller-workflow-name: 'main-build'
       java-version: '11'
       cpu-architecture: 'arm64'
+
+  #
+  # Other Functional Test Case
+  #
+
+  metric-limiter-v11-amd64:
+    needs: [ eks-v22-amd64 ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
