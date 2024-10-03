@@ -653,7 +653,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
     // Remove all whitespace and newline characters from the beginning of remote_operation
     // and retrieve the first MAX_KEYWORD_LENGTH characters
-    remoteOperation = remoteOperation.stripLeading();
+    remoteOperation = remoteOperation.replaceFirst("^\\s+", "");
     if (remoteOperation.length() > MAX_KEYWORD_LENGTH) {
       remoteOperation = remoteOperation.substring(0, MAX_KEYWORD_LENGTH);
     }
