@@ -1,6 +1,8 @@
 ---
 rules:
   - bean: Catalina:type=Manager,host=localhost,context=*
+    metricAttribute:
+      context: param(context)
     mapping:
       activeSessions:
         metric: tomcat.sessions
@@ -64,6 +66,8 @@ rules:
         unit: threads
         desc: The number of threads
   - bean: Tomcat:type=Manager,host=localhost,context=*
+    metricAttribute:
+      context: param(context)
     mapping:
       activeSessions:
         metric: tomcat.sessions

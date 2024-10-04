@@ -1,6 +1,6 @@
 ---
 rules:
-  - bean: kafka.consumer:client-id=*,type=consumer-fetch-manager-metrics
+  - bean: kafka.consumer:type=consumer-fetch-manager-metrics,client-id=*
     metricAttribute:
       client-id: param(client-id)
     mapping:
@@ -29,7 +29,7 @@ rules:
         type: gauge
         desc: The average number of records consumed for all topics per second
         unit: "1"
-  - bean: kafka.consumer:client-id=*,topic=*,type=consumer-fetch-manager-metrics
+  - bean: kafka.consumer:type=consumer-fetch-manager-metrics,client-id=*,topic=*
     metricAttribute:
       client-id: param(client-id)
       topic: param(topic)

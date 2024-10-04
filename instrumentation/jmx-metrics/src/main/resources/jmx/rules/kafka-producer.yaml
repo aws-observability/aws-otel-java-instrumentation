@@ -1,6 +1,6 @@
 ---
 rules:
-  - bean: kafka.producer:client-id=*,type=producer-metrics
+  - bean: kafka.producer:type=producer-metrics,client-id=*
     metricAttribute:
       client-id: param(client-id)
     mapping:
@@ -29,7 +29,7 @@ rules:
         type: gauge
         desc: Responses received per second
         unit: "1"
-  - bean: kafka.producer:client-id=*,topic=*,type=producer-topic-metrics
+  - bean: kafka.producer:type=producer-topic-metrics,client-id=*,topic=*
     metricAttribute:
       client-id: param(client-id)
       topic: param(topic)

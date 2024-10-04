@@ -8,7 +8,7 @@ rules:
       LoadedClassCount:
         metric: loaded
         desc: Number of loaded classes
-  - bean: java.lang:type=GarbageCollector,*
+  - bean: java.lang:type=GarbageCollector,name=*
     prefix: jvm.gc.collections.
     type: counter
     metricAttribute:
@@ -51,7 +51,7 @@ rules:
       NonHeapMemoryUsage.max:
         metric: nonheap.max
         desc: The maximum amount of memory can be used for non-heap purposes
-  - bean: java.lang:type=MemoryPool,*
+  - bean: java.lang:type=MemoryPool,name=*
     unit: by
     prefix: jvm.memory.pool.
     type: gauge
@@ -81,7 +81,7 @@ rules:
       ThreadCount:
         metric: count
         desc: Number of threads
-  - bean: java.lang:type=OperatingSystem,*
+  - bean: java.lang:type=OperatingSystem
     prefix: jvm.cpu.
     type: gauge
     mapping:
