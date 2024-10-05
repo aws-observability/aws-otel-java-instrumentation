@@ -52,7 +52,7 @@ public class OtelJMXMetricsCustomizerProvider implements AutoConfigurationCustom
   }
 
   private boolean isOtelJMXEnabled(ConfigProperties configProps) {
-    return configProps.getBoolean(OTEL_JMX_ENABLED_CONFIG)
+    return configProps.getBoolean(OTEL_JMX_ENABLED_CONFIG, false)
         && configProps.getString(OTEL_JMX_ENDPOINT_CONFIG, "") != "";
   }
 
