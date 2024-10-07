@@ -638,6 +638,19 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_STATEMENT, "SELECT FROM *");
     mockAttribute(DB_OPERATION, "DB operation");
     validateExpectedRemoteAttributes("DB system", "DB operation");
+
+    // Case 10: Duplicate of case 1 with leading whitespace
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "    SELECT DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "SELECT");
+
+    // Case 11: Duplicate of case 2 with leading whitespace. Test if whitespace affects longest
+    // match
+    mockAttribute(DB_SYSTEM, "DB system");
+    mockAttribute(DB_STATEMENT, "     DROP VIEW DB statement");
+    mockAttribute(DB_OPERATION, null);
+    validateExpectedRemoteAttributes("DB system", "DROP VIEW");
   }
 
   @Test

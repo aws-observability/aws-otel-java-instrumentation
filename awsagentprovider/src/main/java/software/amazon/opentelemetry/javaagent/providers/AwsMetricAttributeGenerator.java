@@ -15,7 +15,6 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.ResourceAttributes.SERVICE_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_CONNECTION_STRING;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_NAME;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
@@ -71,7 +70,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
@@ -131,11 +129,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   private static final String DB_CONNECTION_RESOURCE_TYPE = "DB::Connection";
 
-  // As per
-  // https://github.com/open-telemetry/opentelemetry-java/tree/main/sdk-extensions/autoconfigure#opentelemetry-resource
-  // If service name is not specified, SDK defaults the service name to unknown_service:java
-  private static final String OTEL_UNKNOWN_SERVICE = "unknown_service:java";
-
   // This method is used by the AwsSpanMetricsProcessor to generate service and dependency metrics
   @Override
   public Map<String, Attributes> generateMetricAttributeMapFromSpan(
@@ -179,14 +172,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   /** Service is always derived from {@link ResourceAttributes#SERVICE_NAME} */
   private static void setService(Resource resource, SpanData span, AttributesBuilder builder) {
-    String service = resource.getAttribute(SERVICE_NAME);
-
-    // In practice the service name is never null, but we can be defensive here.
-    if (service == null || service.equals(OTEL_UNKNOWN_SERVICE)) {
-      logUnknownAttribute(AWS_LOCAL_SERVICE, span);
-      service = UNKNOWN_SERVICE;
-    }
-    builder.put(AWS_LOCAL_SERVICE, service);
+    AwsResourceAttributeConfigurator.setServiceAttribute(
+        resource, builder, () -> logUnknownAttribute(AWS_LOCAL_SERVICE, span));
   }
 
   /**
@@ -748,7 +735,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
     // Remove all whitespace and newline characters from the beginning of remote_operation
     // and retrieve the first MAX_KEYWORD_LENGTH characters
-    remoteOperation = remoteOperation.stripLeading();
+    remoteOperation = remoteOperation.replaceFirst("^\\s+", "");
     if (remoteOperation.length() > MAX_KEYWORD_LENGTH) {
       remoteOperation = remoteOperation.substring(0, MAX_KEYWORD_LENGTH);
     }
