@@ -806,7 +806,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:functionName");
     validateRemoteResourceAttributes("AWS::Lambda::Function", "functionName");
     mockAttribute(AWS_LAMBDA_NAME, null);
-    
+
     // Validate behaviour of AWS_LAMBDA_RESOURCE_ID
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
     validateRemoteResourceAttributes("AWS::Lambda::EventSourceMapping", "eventSourceId");
