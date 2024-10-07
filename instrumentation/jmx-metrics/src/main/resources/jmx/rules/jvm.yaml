@@ -84,6 +84,10 @@ rules:
         metric: jvm.system.cpu.utilization
         desc: The current load of CPU in host
         unit: "1"
+      CpuLoad:
+        metric: jvm.system.cpu.utilization
+        desc: The current load of CPU in host
+        unit: "1"
       ProcessCpuTime:
         metric: jvm.cpu.time
         unit: ns
@@ -93,6 +97,6 @@ rules:
         unit: "1"
         desc: Recent CPU utilization for the process
       OpenFileDescriptorCount:
-        metric: jvm.fd.open.count
+        metric: jvm.open_file_descriptor.count
         desc: The number of opened file descriptors
         unit: "1"
