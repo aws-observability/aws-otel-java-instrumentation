@@ -43,6 +43,10 @@ public final class AwsSpanMetricsProcessorBuilder {
   // Required builder elements
   private final MeterProvider meterProvider;
   private final Resource resource;
+
+  // ForceFlush action provided from {@link SdkMeterProvider#forceFlush()} so that when the
+  // application exits The spanMetricProcessor calls the meterProvder.forceFlush to flush
+  // any remaining metrics before shutdown
   private final Supplier<CompletableResultCode> forceFlushAction;
 
   // Optional builder elements
