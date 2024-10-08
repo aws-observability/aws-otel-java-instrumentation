@@ -40,8 +40,6 @@ dependencies {
   implementation("com.amazonaws:aws-java-sdk-core")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
-  // SDK Lambda for Lambda ARN retrieval
-  implementation("com.amazonaws:aws-java-sdk-lambda")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
