@@ -15,6 +15,9 @@
 
 package software.amazon.opentelemetry.appsignals.test.jdbc;
 
+import static io.opentelemetry.proto.trace.v1.Span.SpanKind.SPAN_KIND_CLIENT;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -70,6 +73,7 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
         DB_CONNECTION_STRING,
         DB_RESOURCE_TYPE,
         MYSQL_IDENTIFIER);
+    assertExtraSelectSpan();
   }
 
   @Test
@@ -107,5 +111,24 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
             .waitingFor(
                 Wait.forLogMessage(".*database system is ready to accept connections.*", 1));
     return List.of(mySQLContainer);
+  }
+
+  private void assertExtraSelectSpan() {
+    var resourceScopeSpans = mockCollectorClient.getTraces();
+    assertThat(resourceScopeSpans)
+        .satisfiesOnlyOnce(
+            rss -> {
+              assertThat(rss.getSpan().getKind()).isEqualTo(SPAN_KIND_CLIENT);
+              var attributesList = rss.getSpan().getAttributesList();
+              assertAwsAttributes(
+                  attributesList,
+                  "GET",
+                  "success/" + DB_SELECT_OPERATION,
+                  DB_SYSTEM,
+                  DB_SELECT_OPERATION,
+                  DB_USER,
+                  null,
+                  null);
+            });
   }
 }

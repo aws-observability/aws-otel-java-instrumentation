@@ -122,6 +122,14 @@ public class JdbcContractTestBase extends ContractTestBase {
                 .isEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER);
             assertThat(attribute.getValue().getStringValue()).isEqualTo(identifier);
           });
+    } else {
+      assertions.allSatisfy(
+          (attribute) -> {
+            assertThat(attribute.getKey())
+                .isNotEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE);
+            assertThat(attribute.getKey())
+                .isNotEqualTo(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER);
+          });
     }
   }
 

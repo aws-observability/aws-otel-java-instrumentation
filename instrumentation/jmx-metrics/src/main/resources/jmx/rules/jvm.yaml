@@ -1,0 +1,68 @@
+---
+rules:
+  - bean: java.lang:type=ClassLoading
+    unit: "1"
+    prefix: jvm.classes.
+    type: gauge
+    mapping:
+      LoadedClassCount:
+        metric: loaded
+        desc: Number of loaded classes
+  - bean: java.lang:type=GarbageCollector,*
+    prefix: jvm.gc.collections.
+    type: counter
+    metricAttribute:
+      name: param(name)
+    mapping:
+      CollectionCount:
+        metric: count
+        unit: "1"
+        desc: Total number of collections that have occurred
+      CollectionTime:
+        metric: elapsed
+        unit: ms
+        desc: The approximate accumulated collection elapsed time in milliseconds
+  - bean: java.lang:type=Memory
+    unit: by
+    prefix: jvm.memory.
+    type: gauge
+    mapping:
+      HeapMemoryUsage.used:
+        metric: heap.used
+        desc: The current heap usage
+      NonHeapMemoryUsage.used:
+        metric: nonheap.used
+        desc: The current non-heap usage
+  - bean: java.lang:type=MemoryPool,*
+    unit: by
+    prefix: jvm.memory.pool.
+    type: gauge
+    metricAttribute:
+      name: param(name)
+    mapping:
+      CollectionUsage.used:
+        metric: used_after_last_gc
+        desc: Memory used after the most recent gc event
+      Usage.used:
+        metric: used
+        desc: Current memory pool used
+  - bean: java.lang:type=Threading
+    unit: "1"
+    prefix: jvm.threads.
+    type: gauge
+    mapping:
+      ThreadCount:
+        metric: count
+        desc: Number of threads
+  - bean: java.lang:type=OperatingSystem,*
+    prefix: jvm.cpu.
+    type: gauge
+    mapping:
+      ProcessCpuTime:
+        metric: time
+        unit: ns
+        desc: CPU time used
+      ProcessCpuLoad:
+        metric: recent_utilization
+        unit: "1"
+        desc: Recent CPU utilization for the process
