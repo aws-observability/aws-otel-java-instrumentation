@@ -84,10 +84,6 @@ rules:
         metric: jvm.system.cpu.utilization
         desc: The current load of CPU in host
         unit: "1"
-      CpuLoad:
-        metric: jvm.system.cpu.utilization
-        desc: The current load of CPU in host
-        unit: "1"
       ProcessCpuTime:
         metric: jvm.cpu.time
         unit: ns
