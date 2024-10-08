@@ -37,7 +37,7 @@ dependencies {
   // Json file reader
   implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
   // Import AWS SDK v1 core for ARN parsing utilities
-  implementation("com.amazonaws:aws-java-sdk-core")
+  implementation("com.amazonaws:aws-java-sdk-core:1.12.259")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
 
