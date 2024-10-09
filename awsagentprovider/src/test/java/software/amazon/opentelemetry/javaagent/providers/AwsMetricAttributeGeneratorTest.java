@@ -26,6 +26,8 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
@@ -35,7 +37,11 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SNS_TOPIC_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
@@ -770,6 +776,42 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_^id");
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_^^id");
     mockAttribute(GEN_AI_REQUEST_MODEL, null);
+
+    // Validate behaviour of AWS_STATE_MACHINE_ARN attribute, then remove it.
+    mockAttribute(
+        AWS_STATE_MACHINE_ARN,
+        "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
+    validateRemoteResourceAttributes("AWS::StepFunctions::StateMachine", "test_state_machine");
+    mockAttribute(AWS_STATE_MACHINE_ARN, null);
+
+    // Validate behaviour of AWS_STEPFUNCTIONS_ACTIVITY_ARN, then remove it.
+    mockAttribute(
+        AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
+        "arn:aws:states:us-east-1:007003123456789012:activity:testActivity");
+    validateRemoteResourceAttributes("AWS::StepFunctions::Activity", "testActivity");
+    mockAttribute(AWS_STEP_FUNCTIONS_ACTIVITY_ARN, null);
+
+    // Validate behaviour of AWS_SNS_TOPIC_ARN, then remove it.
+    mockAttribute(AWS_SNS_TOPIC_ARN, "arn:aws:sns:us-west-2:012345678901:testTopic");
+    validateRemoteResourceAttributes("AWS::SNS::Topic", "testTopic");
+    mockAttribute(AWS_SNS_TOPIC_ARN, null);
+
+    // Validate behaviour of AWS_SECRET_ARN, then remove it.
+    mockAttribute(
+        AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
+    validateRemoteResourceAttributes("AWS::SecretsManager::Secret", "secretName");
+    mockAttribute(AWS_SECRET_ARN, null);
+
+    // Validate behaviour of AWS_LAMBDA_NAME, then remove it.
+    mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:functionName");
+    validateRemoteResourceAttributes("AWS::Lambda::Function", "functionName");
+    mockAttribute(AWS_LAMBDA_NAME, null);
+
+    // Validate behaviour of AWS_LAMBDA_RESOURCE_ID
+    mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
+    validateRemoteResourceAttributes("AWS::Lambda::EventSourceMapping", "eventSourceId");
+    mockAttribute(AWS_LAMBDA_RESOURCE_ID, null);
+
     mockAttribute(RPC_SYSTEM, "null");
   }
 
@@ -1175,6 +1217,7 @@ class AwsMetricAttributeGeneratorTest {
     testAwsSdkServiceNormalization("AWSBedrockAgentRuntime", "AWS::Bedrock");
     testAwsSdkServiceNormalization("AWSBedrockAgent", "AWS::Bedrock");
     testAwsSdkServiceNormalization("AmazonBedrockRuntime", "AWS::BedrockRuntime");
+    testAwsSdkServiceNormalization("AWSStepFunctions", "AWS::StepFunctions");
 
     // AWS SDK V2
     testAwsSdkServiceNormalization("DynamoDb", "AWS::DynamoDB");

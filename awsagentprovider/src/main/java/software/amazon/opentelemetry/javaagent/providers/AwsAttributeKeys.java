@@ -38,6 +38,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_REMOTE_RESOURCE_IDENTIFIER =
       AttributeKey.stringKey("aws.remote.resource.identifier");
 
+  static final AttributeKey<String> AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER =
+      AttributeKey.stringKey("aws.remote.resource.cfn.primary.identifier");
+
   static final AttributeKey<String> AWS_REMOTE_RESOURCE_TYPE =
       AttributeKey.stringKey("aws.remote.resource.type");
 
@@ -49,6 +52,26 @@ final class AwsAttributeKeys {
 
   static final AttributeKey<String> AWS_CONSUMER_PARENT_SPAN_KIND =
       AttributeKey.stringKey("aws.consumer.parent.span.kind");
+
+  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
+      AttributeKey.stringKey("aws.stepfunctions.state_machine.arn");
+
+  static final AttributeKey<String> AWS_STEP_FUNCTIONS_ACTIVITY_ARN =
+      AttributeKey.stringKey("aws.stepfunctions.activity.arn");
+
+  static final AttributeKey<String> AWS_SNS_TOPIC_ARN = AttributeKey.stringKey("aws.sns.topic.arn");
+
+  static final AttributeKey<String> AWS_SECRET_ARN =
+      AttributeKey.stringKey("aws.secretsmanager.secret.arn");
+
+  static final AttributeKey<String> AWS_LAMBDA_NAME =
+      AttributeKey.stringKey("aws.lambda.function.name");
+
+  static final AttributeKey<String> AWS_LAMBDA_ARN =
+      AttributeKey.stringKey("aws.lambda.function.arn");
+
+  static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
+      AttributeKey.stringKey("aws.lambda.resource_mapping.id");
 
   // use the same AWS Resource attribute name defined by OTel java auto-instr for aws_sdk_v_1_1
   // TODO: all AWS specific attributes should be defined in semconv package and reused cross all
