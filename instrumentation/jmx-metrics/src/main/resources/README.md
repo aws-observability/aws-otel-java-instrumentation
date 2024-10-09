@@ -14,4 +14,4 @@ based on the [JMX metric rule YAML schema](https://github.com/open-telemetry/ope
 
 
 ### SystemCpuLoad
-The `SystemCpuLoad` metric is deprecated and Java versions 14+ now use `CpuLoad`. However, to avoid emitting double metrics, we stick to using `SystemCpuLoad`.
+The `SystemCpuLoad` metric is deprecated and Java versions 14+ now use `CpuLoad`. However, to avoid emitting double metrics, we stick to using `SystemCpuLoad` as it still works on newer versions.
