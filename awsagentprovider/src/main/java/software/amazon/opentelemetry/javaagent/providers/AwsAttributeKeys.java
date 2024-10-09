@@ -89,4 +89,6 @@ final class AwsAttributeKeys {
       AttributeKey.stringKey("aws.bedrock.data_source.id");
   static final AttributeKey<String> AWS_GUARDRAIL_ID =
       AttributeKey.stringKey("aws.bedrock.guardrail.id");
+  static final AttributeKey<String> AWS_GUARDRAIL_ARN =
+      AttributeKey.stringKey("aws.bedrock.guardrail.arn");
 }
