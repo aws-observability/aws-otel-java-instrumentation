@@ -83,7 +83,7 @@ rules:
       SystemCpuLoad:
         metric: jvm.system.cpu.utilization
         desc: The current load of CPU in host
-        unit: %
+        unit: "1"
       ProcessCpuTime:
         metric: jvm.cpu.time
         unit: ns
