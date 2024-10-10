@@ -44,6 +44,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
@@ -455,6 +456,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Guardrail");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_GUARDRAIL_ID)));
+        cloudformationPrimaryIdentifier =
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_GUARDRAIL_ARN)));
       } else if (isKeyPresent(span, GEN_AI_REQUEST_MODEL)) {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Model");
         remoteResourceIdentifier =
