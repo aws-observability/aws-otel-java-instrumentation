@@ -8,7 +8,7 @@ rules:
       LoadedClassCount:
         metric: loaded
         desc: Number of loaded classes
-  - bean: java.lang:type=GarbageCollector,*
+  - bean: java.lang:type=GarbageCollector,name=*
     prefix: jvm.gc.collections.
     type: counter
     metricAttribute:
@@ -27,13 +27,31 @@ rules:
     prefix: jvm.memory.
     type: gauge
     mapping:
+      HeapMemoryUsage.init:
+        metric: heap.init
+        desc: The initial amount of memory that the JVM requests from the operating system for the heap
       HeapMemoryUsage.used:
         metric: heap.used
         desc: The current heap usage
+      HeapMemoryUsage.committed:
+        metric: heap.committed
+        desc: The amount of memory that is guaranteed to be available for the heap
+      HeapMemoryUsage.max:
+        metric: heap.max
+        desc: The maximum amount of memory can be used for the heap
+      NonHeapMemoryUsage.init:
+        metric: nonheap.init
+        desc: The initial amount of memory that the JVM requests from the operating system for non-heap purposes
       NonHeapMemoryUsage.used:
         metric: nonheap.used
-        desc: The current non-heap usage
-  - bean: java.lang:type=MemoryPool,*
+        desc: The current non-heap memory usage
+      NonHeapMemoryUsage.committed:
+        metric: nonheap.committed
+        desc: The amount of memory that is guaranteed to be available for non-heap purposes
+      NonHeapMemoryUsage.max:
+        metric: nonheap.max
+        desc: The maximum amount of memory can be used for non-heap purposes
+  - bean: java.lang:type=MemoryPool,name=*
     unit: by
     prefix: jvm.memory.pool.
     type: gauge
@@ -43,9 +61,18 @@ rules:
       CollectionUsage.used:
         metric: used_after_last_gc
         desc: Memory used after the most recent gc event
+      Usage.init:
+        metric: init
+        desc: The initial amount of memory that the JVM requests from the operating system for the memory pool
       Usage.used:
         metric: used
-        desc: Current memory pool used
+        desc: The current memory pool memory usage
+      Usage.committed:
+        metric: committed
+        desc: The amount of memory that is guaranteed to be available for the memory pool
+      Usage.max:
+        metric: max
+        desc: The maximum amount of memory can be used for the memory pool
   - bean: java.lang:type=Threading
     unit: "1"
     prefix: jvm.threads.
@@ -58,6 +85,7 @@ rules:
         metric: daemon
         desc: Number of daemon threads
   - bean: java.lang:type=OperatingSystem,*
+    prefix: jvm.cpu.
     type: gauge
     mapping:
       TotalSwapSpaceSize:
