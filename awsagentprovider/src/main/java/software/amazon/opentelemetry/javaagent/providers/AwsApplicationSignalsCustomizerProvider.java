@@ -17,7 +17,6 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
-import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
@@ -164,14 +163,16 @@ public class AwsApplicationSignalsCustomizerProvider
       MetricReader metricReader =
           PeriodicMetricReader.builder(metricsExporter).setInterval(exportInterval).build();
 
-      MeterProvider meterProvider =
+      SdkMeterProvider meterProvider =
           SdkMeterProvider.builder()
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
               .build();
+
       // Construct and set application signals metrics processor
       SpanProcessor spanMetricsProcessor =
-          AwsSpanMetricsProcessorBuilder.create(meterProvider, ResourceHolder.getResource())
+          AwsSpanMetricsProcessorBuilder.create(
+                  meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush)
               .build();
       tracerProviderBuilder.addSpanProcessor(spanMetricsProcessor);
     }

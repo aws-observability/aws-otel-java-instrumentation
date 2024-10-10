@@ -77,6 +77,12 @@ class AwsSpanMetricsProcessorTest {
   private MetricAttributeGenerator generatorMock;
   private AwsSpanMetricsProcessor awsSpanMetricsProcessor;
 
+  // Mock forceFlush function that returns success when invoked similar
+  // to the default implementation of forceFlush.
+  private CompletableResultCode forceFlushAction() {
+    return CompletableResultCode.ofSuccess();
+  }
+
   @BeforeEach
   public void setUpMocks() {
     errorHistogramMock = mock(LongHistogram.class);
@@ -90,7 +96,8 @@ class AwsSpanMetricsProcessorTest {
             faultHistogramMock,
             latencyHistogramMock,
             generatorMock,
-            testResource);
+            testResource,
+            this::forceFlushAction);
   }
 
   @Test
