@@ -22,12 +22,14 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.Map;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -64,6 +66,7 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
 
   private final MetricAttributeGenerator generator;
   private final Resource resource;
+  private final Supplier<CompletableResultCode> forceFlushAction;
 
   /** Use {@link AwsSpanMetricsProcessorBuilder} to construct this processor. */
   static AwsSpanMetricsProcessor create(
@@ -71,9 +74,10 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       LongHistogram faultHistogram,
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
-      Resource resource) {
+      Resource resource,
+      Supplier<CompletableResultCode> forceFlushAction) {
     return new AwsSpanMetricsProcessor(
-        errorHistogram, faultHistogram, latencyHistogram, generator, resource);
+        errorHistogram, faultHistogram, latencyHistogram, generator, resource, forceFlushAction);
   }
 
   private AwsSpanMetricsProcessor(
@@ -81,12 +85,19 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       LongHistogram faultHistogram,
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
-      Resource resource) {
+      Resource resource,
+      Supplier<CompletableResultCode> forceFlushAction) {
     this.errorHistogram = errorHistogram;
     this.faultHistogram = faultHistogram;
     this.latencyHistogram = latencyHistogram;
     this.generator = generator;
     this.resource = resource;
+    this.forceFlushAction = forceFlushAction;
+  }
+
+  @Override
+  public CompletableResultCode forceFlush() {
+    return forceFlushAction.get();
   }
 
   @Override
