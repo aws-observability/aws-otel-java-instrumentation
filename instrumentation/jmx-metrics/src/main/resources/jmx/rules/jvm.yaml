@@ -75,14 +75,13 @@ rules:
         desc: The maximum amount of memory can be used for the memory pool
   - bean: java.lang:type=Threading
     unit: "1"
-    prefix: jvm.threads.
     type: gauge
     mapping:
       ThreadCount:
-        metric: count
+        metric: jvm.threads.count
         desc: Number of threads
       DaemonThreadCount:
-        metric: daemon
+        metric: jvm.daemon_threads.count
         desc: Number of daemon threads
   - bean: java.lang:type=OperatingSystem,*
     prefix: jvm.cpu.
