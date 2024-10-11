@@ -75,21 +75,50 @@ rules:
         desc: The maximum amount of memory can be used for the memory pool
   - bean: java.lang:type=Threading
     unit: "1"
-    prefix: jvm.threads.
     type: gauge
     mapping:
       ThreadCount:
-        metric: count
+        metric: jvm.threads.count
         desc: Number of threads
+      DaemonThreadCount:
+        metric: jvm.daemon_threads.count
+        desc: Number of daemon threads
   - bean: java.lang:type=OperatingSystem
-    prefix: jvm.cpu.
     type: gauge
     mapping:
+      TotalSwapSpaceSize:
+        metric: jvm.system.swap.space.total
+        desc: The host swap memory size in bytes
+        unit: by
+      FreeSwapSpaceSize:
+        metric: jvm.system.swap.space.free
+        desc: The amount of available swap memory in bytes
+        unit: by
+      TotalPhysicalMemorySize:
+        metric: jvm.system.physical.memory.total
+        desc: The total physical memory size in host
+        unit: by
+      FreePhysicalMemorySize:
+        metric: jvm.system.physical.memory.free
+        desc: The amount of free physical memory in host
+        unit: by
+      AvailableProcessors:
+        metric: jvm.system.available.processors
+        desc: The number of available processors
+        unit: "1"
+      SystemCpuLoad:
+        metric: jvm.system.cpu.utilization
+        desc: The current load of CPU in host
+        unit: "1"
       ProcessCpuTime:
-        metric: time
+        metric: jvm.cpu.time
         unit: ns
         desc: CPU time used
       ProcessCpuLoad:
-        metric: recent_utilization
+        metric: jvm.cpu.recent_utilization
         unit: "1"
         desc: Recent CPU utilization for the process
+      OpenFileDescriptorCount:
+        metric: jvm.open_file_descriptor.count
+        desc: The number of opened file descriptors
+        unit: "1"

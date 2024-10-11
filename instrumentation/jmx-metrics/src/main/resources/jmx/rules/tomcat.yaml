@@ -3,12 +3,15 @@ rules:
   - bean: Catalina:type=Manager,host=localhost,context=*
     metricAttribute:
       context: param(context)
+    unit: sessions
+    type: gauge
     mapping:
       activeSessions:
         metric: tomcat.sessions
-        type: gauge
-        unit: sessions
         desc: The number of active sessions.
+      rejectedSessions:
+        metric: tomcat.rejected_sessions
+        desc: The number of rejected sessions.
   - bean: Catalina:type=GlobalRequestProcessor,name=*
     metricAttribute:
       name: param(name)
@@ -68,12 +71,15 @@ rules:
   - bean: Tomcat:type=Manager,host=localhost,context=*
     metricAttribute:
       context: param(context)
+    unit: sessions
+    type: gauge
     mapping:
       activeSessions:
         metric: tomcat.sessions
-        type: gauge
-        unit: sessions
         desc: The number of active sessions.
+      rejectedSessions:
+        metric: tomcat.rejected_sessions
+        desc: The number of rejected sessions.
   - bean: Tomcat:type=GlobalRequestProcessor,name=*
     metricAttribute:
       name: param(name)
