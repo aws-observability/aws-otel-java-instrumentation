@@ -84,7 +84,6 @@ rules:
         metric: jvm.daemon_threads.count
         desc: Number of daemon threads
   - bean: java.lang:type=OperatingSystem
-    prefix: jvm.cpu.
     type: gauge
     mapping:
       TotalSwapSpaceSize:
