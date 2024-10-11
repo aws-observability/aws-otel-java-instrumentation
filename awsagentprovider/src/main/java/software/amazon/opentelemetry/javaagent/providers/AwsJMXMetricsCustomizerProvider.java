@@ -74,7 +74,7 @@ public class AwsJMXMetricsCustomizerProvider implements AutoConfigurationCustomi
               .build();
       sdkMeterProviderBuilder.registerMetricReader(metricReader);
 
-      logger.info("Otel JMX metric collection enabled");
+      logger.info("AWS JMX metric collection enabled");
     }
     return sdkMeterProviderBuilder;
   }
@@ -85,20 +85,20 @@ public class AwsJMXMetricsCustomizerProvider implements AutoConfigurationCustomi
     public MetricExporter createExporter(ConfigProperties configProps) {
       String protocol =
           OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
-      logger.log(Level.FINE, String.format("Otel JMX metrics export protocol: %s", protocol));
+      logger.log(Level.FINE, String.format("AWS JMX metrics export protocol: %s", protocol));
 
       String otelJMXEndpoint;
       if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
         otelJMXEndpoint = configProps.getString(AWS_JMX_ENDPOINT_CONFIG, "http://localhost:4314");
         logger.log(
-            Level.FINE, String.format("AWS Otel JMX metrics export endpoint: %s", otelJMXEndpoint));
+            Level.FINE, String.format("AWS JMX metrics export endpoint: %s", otelJMXEndpoint));
         return OtlpHttpMetricExporter.builder()
             .setEndpoint(otelJMXEndpoint)
             .setDefaultAggregationSelector(this::getAggregation)
             .build();
       }
       throw new ConfigurationException(
-          "Unsupported AWS Otel JMX metrics export protocol: " + protocol);
+          "Unsupported AWS JMX metrics export protocol: " + protocol);
     }
 
     private Aggregation getAggregation(InstrumentType instrumentType) {
