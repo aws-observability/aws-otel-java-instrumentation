@@ -97,8 +97,7 @@ public class AwsJMXMetricsCustomizerProvider implements AutoConfigurationCustomi
             .setDefaultAggregationSelector(this::getAggregation)
             .build();
       }
-      throw new ConfigurationException(
-          "Unsupported AWS JMX metrics export protocol: " + protocol);
+      throw new ConfigurationException("Unsupported AWS JMX metrics export protocol: " + protocol);
     }
 
     private Aggregation getAggregation(InstrumentType instrumentType) {
