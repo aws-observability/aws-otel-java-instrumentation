@@ -37,10 +37,10 @@ import java.util.logging.Logger;
  * otel.aws.jmx.enabled and otel.aws.jmx.exporter.metrics.endpoint or the environment variable
  * AWS_JMX_ENABLED_CONFIG and AWS_JMX_ENDPOINT_CONFIG. These flags are disabled by default.
  */
-public class AWSJMXMetricsCustomizerProvider implements AutoConfigurationCustomizerProvider {
+public class AwsJMXMetricsCustomizerProvider implements AutoConfigurationCustomizerProvider {
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
-      Logger.getLogger(AWSJMXMetricsCustomizerProvider.class.getName());
+      Logger.getLogger(AwsJMXMetricsCustomizerProvider.class.getName());
 
   private static final String AWS_JMX_ENABLED_CONFIG = "otel.aws.jmx.enabled";
   private static final String AWS_JMX_ENDPOINT_CONFIG = "otel.aws.jmx.exporter.metrics.endpoint";
