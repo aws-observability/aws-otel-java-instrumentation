@@ -34,25 +34,24 @@ import java.util.logging.Logger;
 
 /**
  * You can control when these customizations are applied using both the properties -
- * otel.jmx.enabled and otel.jmx.exporter.metrics.endpoint or the environment variable
- * OTEL_JMX_ENABLED_CONFIG and OTEL_JMX_ENDPOINT_CONFIG. These flags are disabled by default.
+ * otel.aws.jmx.enabled and otel.aws.jmx.exporter.metrics.endpoint or the environment variable
+ * AWS_JMX_ENABLED_CONFIG and AWS_JMX_ENDPOINT_CONFIG. These flags are disabled by default.
  */
 public class AWSJMXMetricsCustomizerProvider implements AutoConfigurationCustomizerProvider {
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
       Logger.getLogger(AWSJMXMetricsCustomizerProvider.class.getName());
 
-  private static final String AWS_OTEL_JMX_ENABLED_CONFIG = "otel.aws.jmx.enabled";
-  private static final String AWS_OTEL_JMX_ENDPOINT_CONFIG =
-      "otel.aws.jmx.exporter.metrics.endpoint";
+  private static final String AWS_JMX_ENABLED_CONFIG = "otel.aws.jmx.enabled";
+  private static final String AWS_JMX_ENDPOINT_CONFIG = "otel.aws.jmx.exporter.metrics.endpoint";
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addMeterProviderCustomizer(this::customizeMeterProvider);
   }
 
   private boolean isOtelJMXEnabled(ConfigProperties configProps) {
-    return configProps.getBoolean(AWS_OTEL_JMX_ENABLED_CONFIG, false)
-        && configProps.getString(AWS_OTEL_JMX_ENDPOINT_CONFIG, "") != "";
+    return configProps.getBoolean(AWS_JMX_ENABLED_CONFIG, false)
+        && configProps.getString(AWS_JMX_ENDPOINT_CONFIG, "") != "";
   }
 
   private SdkMeterProviderBuilder customizeMeterProvider(
@@ -90,8 +89,7 @@ public class AWSJMXMetricsCustomizerProvider implements AutoConfigurationCustomi
 
       String otelJMXEndpoint;
       if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
-        otelJMXEndpoint =
-            configProps.getString(AWS_OTEL_JMX_ENDPOINT_CONFIG, "http://localhost:4314");
+        otelJMXEndpoint = configProps.getString(AWS_JMX_ENDPOINT_CONFIG, "http://localhost:4314");
         logger.log(
             Level.FINE, String.format("AWS Otel JMX metrics export endpoint: %s", otelJMXEndpoint));
         return OtlpHttpMetricExporter.builder()
