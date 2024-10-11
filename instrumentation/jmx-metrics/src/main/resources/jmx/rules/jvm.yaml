@@ -58,9 +58,6 @@ rules:
     metricAttribute:
       name: param(name)
     mapping:
-      CollectionUsage.used:
-        metric: used_after_last_gc
-        desc: Memory used after the most recent gc event
       Usage.init:
         metric: init
         desc: The initial amount of memory that the JVM requests from the operating system for the memory pool
@@ -110,10 +107,6 @@ rules:
         metric: jvm.system.cpu.utilization
         desc: The current load of CPU in host
         unit: "1"
-      ProcessCpuTime:
-        metric: jvm.cpu.time
-        unit: ns
-        desc: CPU time used
       ProcessCpuLoad:
         metric: jvm.cpu.recent_utilization
         unit: "1"
