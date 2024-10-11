@@ -26,13 +26,10 @@ import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
-import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.metrics.Aggregation;
-import io.opentelemetry.sdk.metrics.InstrumentSelector;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.SdkMeterProviderBuilder;
-import io.opentelemetry.sdk.metrics.View;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
@@ -152,7 +149,9 @@ public class AwsApplicationSignalsCustomizerProvider
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
     if (isApplicationSignalsEnabled(configProps)) {
       logger.info("AWS Application Signals enabled");
-      Duration exportInterval = getMetricExportInterval(configProps);
+      Duration exportInterval =
+          SDKMeterProviderBuilder.getMetricExportInterval(
+              configProps, DEFAULT_METRIC_EXPORT_INTERVAL, logger);
       // Construct and set local and remote attributes span processor
       tracerProviderBuilder.addSpanProcessor(
           AttributePropagatingSpanProcessorBuilder.create().build());
@@ -187,57 +186,22 @@ public class AwsApplicationSignalsCustomizerProvider
       String jmxRuntimeScopeName = "io.opentelemetry.jmx";
       registeredScopeNames.add(jmxRuntimeScopeName);
 
-      configureMetricFilter(configProps, sdkMeterProviderBuilder, registeredScopeNames);
+      SDKMeterProviderBuilder.configureMetricFilter(
+          configProps, sdkMeterProviderBuilder, registeredScopeNames, logger);
 
       MetricExporter metricsExporter =
           ApplicationSignalsExporterProvider.INSTANCE.createExporter(configProps);
       MetricReader metricReader =
           ScopeBasedPeriodicMetricReader.create(metricsExporter, registeredScopeNames)
-              .setInterval(getMetricExportInterval(configProps))
+              .setInterval(
+                  SDKMeterProviderBuilder.getMetricExportInterval(
+                      configProps, DEFAULT_METRIC_EXPORT_INTERVAL, logger))
               .build();
       sdkMeterProviderBuilder.registerMetricReader(metricReader);
 
       logger.info("AWS Application Signals runtime metric collection enabled");
     }
     return sdkMeterProviderBuilder;
-  }
-
-  private static void configureMetricFilter(
-      ConfigProperties configProps,
-      SdkMeterProviderBuilder sdkMeterProviderBuilder,
-      Set<String> registeredScopeNames) {
-    Set<String> exporterNames =
-        DefaultConfigProperties.getSet(configProps, "otel.metrics.exporter");
-    if (exporterNames.contains("none")) {
-      for (String scope : registeredScopeNames) {
-        sdkMeterProviderBuilder.registerView(
-            InstrumentSelector.builder().setMeterName(scope).build(),
-            View.builder().setAggregation(Aggregation.defaultAggregation()).build());
-
-        logger.log(Level.FINE, "Registered scope {0}", scope);
-      }
-      sdkMeterProviderBuilder.registerView(
-          InstrumentSelector.builder().setName("*").build(),
-          View.builder().setAggregation(Aggregation.drop()).build());
-    }
-  }
-
-  private static Duration getMetricExportInterval(ConfigProperties configProps) {
-    Duration exportInterval =
-        configProps.getDuration("otel.metric.export.interval", DEFAULT_METRIC_EXPORT_INTERVAL);
-    logger.log(
-        Level.FINE,
-        String.format("AWS Application Signals Metrics export interval: %s", exportInterval));
-    // Cap export interval to 60 seconds. This is currently required for metrics-trace correlation
-    // to work correctly.
-    if (exportInterval.compareTo(DEFAULT_METRIC_EXPORT_INTERVAL) > 0) {
-      exportInterval = DEFAULT_METRIC_EXPORT_INTERVAL;
-      logger.log(
-          Level.INFO,
-          String.format(
-              "AWS Application Signals metrics export interval capped to %s", exportInterval));
-    }
-    return exportInterval;
   }
 
   private SpanExporter customizeSpanExporter(
