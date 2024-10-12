@@ -26,7 +26,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
@@ -801,11 +800,6 @@ class AwsMetricAttributeGeneratorTest {
         AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
     validateRemoteResourceAttributes("AWS::SecretsManager::Secret", "secretName");
     mockAttribute(AWS_SECRET_ARN, null);
-
-    // Validate behaviour of AWS_LAMBDA_NAME, then remove it.
-    mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:functionName");
-    validateRemoteResourceAttributes("AWS::Lambda::Function", "functionName");
-    mockAttribute(AWS_LAMBDA_NAME, null);
 
     // Validate behaviour of AWS_LAMBDA_RESOURCE_ID
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
