@@ -183,10 +183,10 @@ index 0000000000..e890cb3c0f
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-index 3e8fddec5c..ec85c5bd41 100644
+index 3e8fddec5c..70e8eeae7f 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-@@ -18,6 +18,16 @@ final class AwsExperimentalAttributes {
+@@ -18,6 +18,32 @@ final class AwsExperimentalAttributes {
    static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
    static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
    static final AttributeKey<String> AWS_REQUEST_ID = stringKey("aws.requestId");
@@ -195,19 +195,35 @@ index 3e8fddec5c..ec85c5bd41 100644
 +      stringKey("aws.bedrock.knowledge_base.id");
 +  static final AttributeKey<String> AWS_DATA_SOURCE_ID = stringKey("aws.bedrock.data_source.id");
 +  static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
++  static final AttributeKey<String> AWS_GUARDRAIL_ARN = stringKey("aws.bedrock.guardrail.arn");
 +
 +  // TODO: Merge in gen_ai attributes in opentelemetry-semconv-incubating once upgrade to v1.26.0
 +  static final AttributeKey<String> AWS_BEDROCK_RUNTIME_MODEL_ID =
 +      stringKey("gen_ai.request.model");
 +  static final AttributeKey<String> AWS_BEDROCK_SYSTEM = stringKey("gen_ai.system");
++
++  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
++      stringKey("aws.stepfunctions.state_machine.arn");
++
++  static final AttributeKey<String> AWS_STEP_FUNCTIONS_ACTIVITY_ARN =
++      stringKey("aws.stepfunctions.activity.arn");
++
++  static final AttributeKey<String> AWS_SNS_TOPIC_ARN = stringKey("aws.sns.topic.arn");
++
++  static final AttributeKey<String> AWS_SECRET_ARN = stringKey("aws.secretsmanager.secret.arn");
++
++  static final AttributeKey<String> AWS_LAMBDA_NAME = stringKey("aws.lambda.function.name");
++
++  static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
++      stringKey("aws.lambda.resource_mapping.id");
  
    private AwsExperimentalAttributes() {}
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-index 245f09a5d8..1a107ab5fd 100644
+index 245f09a5d8..157fd891c3 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-@@ -6,8 +6,13 @@
+@@ -6,11 +6,23 @@
  package io.opentelemetry.instrumentation.awssdk.v1_11;
  
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_AGENT;
@@ -216,12 +232,22 @@ index 245f09a5d8..1a107ab5fd 100644
 +import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_BEDROCK_SYSTEM;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_BUCKET_NAME;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_ENDPOINT;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_GUARDRAIL_ARN;
 +import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_GUARDRAIL_ID;
 +import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_KNOWLEDGE_BASE_ID;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_LAMBDA_NAME;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_LAMBDA_RESOURCE_ID;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_QUEUE_NAME;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_QUEUE_URL;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_REQUEST_ID;
-@@ -21,12 +26,17 @@ import io.opentelemetry.api.common.AttributeKey;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_SECRET_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_SNS_TOPIC_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_STATE_MACHINE_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_STREAM_NAME;
+ import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_TABLE_NAME;
+ 
+@@ -21,12 +33,17 @@ import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.AttributesBuilder;
  import io.opentelemetry.context.Context;
  import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor;
@@ -239,7 +265,7 @@ index 245f09a5d8..1a107ab5fd 100644
  
    @Override
    public void onStart(AttributesBuilder attributes, Context parentContext, Request<?> request) {
-@@ -34,21 +44,18 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -34,21 +51,30 @@ class AwsSdkExperimentalAttributesExtractor
      attributes.put(AWS_ENDPOINT, request.getEndpoint().toString());
  
      Object originalRequest = request.getOriginalRequest();
@@ -255,6 +281,18 @@ index 245f09a5d8..1a107ab5fd 100644
 +    setAttribute(attributes, AWS_QUEUE_NAME, originalRequest, RequestAccess::getQueueName);
 +    setAttribute(attributes, AWS_STREAM_NAME, originalRequest, RequestAccess::getStreamName);
 +    setAttribute(attributes, AWS_TABLE_NAME, originalRequest, RequestAccess::getTableName);
++    setAttribute(
++        attributes, AWS_STATE_MACHINE_ARN, originalRequest, RequestAccess::getStateMachineArn);
++    setAttribute(
++        attributes,
++        AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
++        originalRequest,
++        RequestAccess::getStepFunctionsActivityArn);
++    setAttribute(attributes, AWS_SNS_TOPIC_ARN, originalRequest, RequestAccess::getSnsTopicArn);
++    setAttribute(attributes, AWS_SECRET_ARN, originalRequest, RequestAccess::getSecretArn);
++    setAttribute(attributes, AWS_LAMBDA_NAME, originalRequest, RequestAccess::getLambdaName);
++    setAttribute(
++        attributes, AWS_LAMBDA_RESOURCE_ID, originalRequest, RequestAccess::getLambdaResourceId);
  
 -  private static void setRequestAttribute(
 -      AttributesBuilder attributes,
@@ -272,7 +310,7 @@ index 245f09a5d8..1a107ab5fd 100644
      }
    }
  
-@@ -59,12 +66,108 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -59,12 +85,117 @@ class AwsSdkExperimentalAttributesExtractor
        Request<?> request,
        @Nullable Response<?> response,
        @Nullable Throwable error) {
@@ -283,6 +321,14 @@ index 245f09a5d8..1a107ab5fd 100644
 -        attributes.put(AWS_REQUEST_ID, requestId);
 +    if (response != null) {
 +      Object awsResp = response.getAwsResponse();
++      setAttribute(attributes, AWS_STATE_MACHINE_ARN, awsResp, RequestAccess::getStateMachineArn);
++      setAttribute(
++          attributes,
++          AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
++          awsResp,
++          RequestAccess::getStepFunctionsActivityArn);
++      setAttribute(attributes, AWS_SNS_TOPIC_ARN, awsResp, RequestAccess::getSnsTopicArn);
++      setAttribute(attributes, AWS_SECRET_ARN, awsResp, RequestAccess::getSecretArn);
 +      if (awsResp instanceof AmazonWebServiceResponse) {
 +        AmazonWebServiceResponse<?> awsWebServiceResponse = (AmazonWebServiceResponse<?>) awsResp;
 +        String requestId = awsWebServiceResponse.getRequestId();
@@ -343,6 +389,7 @@ index 245f09a5d8..1a107ab5fd 100644
 +    switch (serviceName) {
 +      case BEDROCK_SERVICE:
 +        setAttribute(attributes, AWS_GUARDRAIL_ID, awsResp, RequestAccess::getGuardrailId);
++        setAttribute(attributes, AWS_GUARDRAIL_ARN, awsResp, RequestAccess::getGuardrailArn);
 +        break;
 +      case BEDROCK_AGENT_SERVICE:
 +        String responseClassName = awsResp.getClass().getSimpleName();
@@ -387,10 +434,61 @@ index 245f09a5d8..1a107ab5fd 100644
 +  }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-index bb2ae9266c..8cf71b6a38 100644
+index bb2ae9266c..f3adc9f3ed 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-@@ -50,6 +50,36 @@ final class RequestAccess {
+@@ -8,6 +8,7 @@ package io.opentelemetry.instrumentation.awssdk.v1_11;
+ import java.lang.invoke.MethodHandle;
+ import java.lang.invoke.MethodHandles;
+ import java.lang.invoke.MethodType;
++import java.lang.reflect.Method;
+ import javax.annotation.Nullable;
+ 
+ final class RequestAccess {
+@@ -20,6 +21,42 @@ final class RequestAccess {
+         }
+       };
+ 
++  @Nullable
++  static String getLambdaName(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getLambdaName, request);
++  }
++
++  @Nullable
++  static String getLambdaResourceId(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getLambdaResourceId, request);
++  }
++
++  @Nullable
++  static String getSecretArn(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getSecretArn, request);
++  }
++
++  @Nullable
++  static String getSnsTopicArn(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getSnsTopicArn, request);
++  }
++
++  @Nullable
++  static String getStepFunctionsActivityArn(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getStepFunctionsActivityArn, request);
++  }
++
++  @Nullable
++  static String getStateMachineArn(Object request) {
++    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
++    return invokeOrNull(access.getStateMachineArn, request);
++  }
++
+   @Nullable
+   static String getBucketName(Object request) {
+     RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
+@@ -50,6 +87,41 @@ final class RequestAccess {
      return invokeOrNull(access.getTableName, request);
    }
  
@@ -419,6 +517,11 @@ index bb2ae9266c..8cf71b6a38 100644
 +  }
 +
 +  @Nullable
++  static String getGuardrailArn(Object request) {
++    return findNestedAccessorOrNull(request, "getGuardrailArn");
++  }
++
++  @Nullable
 +  static String getModelId(Object request) {
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getModelId, request);
@@ -427,7 +530,7 @@ index bb2ae9266c..8cf71b6a38 100644
    @Nullable
    private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
      if (method == null) {
-@@ -67,6 +97,11 @@ final class RequestAccess {
+@@ -67,6 +139,17 @@ final class RequestAccess {
    @Nullable private final MethodHandle getQueueName;
    @Nullable private final MethodHandle getStreamName;
    @Nullable private final MethodHandle getTableName;
@@ -436,10 +539,16 @@ index bb2ae9266c..8cf71b6a38 100644
 +  @Nullable private final MethodHandle getDataSourceId;
 +  @Nullable private final MethodHandle getGuardrailId;
 +  @Nullable private final MethodHandle getModelId;
++  @Nullable private final MethodHandle getStateMachineArn;
++  @Nullable private final MethodHandle getStepFunctionsActivityArn;
++  @Nullable private final MethodHandle getSnsTopicArn;
++  @Nullable private final MethodHandle getSecretArn;
++  @Nullable private final MethodHandle getLambdaName;
++  @Nullable private final MethodHandle getLambdaResourceId;
  
    private RequestAccess(Class<?> clz) {
      getBucketName = findAccessorOrNull(clz, "getBucketName");
-@@ -74,6 +109,11 @@ final class RequestAccess {
+@@ -74,6 +157,17 @@ final class RequestAccess {
      getQueueName = findAccessorOrNull(clz, "getQueueName");
      getStreamName = findAccessorOrNull(clz, "getStreamName");
      getTableName = findAccessorOrNull(clz, "getTableName");
@@ -448,14 +557,42 @@ index bb2ae9266c..8cf71b6a38 100644
 +    getDataSourceId = findAccessorOrNull(clz, "getDataSourceId");
 +    getGuardrailId = findAccessorOrNull(clz, "getGuardrailId");
 +    getModelId = findAccessorOrNull(clz, "getModelId");
++    getStateMachineArn = findAccessorOrNull(clz, "getStateMachineArn");
++    getStepFunctionsActivityArn = findAccessorOrNull(clz, "getActivityArn");
++    getSnsTopicArn = findAccessorOrNull(clz, "getTopicArn");
++    getSecretArn = findAccessorOrNull(clz, "getARN");
++    getLambdaName = findAccessorOrNull(clz, "getFunctionName");
++    getLambdaResourceId = findAccessorOrNull(clz, "getUUID");
    }
  
    @Nullable
+@@ -85,4 +179,21 @@ final class RequestAccess {
+       return null;
+     }
+   }
++
++  @Nullable
++  private static String findNestedAccessorOrNull(Object obj, String... methodNames) {
++    Object current = obj;
++    for (String methodName : methodNames) {
++      if (current == null) {
++        return null;
++      }
++      try {
++        Method method = current.getClass().getMethod(methodName);
++        current = method.invoke(current);
++      } catch (Exception e) {
++        return null;
++      }
++    }
++    return (current instanceof String) ? (String) current : null;
++  }
+ }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
-index 548631e9f1..6223dd1df0 100644
+index 548631e9f1..0c5c8b732b 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
-@@ -14,6 +14,10 @@ dependencies {
+@@ -14,6 +14,13 @@ dependencies {
    compileOnly("com.amazonaws:aws-java-sdk-dynamodb:1.11.106")
    compileOnly("com.amazonaws:aws-java-sdk-sns:1.11.106")
    compileOnly("com.amazonaws:aws-java-sdk-sqs:1.11.106")
@@ -463,14 +600,17 @@ index 548631e9f1..6223dd1df0 100644
 +  compileOnly("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
 +  compileOnly("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
 +  compileOnly("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
++  compileOnly("com.amazonaws:aws-java-sdk-stepfunctions:1.11.+")
++  compileOnly("com.amazonaws:aws-java-sdk-secretsmanager:1.11.+")
++  compileOnly("com.amazonaws:aws-java-sdk-lambda:1.11.+")
  
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-index 95e6ed8985..648d5973e0 100644
+index 95e6ed8985..9df1ed4694 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-@@ -27,6 +27,14 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
+@@ -27,6 +27,23 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
  import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
  import com.amazonaws.services.s3.AmazonS3Client
  import com.amazonaws.services.s3.AmazonS3ClientBuilder
@@ -482,10 +622,19 @@ index 95e6ed8985..648d5973e0 100644
 +import com.amazonaws.services.bedrock.model.GetGuardrailRequest
 +import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntimeClientBuilder
 +import com.amazonaws.services.bedrockruntime.model.InvokeModelRequest
++import com.amazonaws.services.stepfunctions.model.DescribeStateMachineRequest
++import com.amazonaws.services.stepfunctions.model.DescribeActivityRequest
++import com.amazonaws.services.sns.AmazonSNSClientBuilder
++import com.amazonaws.services.sns.model.PublishRequest
++import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder
++import com.amazonaws.services.secretsmanager.model.CreateSecretRequest
++import com.amazonaws.services.lambda.AWSLambdaClientBuilder
++import com.amazonaws.services.lambda.model.GetEventSourceMappingRequest
++import com.amazonaws.services.lambda.model.GetFunctionRequest
  import io.opentelemetry.api.trace.Span
  import io.opentelemetry.instrumentation.test.InstrumentationSpecification
  import io.opentelemetry.semconv.SemanticAttributes
-@@ -38,6 +46,7 @@ import spock.lang.Shared
+@@ -38,6 +55,7 @@ import spock.lang.Shared
  import spock.lang.Unroll
  
  import java.time.Duration
@@ -493,7 +642,7 @@ index 95e6ed8985..648d5973e0 100644
  
  import static io.opentelemetry.api.trace.SpanKind.CLIENT
  import static io.opentelemetry.api.trace.SpanKind.PRODUCER
-@@ -156,6 +165,48 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
+@@ -156,6 +174,87 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
            </ResponseMetadata>
          </DeleteOptionGroupResponse>
        """
@@ -539,15 +688,96 @@ index 95e6ed8985..648d5973e0 100644
 +            "stop": "holes"
 +        }
 +      """
++    "AWSStepFunctions" | "DescribeStateMachine" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
++    | { c -> c.describeStateMachine(new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn")) }
++    | ["aws.stepfunctions.state_machine.arn": "stateMachineArn"]
++    | ""
++    "AWSStepFunctions" | "DescribeActivity" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
++    | { c -> c.describeActivity(new DescribeActivityRequest().withActivityArn("activityArn")) }
++    | ["aws.stepfunctions.activity.arn": "activityArn"]
++    | ""
++    "SNS" | "Publish" | "POST" | "/" | AmazonSNSClientBuilder.standard()
++    | { c -> c.publish(new PublishRequest().withMessage("message").withTopicArn("topicArn")) }
++    | ["aws.sns.topic.arn": "topicArn"]
++    | """
++      <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
++          <PublishResult>
++              <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
++          </PublishResult>
++          <ResponseMetadata>
++              <RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId>
++          </ResponseMetadata>
++      </PublishResponse>
++      """
++    "AWSSecretsManager" | "CreateSecret" | "POST" | "/" | AWSSecretsManagerClientBuilder.standard()
++    | { c -> c.createSecret(new CreateSecretRequest().withName("secretName").withSecretString("secretValue")) }
++    | ["aws.secretsmanager.secret.arn": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3"]
++    | """
++      {
++        "ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3",
++        "Name":"MyTestDatabaseSecret",
++        "VersionId": "EXAMPLE1-90ab-cdef-fedc-ba987SECRET1"
++      }
++    """
++    "AWSLambda" | "GetEventSourceMapping" | "GET" | "/" | AWSLambdaClientBuilder.standard()
++    | { c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid")) }
++    | ["aws.lambda.resource_mapping.id": "uuid"]
++    | ""
++    "AWSLambda" | "GetFunction" | "GET" | "/" | AWSLambdaClientBuilder.standard()
++    | { c-> c.getFunction(new GetFunctionRequest().withFunctionName("functionName")) }
++    | ["aws.lambda.function.name": "functionName"]
++    | ""
    }
  
    def "send #operation request to closed port"() {
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
+index 8f442b268b..24c14dec4e 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
+@@ -84,6 +84,9 @@ dependencies {
+   testLibrary("software.amazon.awssdk:sqs:2.2.0")
+   testLibrary("software.amazon.awssdk:sns:2.2.0")
+   testLibrary("software.amazon.awssdk:ses:2.2.0")
++  testLibrary("software.amazon.awssdk:sfn:2.2.0")
++  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
++  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ 
+   // last version that does not use json protocol
+   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
+index e73abc7bc3..d387a7472c 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
+@@ -21,6 +21,9 @@ dependencies {
+   testLibrary("software.amazon.awssdk:s3:2.2.0")
+   testLibrary("software.amazon.awssdk:sqs:2.2.0")
+   testLibrary("software.amazon.awssdk:sns:2.2.0")
++  testLibrary("software.amazon.awssdk:sfn:2.2.0")
++  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
++  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ 
+   // last version that does not use json protocol
+   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
+index 081d542e76..4f71a06a57 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
+@@ -19,6 +19,9 @@ dependencies {
+   testLibrary("software.amazon.awssdk:rds:2.2.0")
+   testLibrary("software.amazon.awssdk:s3:2.2.0")
+   testLibrary("software.amazon.awssdk:ses:2.2.0")
++  testLibrary("software.amazon.awssdk:sfn:2.2.0")
++  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
++  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ 
+   // last version that does not use json protocol
+   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
 new file mode 100644
-index 0000000000..ce068a4c05
+index 0000000000..e1cb180d75
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,47 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -566,6 +796,7 @@ index 0000000000..ce068a4c05
 +  static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
 +  static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
 +  static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
++  static final AttributeKey<String> AWS_GUARDRAIL_ARN = stringKey("aws.bedrock.guardrail.arn");
 +  static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
 +  static final AttributeKey<String> AWS_DATA_SOURCE_ID = stringKey("aws.bedrock.data_source.id");
 +  static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =
@@ -575,30 +806,56 @@ index 0000000000..ce068a4c05
 +  static final AttributeKey<String> GEN_AI_MODEL = stringKey("gen_ai.request.model");
 +  static final AttributeKey<String> GEN_AI_SYSTEM = stringKey("gen_ai.system");
 +
++  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
++      stringKey("aws.stepfunctions.state_machine.arn");
++
++  static final AttributeKey<String> AWS_STEP_FUNCTIONS_ACTIVITY_ARN =
++      stringKey("aws.stepfunctions.activity.arn");
++
++  static final AttributeKey<String> AWS_SNS_TOPIC_ARN = stringKey("aws.sns.topic.arn");
++
++  static final AttributeKey<String> AWS_SECRET_ARN = stringKey("aws.secretsmanager.secret.arn");
++
++  static final AttributeKey<String> AWS_LAMBDA_NAME = stringKey("aws.lambda.function.name");
++
++  static final AttributeKey<String> AWS_LAMBDA_ARN = stringKey("aws.lambda.function.arn");
++
++  static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
++      stringKey("aws.lambda.resource_mapping.id");
++
 +  private AwsExperimentalAttributes() {}
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
-index 54253d0f7b..aa570c8ce3 100644
+index 54253d0f7b..5326400f7e 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
-@@ -5,6 +5,11 @@
+@@ -5,10 +5,20 @@
  
  package io.opentelemetry.instrumentation.awssdk.v2_2;
  
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCK;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKAGENTOPERATION;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKAGENTRUNTIMEOPERATION;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKDATASOURCEOPERATION;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKKNOWLEDGEBASEOPERATION;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
  import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.DYNAMODB;
  import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.KINESIS;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.LAMBDA;
  import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.S3;
-@@ -32,6 +37,45 @@ enum AwsSdkRequest {
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.SECRETSMANAGER;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.SNS;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.SQS;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkRequestType.STEPFUNCTION;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.request;
+ import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.response;
+ 
+@@ -32,6 +42,49 @@ enum AwsSdkRequest {
    S3Request(S3, "S3Request"),
    SqsRequest(SQS, "SqsRequest"),
    KinesisRequest(KINESIS, "KinesisRequest"),
 +  BedrockRequest(BEDROCK, "BedrockRequest"),
-+  BedrockAgentRuntimeRequest(BEDROCKAGENTOPERATION, "BedrockAgentRuntimeRequest"),
++  BedrockAgentRuntimeRequest(BEDROCKAGENTRUNTIMEOPERATION, "BedrockAgentRuntimeRequest"),
 +  BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),
 +  // BedrockAgent API based requests. We only support operations that are related to
 +  // Agent/DataSources/KnowledgeBases
@@ -636,24 +893,36 @@ index 54253d0f7b..aa570c8ce3 100644
 +  BedrockListDataSourcesRequest(BEDROCKKNOWLEDGEBASEOPERATION, "ListDataSourcesRequest"),
 +  BedrockUpdateAgentKnowledgeBaseRequest(
 +      BEDROCKKNOWLEDGEBASEOPERATION, "UpdateAgentKnowledgeBaseRequest"),
++  SfnRequest(STEPFUNCTION, "SfnRequest"),
++  SnsRequest(SNS, "SnsRequest"),
++  SecretsManagerRequest(SECRETSMANAGER, "SecretsManagerRequest"),
++  LambdaRequest(LAMBDA, "LambdaRequest"),
    // specific requests
    BatchGetItem(
        DYNAMODB,
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-index 9062f2aa17..523bd2661e 100644
+index 9062f2aa17..9511cd6f05 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-@@ -5,17 +5,38 @@
+@@ -5,17 +5,62 @@
  
  package io.opentelemetry.instrumentation.awssdk.v2_2;
  
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_AGENT_ID;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_BUCKET_NAME;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_DATA_SOURCE_ID;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_GUARDRAIL_ARN;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_GUARDRAIL_ID;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_KNOWLEDGE_BASE_ID;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_LAMBDA_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_LAMBDA_NAME;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_LAMBDA_RESOURCE_ID;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_QUEUE_NAME;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_QUEUE_URL;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_SECRET_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_SNS_TOPIC_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_STATE_MACHINE_ARN;
++import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_STREAM_NAME;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_TABLE_NAME;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_MODEL;
@@ -673,16 +942,32 @@ index 9062f2aa17..523bd2661e 100644
 +  SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
 +  KINESIS(request(AWS_STREAM_NAME.getKey(), "StreamName")),
 +  DYNAMODB(request(AWS_TABLE_NAME.getKey(), "TableName")),
-+  BEDROCK(request(AWS_GUARDRAIL_ID.getKey(), "guardrailIdentifier")),
++  BEDROCK(
++      request(AWS_GUARDRAIL_ID.getKey(), "guardrailIdentifier"),
++      response(AWS_GUARDRAIL_ARN.getKey(), "guardrailArn")),
 +  BEDROCKAGENTOPERATION(
 +      request(AWS_AGENT_ID.getKey(), "agentId"), response(AWS_AGENT_ID.getKey(), "agentId")),
++  BEDROCKAGENTRUNTIMEOPERATION(
++      request(AWS_AGENT_ID.getKey(), "agentId"),
++      response(AWS_AGENT_ID.getKey(), "agentId"),
++      request(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId"),
++      response(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId")),
 +  BEDROCKDATASOURCEOPERATION(
 +      request(AWS_DATA_SOURCE_ID.getKey(), "dataSourceId"),
 +      response(AWS_DATA_SOURCE_ID.getKey(), "dataSourceId")),
 +  BEDROCKKNOWLEDGEBASEOPERATION(
 +      request(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId"),
 +      response(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId")),
-+  BEDROCKRUNTIME(request(GEN_AI_MODEL.getKey(), "modelId"));
++  BEDROCKRUNTIME(request(GEN_AI_MODEL.getKey(), "modelId")),
++  STEPFUNCTION(
++      request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
++      request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
++  SNS(request(AWS_SNS_TOPIC_ARN.getKey(), "TopicArn")),
++  SECRETSMANAGER(response(AWS_SECRET_ARN.getKey(), "ARN")),
++  LAMBDA(
++      request(AWS_LAMBDA_NAME.getKey(), "FunctionName"),
++      request(AWS_LAMBDA_RESOURCE_ID.getKey(), "UUID"),
++      response(AWS_LAMBDA_ARN.getKey(), "Configuration.FunctionArn"));
  
    // Wrapping in unmodifiableMap
    @SuppressWarnings("ImmutableEnumChecker")
@@ -718,11 +1003,45 @@ index f717b1efc4..352b02093e 100644
    }
  
    @Override
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
+index 2a7f14d14b..584b8dda6c 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
+@@ -19,6 +19,9 @@ dependencies {
+   compileOnly("software.amazon.awssdk:sqs:2.2.0")
+   compileOnly("software.amazon.awssdk:sns:2.2.0")
+   compileOnly("software.amazon.awssdk:ses:2.2.0")
++  compileOnly("software.amazon.awssdk:sfn:2.2.0")
++  compileOnly("software.amazon.awssdk:lambda:2.2.0")
++  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
+ 
+   // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
+   implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-index 53390c8d85..2833570ca2 100644
+index 53390c8d85..692cd005eb 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-@@ -120,7 +120,19 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+@@ -33,8 +33,19 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
+ import software.amazon.awssdk.services.sqs.SqsClient
+ import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
+ import software.amazon.awssdk.services.sqs.model.SendMessageRequest
++import software.amazon.awssdk.services.sfn.SfnClient
++import software.amazon.awssdk.services.sfn.model.DescribeStateMachineRequest
++import software.amazon.awssdk.services.sfn.model.DescribeActivityRequest
++import software.amazon.awssdk.services.lambda.LambdaClient
++import software.amazon.awssdk.services.lambda.model.GetFunctionRequest
++import software.amazon.awssdk.services.lambda.model.GetEventSourceMappingRequest
++import software.amazon.awssdk.services.sns.SnsClient
++import software.amazon.awssdk.services.sns.model.PublishRequest
++import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
++import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
+ import spock.lang.Unroll
+ 
++
+ import java.time.Duration
+ import java.util.concurrent.Future
+ 
+@@ -120,7 +131,31 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
                "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
              } else if (service == "Kinesis") {
                "aws.stream.name" "somestream"
@@ -737,20 +1056,62 @@ index 53390c8d85..2833570ca2 100644
 +            } else if (service == "BedrockRuntime" && operation == "InvokeModel") {
 +              "gen_ai.request.model" "meta.llama2-13b-chat-v1"
 +              "gen_ai.system" "aws_bedrock"
++            } else if (service == "Sfn" && operation == "DescribeStateMachine") {
++              "aws.stepfunctions.state_machine.arn" "stateMachineArn"
++            } else if (service == "Sfn" && operation == "DescribeActivity") {
++              "aws.stepfunctions.activity.arn" "activityArn"
++            } else if (service == "Lambda" && operation == "GetFunction") {
++              "aws.lambda.function.name" "functionName"
++            } else if (service == "Lambda" && operation == "GetEventSourceMapping") {
++              "aws.lambda.resource_mapping.id" "sourceEventId"
++            } else if (service == "Sns") {
++              "aws.sns.topic.arn" "topicArn"
++            } else if (service == "SecretsManager") {
++              "aws.secretsmanager.secret.arn" "someSecretArn"
              }
 +
            }
          }
        }
-diff --git a/version.gradle.kts b/version.gradle.kts
-index fdf57bdbea..69ff27a9a3 100644
---- a/version.gradle.kts
-+++ b/version.gradle.kts
-@@ -1,5 +1,5 @@
--val stableVersion = "1.32.1"
--val alphaVersion = "1.32.1-alpha"
-+val stableVersion = "1.32.1-adot1"
-+val alphaVersion = "1.32.1-adot1-alpha"
+@@ -162,6 +197,41 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+           <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
+         </DeleteOptionGroupResponse>
+         """
++    "Sfn" | "DescribeStateMachine" | "POST" | "UNKNOWN" | SfnClient.builder()
++    | { c -> c.describeStateMachine(DescribeStateMachineRequest.builder().stateMachineArn("stateMachineArn").build()) }
++    | ""
++    "Sfn" | "DescribeActivity" | "POST" | "UNKNOWN" | SfnClient.builder()
++    | { c -> c.describeActivity(DescribeActivityRequest.builder().activityArn("activityArn").build()) }
++    | ""
++    "Lambda" | "GetFunction" | "GET" | "UNKNOWN" | LambdaClient.builder()
++    | { c -> c.getFunction(GetFunctionRequest.builder().functionName("functionName").build()) }
++    | ""
++    "Lambda" | "GetEventSourceMapping" | "GET" |"UNKNOWN" | LambdaClient.builder()
++    | { c -> c.getEventSourceMapping(GetEventSourceMappingRequest.builder().uuid("sourceEventId").build()) }
++    | ""
++    "Sns" | "Publish" | "POST" | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()
++    | { c -> c.publish(PublishRequest.builder().topicArn("topicArn").message("message").build()) }
++    | """
++      <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
++          <PublishResult>
++              <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
++          </PublishResult>
++          <ResponseMetadata>
++              <RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId>
++          </ResponseMetadata>
++      </PublishResponse>
++    """
++    "SecretsManager" | "GetSecretValue" | "POST" | "UNKNOWN" | SecretsManagerClient.builder()
++    | { c -> c.getSecretValue(GetSecretValueRequest.builder().secretId("someSecret1").build()) }
++    | """
++      {
++        "ARN":"someSecretArn",
++        "CreatedDate":1.523477145713E9,
++        "Name":"MyTestDatabaseSecret",
++        "SecretString":"{\\n  \\"username\\":\\"david\\",\\n  \\"password\\":\\"EXAMPLE-PASSWORD\\"\\n}\\n",
++        "VersionId":"EXAMPLE1-90ab-cdef-fedc-ba987SECRET1"
++      }
++    """
+   }
  
- allprojects {
-   if (findProperty("otel.stable") != "true") {
+   def "send #operation async request with builder #builder.class.getName() mocked response"() {

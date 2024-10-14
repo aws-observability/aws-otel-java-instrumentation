@@ -1,7 +1,7 @@
 
-# aws-otel-java-instrumentation-xiamin
+# aws-otel-java-instrumentation
 ## Dependency License Report
-_2024-07-11 21:32:07 UTC_
+_2024-10-14 19:07:19 UTC_
 ## Apache 2
 
 **1** **Group:** `joda-time` **Name:** `joda-time` **Version:** `2.8.1` 
