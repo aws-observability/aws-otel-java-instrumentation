@@ -607,10 +607,10 @@ index 548631e9f1..0c5c8b732b 100644
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-index 95e6ed8985..9df1ed4694 100644
+index 95e6ed8985..cec3c106ba 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-@@ -27,6 +27,23 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
+@@ -27,6 +27,24 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
  import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
  import com.amazonaws.services.s3.AmazonS3Client
  import com.amazonaws.services.s3.AmazonS3ClientBuilder
@@ -622,6 +622,7 @@ index 95e6ed8985..9df1ed4694 100644
 +import com.amazonaws.services.bedrock.model.GetGuardrailRequest
 +import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntimeClientBuilder
 +import com.amazonaws.services.bedrockruntime.model.InvokeModelRequest
++import com.amazonaws.services.stepfunctions.model.AWSStepFunctionsClientBuilder
 +import com.amazonaws.services.stepfunctions.model.DescribeStateMachineRequest
 +import com.amazonaws.services.stepfunctions.model.DescribeActivityRequest
 +import com.amazonaws.services.sns.AmazonSNSClientBuilder
@@ -634,7 +635,7 @@ index 95e6ed8985..9df1ed4694 100644
  import io.opentelemetry.api.trace.Span
  import io.opentelemetry.instrumentation.test.InstrumentationSpecification
  import io.opentelemetry.semconv.SemanticAttributes
-@@ -38,6 +55,7 @@ import spock.lang.Shared
+@@ -38,6 +56,7 @@ import spock.lang.Shared
  import spock.lang.Unroll
  
  import java.time.Duration
@@ -642,7 +643,7 @@ index 95e6ed8985..9df1ed4694 100644
  
  import static io.opentelemetry.api.trace.SpanKind.CLIENT
  import static io.opentelemetry.api.trace.SpanKind.PRODUCER
-@@ -156,6 +174,87 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
+@@ -156,6 +175,87 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
            </ResponseMetadata>
          </DeleteOptionGroupResponse>
        """
