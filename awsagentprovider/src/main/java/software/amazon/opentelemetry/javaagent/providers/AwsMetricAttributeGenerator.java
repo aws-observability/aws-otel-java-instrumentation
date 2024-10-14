@@ -47,7 +47,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
@@ -493,11 +492,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
                 Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN))));
         cloudformationPrimaryIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN)));
-      } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
-        remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
-        remoteResourceIdentifier =
-            getLambdaResourceNameFromAribitraryName(
-                Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
       } else if (isKeyPresent(span, AWS_LAMBDA_RESOURCE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
         remoteResourceIdentifier =
@@ -517,16 +511,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
       builder.put(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, cloudformationPrimaryIdentifier.get());
     }
-  }
-
-  // NOTE: "name" in this case can be either the lambda name or lambda arn
-  private static Optional<String> getLambdaResourceNameFromAribitraryName(
-      Optional<String> arbitraryName) {
-    if (arbitraryName != null && arbitraryName.get().startsWith("arn:aws:lambda:")) {
-      Arn resourceArn = Arn.fromString(arbitraryName.get());
-      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
-    }
-    return arbitraryName;
   }
 
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {

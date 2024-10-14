@@ -64,9 +64,6 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_SECRET_ARN =
       AttributeKey.stringKey("aws.secretsmanager.secret.arn");
 
-  static final AttributeKey<String> AWS_LAMBDA_NAME =
-      AttributeKey.stringKey("aws.lambda.function.name");
-
   static final AttributeKey<String> AWS_LAMBDA_ARN =
       AttributeKey.stringKey("aws.lambda.function.arn");
 
