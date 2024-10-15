@@ -2203,7 +2203,7 @@ index 245f09a5d8..157fd891c3 100644
 +  }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-index bb2ae9266c..f3adc9f3ed 100644
+index bb2ae9266c..36e216047f 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 @@ -8,6 +8,7 @@ package io.opentelemetry.instrumentation.awssdk.v1_11;
@@ -2214,84 +2214,158 @@ index bb2ae9266c..f3adc9f3ed 100644
  import javax.annotation.Nullable;
  
  final class RequestAccess {
-@@ -20,6 +21,42 @@ final class RequestAccess {
+@@ -20,36 +21,158 @@ final class RequestAccess {
          }
        };
  
 +  @Nullable
 +  static String getLambdaName(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getLambdaName, request);
 +  }
 +
 +  @Nullable
 +  static String getLambdaResourceId(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getLambdaResourceId, request);
 +  }
 +
 +  @Nullable
 +  static String getSecretArn(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getSecretArn, request);
 +  }
 +
 +  @Nullable
 +  static String getSnsTopicArn(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getSnsTopicArn, request);
 +  }
 +
 +  @Nullable
 +  static String getStepFunctionsActivityArn(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getStepFunctionsActivityArn, request);
 +  }
 +
 +  @Nullable
 +  static String getStateMachineArn(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getStateMachineArn, request);
 +  }
 +
    @Nullable
    static String getBucketName(Object request) {
++    if (request == null) {
++      return null;
++    }
      RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
-@@ -50,6 +87,41 @@ final class RequestAccess {
+     return invokeOrNull(access.getBucketName, request);
+   }
+ 
+   @Nullable
+   static String getQueueUrl(Object request) {
++    if (request == null) {
++      return null;
++    }
+     RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
+     return invokeOrNull(access.getQueueUrl, request);
+   }
+ 
+   @Nullable
+   static String getQueueName(Object request) {
++    if (request == null) {
++      return null;
++    }
+     RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
+     return invokeOrNull(access.getQueueName, request);
+   }
+ 
+   @Nullable
+   static String getStreamName(Object request) {
++    if (request == null) {
++      return null;
++    }
+     RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
+     return invokeOrNull(access.getStreamName, request);
+   }
+ 
+   @Nullable
+   static String getTableName(Object request) {
++    if (request == null) {
++      return null;
++    }
+     RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
      return invokeOrNull(access.getTableName, request);
    }
  
 +  @Nullable
 +  static String getAgentId(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getAgentId, request);
 +  }
 +
 +  @Nullable
 +  static String getKnowledgeBaseId(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getKnowledgeBaseId, request);
 +  }
 +
 +  @Nullable
 +  static String getDataSourceId(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getDataSourceId, request);
 +  }
 +
 +  @Nullable
 +  static String getGuardrailId(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getGuardrailId, request);
 +  }
 +
 +  @Nullable
 +  static String getGuardrailArn(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    return findNestedAccessorOrNull(request, "getGuardrailArn");
 +  }
 +
 +  @Nullable
 +  static String getModelId(Object request) {
++    if (request == null) {
++      return null;
++    }
 +    RequestAccess access = REQUEST_ACCESSORS.get(request.getClass());
 +    return invokeOrNull(access.getModelId, request);
 +  }
@@ -2299,7 +2373,7 @@ index bb2ae9266c..f3adc9f3ed 100644
    @Nullable
    private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
      if (method == null) {
-@@ -67,6 +139,17 @@ final class RequestAccess {
+@@ -67,6 +190,17 @@ final class RequestAccess {
    @Nullable private final MethodHandle getQueueName;
    @Nullable private final MethodHandle getStreamName;
    @Nullable private final MethodHandle getTableName;
@@ -2317,7 +2391,7 @@ index bb2ae9266c..f3adc9f3ed 100644
  
    private RequestAccess(Class<?> clz) {
      getBucketName = findAccessorOrNull(clz, "getBucketName");
-@@ -74,6 +157,17 @@ final class RequestAccess {
+@@ -74,6 +208,17 @@ final class RequestAccess {
      getQueueName = findAccessorOrNull(clz, "getQueueName");
      getStreamName = findAccessorOrNull(clz, "getStreamName");
      getTableName = findAccessorOrNull(clz, "getTableName");
@@ -2335,7 +2409,7 @@ index bb2ae9266c..f3adc9f3ed 100644
    }
  
    @Nullable
-@@ -85,4 +179,21 @@ final class RequestAccess {
+@@ -85,4 +230,21 @@ final class RequestAccess {
        return null;
      }
    }
