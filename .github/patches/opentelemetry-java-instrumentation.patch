@@ -3096,3 +3096,15 @@ index 161a574119..08070aa332 100644
 +  //  driver.close();
 +  // }
  }
+diff --git a/version.gradle.kts b/version.gradle.kts
+index fdf57bdbea..c38a2e00f3 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,5 +1,5 @@
+-val stableVersion = "1.32.1"
+-val alphaVersion = "1.32.1-alpha"
++val stableVersion = "1.32.1-adot2"
++val alphaVersion = "1.32.1-adot2-alpha"
+ 
+ allprojects {
+   if (findProperty("otel.stable") != "true") {
