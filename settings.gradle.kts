@@ -23,7 +23,7 @@ pluginManagement {
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     id("nebula.release") version "18.0.6"
     id("org.springframework.boot") version "2.7.17"
-    id("org.owasp.dependencycheck") version "8.4.0"
+    id("org.owasp.dependencycheck") version "10.0.4"
   }
 }
 
