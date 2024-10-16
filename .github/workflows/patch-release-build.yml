@@ -112,8 +112,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: image=moby/buildkit:v0.15.1
-          driver: docker-container
-        if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Build image for testing
         uses: docker/build-push-action@v5
