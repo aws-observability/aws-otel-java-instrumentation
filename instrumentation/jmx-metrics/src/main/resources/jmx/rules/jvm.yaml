@@ -58,6 +58,9 @@ rules:
     metricAttribute:
       name: param(name)
     mapping:
+      CollectionUsage.used:
+        metric: used_after_last_gc
+        desc: Memory used after the most recent gc event
       Usage.init:
         metric: init
         desc: The initial amount of memory that the JVM requests from the operating system for the memory pool
@@ -81,37 +84,49 @@ rules:
         metric: jvm.daemon_threads.count
         desc: Number of daemon threads
   - bean: java.lang:type=OperatingSystem
-    type: gauge
     mapping:
       TotalSwapSpaceSize:
         metric: jvm.system.swap.space.total
+        type: gauge
         desc: The host swap memory size in bytes
         unit: by
       FreeSwapSpaceSize:
         metric: jvm.system.swap.space.free
+        type: gauge
         desc: The amount of available swap memory in bytes
         unit: by
       TotalPhysicalMemorySize:
         metric: jvm.system.physical.memory.total
+        type: gauge
         desc: The total physical memory size in host
         unit: by
       FreePhysicalMemorySize:
         metric: jvm.system.physical.memory.free
+        type: gauge
         desc: The amount of free physical memory in host
         unit: by
       AvailableProcessors:
         metric: jvm.system.available.processors
+        type: gauge
         desc: The number of available processors
         unit: "1"
       SystemCpuLoad:
         metric: jvm.system.cpu.utilization
+        type: gauge
         desc: The current load of CPU in host
         unit: "1"
+      ProcessCpuTime:
+        metric: jvm.cpu.time
+        type: counter
+        unit: ns
+        desc: CPU time used
       ProcessCpuLoad:
         metric: jvm.cpu.recent_utilization
+        type: gauge
         unit: "1"
         desc: Recent CPU utilization for the process
       OpenFileDescriptorCount:
         metric: jvm.open_file_descriptor.count
+        type: gauge
         desc: The number of opened file descriptors
         unit: "1"
