@@ -35,7 +35,7 @@ public class AppSignalsConstants {
   public static final String AWS_REMOTE_DB_USER = "aws.remote.db.user";
 
   // JVM Metrics
-  public static final String JVM_GC_METRIC = "jvm.gc.collections.elapsed";
+  public static final String JVM_GC_DURATION = "jvm.gc.collections.elapsed";
   public static final String JVM_GC_COUNT = "jvm.gc.collections.count";
   public static final String JVM_HEAP_USED = "jvm.memory.heap.used";
   public static final String JVM_NON_HEAP_USED = "jvm.memory.nonheap.used";

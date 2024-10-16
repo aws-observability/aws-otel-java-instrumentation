@@ -134,11 +134,11 @@ public class MockCollectorClient {
   }
 
   public List<ResourceScopeMetric> getRuntimeMetrics(Set<String> presentMetrics) {
-    return fetchMetrics(presentMetrics, true);
+    return fetchMetrics(presentMetrics, false);
   }
 
   public List<ResourceScopeMetric> getMetrics(Set<String> presentMetrics) {
-    return fetchMetrics(presentMetrics, false);
+    return fetchMetrics(presentMetrics, true);
   }
 
   /**
@@ -147,7 +147,7 @@ public class MockCollectorClient {
    * @return List of `ResourceScopeMetric` which is a flat list containing all metrics and their
    *     related scope and resources.
    */
-  private List<ResourceScopeMetric> fetchMetrics(Set<String> presentMetrics, boolean isRuntime) {
+  private List<ResourceScopeMetric> fetchMetrics(Set<String> presentMetrics, boolean exactMatch) {
     List<ExportMetricsServiceRequest> exportedMetrics =
         waitForContent(
             "/get-metrics",
@@ -160,11 +160,14 @@ public class MockCollectorClient {
                       .flatMap(x -> x.getMetricsList().stream())
                       .map(x -> x.getName())
                       .collect(Collectors.toSet());
-
-              return (isRuntime
-                      ? !exported.isEmpty() && receivedMetrics.size() == presentMetrics.size()
-                      : !exported.isEmpty() && current.size() == exported.size())
-                  && receivedMetrics.containsAll(presentMetrics);
+              if (!exported.isEmpty() && receivedMetrics.containsAll(presentMetrics)) {
+                if (exactMatch) {
+                  return current.size() == exported.size();
+                } else {
+                  return true;
+                }
+              }
+              return false;
             });
 
     return exportedMetrics.stream()
