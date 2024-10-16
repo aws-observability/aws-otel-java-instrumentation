@@ -123,6 +123,7 @@ jobs:
           platforms: linux/amd64
           tags: ${{ env.TEST_TAG }}
           load: true
+          driver: docker-container
 
       - name: Test docker image
         shell: bash
@@ -137,6 +138,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
+          driver: docker-container
 
       - name: Build and Publish release with Gradle
         uses: gradle/gradle-build-action@v3
