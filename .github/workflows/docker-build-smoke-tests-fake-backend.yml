@@ -25,7 +25,7 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/wrapper-validation-action@v3
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
