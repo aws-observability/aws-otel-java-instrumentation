@@ -23,7 +23,7 @@ rules:
         unit: ms
         desc: The approximate accumulated collection elapsed time in milliseconds
   - bean: java.lang:type=Memory
-    unit: by
+    unit: By
     prefix: jvm.memory.
     type: gauge
     mapping:
@@ -52,7 +52,7 @@ rules:
         metric: nonheap.max
         desc: The maximum amount of memory can be used for non-heap purposes
   - bean: java.lang:type=MemoryPool,name=*
-    unit: by
+    unit: By
     prefix: jvm.memory.pool.
     type: gauge
     metricAttribute:
@@ -88,23 +88,23 @@ rules:
       TotalSwapSpaceSize:
         metric: jvm.system.swap.space.total
         type: gauge
-        desc: The host swap memory size in bytes
-        unit: by
+        desc: The host swap memory size in Bytes
+        unit: By
       FreeSwapSpaceSize:
         metric: jvm.system.swap.space.free
         type: gauge
-        desc: The amount of available swap memory in bytes
-        unit: by
+        desc: The amount of available swap memory in Bytes
+        unit: By
       TotalPhysicalMemorySize:
         metric: jvm.system.physical.memory.total
         type: gauge
         desc: The total physical memory size in host
-        unit: by
+        unit: By
       FreePhysicalMemorySize:
         metric: jvm.system.physical.memory.free
         type: gauge
         desc: The amount of free physical memory in host
-        unit: by
+        unit: By
       AvailableProcessors:
         metric: jvm.system.available.processors
         type: gauge
