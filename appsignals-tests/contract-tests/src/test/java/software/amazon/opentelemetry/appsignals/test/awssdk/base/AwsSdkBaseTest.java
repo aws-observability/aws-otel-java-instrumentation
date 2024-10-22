@@ -258,6 +258,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       String peerName,
       int peerPort,
       String url,
@@ -276,6 +277,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         peerName,
         peerPort,
         url,
@@ -293,6 +295,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       String peerName,
       int peerPort,
       String url,
@@ -310,6 +313,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         peerName,
         peerPort,
         url,
@@ -358,6 +362,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       String peerName,
       int peerPort,
       String url,
@@ -381,6 +386,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                   method,
                   type,
                   identifier,
+                  cloudformationIdentifier,
                   awsSpanKind);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -396,6 +402,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String operation,
       String type,
       String identifier,
+      String clouformationIdentifier,
       String spanKind) {
 
     var assertions =
@@ -411,6 +418,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
           assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE, type));
       assertions.satisfiesOnlyOnce(
           assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER, identifier));
+      assertions.satisfiesOnlyOnce(
+          assertAttribute(
+              AppSignalsConstants.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, clouformationIdentifier));
     }
   }
 
@@ -435,6 +445,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -446,6 +457,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         expectedSum);
   }
 
@@ -458,6 +470,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -469,6 +482,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         expectedSum);
   }
 
@@ -481,6 +495,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -492,6 +507,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         expectedSum);
   }
 
@@ -505,6 +521,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       Double expectedSum) {
     assertThat(resourceScopeMetrics)
         .anySatisfy(
@@ -524,6 +541,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                             method,
                             type,
                             identifier,
+                            cloudformationIdentifier,
                             spanKind);
                         if (expectedSum != null) {
                           double actualSum = dataPoint.getSum();
@@ -554,6 +572,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /s3/createbucket/:bucketname";
     var type = "AWS::S3::Bucket";
     var identifier = "create-bucket";
+    var cloudformationIdentifier = "create-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -565,6 +584,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateBucket",
         type,
         identifier,
+        cloudformationIdentifier,
         "create-bucket.s3.localstack",
         4566,
         "http://create-bucket.s3.localstack:4566",
@@ -579,6 +599,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateBucket",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -589,6 +610,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateBucket",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -599,6 +621,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateBucket",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -617,6 +640,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /s3/createobject/:bucketname/:objectname";
     var type = "AWS::S3::Bucket";
     var identifier = "put-object";
+    var cloudformationIdentifier = "put-object";
 
     assertSpanClientAttributes(
         traces,
@@ -628,6 +652,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutObject",
         type,
         identifier,
+        cloudformationIdentifier,
         "put-object.s3.localstack",
         4566,
         "http://put-object.s3.localstack:4566",
@@ -642,6 +667,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutObject",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -652,6 +678,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutObject",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -662,6 +689,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutObject",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -679,6 +707,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /s3/getobject/:bucketName/:objectname";
     var type = "AWS::S3::Bucket";
     var identifier = "get-object";
+    var cloudformationIdentifier = "get-object";
 
     assertSpanClientAttributes(
         traces,
@@ -690,6 +719,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         "get-object.s3.localstack",
         4566,
         "http://get-object.s3.localstack:4566",
@@ -704,6 +734,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -714,6 +745,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -724,6 +756,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -741,6 +774,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /s3/error";
     var type = "AWS::S3::Bucket";
     var identifier = "error-bucket";
+    var cloudformationIdentifier = "error-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -752,6 +786,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         "error-bucket.s3.test",
         8080,
         "http://error-bucket.s3.test:8080",
@@ -766,6 +801,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -776,6 +812,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -786,6 +823,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
   }
 
@@ -803,6 +841,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /s3/fault";
     var type = "AWS::S3::Bucket";
     var identifier = "fault-bucket";
+    var cloudformationIdentifier = "fault-bucket";
 
     assertSpanClientAttributes(
         traces,
@@ -814,6 +853,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         "fault-bucket.s3.test",
         8080,
         "http://fault-bucket.s3.test:8080",
@@ -828,6 +868,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -838,6 +879,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -848,6 +890,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetObject",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -873,6 +916,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /ddb/createtable/:tablename";
     var type = "AWS::DynamoDB::Table";
     var identifier = "some-table";
+    var cloudformationIdentifier = "some-table";
 
     assertSpanClientAttributes(
         traces,
@@ -884,6 +928,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateTable",
         type,
         identifier,
+        cloudformationIdentifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -898,6 +943,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateTable",
         type,
         identifier,
+        cloudformationIdentifier,
         20000.0);
     assertMetricClientAttributes(
         metrics,
@@ -908,6 +954,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateTable",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -918,6 +965,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateTable",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -935,6 +983,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /ddb/putitem/:tablename/:partitionkey";
     var type = "AWS::DynamoDB::Table";
     var identifier = "putitem-table";
+    var cloudformationIdentifier = "putitem-table";
 
     assertSpanClientAttributes(
         traces,
@@ -946,6 +995,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -960,6 +1010,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -970,6 +1021,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -980,6 +1032,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -997,6 +1050,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /ddb/error";
     var type = "AWS::DynamoDB::Table";
     var identifier = "nonexistanttable";
+    var cloudformationIdentifier = "nonexistanttable";
 
     assertSpanClientAttributes(
         traces,
@@ -1008,6 +1062,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1022,6 +1077,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1032,6 +1088,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1042,6 +1099,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
   }
 
@@ -1065,6 +1123,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /ddb/fault";
     var type = "AWS::DynamoDB::Table";
     var identifier = "nonexistanttable";
+    var cloudformationIdentifier = "nonexistanttable";
 
     assertSpanClientAttributes(
         traces,
@@ -1076,6 +1135,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1090,6 +1150,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         20000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1100,6 +1161,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -1110,6 +1172,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutItem",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1127,6 +1190,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /sqs/createqueue/:queuename";
     var type = "AWS::SQS::Queue";
     var identifier = "some-queue";
+    var cloudformationIdentifier = "some-queue";
 
     assertSpanClientAttributes(
         traces,
@@ -1138,6 +1202,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateQueue",
         type,
         identifier,
+        cloudformationIdentifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1152,6 +1217,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateQueue",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1162,6 +1228,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateQueue",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1172,6 +1239,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "CreateQueue",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1190,6 +1258,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     // SendMessage does not capture aws.queue.name
     String type = null;
     String identifier = null;
+    String cloudformationIdentifier = null;
 
     assertSpanProducerAttributes(
         traces,
@@ -1201,6 +1270,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1216,6 +1286,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1226,6 +1297,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1236,6 +1308,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1258,6 +1331,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     // ReceiveMessage does not capture aws.queue.name
     String type = null;
     String identifier = null;
+    String cloudformationIdentifier = null;
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
     assertSpanConsumerAttributes(
@@ -1282,6 +1356,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "ReceiveMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricConsumerAttributes(
         metrics,
@@ -1292,6 +1367,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "ReceiveMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1310,6 +1386,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     // SendMessage does not capture aws.queue.name
     String type = null;
     String identifier = null;
+    String cloudformationIdentifier = null;
 
     assertSpanProducerAttributes(
         traces,
@@ -1321,6 +1398,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1336,6 +1414,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1346,6 +1425,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1356,6 +1436,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
   }
 
@@ -1374,6 +1455,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     // SendMessage does not capture aws.queue.name
     String type = null;
     String identifier = null;
+    String cloudformationIdentifier = null;
 
     assertSpanProducerAttributes(
         traces,
@@ -1385,6 +1467,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1400,6 +1483,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1410,6 +1494,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1420,6 +1505,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "SendMessage",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1437,6 +1523,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /kinesis/putrecord/:streamname";
     var type = "AWS::Kinesis::Stream";
     var identifier = "my-stream";
+    var cloudformationIdentifier = "my-stream";
 
     assertSpanClientAttributes(
         traces,
@@ -1448,6 +1535,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1462,6 +1550,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1472,6 +1561,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1482,6 +1572,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1499,6 +1590,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /kinesis/error";
     var type = "AWS::Kinesis::Stream";
     var identifier = "nonexistantstream";
+    var cloudformationIdentifier = "nonexistantstream";
 
     assertSpanClientAttributes(
         traces,
@@ -1510,6 +1602,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1525,6 +1618,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1535,6 +1629,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1545,6 +1640,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
   }
 
@@ -1562,6 +1658,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /kinesis/fault";
     var type = "AWS::Kinesis::Stream";
     var identifier = "faultstream";
+    var cloudformationIdentifier = "faultstream";
 
     assertSpanClientAttributes(
         traces,
@@ -1573,6 +1670,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1587,6 +1685,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1597,6 +1696,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -1607,6 +1707,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "PutRecord",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1625,6 +1726,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockagent/getknowledgeBase/:knowledgeBaseId";
     String type = "AWS::Bedrock::KnowledgeBase";
     String identifier = "knowledge-base-id";
+    String cloudformationIdentifier = "knowledge-base-id";
     assertSpanClientAttributes(
         traces,
         bedrockAgentSpanName("GetKnowledgeBase"),
@@ -1635,6 +1737,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetKnowledgeBase",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1651,6 +1754,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetKnowledgeBase",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1661,6 +1765,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetKnowledgeBase",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1671,6 +1776,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetKnowledgeBase",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1688,6 +1794,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockagent/getagent/:agentId";
     String type = "AWS::Bedrock::Agent";
     String identifier = "test-agent-id";
+    String cloudformationIdentifier = "test-agent-id";
     assertSpanClientAttributes(
         traces,
         bedrockAgentSpanName("GetAgent"),
@@ -1698,6 +1805,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgent",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1712,6 +1820,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgent",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1722,6 +1831,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgent",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1732,6 +1842,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgent",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1749,6 +1860,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockagent/get-data-source";
     String type = "AWS::Bedrock::DataSource";
     String identifier = "nonExistDatasourceId";
+    String cloudformationIdentifier = "nonExistDatasourceId";
     assertSpanClientAttributes(
         traces,
         bedrockAgentSpanName("GetDataSource"),
@@ -1759,6 +1871,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetDataSource",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1775,6 +1888,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetDataSource",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1785,6 +1899,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetDataSource",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1795,6 +1910,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetDataSource",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1812,6 +1928,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockruntime/invokeModel/ai21Jamba";
     String type = "AWS::Bedrock::Model";
     String identifier = "ai21.jamba-1-5-mini-v1:0";
+    String cloudformationIdentifier = "ai21.jamba-1-5-mini-v1:0";
     assertSpanClientAttributes(
         traces,
         bedrockRuntimeSpanName("InvokeModel"),
@@ -1822,6 +1939,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1843,6 +1961,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1853,6 +1972,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1863,6 +1983,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1880,6 +2001,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockruntime/invokeModel/amazonTitan";
     String type = "AWS::Bedrock::Model";
     String identifier = "amazon.titan-text-premier-v1:0";
+    String cloudformationIdentifier = "amazon.titan-text-premier-v1:0";
     assertSpanClientAttributes(
         traces,
         bedrockRuntimeSpanName("InvokeModel"),
@@ -1890,6 +2012,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1914,6 +2037,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1924,6 +2048,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1934,6 +2059,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -1952,6 +2078,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockruntime/invokeModel/anthropicClaude";
     String type = "AWS::Bedrock::Model";
     String identifier = "anthropic.claude-3-haiku-20240307-v1:0";
+    String cloudformationIdentifier = "anthropic.claude-3-haiku-20240307-v1:0";
 
     assertSpanClientAttributes(
         traces,
@@ -1963,6 +2090,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1987,6 +2115,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1997,6 +2126,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2007,6 +2137,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -2025,6 +2156,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockruntime/invokeModel/cohereCommandR";
     String type = "AWS::Bedrock::Model";
     String identifier = "cohere.command-r-v1:0";
+    String cloudformationIdentifier = "cohere.command-r-v1:0";
 
     assertSpanClientAttributes(
         traces,
@@ -2036,6 +2168,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2059,6 +2192,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2069,6 +2203,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2079,6 +2214,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -2097,6 +2233,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockruntime/invokeModel/metaLlama";
     String type = "AWS::Bedrock::Model";
     String identifier = "meta.llama3-70b-instruct-v1:0";
+    String cloudformationIdentifier = "meta.llama3-70b-instruct-v1:0";
 
     assertSpanClientAttributes(
         traces,
@@ -2108,6 +2245,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2130,6 +2268,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2140,6 +2279,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2150,6 +2290,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -2168,6 +2309,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockruntime/invokeModel/mistralAi";
     String type = "AWS::Bedrock::Model";
     String identifier = "mistral.mistral-large-2402-v1:0";
+    String cloudformationIdentifier = "mistral.mistral-large-2402-v1:0";
 
     assertSpanClientAttributes(
         traces,
@@ -2179,6 +2321,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2202,6 +2345,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2212,6 +2356,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2222,6 +2367,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "InvokeModel",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -2239,6 +2385,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrock/getguardrail";
     String type = "AWS::Bedrock::Guardrail";
     String identifier = "test-bedrock-guardrail";
+    String cloudformationIdentifier =
+        "arn:aws:bedrock:us-east-1:000000000000:guardrail/test-bedrock-guardrail";
     assertSpanClientAttributes(
         traces,
         bedrockSpanName("GetGuardrail"),
@@ -2249,13 +2397,17 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetGuardrail",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
         200,
         List.of(
             assertAttribute(
-                SemanticConventionsConstants.AWS_GUARDRAIL_ID, "test-bedrock-guardrail")));
+                SemanticConventionsConstants.AWS_GUARDRAIL_ID, "test-bedrock-guardrail"),
+            assertAttribute(
+                SemanticConventionsConstants.AWS_GUARDRAIL_ARN,
+                "arn:aws:bedrock:us-east-1:000000000000:guardrail/test-bedrock-guardrail")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -2265,6 +2417,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetGuardrail",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2275,6 +2428,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetGuardrail",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2285,6 +2439,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetGuardrail",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -2302,6 +2457,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockagentruntime/getmemory/:agentId";
     String type = "AWS::Bedrock::Agent";
     String identifier = "test-agent-id";
+    String cloudformationIdentifier = "test-agent-id";
     assertSpanClientAttributes(
         traces,
         bedrockAgentRuntimeSpanName("GetAgentMemory"),
@@ -2312,6 +2468,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgentMemory",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2326,6 +2483,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgentMemory",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2336,6 +2494,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgentMemory",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2346,6 +2505,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "GetAgentMemory",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 
@@ -2364,6 +2524,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var localOperation = "GET /bedrockagentruntime/retrieve/:knowledgeBaseId";
     String type = "AWS::Bedrock::KnowledgeBase";
     String identifier = "test-knowledge-base-id";
+    String cloudformationIdentifier = "test-knowledge-base-id";
     assertSpanClientAttributes(
         traces,
         bedrockAgentRuntimeSpanName("Retrieve"),
@@ -2374,6 +2535,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "Retrieve",
         type,
         identifier,
+        cloudformationIdentifier,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2390,6 +2552,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "Retrieve",
         type,
         identifier,
+        cloudformationIdentifier,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2400,6 +2563,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "Retrieve",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2410,6 +2574,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "Retrieve",
         type,
         identifier,
+        cloudformationIdentifier,
         0.0);
   }
 }
