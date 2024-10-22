@@ -76,6 +76,16 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
     return "AWSBedrockAgentRuntime";
   }
 
+  @Override
+  protected String getSecretsManagerSpanNamePrefix() {
+    return "AWSSecretsManager";
+  }
+
+  @Override
+  protected String getStepFunctionsSpanNamePrefix() {
+    return "AWSStepFunctions";
+  }
+
   protected String getS3RpcServiceName() {
     return "Amazon S3";
   }
@@ -88,6 +98,16 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   @Override
   protected String getSqsRpcServiceName() {
     return "AmazonSQS";
+  }
+
+  @Override
+  protected String getSecretsManagerRpcServiceName() {
+    return "AWSSecretsManager";
+  }
+
+  @Override
+  protected String getStepFunctionsRpcServiceName() {
+    return "AWSStepFunctions";
   }
 
   protected String getKinesisRpcServiceName() {
@@ -234,5 +254,40 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   @Test
   void testBedrockAgentRuntimeKnowledgeBaseId() {
     doTestBedrockAgentRuntimeKnowledgeBaseId();
+  }
+
+  @Test
+  void testSecretsManagerDescribeSecret() throws Exception {
+    doTestSecretsManagerDescribeSecret();
+  }
+
+  @Test
+  void testSecretsManagerError() throws Exception {
+    doTestSecretsManagerError();
+  }
+
+  @Test
+  void testSecretsManagerFault() throws Exception {
+    doTestSecretsManagerFault();
+  }
+
+  @Test
+  void testStepFunctionsDescribeStateMachine() throws Exception {
+    doTestStepFunctionsDescribeStateMachine();
+  }
+
+  @Test
+  void testStepFunctionsDescribeActivity() throws Exception {
+    doTestStepFunctionsDescribeActivity();
+  }
+
+  @Test
+  void testStepFunctionsError() throws Exception {
+    doTestStepFunctionsError();
+  }
+
+  @Test
+  void testStepFunctionsFault() throws Exception {
+    doTestStepFunctionsFault();
   }
 }

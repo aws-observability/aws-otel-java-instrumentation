@@ -57,6 +57,9 @@ import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.iam.IamClient;
+import software.amazon.awssdk.services.iam.model.CreateRoleRequest;
+import software.amazon.awssdk.services.iam.model.PutRolePolicyRequest;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
@@ -65,6 +68,13 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.CreateSecretRequest;
+import software.amazon.awssdk.services.secretsmanager.model.DescribeSecretRequest;
+import software.amazon.awssdk.services.secretsmanager.model.ListSecretsRequest;
+import software.amazon.awssdk.services.secretsmanager.model.SecretListEntry;
+import software.amazon.awssdk.services.sfn.SfnClient;
+import software.amazon.awssdk.services.sfn.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
@@ -119,6 +129,8 @@ public class App {
     setupSqs();
     setupKinesis();
     setupBedrock();
+    setupSecretsManager();
+    setupStepFunctions();
     // Add this log line so that we only start testing after all routes are configured.
     awaitInitialization();
     logger.info("All routes initialized");
@@ -655,6 +667,280 @@ public class App {
           RetrieveRequest request =
               RetrieveRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
           var repo = bedrockAgentRuntimeClient.retrieve(request);
+          return "";
+        });
+  }
+
+  private static void setupSecretsManager() {
+    var secretsManagerClient =
+        SecretsManagerClient.builder()
+            .endpointOverride(endpoint)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+    var secretName = "test-secret-id";
+    String existingSecretArn = null;
+    try {
+      var listRequest = ListSecretsRequest.builder().build();
+      var listResponse = secretsManagerClient.listSecrets(listRequest);
+      existingSecretArn =
+          listResponse.secretList().stream()
+              .filter(secret -> secret.name().contains(secretName))
+              .findFirst()
+              .map(SecretListEntry::arn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing secrets", e);
+    }
+    if (existingSecretArn != null) {
+      logger.info("Secret already exists, skipping creation");
+    } else {
+      logger.info("Secret not found, creating a new one");
+      var createSecretRequest = CreateSecretRequest.builder().name(secretName).build();
+      var createResponse = secretsManagerClient.createSecret(createSecretRequest);
+      existingSecretArn = createResponse.arn();
+    }
+
+    String finalExistingSecretArn = existingSecretArn;
+    logger.info("Existing secret arn {}", finalExistingSecretArn);
+    get(
+        "/secretsmanager/describesecret/:secretId",
+        (req, res) -> {
+          var secretId = req.params(":secretId");
+          var describeRequest =
+              DescribeSecretRequest.builder().secretId(finalExistingSecretArn).build();
+          secretsManagerClient.describeSecret(describeRequest);
+          return "";
+        });
+    get(
+        "/secretsmanager/error",
+        (req, res) -> {
+          setMainStatus(400);
+          var errorClient =
+              SecretsManagerClient.builder()
+                  .endpointOverride(URI.create("http://error.test:8080"))
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          try {
+            var describeRequest =
+                DescribeSecretRequest.builder()
+                    .secretId(
+                        "arn:aws:secretsmanager:us-west-2:000000000000:secret:nonexistent-secret-id")
+                    .build();
+            errorClient.describeSecret(describeRequest);
+          } catch (Exception e) {
+            logger.info("Error describing secret", e);
+          }
+          return "";
+        });
+    get(
+        "/secretsmanager/fault",
+        (req, res) -> {
+          setMainStatus(500);
+          var faultClient =
+              SecretsManagerClient.builder()
+                  .endpointOverride(URI.create("http://fault.test:8080"))
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          try {
+            var describeRequest =
+                DescribeSecretRequest.builder()
+                    .secretId(
+                        "arn:aws:secretsmanager:us-west-2:000000000000:secret:fault-secret-id")
+                    .build();
+            faultClient.describeSecret(describeRequest);
+          } catch (Exception e) {
+            logger.info("Fault caught in Sample App", e);
+          }
+          return "";
+        });
+  }
+
+  private static void setupStepFunctions() {
+    var sfnClient =
+        SfnClient.builder()
+            .endpointOverride(endpoint)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+    var iamClient =
+        IamClient.builder()
+            .endpointOverride(endpoint)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+
+    var sfnName = "test-state-machine";
+    String existingStateMachineArn = null;
+    try {
+      var listRequest = ListStateMachinesRequest.builder().build();
+      var listResponse = sfnClient.listStateMachines(listRequest);
+      existingStateMachineArn =
+          listResponse.stateMachines().stream()
+              .filter(machine -> machine.name().equals(sfnName))
+              .findFirst()
+              .map(StateMachineListItem::stateMachineArn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing state machines", e);
+    }
+
+    if (existingStateMachineArn != null) {
+      logger.info("State machine already exists, skipping creation");
+    } else {
+      logger.info("State machine not found, creating a new one");
+      // Create role for Step Functions
+      String trustPolicy =
+          "{"
+              + "\"Version\": \"2012-10-17\","
+              + "\"Statement\": ["
+              + "  {"
+              + "    \"Effect\": \"Allow\","
+              + "    \"Principal\": {"
+              + "      \"Service\": \"states.amazonaws.com\""
+              + "    },"
+              + "    \"Action\": \"sts:AssumeRole\""
+              + "  }"
+              + "]}";
+      var roleRequest =
+          CreateRoleRequest.builder()
+              .roleName(sfnName + "-role")
+              .assumeRolePolicyDocument(trustPolicy)
+              .build();
+      var roleArn = iamClient.createRole(roleRequest).role().arn();
+      // Attach policy allowing Lambda invocation
+      String policyDocument =
+          "{"
+              + "\"Version\": \"2012-10-17\","
+              + "\"Statement\": ["
+              + "  {"
+              + "    \"Effect\": \"Allow\","
+              + "    \"Action\": ["
+              + "      \"lambda:InvokeFunction\""
+              + "    ],"
+              + "    \"Resource\": ["
+              + "      \"*\""
+              + "    ]"
+              + "  }"
+              + "]}";
+      var policyRequest =
+          PutRolePolicyRequest.builder()
+              .roleName(sfnName + "-role")
+              .policyName(sfnName + "-policy")
+              .policyDocument(policyDocument)
+              .build();
+      iamClient.putRolePolicy(policyRequest);
+      // Simple state machine definition
+      String stateMachineDefinition =
+          "{"
+              + "  \"Comment\": \"A Hello World example of the Amazon States Language using a Pass state\","
+              + "  \"StartAt\": \"HelloWorld\","
+              + "  \"States\": {"
+              + "    \"HelloWorld\": {"
+              + "      \"Type\": \"Pass\","
+              + "      \"Result\": \"Hello World!\","
+              + "      \"End\": true"
+              + "    }"
+              + "  }"
+              + "}";
+      // Create state machine
+      var sfnRequest =
+          CreateStateMachineRequest.builder()
+              .name(sfnName)
+              .roleArn(roleArn)
+              .definition(stateMachineDefinition)
+              .type(StateMachineType.STANDARD)
+              .build();
+      existingStateMachineArn = sfnClient.createStateMachine(sfnRequest).stateMachineArn();
+    }
+
+    var activityName = "test-activity";
+    String existingActivityArn = null;
+
+    try {
+      var listRequest = ListActivitiesRequest.builder().build();
+      var listResponse = sfnClient.listActivities(listRequest);
+      existingActivityArn =
+          listResponse.activities().stream()
+              .filter(activity -> activity.name().equals(activityName))
+              .findFirst()
+              .map(ActivityListItem::activityArn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing activities", e);
+    }
+
+    if (existingActivityArn != null) {
+      logger.info("Activity already exists, skipping creation");
+    } else {
+      logger.info("Activity not found, creating a new one");
+      var createRequest = CreateActivityRequest.builder().name(activityName).build();
+      existingActivityArn = sfnClient.createActivity(createRequest).activityArn();
+    }
+
+    String finalExistingStateMachineArn = existingStateMachineArn;
+    get(
+        "/sfn/describestatemachine/:name",
+        (req, res) -> {
+          var describeRequest =
+              DescribeStateMachineRequest.builder()
+                  .stateMachineArn(finalExistingStateMachineArn)
+                  .build();
+          sfnClient.describeStateMachine(describeRequest);
+          return "";
+        });
+
+    String finalExistingActivityArn = existingActivityArn;
+    get(
+        "/sfn/describeactivity/:name",
+        (req, res) -> {
+          var describeRequest =
+              DescribeActivityRequest.builder().activityArn(finalExistingActivityArn).build();
+          sfnClient.describeActivity(describeRequest);
+          return "";
+        });
+
+    get(
+        "/sfn/error",
+        (req, res) -> {
+          setMainStatus(400);
+          var errorClient =
+              SfnClient.builder()
+                  .endpointOverride(URI.create("http://error.test:8080"))
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          try {
+            var describeRequest =
+                DescribeActivityRequest.builder()
+                    .activityArn(
+                        "arn:aws:states:us-west-2:000000000000:activity:nonexistent-activity")
+                    .build();
+            errorClient.describeActivity(describeRequest);
+          } catch (Exception e) {
+            logger.info("Error caught in Sample App", e);
+          }
+          return "";
+        });
+
+    get(
+        "/sfn/fault",
+        (req, res) -> {
+          setMainStatus(500);
+          var faultClient =
+              SfnClient.builder()
+                  .endpointOverride(URI.create("http://fault.test:8080"))
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          try {
+            var describeRequest =
+                DescribeActivityRequest.builder()
+                    .activityArn("arn:aws:states:us-west-2:000000000000:activity:fault-activity")
+                    .build();
+            faultClient.describeActivity(describeRequest);
+          } catch (Exception e) {
+            logger.info("Fault caught in Sample App", e);
+          }
           return "";
         });
   }
