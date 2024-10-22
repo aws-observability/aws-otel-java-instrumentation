@@ -31,6 +31,7 @@ public class AppSignalsConstants {
   public static final String AWS_REMOTE_OPERATION = "aws.remote.operation";
   public static final String AWS_REMOTE_RESOURCE_TYPE = "aws.remote.resource.type";
   public static final String AWS_REMOTE_RESOURCE_IDENTIFIER = "aws.remote.resource.identifier";
+  public static final String AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER = "aws.remote.resource.cfn.primary.identifier";
   public static final String AWS_SPAN_KIND = "aws.span.kind";
   public static final String AWS_REMOTE_DB_USER = "aws.remote.db.user";
 }

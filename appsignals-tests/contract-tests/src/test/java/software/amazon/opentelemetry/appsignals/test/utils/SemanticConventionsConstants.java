@@ -62,6 +62,7 @@ public class SemanticConventionsConstants {
   public static final String AWS_DATA_SOURCE_ID = "aws.bedrock.data_source.id";
   public static final String AWS_AGENT_ID = "aws.bedrock.agent.id";
   public static final String AWS_GUARDRAIL_ID = "aws.bedrock.guardrail.id";
+  public static final String AWS_GUARDRAIL_ARN = "aws.bedrock.guardrail.arn";
   public static final String GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
 
   // kafka
