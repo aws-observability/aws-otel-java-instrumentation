@@ -41,7 +41,7 @@ jobs:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Get NVD API key for dependency scan
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         id: nvd_api_key
         with:
           secret-ids: ${{ secrets.NVD_API_KEY_SECRET_ARN }}
