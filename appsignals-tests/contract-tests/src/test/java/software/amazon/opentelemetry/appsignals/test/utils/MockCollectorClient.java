@@ -133,13 +133,21 @@ public class MockCollectorClient {
         .collect(toImmutableList());
   }
 
+  public List<ResourceScopeMetric> getRuntimeMetrics(Set<String> presentMetrics) {
+    return fetchMetrics(presentMetrics, false);
+  }
+
+  public List<ResourceScopeMetric> getMetrics(Set<String> presentMetrics) {
+    return fetchMetrics(presentMetrics, true);
+  }
+
   /**
    * Get all metrics that are currently stored in the mock collector.
    *
    * @return List of `ResourceScopeMetric` which is a flat list containing all metrics and their
    *     related scope and resources.
    */
-  public List<ResourceScopeMetric> getMetrics(Set<String> presentMetrics) {
+  private List<ResourceScopeMetric> fetchMetrics(Set<String> presentMetrics, boolean exactMatch) {
     List<ExportMetricsServiceRequest> exportedMetrics =
         waitForContent(
             "/get-metrics",
@@ -152,9 +160,14 @@ public class MockCollectorClient {
                       .flatMap(x -> x.getMetricsList().stream())
                       .map(x -> x.getName())
                       .collect(Collectors.toSet());
-
-              return (!exported.isEmpty() && current.size() == exported.size())
-                  && receivedMetrics.containsAll(presentMetrics);
+              if (!exported.isEmpty() && receivedMetrics.containsAll(presentMetrics)) {
+                if (exactMatch) {
+                  return current.size() == exported.size();
+                } else {
+                  return true;
+                }
+              }
+              return false;
             });
 
     return exportedMetrics.stream()

@@ -502,7 +502,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteResourceIdentifier = getDbConnection(span);
     }
 
-    if (cloudformationPrimaryIdentifier.isEmpty()) {
+    if (!cloudformationPrimaryIdentifier.isPresent()) {
       cloudformationPrimaryIdentifier = remoteResourceIdentifier;
     }
 
