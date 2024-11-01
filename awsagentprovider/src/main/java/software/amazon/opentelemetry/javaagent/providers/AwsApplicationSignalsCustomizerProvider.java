@@ -104,7 +104,8 @@ public class AwsApplicationSignalsCustomizerProvider
   }
 
   private boolean isApplicationSignalsRuntimeEnabled(ConfigProperties configProps) {
-    return false;
+    return isApplicationSignalsEnabled(configProps)
+        && configProps.getBoolean(APPLICATION_SIGNALS_RUNTIME_ENABLED_CONFIG, true);
   }
 
   private Map<String, String> customizeProperties(ConfigProperties configProps) {
