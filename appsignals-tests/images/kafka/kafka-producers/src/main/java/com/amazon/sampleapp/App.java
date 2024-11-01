@@ -47,21 +47,28 @@ public class App {
     properties.setProperty(
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     properties.setProperty(ProducerConfig.MAX_BLOCK_MS_CONFIG, "10000");
+
+    // create the producer
+    // initialized and reused to expose the kafka producer beans for JMX
+    KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  log.info("Shutting down Kafka producer...");
+                  producer.close();
+                }));
+
     // rest endpoints
     get(
         "/success",
         (req, res) -> {
-          // create the producer
-          KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
-
           // create a record
           ProducerRecord record = new ProducerRecord<>("kafka_topic", "success");
           // send data - asynchronous
           producer.send(record);
           // flush data - synchronous
           producer.flush();
-          // close producer
-          producer.close();
 
           res.status(HttpStatus.OK_200);
           res.body("success");
@@ -70,8 +77,6 @@ public class App {
     get(
         "/fault",
         (req, res) -> {
-          // create the producer
-          KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
           // create a record & send data to a topic that does not exist- asynchronous
           ProducerRecord producerRecord = new ProducerRecord<>("fault_do_not_exist", "fault");
           producer.send(
@@ -91,8 +96,6 @@ public class App {
               });
           // flush data - synchronous
           producer.flush();
-          // close producer
-          producer.close();
           res.body("fault");
           return res.body();
         });
