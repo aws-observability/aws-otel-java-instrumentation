@@ -19,7 +19,7 @@ import static spark.Spark.ipAddress;
 import static spark.Spark.port;
 
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -39,7 +39,6 @@ public class App {
   public static final Logger log = LoggerFactory.getLogger(App.class);
 
   public static void main(String[] args) {
-
     String bootstrapServers = "kafkaBroker:9092";
     String topic = "kafka_topic";
 
@@ -53,7 +52,7 @@ public class App {
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     producerProperties.setProperty(ProducerConfig.MAX_BLOCK_MS_CONFIG, "15000");
 
-    // produce and send record to kafa_topic
+    // produce and send record to kafka_topic
     KafkaProducer<String, String> producer = new KafkaProducer<>(producerProperties);
     // create a producer_record
     ProducerRecord producer_record = new ProducerRecord<>(topic, "success");
@@ -74,6 +73,17 @@ public class App {
     consumerProperties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
 
+    // initialized and reused to expose the kafka consumer beans for JMX
+    KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProperties);
+    consumer.subscribe(List.of(topic));
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  log.info("Shutting down Kafka consumer...");
+                  consumer.close();
+                }));
+
     // spark server
     port(Integer.parseInt("8080"));
     ipAddress("0.0.0.0");
@@ -83,8 +93,6 @@ public class App {
         "/success",
         (req, res) -> {
           // create consumer
-          KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProperties);
-          consumer.subscribe(Arrays.asList(topic));
           ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
 
           String consumedRecord = null;
@@ -93,12 +101,11 @@ public class App {
               consumedRecord = record.value();
             }
           }
-          consumer.close();
           if (consumedRecord != null && consumedRecord.equals("success")) {
             res.status(HttpStatus.OK_200);
             res.body("success");
           } else {
-            log.info("consumer is unable to consumer right message");
+            log.info("consumer is unable to consume right message");
             res.status(HttpStatus.INTERNAL_SERVER_ERROR_500);
           }
           return res.body();

@@ -33,4 +33,16 @@ public class AppSignalsConstants {
   public static final String AWS_REMOTE_RESOURCE_IDENTIFIER = "aws.remote.resource.identifier";
   public static final String AWS_SPAN_KIND = "aws.span.kind";
   public static final String AWS_REMOTE_DB_USER = "aws.remote.db.user";
+
+  // JVM Metrics
+  public static final String JVM_GC_DURATION = "jvm.gc.collections.elapsed";
+  public static final String JVM_GC_COUNT = "jvm.gc.collections.count";
+  public static final String JVM_HEAP_USED = "jvm.memory.heap.used";
+  public static final String JVM_NON_HEAP_USED = "jvm.memory.nonheap.used";
+  public static final String JVM_AFTER_GC = "jvm.memory.pool.used_after_last_gc";
+  public static final String JVM_POOL_USED = "jvm.memory.pool.used";
+  public static final String JVM_THREAD_COUNT = "jvm.threads.count";
+  public static final String JVM_CLASS_LOADED = "jvm.classes.loaded";
+  public static final String JVM_CPU_TIME = "jvm.cpu.time";
+  public static final String JVM_CPU_UTILIZATION = "jvm.cpu.recent_utilization";
 }
