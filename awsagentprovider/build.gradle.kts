@@ -40,6 +40,9 @@ dependencies {
   implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
+  // For Udp emitter
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  implementation("io.opentelemetry:opentelemetry-exporter-common")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
