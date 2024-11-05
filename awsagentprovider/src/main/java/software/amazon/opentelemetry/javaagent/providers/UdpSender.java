@@ -24,19 +24,22 @@ import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class UdpSender {
+/**
+ * This class represents a UDP sender that sends data to a specified endpoint. It is used to send
+ * data to a remote host and port using UDP protocol.
+ */
+class UdpSender {
   private static final Logger logger = Logger.getLogger(UdpSender.class.getName());
 
-  private final DatagramSocket socket;
+  private DatagramSocket socket;
   private final InetSocketAddress endpoint;
 
   public UdpSender(String host, int port) throws SocketException {
     this.endpoint = new InetSocketAddress(host, port);
     try {
-      socket = new DatagramSocket();
+      this.socket = new DatagramSocket();
     } catch (SocketException e) {
       logger.log(Level.SEVERE, "Exception while instantiating UdpSender socket.", e);
-      throw e;
     }
   }
 

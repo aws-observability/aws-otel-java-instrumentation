@@ -28,12 +28,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
 
+/**
+ * Exports spans via UDP, using OpenTelemetry's protobuf model. The protobuf modelled spans are
+ * Base64 encoded and prefixed with AWS X-Ray specific information before being sent over to {@link
+ * UdpSender}.
+ *
+ * <p>This exporter is NOT meant for generic use since the payload is prefixed with AWS X-Ray
+ * specific information.
+ */
 @Immutable
-public class OtlpUdpSpanExporter implements SpanExporter {
+class OtlpUdpSpanExporter implements SpanExporter {
 
   private static final Logger logger = Logger.getLogger(OtlpUdpSpanExporter.class.getName());
+
+  // The protocol header and delimiter is required for sending data to X-Ray Daemon or when running
+  // in Lambda.
+  // https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-daemon
   private static final String PROTOCOL_HEADER = "{\"format\": \"json\", \"version\": 1}";
   private static final char PROTOCOL_DELIMITER = '\n';
+
+  // These prefixes help the backend identify if the spans payload is sampled or not.
   private static final String FORMAT_OTEL_SAMPLED_TRACES_BINARY_PREFIX = "T1S";
   private static final String FORMAT_OTEL_UNSAMPLED_TRACES_BINARY_PREFIX = "T1U";
 

@@ -26,6 +26,7 @@ import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
@@ -62,7 +63,7 @@ public class UdpExporterTest {
   }
 
   @Test
-  public void testExport() {
+  public void testExportDefaultBehavior() {
     UdpSender senderMock = mock(UdpSender.class);
 
     // mock SpanData
@@ -73,9 +74,43 @@ public class UdpExporterTest {
 
     // assert that the senderMock.send is called once
     verify(senderMock, times(1)).send(any(byte[].class));
+    verify(senderMock)
+        .send(
+            argThat(
+                (byte[] bytes) -> {
+                  assertThat(bytes.length).isGreaterThan(0);
+                  String payload = new String(bytes, StandardCharsets.UTF_8);
+                  assertThat(payload)
+                      .startsWith("{\"format\": \"json\", \"version\": 1}" + "\n" + "T1S");
+                  return true;
+                }));
   }
 
-  private static SpanData buildSpanDataMock() {
+  @Test
+  public void testExportWithSampledFalse() {
+    UdpSender senderMock = mock(UdpSender.class);
+
+    // mock SpanData
+    SpanData spanData = buildSpanDataMock();
+
+    OtlpUdpSpanExporter exporter =
+        new OtlpUdpSpanExporterBuilder().setSender(senderMock).setSampled(false).build();
+    exporter.export(Collections.singletonList(spanData));
+
+    verify(senderMock, times(1)).send(any(byte[].class));
+    verify(senderMock)
+        .send(
+            argThat(
+                (byte[] bytes) -> {
+                  assertThat(bytes.length).isGreaterThan(0);
+                  String payload = new String(bytes, StandardCharsets.UTF_8);
+                  assertThat(payload)
+                      .startsWith("{\"format\": \"json\", \"version\": 1}" + "\n" + "T1U");
+                  return true;
+                }));
+  }
+
+  private SpanData buildSpanDataMock() {
     SpanData mockSpanData = mock(SpanData.class);
 
     Attributes spanAttributes =

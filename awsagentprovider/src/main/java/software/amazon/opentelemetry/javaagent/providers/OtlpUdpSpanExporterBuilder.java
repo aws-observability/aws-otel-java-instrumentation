@@ -19,7 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.net.SocketException;
 
-public final class OtlpUdpSpanExporterBuilder {
+final class OtlpUdpSpanExporterBuilder {
 
   private static final String DEFAULT_HOST = "127.0.0.1";
   private static final int DEFAULT_PORT = 2000;
