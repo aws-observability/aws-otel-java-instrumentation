@@ -15,91 +15,92 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.*;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.resources.Resource;
-import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
-import java.util.Arrays;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 public class UdpExporterTest {
-  private static final boolean CONTAINS_ATTRIBUTES = true;
 
   @Test
-  public void testExporter() { // TODO: only for testing. remove.
-    //    Tracer tracer = GlobalOpenTelemetry.getTracer("My application");
-    Tracer tracer = OpenTelemetrySdk.builder().build().getTracer("hello");
-
-    Span mySpan = tracer.spanBuilder("DoTheLoop_3").startSpan();
-    int numIterations = 5;
-    mySpan.setAttribute("NumIterations", numIterations);
-    mySpan.setAttribute(AttributeKey.stringArrayKey("foo"), Arrays.asList("bar1", "bar2"));
-    try (var scope = mySpan.makeCurrent()) {
-      for (int i = 1; i <= numIterations; i++) {
-        System.out.println("i = " + i);
-      }
-    } finally {
-      mySpan.end();
-    }
-
+  public void testUdpExporterWithDefaults() {
     OtlpUdpSpanExporter exporter = new OtlpUdpSpanExporterBuilder().build();
+    UdpSender sender = exporter.getSender();
+    assertThat(sender.getEndpoint().getHostName())
+        .isEqualTo("localhost"); // getHostName implicitly converts 127.0.0.1 to localhost
+    assertThat(sender.getEndpoint().getPort()).isEqualTo(2000);
+    assertThat(exporter.isSampled()).isTrue();
+  }
 
-    ReadableSpan readableSpan = (ReadableSpan) mySpan;
-    SpanData spanData = readableSpan.toSpanData();
+  @Test
+  public void testUdpExporterWithCustomEndpointAndSample() {
+    OtlpUdpSpanExporter exporter =
+        new OtlpUdpSpanExporterBuilder().setEndpoint("somehost:1000").setSampled(false).build();
+    UdpSender sender = exporter.getSender();
+    assertThat(sender.getEndpoint().getHostName()).isEqualTo("somehost");
+    assertThat(sender.getEndpoint().getPort()).isEqualTo(1000);
+    assertThat(exporter.isSampled()).isFalse();
+  }
 
+  @Test
+  public void testUdpExporterWithInvalidEndpoint() {
+    assertThatThrownBy(
+            () -> {
+              new OtlpUdpSpanExporterBuilder().setEndpoint("invalidhost");
+            })
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Invalid endpoint, must be a valid URL: invalidhost");
+  }
+
+  @Test
+  public void testExport() {
+    UdpSender senderMock = mock(UdpSender.class);
+
+    // mock SpanData
+    SpanData spanData = buildSpanDataMock();
+
+    OtlpUdpSpanExporter exporter = new OtlpUdpSpanExporterBuilder().setSender(senderMock).build();
     exporter.export(Collections.singletonList(spanData));
+
+    // assert that the senderMock.send is called once
+    verify(senderMock, times(1)).send(any(byte[].class));
   }
 
-  @Test
-  public void testUdpExporter() {
-    // Add your test logic here
-    OtlpUdpSpanExporter exporter = new OtlpUdpSpanExporterBuilder().build();
-
-    // build test span
-    SpanContext parentSpanContextMock = mock(SpanContext.class);
-    Attributes spanAttributes = buildSpanAttributes(CONTAINS_ATTRIBUTES);
-    SpanData spanDataMock = buildSpanDataMock(spanAttributes);
-    when(spanDataMock.getParentSpanContext()).thenReturn(parentSpanContextMock);
-    SpanContext spanContextMock = mock(SpanContext.class);
-    when(spanContextMock.isValid()).thenReturn(true);
-    when(spanDataMock.getSpanContext()).thenReturn(spanContextMock);
-    TraceState traceState = TraceState.builder().build();
-    when(spanContextMock.getTraceState()).thenReturn(traceState);
-    StatusData statusData = StatusData.unset();
-    when(spanDataMock.getStatus()).thenReturn(statusData);
-    when(spanDataMock.getInstrumentationScopeInfo())
-        .thenReturn(InstrumentationScopeInfo.create("Dummy Scope"));
-
-    Resource testResource = Resource.empty();
-    when(spanDataMock.getResource()).thenReturn(testResource);
-
-    exporter.export(Collections.singletonList(spanDataMock));
-  }
-
-  private static Attributes buildSpanAttributes(boolean containsAttribute) {
-    if (containsAttribute) {
-      return Attributes.of(AttributeKey.stringKey("original key"), "original value");
-    } else {
-      return Attributes.empty();
-    }
-  }
-
-  private static SpanData buildSpanDataMock(Attributes spanAttributes) {
-    // Configure spanData
+  private static SpanData buildSpanDataMock() {
     SpanData mockSpanData = mock(SpanData.class);
+
+    Attributes spanAttributes =
+        Attributes.of(AttributeKey.stringKey("original key"), "original value");
     when(mockSpanData.getAttributes()).thenReturn(spanAttributes);
     when(mockSpanData.getTotalAttributeCount()).thenReturn(spanAttributes.size());
     when(mockSpanData.getKind()).thenReturn(SpanKind.SERVER);
-    when(mockSpanData.getParentSpanContext()).thenReturn(null);
+
+    SpanContext parentSpanContextMock = mock(SpanContext.class);
+    when(mockSpanData.getParentSpanContext()).thenReturn(parentSpanContextMock);
+
+    SpanContext spanContextMock = mock(SpanContext.class);
+    when(spanContextMock.isValid()).thenReturn(true);
+    when(mockSpanData.getSpanContext()).thenReturn(spanContextMock);
+
+    TraceState traceState = TraceState.builder().build();
+    when(spanContextMock.getTraceState()).thenReturn(traceState);
+
+    when(mockSpanData.getStatus()).thenReturn(StatusData.unset());
+    when(mockSpanData.getInstrumentationScopeInfo())
+        .thenReturn(InstrumentationScopeInfo.create("Dummy Scope"));
+
+    Resource testResource = Resource.empty();
+    when(mockSpanData.getResource()).thenReturn(testResource);
+
     return mockSpanData;
   }
 }

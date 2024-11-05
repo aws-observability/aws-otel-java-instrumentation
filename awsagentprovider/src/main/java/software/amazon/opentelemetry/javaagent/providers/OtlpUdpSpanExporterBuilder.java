@@ -55,4 +55,10 @@ public final class OtlpUdpSpanExporterBuilder {
     }
     return new OtlpUdpSpanExporter(this.sender, this.sampled);
   }
+
+  // Only for testing
+  OtlpUdpSpanExporterBuilder setSender(UdpSender sender) {
+    this.sender = sender;
+    return this;
+  }
 }

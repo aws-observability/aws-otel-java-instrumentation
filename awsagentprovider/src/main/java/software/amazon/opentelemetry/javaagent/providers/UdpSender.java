@@ -58,4 +58,9 @@ public class UdpSender {
       logger.log(Level.SEVERE, "Exception while sending data.", e);
     }
   }
+
+  // Visible for testing
+  InetSocketAddress getEndpoint() {
+    return endpoint;
+  }
 }

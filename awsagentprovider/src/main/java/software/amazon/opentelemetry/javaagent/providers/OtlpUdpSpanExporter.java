@@ -65,7 +65,6 @@ public class OtlpUdpSpanExporter implements SpanExporter {
                   : FORMAT_OTEL_UNSAMPLED_TRACES_BINARY_PREFIX)
               + Base64.getEncoder().encodeToString(baos.toByteArray());
       sender.send(payload.getBytes(StandardCharsets.UTF_8));
-      System.out.println("Sending::: " + payload); // TODO: remove
       return CompletableResultCode.ofSuccess();
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Failed to export spans. Error: " + e.getMessage(), e);
@@ -75,6 +74,7 @@ public class OtlpUdpSpanExporter implements SpanExporter {
 
   @Override
   public CompletableResultCode flush() {
+    // TODO: implement
     return CompletableResultCode.ofSuccess();
   }
 
@@ -85,5 +85,15 @@ public class OtlpUdpSpanExporter implements SpanExporter {
       return CompletableResultCode.ofSuccess();
     }
     return sender.shutdown();
+  }
+
+  // Visible for testing
+  UdpSender getSender() {
+    return sender;
+  }
+
+  // Visible for testing
+  boolean isSampled() {
+    return sampled;
   }
 }
