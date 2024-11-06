@@ -41,24 +41,14 @@ class OtlpUdpSpanExporter implements SpanExporter {
 
   private static final Logger logger = Logger.getLogger(OtlpUdpSpanExporter.class.getName());
 
-  // The protocol header and delimiter is required for sending data to X-Ray Daemon or when running
-  // in Lambda.
-  // https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-daemon
-  private static final String PROTOCOL_HEADER = "{\"format\": \"json\", \"version\": 1}";
-  private static final char PROTOCOL_DELIMITER = '\n';
-
-  // These prefixes help the backend identify if the spans payload is sampled or not.
-  private static final String FORMAT_OTEL_SAMPLED_TRACES_BINARY_PREFIX = "T1S";
-  private static final String FORMAT_OTEL_UNSAMPLED_TRACES_BINARY_PREFIX = "T1U";
-
   private final AtomicBoolean isShutdown = new AtomicBoolean();
 
   private final UdpSender sender;
-  private final boolean sampled;
+  private final String payloadPrefix;
 
-  OtlpUdpSpanExporter(UdpSender sender, boolean sampled) {
+  OtlpUdpSpanExporter(UdpSender sender, String payloadPrefix) {
     this.sender = sender;
-    this.sampled = sampled;
+    this.payloadPrefix = payloadPrefix;
   }
 
   @Override
@@ -71,13 +61,7 @@ class OtlpUdpSpanExporter implements SpanExporter {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
       exportRequest.writeBinaryTo(baos);
-      String payload =
-          PROTOCOL_HEADER
-              + PROTOCOL_DELIMITER
-              + (sampled
-                  ? FORMAT_OTEL_SAMPLED_TRACES_BINARY_PREFIX
-                  : FORMAT_OTEL_UNSAMPLED_TRACES_BINARY_PREFIX)
-              + Base64.getEncoder().encodeToString(baos.toByteArray());
+      String payload = payloadPrefix + Base64.getEncoder().encodeToString(baos.toByteArray());
       sender.send(payload.getBytes(StandardCharsets.UTF_8));
       return CompletableResultCode.ofSuccess();
     } catch (Exception e) {
@@ -107,7 +91,7 @@ class OtlpUdpSpanExporter implements SpanExporter {
   }
 
   // Visible for testing
-  boolean isSampled() {
-    return sampled;
+  String getPayloadPrefix() {
+    return payloadPrefix;
   }
 }

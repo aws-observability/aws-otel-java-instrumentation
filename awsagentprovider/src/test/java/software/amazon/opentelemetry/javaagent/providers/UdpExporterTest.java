@@ -39,17 +39,20 @@ public class UdpExporterTest {
     assertThat(sender.getEndpoint().getHostName())
         .isEqualTo("localhost"); // getHostName implicitly converts 127.0.0.1 to localhost
     assertThat(sender.getEndpoint().getPort()).isEqualTo(2000);
-    assertThat(exporter.isSampled()).isTrue();
+    assertThat(exporter.getPayloadPrefix()).endsWith("T1S");
   }
 
   @Test
   public void testUdpExporterWithCustomEndpointAndSample() {
     OtlpUdpSpanExporter exporter =
-        new OtlpUdpSpanExporterBuilder().setEndpoint("somehost:1000").setSampled(false).build();
+        new OtlpUdpSpanExporterBuilder()
+            .setEndpoint("somehost:1000")
+            .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
+            .build();
     UdpSender sender = exporter.getSender();
     assertThat(sender.getEndpoint().getHostName()).isEqualTo("somehost");
     assertThat(sender.getEndpoint().getPort()).isEqualTo(1000);
-    assertThat(exporter.isSampled()).isFalse();
+    assertThat(exporter.getPayloadPrefix()).endsWith("T1U");
   }
 
   @Test
@@ -94,7 +97,10 @@ public class UdpExporterTest {
     SpanData spanData = buildSpanDataMock();
 
     OtlpUdpSpanExporter exporter =
-        new OtlpUdpSpanExporterBuilder().setSender(senderMock).setSampled(false).build();
+        new OtlpUdpSpanExporterBuilder()
+            .setSender(senderMock)
+            .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
+            .build();
     exporter.export(Collections.singletonList(spanData));
 
     verify(senderMock, times(1)).send(any(byte[].class));

@@ -34,7 +34,7 @@ class UdpSender {
   private DatagramSocket socket;
   private final InetSocketAddress endpoint;
 
-  public UdpSender(String host, int port) throws SocketException {
+  public UdpSender(String host, int port) {
     this.endpoint = new InetSocketAddress(host, port);
     try {
       this.socket = new DatagramSocket();
@@ -45,6 +45,9 @@ class UdpSender {
 
   public CompletableResultCode shutdown() {
     try {
+      if (socket == null) {
+        return CompletableResultCode.ofSuccess();
+      }
       socket.close();
       return CompletableResultCode.ofSuccess();
     } catch (Exception e) {
