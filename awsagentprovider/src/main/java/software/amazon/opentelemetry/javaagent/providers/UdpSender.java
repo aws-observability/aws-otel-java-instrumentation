@@ -57,6 +57,10 @@ class UdpSender {
   }
 
   public void send(byte[] data) {
+    if (socket == null) {
+      logger.log(Level.WARNING, "UdpSender socket is null. Cannot send data.");
+      return;
+    }
     DatagramPacket packet = new DatagramPacket(data, data.length, endpoint);
     try {
       socket.send(packet);
