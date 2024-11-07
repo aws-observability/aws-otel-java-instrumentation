@@ -27,6 +27,8 @@ import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
+import java.util.ArrayList;
+import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
 public class AwsUnsampledOnlySpanProcessorTest {
@@ -98,11 +100,8 @@ public class AwsUnsampledOnlySpanProcessorTest {
     SpanExporter mockExporter = mock(SpanExporter.class);
     when(mockExporter.export(anyCollection())).thenReturn(CompletableResultCode.ofSuccess());
 
-    AwsUnsampledOnlySpanProcessor processor =
-        AwsUnsampledOnlySpanProcessor.builder().setSpanExporter(mockExporter).build();
-
-    BatchSpanProcessor delegate =
-        BatchSpanProcessor.builder(mockExporter).setExportUnsampledSpans(true).build();
+    TestDelegateProcessor delegate = new TestDelegateProcessor();
+    AwsUnsampledOnlySpanProcessor processor = new AwsUnsampledOnlySpanProcessor(delegate);
 
     // unsampled span
     SpanContext mockSpanContextUnsampled = mock(SpanContext.class);
@@ -116,14 +115,37 @@ public class AwsUnsampledOnlySpanProcessorTest {
     ReadableSpan mockSpanSampled = mock(ReadableSpan.class);
     when(mockSpanSampled.getSpanContext()).thenReturn(mockSpanContextSampled);
 
-    // flush the unsampled span and verify export was called once
-    processor.onEnd(mockSpanUnsampled);
-    processor.forceFlush();
-    verify(mockExporter, times(1)).export(anyCollection());
-
-    // flush the sampled span and verify export was not called again
     processor.onEnd(mockSpanSampled);
-    processor.forceFlush();
-    verify(mockExporter, times(1)).export(anyCollection());
+    processor.onEnd(mockSpanUnsampled);
+
+    // validate that only the unsampled span was delegated
+    assertThat(delegate.getEndedSpans()).containsExactly(mockSpanUnsampled);
+  }
+
+  private static class TestDelegateProcessor implements SpanProcessor {
+    // keep a queue of Readable spans added when onEnd is called
+    Collection<ReadableSpan> endedSpans = new ArrayList<>();
+
+    @Override
+    public void onStart(Context parentContext, ReadWriteSpan span) {}
+
+    @Override
+    public boolean isStartRequired() {
+      return false;
+    }
+
+    @Override
+    public void onEnd(ReadableSpan span) {
+      endedSpans.add(span);
+    }
+
+    @Override
+    public boolean isEndRequired() {
+      return false;
+    }
+
+    public Collection<ReadableSpan> getEndedSpans() {
+      return endedSpans;
+    }
   }
 }
