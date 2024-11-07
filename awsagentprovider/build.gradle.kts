@@ -40,12 +40,15 @@ dependencies {
   implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
+  // For Udp emitter
+  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
+  testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.3.1")
