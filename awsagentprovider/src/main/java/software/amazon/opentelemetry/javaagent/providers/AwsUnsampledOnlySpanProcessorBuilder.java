@@ -34,11 +34,6 @@ final class AwsUnsampledOnlySpanProcessorBuilder {
     return this;
   }
 
-  public AwsUnsampledOnlySpanProcessorBuilder setMaxQueueSize(int maxQueueSize) {
-
-    return this;
-  }
-
   public AwsUnsampledOnlySpanProcessor build() {
     BatchSpanProcessor bsp =
         BatchSpanProcessor.builder(exporter).setExportUnsampledSpans(true).build();

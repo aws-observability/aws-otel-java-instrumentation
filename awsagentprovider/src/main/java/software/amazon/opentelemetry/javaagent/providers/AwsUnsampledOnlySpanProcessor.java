@@ -21,6 +21,10 @@ import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 
+/**
+ * {@link SpanProcessor} that only exports unsampled spans in a batch via a delegated @{link BatchSpanProcessor}.
+ * The processor also adds an attribute to each processed span to indicate that it was sampled or not.
+ */
 final class AwsUnsampledOnlySpanProcessor implements SpanProcessor {
 
   private final SpanProcessor delegate;
