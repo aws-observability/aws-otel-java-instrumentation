@@ -15,16 +15,16 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessorBuilder;
-import io.opentelemetry.sdk.trace.export.SpanExporter;
-
 import static java.util.Objects.requireNonNull;
+
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 final class AwsUnsampledOnlySpanProcessorBuilder {
 
   // Default exporter is OtlpUdpSpanExporter with unsampled payload prefix
-  private SpanExporter exporter = new OtlpUdpSpanExporterBuilder()
+  private SpanExporter exporter =
+      new OtlpUdpSpanExporterBuilder()
           .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
           .build();
 
@@ -40,7 +40,7 @@ final class AwsUnsampledOnlySpanProcessorBuilder {
   }
 
   public AwsUnsampledOnlySpanProcessor build() {
-  BatchSpanProcessor bsp =
+    BatchSpanProcessor bsp =
         BatchSpanProcessor.builder(exporter).setExportUnsampledSpans(true).build();
     return new AwsUnsampledOnlySpanProcessor(bsp);
   }
