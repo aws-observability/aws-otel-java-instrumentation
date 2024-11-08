@@ -57,12 +57,12 @@ final class AwsUnsampledOnlySpanProcessor implements SpanProcessor {
 
   @Override
   public boolean isStartRequired() {
-    return delegate.isStartRequired();
+    return true;
   }
 
   @Override
   public boolean isEndRequired() {
-    return delegate.isEndRequired();
+    return true;
   }
 
   @Override
