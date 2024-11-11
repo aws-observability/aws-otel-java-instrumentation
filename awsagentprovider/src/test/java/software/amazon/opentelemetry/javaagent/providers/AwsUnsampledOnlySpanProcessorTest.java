@@ -34,6 +34,18 @@ import org.junit.jupiter.api.Test;
 public class AwsUnsampledOnlySpanProcessorTest {
 
   @Test
+  public void testIsStartRequired() {
+    SpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    assertThat(processor.isStartRequired()).isTrue();
+  }
+
+  @Test
+  public void testIsEndRequired() {
+    SpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    assertThat(processor.isEndRequired()).isTrue();
+  }
+
+  @Test
   public void testDefaultSpanProcessor() {
     AwsUnsampledOnlySpanProcessorBuilder builder = AwsUnsampledOnlySpanProcessor.builder();
     AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
