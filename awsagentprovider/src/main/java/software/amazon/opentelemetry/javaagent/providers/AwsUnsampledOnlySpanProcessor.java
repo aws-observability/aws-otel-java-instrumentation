@@ -40,9 +40,7 @@ final class AwsUnsampledOnlySpanProcessor implements SpanProcessor {
 
   @Override
   public void onStart(Context parentContext, ReadWriteSpan span) {
-    if (span.getSpanContext().isSampled()) {
-      span.setAttribute(AwsAttributeKeys.AWS_TRACE_FLAG_SAMPLED, true);
-    } else {
+    if (!span.getSpanContext().isSampled()) {
       span.setAttribute(AwsAttributeKeys.AWS_TRACE_FLAG_SAMPLED, false);
     }
     delegate.onStart(parentContext, span);

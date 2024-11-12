@@ -88,8 +88,8 @@ public class AwsUnsampledOnlySpanProcessorTest {
     AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
     processor.onStart(parentContextMock, spanMock);
 
-    // verify setAttribute was called with the correct arguments
-    verify(spanMock, times(1)).setAttribute(AwsAttributeKeys.AWS_TRACE_FLAG_SAMPLED, true);
+    // verify setAttribute was never called
+    verify(spanMock, never()).setAttribute(any(), anyBoolean());
   }
 
   @Test
