@@ -59,6 +59,7 @@ public class AwsUnsampledOnlySpanProcessorTest {
         .contains(
             "spanExporter=software.amazon.opentelemetry.javaagent.providers.OtlpUdpSpanExporter");
     assertThat(delegateBspString).contains("exportUnsampledSpans=true");
+    assertThat(delegateBspString).contains("maxExportBatchSize=512");
   }
 
   @Test
@@ -76,6 +77,19 @@ public class AwsUnsampledOnlySpanProcessorTest {
     assertThat(delegateBspString)
         .contains("spanExporter=io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter");
     assertThat(delegateBspString).contains("exportUnsampledSpans=true");
+  }
+
+  @Test
+  public void testSpanProcessorWithBatchSize() {
+    AwsUnsampledOnlySpanProcessorBuilder builder =
+        AwsUnsampledOnlySpanProcessorBuilder.create().setMaxExportBatchSize(100);
+    AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
+
+    SpanProcessor delegate = unsampledSP.getDelegate();
+    assertThat(delegate).isInstanceOf(BatchSpanProcessor.class);
+    BatchSpanProcessor delegateBsp = (BatchSpanProcessor) delegate;
+    String delegateBspString = delegateBsp.toString();
+    assertThat(delegateBspString).contains("maxExportBatchSize=100");
   }
 
   @Test

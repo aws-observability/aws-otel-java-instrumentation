@@ -86,8 +86,12 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
       "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
-
   private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
+
+  // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
+  // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
+  // 64KB batch since spans can vary in size.
+  private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -168,7 +172,9 @@ public class AwsApplicationSignalsCustomizerProvider
       // Signals metrics.
       if (isLambdaEnvironment()) {
         tracerProviderBuilder.addSpanProcessor(
-            AwsUnsampledOnlySpanProcessorBuilder.create().build());
+            AwsUnsampledOnlySpanProcessorBuilder.create()
+                .setMaxExportBatchSize(LAMBDA_SPAN_EXPORT_BATCH_SIZE)
+                .build());
         return tracerProviderBuilder;
       }
 
