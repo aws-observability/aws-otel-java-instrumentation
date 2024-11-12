@@ -35,19 +35,19 @@ public class AwsUnsampledOnlySpanProcessorTest {
 
   @Test
   public void testIsStartRequired() {
-    SpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    SpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     assertThat(processor.isStartRequired()).isTrue();
   }
 
   @Test
   public void testIsEndRequired() {
-    SpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    SpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     assertThat(processor.isEndRequired()).isTrue();
   }
 
   @Test
   public void testDefaultSpanProcessor() {
-    AwsUnsampledOnlySpanProcessorBuilder builder = AwsUnsampledOnlySpanProcessor.builder();
+    AwsUnsampledOnlySpanProcessorBuilder builder = AwsUnsampledOnlySpanProcessorBuilder.create();
     AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
 
     assertThat(builder.getSpanExporter()).isInstanceOf(OtlpUdpSpanExporter.class);
@@ -64,7 +64,8 @@ public class AwsUnsampledOnlySpanProcessorTest {
   @Test
   public void testSpanProcessorWithExporter() {
     AwsUnsampledOnlySpanProcessorBuilder builder =
-        AwsUnsampledOnlySpanProcessor.builder().setSpanExporter(InMemorySpanExporter.create());
+        AwsUnsampledOnlySpanProcessorBuilder.create()
+            .setSpanExporter(InMemorySpanExporter.create());
     AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
 
     assertThat(builder.getSpanExporter()).isInstanceOf(InMemorySpanExporter.class);
@@ -85,7 +86,7 @@ public class AwsUnsampledOnlySpanProcessorTest {
     ReadWriteSpan spanMock = mock(ReadWriteSpan.class);
     when(spanMock.getSpanContext()).thenReturn(mockSpanContext);
 
-    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     processor.onStart(parentContextMock, spanMock);
 
     // verify setAttribute was never called
@@ -100,7 +101,7 @@ public class AwsUnsampledOnlySpanProcessorTest {
     ReadWriteSpan spanMock = mock(ReadWriteSpan.class);
     when(spanMock.getSpanContext()).thenReturn(mockSpanContext);
 
-    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     processor.onStart(parentContextMock, spanMock);
 
     // verify setAttribute was called with the correct arguments

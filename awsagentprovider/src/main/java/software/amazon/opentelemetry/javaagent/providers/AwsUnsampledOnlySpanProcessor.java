@@ -34,10 +34,6 @@ final class AwsUnsampledOnlySpanProcessor implements SpanProcessor {
     this.delegate = delegate;
   }
 
-  public static AwsUnsampledOnlySpanProcessorBuilder builder() {
-    return new AwsUnsampledOnlySpanProcessorBuilder();
-  }
-
   @Override
   public void onStart(Context parentContext, ReadWriteSpan span) {
     if (!span.getSpanContext().isSampled()) {

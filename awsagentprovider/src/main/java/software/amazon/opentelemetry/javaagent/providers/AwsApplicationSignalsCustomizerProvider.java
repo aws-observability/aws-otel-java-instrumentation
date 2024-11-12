@@ -20,8 +20,10 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
@@ -39,13 +41,7 @@ import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,6 +62,8 @@ import java.util.logging.Logger;
  */
 public class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
+  static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
@@ -85,6 +83,11 @@ public class AwsApplicationSignalsCustomizerProvider
       "otel.aws.application.signals.exporter.endpoint";
 
   private static final String OTEL_JMX_TARGET_SYSTEM_CONFIG = "otel.jmx.target.system";
+  private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
+      "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+  private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
+
+  private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -93,6 +96,10 @@ public class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
     autoConfiguration.addMeterProviderCustomizer(this::customizeMeterProvider);
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
+  }
+
+  static boolean isLambdaEnvironment() {
+    return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
   }
 
   private boolean isApplicationSignalsEnabled(ConfigProperties configProps) {
@@ -156,6 +163,15 @@ public class AwsApplicationSignalsCustomizerProvider
       // Construct and set local and remote attributes span processor
       tracerProviderBuilder.addSpanProcessor(
           AttributePropagatingSpanProcessorBuilder.create().build());
+
+      // If running on Lambda, we just need to export 100% spans and skip generating any Application
+      // Signals metrics.
+      if (isLambdaEnvironment()) {
+        tracerProviderBuilder.addSpanProcessor(
+            AwsUnsampledOnlySpanProcessorBuilder.create().build());
+        return tracerProviderBuilder;
+      }
+
       // Construct meterProvider
       MetricExporter metricsExporter =
           ApplicationSignalsExporterProvider.INSTANCE.createExporter(configProps);
@@ -207,6 +223,21 @@ public class AwsApplicationSignalsCustomizerProvider
 
   private SpanExporter customizeSpanExporter(
       SpanExporter spanExporter, ConfigProperties configProps) {
+    // When running in Lambda, override the default OTLP exporter with UDP exporter
+    if (isLambdaEnvironment()) {
+      if (isOtlpSpanExporter(spanExporter)
+          && System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) == null) {
+        String tracesEndpoint =
+            Optional.ofNullable(System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG))
+                .orElse(DEFAULT_UDP_ENDPOINT);
+        spanExporter =
+            new OtlpUdpSpanExporterBuilder()
+                .setPayloadSampleDecision(TracePayloadSampleDecision.SAMPLED)
+                .setEndpoint(tracesEndpoint)
+                .build();
+      }
+    }
+
     if (isApplicationSignalsEnabled(configProps)) {
       return AwsMetricAttributesSpanExporterBuilder.create(
               spanExporter, ResourceHolder.getResource())
@@ -214,6 +245,11 @@ public class AwsApplicationSignalsCustomizerProvider
     }
 
     return spanExporter;
+  }
+
+  private boolean isOtlpSpanExporter(SpanExporter spanExporter) {
+    return spanExporter instanceof OtlpGrpcSpanExporter
+        || spanExporter instanceof OtlpHttpSpanExporter;
   }
 
   private enum ApplicationSignalsExporterProvider {

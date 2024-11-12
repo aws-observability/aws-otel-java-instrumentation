@@ -21,6 +21,9 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 final class AwsUnsampledOnlySpanProcessorBuilder {
+  public static AwsUnsampledOnlySpanProcessorBuilder create() {
+    return new AwsUnsampledOnlySpanProcessorBuilder();
+  }
 
   // Default exporter is OtlpUdpSpanExporter with unsampled payload prefix
   private SpanExporter exporter =
