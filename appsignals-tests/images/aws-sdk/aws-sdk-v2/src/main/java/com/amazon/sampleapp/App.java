@@ -28,6 +28,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.Charset;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -598,6 +601,163 @@ public class App {
                   .accept("application/json")
                   .build();
           bedrockRuntimeClient.invokeModel(request);
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel/ai21Jamba",
+        (req, res) -> {
+          setMainStatus(200);
+
+          ObjectMapper mapper = new ObjectMapper();
+          Map<String, Object> request = new HashMap<>();
+
+          List<Map<String, String>> messages = new ArrayList<>();
+          Map<String, String> message = new HashMap<>();
+          message.put("role", "user");
+          message.put("content", "Which LLM are you?");
+          messages.add(message);
+
+          request.put("messages", messages);
+          request.put("max_tokens", 1000);
+          request.put("top_p", 0.8);
+          request.put("temperature", 0.7);
+
+          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
+              .modelId("ai21.jamba-1-5-mini-v1:0")
+              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+              .build();
+
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel/amazonTitan",
+        (req, res) -> {
+          setMainStatus(200);
+
+          ObjectMapper mapper = new ObjectMapper();
+          Map<String, Object> request = new HashMap<>();
+          request.put("inputText", "Hello, world!");
+
+          Map<String, Object> config = new HashMap<>();
+          config.put("temperature", 0.7);
+          config.put("topP", 0.9);
+          config.put("maxTokenCount", 100);
+
+          request.put("textGenerationConfig", config);
+
+          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
+              .modelId("amazon.titan-text-premier-v1:0")
+              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+              .build();
+
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel/anthropicClaude",
+        (req, res) -> {
+          setMainStatus(200);
+
+          ObjectMapper mapper = new ObjectMapper();
+          Map<String, Object> request = new HashMap<>();
+
+          List<Map<String, String>> messages = new ArrayList<>();
+          Map<String, String> message = new HashMap<>();
+          message.put("role", "user");
+          message.put("content", "Describe a cache in one line");
+          messages.add(message);
+
+          request.put("messages", messages);
+          request.put("anthropic_version", "bedrock-2023-05-31");
+          request.put("max_tokens", 512);
+          request.put("top_p", 0.53);
+          request.put("temperature", 0.6);
+
+          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
+              .modelId("anthropic.claude-3-haiku-20240307-v1:0")
+              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+              .build();
+
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel/cohereCommandR",
+        (req, res) -> {
+          setMainStatus(200);
+
+          ObjectMapper mapper = new ObjectMapper();
+          Map<String, Object> request = new HashMap<>();
+
+          request.put("message", "Convince me to write a LISP interpreter in one line");
+          request.put("temperature", 0.8);
+          request.put("max_tokens", 4096);
+          request.put("p", 0.45);
+
+          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
+              .modelId("cohere.command-r-v1:0")
+              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+              .build();
+
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel/metaLlama",
+        (req, res) -> {
+          setMainStatus(200);
+
+          ObjectMapper mapper = new ObjectMapper();
+          Map<String, Object> request = new HashMap<>();
+
+          String prompt = "Describe the purpose of a 'hello world' program in one line";
+          String instruction = String.format(
+              "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n%s<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n",
+              prompt
+          );
+
+          request.put("prompt", instruction);
+          request.put("max_gen_len", 128);
+          request.put("temperature", 0.1);
+          request.put("top_p", 0.9);
+
+          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
+              .modelId("meta.llama3-70b-instruct-v1:0")
+              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+              .build();
+
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+
+          return "";
+        });
+    get(
+        "/bedrockruntime/invokeModel/mistralAi",
+        (req, res) -> {
+          setMainStatus(200);
+
+          ObjectMapper mapper = new ObjectMapper();
+          Map<String, Object> request = new HashMap<>();
+
+          String prompt = "Describe the difference between a compiler and interpreter in one line.";
+          String instruction = String.format("<s>[INST] %s [/INST]\n", prompt);
+
+          request.put("prompt", instruction);
+          request.put("max_tokens", 4096);
+          request.put("temperature", 0.75);
+          request.put("top_p", 0.25);
+
+          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
+              .modelId("mistral.mistral-large-2402-v1:0")
+              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+              .build();
+
+          bedrockRuntimeClient.invokeModel(invokeModelRequest);
+
           return "";
         });
     get(

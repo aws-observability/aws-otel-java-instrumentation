@@ -220,8 +220,33 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Test
-  void testBedrockRuntimeModelId() {
-    doTestBedrockRuntimeModelId();
+  void testBedrockRuntimeAmazonTitan() {
+    doTestBedrockRuntimeAmazonTitan();
+  }
+
+  @Test
+  void testBedrockRuntimeAi21Jamba() {
+    doTestBedrockRuntimeAi21Jamba();
+  }
+
+  @Test
+  void testBedrockRuntimeAnthropicClaude() {
+    doTestBedrockRuntimeAnthropicClaude();
+  }
+
+  @Test
+  void testBedrockRuntimeCohereCommandR() {
+    doTestBedrockRuntimeCohereCommandR();
+  }
+
+  @Test
+  void testBedrockRuntimeMetaLlama() {
+    doTestBedrockRuntimeMetaLlama();
+  }
+
+  @Test
+  void testBedrockRuntimeMistral() {
+    doTestBedrockRuntimeMistral();
   }
 
   @Test
