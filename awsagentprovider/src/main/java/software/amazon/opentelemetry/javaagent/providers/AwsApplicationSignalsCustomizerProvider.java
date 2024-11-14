@@ -96,6 +96,8 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
   private static final String OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG =
       "otel.java.disabled.resource.providers";
+  private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
+      "otel.bsp.max.export.batch.size";
 
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
@@ -164,7 +166,7 @@ public class AwsApplicationSignalsCustomizerProvider
 
       // Set the max export batch size for BatchSpanProcessors
       propsOverride.put(
-          "otel.bsp.max.export.batch.size", String.valueOf(LAMBDA_SPAN_EXPORT_BATCH_SIZE));
+          OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG, String.valueOf(LAMBDA_SPAN_EXPORT_BATCH_SIZE));
 
       return propsOverride;
     }
