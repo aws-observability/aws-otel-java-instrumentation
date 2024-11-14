@@ -94,6 +94,8 @@ public class AwsApplicationSignalsCustomizerProvider
       "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
   private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
+  private static final String OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG =
+      "otel.java.disabled.resource.providers";
 
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
@@ -102,6 +104,7 @@ public class AwsApplicationSignalsCustomizerProvider
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
+    autoConfiguration.addPropertiesCustomizer(this::customizeLambdaEnvProperties);
     autoConfiguration.addResourceCustomizer(this::customizeResource);
     autoConfiguration.addSamplerCustomizer(this::customizeSampler);
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
@@ -140,6 +143,30 @@ public class AwsApplicationSignalsCustomizerProvider
         propsOverride.put(OTEL_JMX_TARGET_SYSTEM_CONFIG, String.join(",", jmxTargets));
         return propsOverride;
       }
+    }
+    return Collections.emptyMap();
+  }
+
+  private Map<String, String> customizeLambdaEnvProperties(ConfigProperties configProperties) {
+    if (isLambdaEnvironment()) {
+      Map<String, String> propsOverride = new HashMap<>(2);
+
+      // Disable other AWS Resource Providers
+      List<String> list = configProperties.getList(OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG);
+      List<String> disabledResourceProviders = new ArrayList<>(list);
+      disabledResourceProviders.add(
+          "io.opentelemetry.contrib.aws.resource.BeanstalkResourceProvider");
+      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.Ec2ResourceProvider");
+      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.EcsResourceProvider");
+      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.EksResourceProvider");
+      propsOverride.put(
+          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG, String.join(",", disabledResourceProviders));
+
+      // Set the max export batch size for BatchSpanProcessors
+      propsOverride.put(
+          "otel.bsp.max.export.batch.size", String.valueOf(LAMBDA_SPAN_EXPORT_BATCH_SIZE));
+
+      return propsOverride;
     }
     return Collections.emptyMap();
   }
