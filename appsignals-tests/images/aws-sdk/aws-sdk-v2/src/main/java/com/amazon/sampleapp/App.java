@@ -622,10 +622,11 @@ public class App {
           request.put("top_p", 0.8);
           request.put("temperature", 0.7);
 
-          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
-              .modelId("ai21.jamba-1-5-mini-v1:0")
-              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
-              .build();
+          InvokeModelRequest invokeModelRequest =
+              InvokeModelRequest.builder()
+                  .modelId("ai21.jamba-1-5-mini-v1:0")
+                  .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+                  .build();
 
           bedrockRuntimeClient.invokeModel(invokeModelRequest);
 
@@ -647,10 +648,11 @@ public class App {
 
           request.put("textGenerationConfig", config);
 
-          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
-              .modelId("amazon.titan-text-premier-v1:0")
-              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
-              .build();
+          InvokeModelRequest invokeModelRequest =
+              InvokeModelRequest.builder()
+                  .modelId("amazon.titan-text-premier-v1:0")
+                  .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+                  .build();
 
           bedrockRuntimeClient.invokeModel(invokeModelRequest);
 
@@ -676,10 +678,11 @@ public class App {
           request.put("top_p", 0.53);
           request.put("temperature", 0.6);
 
-          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
-              .modelId("anthropic.claude-3-haiku-20240307-v1:0")
-              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
-              .build();
+          InvokeModelRequest invokeModelRequest =
+              InvokeModelRequest.builder()
+                  .modelId("anthropic.claude-3-haiku-20240307-v1:0")
+                  .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+                  .build();
 
           bedrockRuntimeClient.invokeModel(invokeModelRequest);
 
@@ -698,10 +701,11 @@ public class App {
           request.put("max_tokens", 4096);
           request.put("p", 0.45);
 
-          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
-              .modelId("cohere.command-r-v1:0")
-              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
-              .build();
+          InvokeModelRequest invokeModelRequest =
+              InvokeModelRequest.builder()
+                  .modelId("cohere.command-r-v1:0")
+                  .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+                  .build();
 
           bedrockRuntimeClient.invokeModel(invokeModelRequest);
 
@@ -716,20 +720,21 @@ public class App {
           Map<String, Object> request = new HashMap<>();
 
           String prompt = "Describe the purpose of a 'hello world' program in one line";
-          String instruction = String.format(
-              "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n%s<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n",
-              prompt
-          );
+          String instruction =
+              String.format(
+                  "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n%s<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n",
+                  prompt);
 
           request.put("prompt", instruction);
           request.put("max_gen_len", 128);
           request.put("temperature", 0.1);
           request.put("top_p", 0.9);
 
-          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
-              .modelId("meta.llama3-70b-instruct-v1:0")
-              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
-              .build();
+          InvokeModelRequest invokeModelRequest =
+              InvokeModelRequest.builder()
+                  .modelId("meta.llama3-70b-instruct-v1:0")
+                  .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+                  .build();
 
           bedrockRuntimeClient.invokeModel(invokeModelRequest);
 
@@ -751,10 +756,11 @@ public class App {
           request.put("temperature", 0.75);
           request.put("top_p", 0.25);
 
-          InvokeModelRequest invokeModelRequest = InvokeModelRequest.builder()
-              .modelId("mistral.mistral-large-2402-v1:0")
-              .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
-              .build();
+          InvokeModelRequest invokeModelRequest =
+              InvokeModelRequest.builder()
+                  .modelId("mistral.mistral-large-2402-v1:0")
+                  .body(SdkBytes.fromUtf8String(mapper.writeValueAsString(request)))
+                  .build();
 
           bedrockRuntimeClient.invokeModel(invokeModelRequest);
 

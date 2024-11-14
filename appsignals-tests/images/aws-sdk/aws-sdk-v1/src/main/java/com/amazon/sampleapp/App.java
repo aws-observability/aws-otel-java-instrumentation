@@ -56,6 +56,7 @@ import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.net.http.HttpClient;
@@ -66,8 +67,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -667,7 +666,7 @@ public class App {
                   .withBody(StandardCharsets.UTF_8.encode(mapper.writeValueAsString(request)));
 
           var response = bedrockRuntimeClient.invokeModel(invokeModelRequest);
-          var responseBody  = new String(response.getBody().array(), StandardCharsets.UTF_8);
+          var responseBody = new String(response.getBody().array(), StandardCharsets.UTF_8);
 
           return "";
         });
@@ -705,10 +704,10 @@ public class App {
           Map<String, Object> request = new HashMap<>();
 
           String prompt = "Describe the purpose of a 'hello world' program in one line";
-          String instruction = String.format(
-              "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n%s<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n",
-              prompt
-          );
+          String instruction =
+              String.format(
+                  "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n%s<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n",
+                  prompt);
 
           request.put("prompt", instruction);
           request.put("max_gen_len", 128);

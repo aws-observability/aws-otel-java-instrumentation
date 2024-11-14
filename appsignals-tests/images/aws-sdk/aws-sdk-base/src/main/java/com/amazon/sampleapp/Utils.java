@@ -229,7 +229,9 @@ public class Utils {
             usage.put("output_tokens", 503);
             jsonResponse.set("usage", usage);
           } else if (modelId.contains("cohere.command")) {
-            jsonResponse.put("text", "LISP's elegant simplicity and powerful macro system make it perfect for building interpreters!");
+            jsonResponse.put(
+                "text",
+                "LISP's elegant simplicity and powerful macro system make it perfect for building interpreters!");
             jsonResponse.put("finish_reason", "COMPLETE");
           } else if (modelId.contains("meta.llama")) {
             jsonResponse.put("prompt_token_count", 2095);
@@ -239,7 +241,9 @@ public class Utils {
             ArrayNode outputs = mapper.createArrayNode();
             ObjectNode output = mapper.createObjectNode();
 
-            output.put("text", "A compiler translates the entire source code to machine code before execution, while an interpreter executes the code line by line in real-time.");
+            output.put(
+                "text",
+                "A compiler translates the entire source code to machine code before execution, while an interpreter executes the code line by line in real-time.");
             output.put("stop_reason", "stop");
 
             outputs.add(output);

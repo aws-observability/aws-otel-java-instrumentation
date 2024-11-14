@@ -1833,8 +1833,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.8"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "5"),
-            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "42")
-        ));
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "42")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1897,20 +1896,15 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         200,
         List.of(
             assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "amazon.titan-text-premier-v1:0"),
-            assertAttribute(
-               SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "100"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.7"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
+                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
+                "amazon.titan-text-premier-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "100"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.7"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[FINISHED]"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "10"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "15")
-        ));
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "10"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "15")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1947,12 +1941,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var response = appClient.get("/bedrockruntime/invokeModel/anthropicClaude").aggregate().join();
 
     var traces = mockCollectorClient.getTraces();
-    var metrics = mockCollectorClient.getMetrics(
-        Set.of(
-            AppSignalsConstants.ERROR_METRIC,
-            AppSignalsConstants.FAULT_METRIC,
-            AppSignalsConstants.LATENCY_METRIC
-        ));
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /bedrockruntime/invokeModel/anthropicClaude";
@@ -1975,20 +1969,15 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         200,
         List.of(
             assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,  "anthropic.claude-3-haiku-20240307-v1:0"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "512"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.6"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.53"),
+                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
+                "anthropic.claude-3-haiku-20240307-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "512"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.6"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.53"),
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[end_turn]"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "2095"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "503")
-        ));
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "2095"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "503")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -2025,11 +2014,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var response = appClient.get("/bedrockruntime/invokeModel/cohereCommandR").aggregate().join();
 
     var traces = mockCollectorClient.getTraces();
-    var metrics = mockCollectorClient.getMetrics(
-        Set.of(
-            AppSignalsConstants.ERROR_METRIC,
-            AppSignalsConstants.FAULT_METRIC,
-            AppSignalsConstants.LATENCY_METRIC));
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /bedrockruntime/invokeModel/cohereCommandR";
@@ -2053,19 +2043,13 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "cohere.command-r-v1:0"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.8"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.45"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.8"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.45"),
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[COMPLETE]"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "9"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "16")
-        ));
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "9"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "16")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -2102,12 +2086,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var response = appClient.get("/bedrockruntime/invokeModel/metaLlama").aggregate().join();
 
     var traces = mockCollectorClient.getTraces();
-    var metrics = mockCollectorClient.getMetrics(
-        Set.of(
-            AppSignalsConstants.ERROR_METRIC,
-            AppSignalsConstants.FAULT_METRIC,
-            AppSignalsConstants.LATENCY_METRIC)
-    );
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /bedrockruntime/invokeModel/metaLlama";
@@ -2131,19 +2115,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "meta.llama3-70b-instruct-v1:0"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "128"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.1"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "2095"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "503")
-        ));
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "128"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.1"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "2095"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "503")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -2180,12 +2157,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     var response = appClient.get("/bedrockruntime/invokeModel/mistralAi").aggregate().join();
 
     var traces = mockCollectorClient.getTraces();
-    var metrics = mockCollectorClient.getMetrics(
-        Set.of(
-            AppSignalsConstants.ERROR_METRIC,
-            AppSignalsConstants.FAULT_METRIC,
-            AppSignalsConstants.LATENCY_METRIC)
-    );
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
 
     var localService = getApplicationOtelServiceName();
     var localOperation = "GET /bedrockruntime/invokeModel/mistralAi";
@@ -2208,20 +2185,14 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         200,
         List.of(
             assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "mistral.mistral-large-2402-v1:0"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.75"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.25"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "15"),
-            assertAttribute(
-                SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "24")
-        ));
+                SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
+                "mistral.mistral-large-2402-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.75"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.25"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "15"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "24")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
