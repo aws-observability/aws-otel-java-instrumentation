@@ -20,8 +20,10 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
@@ -45,6 +47,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -66,6 +69,8 @@ import java.util.logging.Logger;
  */
 public class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
+  static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
@@ -85,14 +90,32 @@ public class AwsApplicationSignalsCustomizerProvider
       "otel.aws.application.signals.exporter.endpoint";
 
   private static final String OTEL_JMX_TARGET_SYSTEM_CONFIG = "otel.jmx.target.system";
+  private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
+      "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+  private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
+  private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
+  private static final String OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG =
+      "otel.java.disabled.resource.providers";
+  private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
+      "otel.bsp.max.export.batch.size";
+
+  // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
+  // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
+  // 64KB batch since spans can vary in size.
+  private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
+    autoConfiguration.addPropertiesCustomizer(this::customizeLambdaEnvProperties);
     autoConfiguration.addResourceCustomizer(this::customizeResource);
     autoConfiguration.addSamplerCustomizer(this::customizeSampler);
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
     autoConfiguration.addMeterProviderCustomizer(this::customizeMeterProvider);
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
+  }
+
+  static boolean isLambdaEnvironment() {
+    return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
   }
 
   private boolean isApplicationSignalsEnabled(ConfigProperties configProps) {
@@ -122,6 +145,30 @@ public class AwsApplicationSignalsCustomizerProvider
         propsOverride.put(OTEL_JMX_TARGET_SYSTEM_CONFIG, String.join(",", jmxTargets));
         return propsOverride;
       }
+    }
+    return Collections.emptyMap();
+  }
+
+  private Map<String, String> customizeLambdaEnvProperties(ConfigProperties configProperties) {
+    if (isLambdaEnvironment()) {
+      Map<String, String> propsOverride = new HashMap<>(2);
+
+      // Disable other AWS Resource Providers
+      List<String> list = configProperties.getList(OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG);
+      List<String> disabledResourceProviders = new ArrayList<>(list);
+      disabledResourceProviders.add(
+          "io.opentelemetry.contrib.aws.resource.BeanstalkResourceProvider");
+      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.Ec2ResourceProvider");
+      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.EcsResourceProvider");
+      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.EksResourceProvider");
+      propsOverride.put(
+          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG, String.join(",", disabledResourceProviders));
+
+      // Set the max export batch size for BatchSpanProcessors
+      propsOverride.put(
+          OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG, String.valueOf(LAMBDA_SPAN_EXPORT_BATCH_SIZE));
+
+      return propsOverride;
     }
     return Collections.emptyMap();
   }
@@ -156,6 +203,17 @@ public class AwsApplicationSignalsCustomizerProvider
       // Construct and set local and remote attributes span processor
       tracerProviderBuilder.addSpanProcessor(
           AttributePropagatingSpanProcessorBuilder.create().build());
+
+      // If running on Lambda, we just need to export 100% spans and skip generating any Application
+      // Signals metrics.
+      if (isLambdaEnvironment()) {
+        tracerProviderBuilder.addSpanProcessor(
+            AwsUnsampledOnlySpanProcessorBuilder.create()
+                .setMaxExportBatchSize(LAMBDA_SPAN_EXPORT_BATCH_SIZE)
+                .build());
+        return tracerProviderBuilder;
+      }
+
       // Construct meterProvider
       MetricExporter metricsExporter =
           ApplicationSignalsExporterProvider.INSTANCE.createExporter(configProps);
@@ -207,6 +265,21 @@ public class AwsApplicationSignalsCustomizerProvider
 
   private SpanExporter customizeSpanExporter(
       SpanExporter spanExporter, ConfigProperties configProps) {
+    // When running in Lambda, override the default OTLP exporter with UDP exporter
+    if (isLambdaEnvironment()) {
+      if (isOtlpSpanExporter(spanExporter)
+          && System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) == null) {
+        String tracesEndpoint =
+            Optional.ofNullable(System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG))
+                .orElse(DEFAULT_UDP_ENDPOINT);
+        spanExporter =
+            new OtlpUdpSpanExporterBuilder()
+                .setPayloadSampleDecision(TracePayloadSampleDecision.SAMPLED)
+                .setEndpoint(tracesEndpoint)
+                .build();
+      }
+    }
+
     if (isApplicationSignalsEnabled(configProps)) {
       return AwsMetricAttributesSpanExporterBuilder.create(
               spanExporter, ResourceHolder.getResource())
@@ -214,6 +287,11 @@ public class AwsApplicationSignalsCustomizerProvider
     }
 
     return spanExporter;
+  }
+
+  private boolean isOtlpSpanExporter(SpanExporter spanExporter) {
+    return spanExporter instanceof OtlpGrpcSpanExporter
+        || spanExporter instanceof OtlpHttpSpanExporter;
   }
 
   private enum ApplicationSignalsExporterProvider {

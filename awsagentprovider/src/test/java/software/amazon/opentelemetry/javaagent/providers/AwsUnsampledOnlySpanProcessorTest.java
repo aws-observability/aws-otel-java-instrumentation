@@ -35,19 +35,19 @@ public class AwsUnsampledOnlySpanProcessorTest {
 
   @Test
   public void testIsStartRequired() {
-    SpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    SpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     assertThat(processor.isStartRequired()).isTrue();
   }
 
   @Test
   public void testIsEndRequired() {
-    SpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    SpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     assertThat(processor.isEndRequired()).isTrue();
   }
 
   @Test
   public void testDefaultSpanProcessor() {
-    AwsUnsampledOnlySpanProcessorBuilder builder = AwsUnsampledOnlySpanProcessor.builder();
+    AwsUnsampledOnlySpanProcessorBuilder builder = AwsUnsampledOnlySpanProcessorBuilder.create();
     AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
 
     assertThat(builder.getSpanExporter()).isInstanceOf(OtlpUdpSpanExporter.class);
@@ -59,12 +59,14 @@ public class AwsUnsampledOnlySpanProcessorTest {
         .contains(
             "spanExporter=software.amazon.opentelemetry.javaagent.providers.OtlpUdpSpanExporter");
     assertThat(delegateBspString).contains("exportUnsampledSpans=true");
+    assertThat(delegateBspString).contains("maxExportBatchSize=512");
   }
 
   @Test
   public void testSpanProcessorWithExporter() {
     AwsUnsampledOnlySpanProcessorBuilder builder =
-        AwsUnsampledOnlySpanProcessor.builder().setSpanExporter(InMemorySpanExporter.create());
+        AwsUnsampledOnlySpanProcessorBuilder.create()
+            .setSpanExporter(InMemorySpanExporter.create());
     AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
 
     assertThat(builder.getSpanExporter()).isInstanceOf(InMemorySpanExporter.class);
@@ -78,6 +80,19 @@ public class AwsUnsampledOnlySpanProcessorTest {
   }
 
   @Test
+  public void testSpanProcessorWithBatchSize() {
+    AwsUnsampledOnlySpanProcessorBuilder builder =
+        AwsUnsampledOnlySpanProcessorBuilder.create().setMaxExportBatchSize(100);
+    AwsUnsampledOnlySpanProcessor unsampledSP = builder.build();
+
+    SpanProcessor delegate = unsampledSP.getDelegate();
+    assertThat(delegate).isInstanceOf(BatchSpanProcessor.class);
+    BatchSpanProcessor delegateBsp = (BatchSpanProcessor) delegate;
+    String delegateBspString = delegateBsp.toString();
+    assertThat(delegateBspString).contains("maxExportBatchSize=100");
+  }
+
+  @Test
   public void testStartAddsAttributeToSampledSpan() {
     SpanContext mockSpanContext = mock(SpanContext.class);
     when(mockSpanContext.isSampled()).thenReturn(true);
@@ -85,7 +100,7 @@ public class AwsUnsampledOnlySpanProcessorTest {
     ReadWriteSpan spanMock = mock(ReadWriteSpan.class);
     when(spanMock.getSpanContext()).thenReturn(mockSpanContext);
 
-    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     processor.onStart(parentContextMock, spanMock);
 
     // verify setAttribute was never called
@@ -100,7 +115,7 @@ public class AwsUnsampledOnlySpanProcessorTest {
     ReadWriteSpan spanMock = mock(ReadWriteSpan.class);
     when(spanMock.getSpanContext()).thenReturn(mockSpanContext);
 
-    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessor.builder().build();
+    AwsUnsampledOnlySpanProcessor processor = AwsUnsampledOnlySpanProcessorBuilder.create().build();
     processor.onStart(parentContextMock, spanMock);
 
     // verify setAttribute was called with the correct arguments
