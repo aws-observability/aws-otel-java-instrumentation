@@ -3177,8 +3177,8 @@ index fdf57bdbea..c38a2e00f3 100644
 @@ -1,5 +1,5 @@
 -val stableVersion = "1.32.1"
 -val alphaVersion = "1.32.1-alpha"
-+val stableVersion = "1.32.1-adot2"
-+val alphaVersion = "1.32.1-adot2-alpha"
++val stableVersion = "1.32.1-adot1"
++val alphaVersion = "1.32.1-adot1-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {
