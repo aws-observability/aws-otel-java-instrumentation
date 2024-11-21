@@ -224,7 +224,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: contractTests -PlocalDocker=true
+          arguments: contractTests -PlocalDocker=true --no-build-cache
 
   application-signals-e2e-test:
     needs: [build]
