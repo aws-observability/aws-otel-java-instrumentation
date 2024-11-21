@@ -21,6 +21,9 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 final class AwsUnsampledOnlySpanProcessorBuilder {
+  public static AwsUnsampledOnlySpanProcessorBuilder create() {
+    return new AwsUnsampledOnlySpanProcessorBuilder();
+  }
 
   // Default exporter is OtlpUdpSpanExporter with unsampled payload prefix
   private SpanExporter exporter =
@@ -28,18 +31,30 @@ final class AwsUnsampledOnlySpanProcessorBuilder {
           .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
           .build();
 
+  // Default batch size to be same as Otel BSP default
+  private int maxExportBatchSize = 512;
+
   public AwsUnsampledOnlySpanProcessorBuilder setSpanExporter(SpanExporter exporter) {
     requireNonNull(exporter, "exporter cannot be null");
     this.exporter = exporter;
     return this;
   }
 
+  public AwsUnsampledOnlySpanProcessorBuilder setMaxExportBatchSize(int maxExportBatchSize) {
+    this.maxExportBatchSize = maxExportBatchSize;
+    return this;
+  }
+
   public AwsUnsampledOnlySpanProcessor build() {
     BatchSpanProcessor bsp =
-        BatchSpanProcessor.builder(exporter).setExportUnsampledSpans(true).build();
+        BatchSpanProcessor.builder(exporter)
+            .setExportUnsampledSpans(true)
+            .setMaxExportBatchSize(maxExportBatchSize)
+            .build();
     return new AwsUnsampledOnlySpanProcessor(bsp);
   }
 
+  // Visible for testing
   SpanExporter getSpanExporter() {
     return exporter;
   }
