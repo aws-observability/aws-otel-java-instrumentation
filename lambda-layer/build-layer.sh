@@ -3,15 +3,21 @@
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 
-## revert https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/7970
-OTEL_VERSION="1.32.1"
-ADOT_VERSION="1.32.1"
+## Get OTel version
+file="$SOURCEDIR/../.github/patches/versions"
+version=$(awk -F'=v' '/OTEL_JAVA_INSTRUMENTATION_VERSION/ {print $2}' "$file")
+echo "Found OTEL Version: ${version}"
+# Exit if the version is empty or null
+if [[ -z "$version" ]]; then
+  echo "Error: Version could not be found in ${file}."
+  exit 1
+fi
 
 
 ## Clone and Patch the OpenTelemetry Java Instrumentation Repository
 git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
 pushd opentelemetry-java-instrumentation
-git checkout v${OTEL_VERSION} -b tag-v${OTEL_VERSION}
+git checkout v${version} -b tag-v${version}
 
 # This patch is for Lambda related context propagation
 patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
@@ -29,7 +35,7 @@ rm -rf opentelemetry-java-instrumentation
 ## Build the ADOT Java from current source
 pushd "$SOURCEDIR"/..
 patch  -p1 < "${SOURCEDIR}"/patches/aws-otel-java-instrumentation.patch
-CI=false ./gradlew publishToMavenLocal -Prelease.version=${ADOT_VERSION}-adot-lambda1
+CI=false ./gradlew publishToMavenLocal -Prelease.version=${version}-adot-lambda1
 popd
 
 
