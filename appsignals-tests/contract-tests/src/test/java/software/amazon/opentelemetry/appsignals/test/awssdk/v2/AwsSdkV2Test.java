@@ -220,8 +220,33 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Test
-  void testBedrockRuntimeModelId() {
-    doTestBedrockRuntimeModelId();
+  void testBedrockRuntimeAmazonTitan() {
+    doTestBedrockRuntimeAmazonTitan();
+  }
+
+  @Test
+  void testBedrockRuntimeAi21Jamba() {
+    doTestBedrockRuntimeAi21Jamba();
+  }
+
+  @Test
+  void testBedrockRuntimeAnthropicClaude() {
+    doTestBedrockRuntimeAnthropicClaude();
+  }
+
+  @Test
+  void testBedrockRuntimeCohereCommandR() {
+    doTestBedrockRuntimeCohereCommandR();
+  }
+
+  @Test
+  void testBedrockRuntimeMetaLlama() {
+    doTestBedrockRuntimeMetaLlama();
+  }
+
+  @Test
+  void testBedrockRuntimeMistral() {
+    doTestBedrockRuntimeMistral();
   }
 
   @Test
@@ -236,8 +261,8 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
 
   // TODO: Enable testBedrockAgentRuntimeKnowledgeBaseId test after KnowledgeBaseId is supported in
   // OTEL BedrockAgentRuntime instrumentation
-  //  @Test
-  //  void testBedrockAgentRuntimeKnowledgeBaseId() {
-  //    doTestBedrockAgentRuntimeKnowledgeBaseId();
-  //  }
+  @Test
+  void testBedrockAgentRuntimeKnowledgeBaseId() {
+    doTestBedrockAgentRuntimeKnowledgeBaseId();
+  }
 }
