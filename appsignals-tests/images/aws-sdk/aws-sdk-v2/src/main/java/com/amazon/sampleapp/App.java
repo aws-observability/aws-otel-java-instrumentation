@@ -68,6 +68,11 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.CreateSecretRequest;
+import software.amazon.awssdk.services.secretsmanager.model.DescribeSecretRequest;
+import software.amazon.awssdk.services.secretsmanager.model.ListSecretsRequest;
+import software.amazon.awssdk.services.secretsmanager.model.SecretListEntry;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
@@ -121,6 +126,7 @@ public class App {
     setupS3();
     setupSqs();
     setupKinesis();
+    setupSecretsManager();
     setupBedrock();
     // Add this log line so that we only start testing after all routes are configured.
     awaitInitialization();
@@ -527,6 +533,91 @@ public class App {
                 faultClient.getObject(
                     GetObjectRequest.builder().bucket("fault-bucket").key("fault-object").build());
           } catch (Exception e) {
+          }
+          return "";
+        });
+  }
+
+  private static void setupSecretsManager() {
+    var secretsManagerClient =
+        SecretsManagerClient.builder()
+            .endpointOverride(endpoint)
+            .credentialsProvider(CREDENTIALS_PROVIDER)
+            .build();
+    var secretName = "test-secret-id";
+    String existingSecretArn = null;
+    try {
+      var listRequest = ListSecretsRequest.builder().build();
+      var listResponse = secretsManagerClient.listSecrets(listRequest);
+      existingSecretArn =
+          listResponse.secretList().stream()
+              .filter(secret -> secret.name().contains(secretName))
+              .findFirst()
+              .map(SecretListEntry::arn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing secrets", e);
+    }
+
+    if (existingSecretArn != null) {
+      logger.debug("Secret already exists, skipping creation");
+    } else {
+      logger.debug("Secret not found, creating a new one");
+      var createSecretRequest = CreateSecretRequest.builder().name(secretName).build();
+      var createSecretResponse = secretsManagerClient.createSecret(createSecretRequest);
+      existingSecretArn = createSecretResponse.arn();
+    }
+
+    String finalExistingSecretArn = existingSecretArn;
+    get(
+        "/secretsmanager/describesecret/:secretId",
+        (req, res) -> {
+          var describeRequest =
+              DescribeSecretRequest.builder().secretId(finalExistingSecretArn).build();
+          secretsManagerClient.describeSecret(describeRequest);
+          return "";
+        });
+
+    get(
+        "/secretsmanager/error",
+        (req, res) -> {
+          setMainStatus(400);
+          var errorClient =
+              SecretsManagerClient.builder()
+                  .endpointOverride(URI.create("http://error.test:8080"))
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          try {
+            var describeRequest =
+                DescribeSecretRequest.builder()
+                    .secretId("arn:aws:secretsmanager:us-west-2:000000000000:secret:nonexistent-secret-id")
+                    .build();
+            errorClient.describeSecret(describeRequest);
+          } catch (Exception e) {
+            logger.error("Error describing secret", e);
+          }
+          return "";
+        });
+
+    get(
+        "/secretsmanager/fault",
+        (req, res) -> {
+          setMainStatus(500);
+          var faultClient =
+              SecretsManagerClient.builder()
+                  .endpointOverride(URI.create("http://fault.test:8080"))
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          try {
+            var describeRequest =
+                DescribeSecretRequest.builder()
+                    .secretId("arn:aws:secretsmanager:us-west-2:000000000000:secret:fault-secret-id")
+                    .build();
+            faultClient.describeSecret(describeRequest);
+          } catch (Exception e) {
+            logger.error("Error describing secret", e);
           }
           return "";
         });

@@ -70,6 +70,7 @@ public class SemanticConventionsConstants {
   public static final String GEN_AI_RESPONSE_FINISH_REASONS = "gen_ai.response.finish_reasons";
   public static final String GEN_AI_USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens";
   public static final String GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens";
+  public static final String AWS_SECRET_ARN = "aws.secretsmanager.secret.arn";
 
   // kafka
   public static final String MESSAGING_CLIENT_ID = "messaging.client_id";

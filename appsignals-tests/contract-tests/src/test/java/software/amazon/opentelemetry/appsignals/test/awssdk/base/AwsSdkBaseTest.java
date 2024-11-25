@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,7 +43,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               LocalStackContainer.Service.S3,
               LocalStackContainer.Service.DYNAMODB,
               LocalStackContainer.Service.SQS,
-              LocalStackContainer.Service.KINESIS)
+              LocalStackContainer.Service.KINESIS,
+              LocalStackContainer.Service.SECRETSMANAGER)
           .withEnv("DEFAULT_REGION", "us-west-2")
           .withNetwork(network)
           .withEnv("LOCALSTACK_HOST", "127.0.0.1")
@@ -102,6 +104,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   protected abstract String getBedrockAgentRuntimeSpanNamePrefix();
 
+  protected abstract String getSecretsManagerSpanNamePrefix();
+
   protected abstract String getS3RpcServiceName();
 
   protected abstract String getDynamoDbRpcServiceName();
@@ -117,6 +121,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   protected abstract String getBedrockRuntimeRpcServiceName();
 
   protected abstract String getBedrockAgentRuntimeRpcServiceName();
+
+  protected abstract String getSecretsManagerRpcServiceName();
 
   private String getS3ServiceName() {
     return "AWS::S3";
@@ -148,6 +154,10 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   private String getBedrockRuntimeServiceName() {
     return "AWS::BedrockRuntime";
+  }
+
+  private String getSecretsManagerServiceName() {
+    return "AWS::SecretsManager";
   }
 
   private String s3SpanName(String operation) {
@@ -182,10 +192,23 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     return String.format("%s.%s", getBedrockAgentRuntimeSpanNamePrefix(), operation);
   }
 
+  private String secretsManagerSpanName(String operation) {
+    return String.format("%s.%s", getSecretsManagerSpanNamePrefix(), operation);
+  }
+
   protected ThrowingConsumer<KeyValue> assertAttribute(String key, String value) {
     return (attribute) -> {
-      assertThat(attribute.getKey()).isEqualTo(key);
-      assertThat(attribute.getValue().getStringValue()).isEqualTo(value);
+      var actualKey = attribute.getKey();
+      var actualValue = attribute.getValue().getStringValue();
+
+      assertThat(actualKey).isEqualTo(key);
+
+      // We only want to Regex Pattern Match on the Secret Id and Secret Arn
+      if (actualValue.contains("secret-id")) {
+        assertThat(actualValue).matches(value);
+      } else {
+        assertThat(actualValue).isEqualTo(value);
+      }
     };
   }
 
@@ -413,7 +436,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_OPERATION, operation))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_REMOTE_SERVICE, service))
             .satisfiesOnlyOnce(assertAttribute(AppSignalsConstants.AWS_SPAN_KIND, spanKind));
-    if (type != null && identifier != null) {
+    if (type != null && identifier != null && clouformationIdentifier != null) {
       assertions.satisfiesOnlyOnce(
           assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_TYPE, type));
       assertions.satisfiesOnlyOnce(
@@ -2575,6 +2598,200 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        0.0);
+  }
+
+  protected void doTestSecretsManagerDescribeSecret() throws Exception {
+    appClient.get("/secretsmanager/describesecret/test-secret-id").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /secretsmanager/describesecret/:secretId";
+    var type = "AWS::SecretsManager::Secret";
+    var identifier = "test-secret-id-[A-Za-z0-9]{6}";
+    var cloudformationIdentifier =
+        "arn:aws:secretsmanager:us-west-2:000000000000:secret:test-secret-id-[A-Za-z0-9]{6}";
+    assertSpanClientAttributes(
+        traces,
+        secretsManagerSpanName("DescribeSecret"),
+        getSecretsManagerRpcServiceName(),
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        "localstack",
+        4566,
+        "http://localstack:4566",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_SECRET_ARN,
+                "arn:aws:secretsmanager:us-west-2:000000000000:secret:test-secret-id-[A-Za-z0-9]{6}")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+  }
+
+  protected void doTestSecretsManagerError() throws Exception {
+    appClient.get("/secretsmanager/error").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /secretsmanager/error";
+    assertSpanClientAttributes(
+        traces,
+        secretsManagerSpanName("DescribeSecret"),
+        getSecretsManagerRpcServiceName(),
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        "error.test",
+        8080,
+        "http://error.test:8080",
+        400,
+        List.of());
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        1.0);
+  }
+
+  protected void doTestSecretsManagerFault() throws Exception {
+    appClient.get("/secretsmanager/fault").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /secretsmanager/fault";
+    assertSpanClientAttributes(
+        traces,
+        secretsManagerSpanName("DescribeSecret"),
+        getSecretsManagerRpcServiceName(),
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        "fault.test",
+        8080,
+        "http://fault.test:8080",
+        500,
+        List.of());
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
+        1.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSecretsManagerServiceName(),
+        "DescribeSecret",
+        null,
+        null,
+        null,
         0.0);
   }
 }

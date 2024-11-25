@@ -76,6 +76,11 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Override
+  protected String getSecretsManagerSpanNamePrefix() {
+    return "SecretsManager";
+  }
+
+  @Override
   protected String getS3RpcServiceName() {
     return "S3";
   }
@@ -112,6 +117,11 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   @Override
   protected String getBedrockAgentRuntimeRpcServiceName() {
     return "BedrockAgentRuntime";
+  }
+
+  @Override
+  protected String getSecretsManagerRpcServiceName() {
+    return "SecretsManager";
   }
 
   @Test
@@ -259,10 +269,23 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
     doTestBedrockAgentRuntimeAgentId();
   }
 
-  // TODO: Enable testBedrockAgentRuntimeKnowledgeBaseId test after KnowledgeBaseId is supported in
-  // OTEL BedrockAgentRuntime instrumentation
   @Test
   void testBedrockAgentRuntimeKnowledgeBaseId() {
     doTestBedrockAgentRuntimeKnowledgeBaseId();
+  }
+
+  @Test
+  void testSecretsManagerDescribeSecret() throws Exception {
+    doTestSecretsManagerDescribeSecret();
+  }
+
+  @Test
+  void testSecretsManagerError() throws Exception {
+    doTestSecretsManagerError();
+  }
+
+  @Test
+  void testSecretsManagerFault() throws Exception {
+    doTestSecretsManagerFault();
   }
 }

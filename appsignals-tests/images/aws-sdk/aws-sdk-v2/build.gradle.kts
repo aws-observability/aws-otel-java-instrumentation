@@ -33,6 +33,7 @@ dependencies {
   implementation("software.amazon.awssdk:dynamodb")
   implementation("software.amazon.awssdk:sqs")
   implementation("software.amazon.awssdk:kinesis")
+  implementation("software.amazon.awssdk:secretsmanager")
   implementation("software.amazon.awssdk:bedrock")
   implementation("software.amazon.awssdk:bedrockagent")
   implementation("software.amazon.awssdk:bedrockruntime")

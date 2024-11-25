@@ -52,6 +52,11 @@ import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.Region;
+import com.amazonaws.services.secretsmanager.AWSSecretsManagerClient;
+import com.amazonaws.services.secretsmanager.model.CreateSecretRequest;
+import com.amazonaws.services.secretsmanager.model.DescribeSecretRequest;
+import com.amazonaws.services.secretsmanager.model.ListSecretsRequest;
+import com.amazonaws.services.secretsmanager.model.SecretListEntry;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
@@ -125,6 +130,7 @@ public class App {
     setupS3();
     setupSqs();
     setupKinesis();
+    setupSecretsManager();
     setupBedrock();
 
     // Add this log line so that we only start testing after all routes are configured.
@@ -515,6 +521,84 @@ public class App {
 
           }
           return "";
+        });
+  }
+
+  private static void setupSecretsManager() {
+    var secretsManagerClient =
+        AWSSecretsManagerClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(endpointConfiguration)
+            .build();
+    var secretName = "test-secret-id";
+    String existingSecretArn = null;
+    try {
+      var listRequest = new ListSecretsRequest();
+      var listResponse = secretsManagerClient.listSecrets(listRequest);
+      existingSecretArn =
+          listResponse.getSecretList().stream()
+              .filter(secret -> secret.getName().contains(secretName))
+              .findFirst()
+              .map(SecretListEntry::getARN)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing secrets", e);
+    }
+
+    if (existingSecretArn != null) {
+      logger.debug("Secret already exists, skipping creation");
+    } else {
+      logger.info("Secret not found, creating new one");
+      var createSecretRequest = new CreateSecretRequest().withName(secretName);
+      var createSecretResponse = secretsManagerClient.createSecret(createSecretRequest);
+      existingSecretArn = createSecretResponse.getARN();
+    }
+
+    String finalExistingSecretArn = existingSecretArn;
+    get(
+        "/secretsmanager/describesecret/:secretId",
+        (req, res) -> {
+          var describeRequest = new DescribeSecretRequest().withSecretId(finalExistingSecretArn);
+          secretsManagerClient.describeSecret(describeRequest);
+          return "";
+        });
+
+    get(
+          "/secretsmanager/error",
+        (req, res) -> {
+            setMainStatus(400);
+            var errorClient =
+                AWSSecretsManagerClient.builder()
+                    .withCredentials(CREDENTIALS_PROVIDER)
+                    .withEndpointConfiguration(new EndpointConfiguration("http://error.test:8080", Regions.US_WEST_2.getName()))
+                    .build();
+
+            try {
+              var describeRequest = new DescribeSecretRequest().withSecretId("arn:aws:secretsmanager:us-west-2:000000000000:secret:nonexistent-secret-id");
+              errorClient.describeSecret(describeRequest);
+            } catch (Exception e) {
+              logger.debug("Error describing secret", e);
+            }
+            return "";
+        });
+
+    get(
+        "/secretsmanager/fault",
+        (req, res) -> {
+          setMainStatus(500);
+          var faultClient =
+              AWSSecretsManagerClient.builder()
+                  .withCredentials(CREDENTIALS_PROVIDER)
+                  .withEndpointConfiguration(new EndpointConfiguration("http://fault.test:8080", Regions.US_WEST_2.getName()))
+                  .build();
+
+          try {
+            var describeRequest = new DescribeSecretRequest().withSecretId("arn:aws:secretsmanager:us-west-2:000000000000:secret:fault-secret-id");
+            faultClient.describeSecret(describeRequest);
+          } catch (Exception e) {
+            logger.debug("Error describing secret", e);
+          }
+          return"";
         });
   }
 
