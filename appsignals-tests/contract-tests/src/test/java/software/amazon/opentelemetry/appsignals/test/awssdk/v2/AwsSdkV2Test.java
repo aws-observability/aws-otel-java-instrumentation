@@ -81,6 +81,11 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Override
+  protected String getStepFunctionsSpanNamePrefix() {
+    return "Sfn";
+  }
+
+  @Override
   protected String getS3RpcServiceName() {
     return "S3";
   }
@@ -122,6 +127,11 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   @Override
   protected String getSecretsManagerRpcServiceName() {
     return "SecretsManager";
+  }
+
+  @Override
+  protected String getStepFunctionsRpcServiceName() {
+    return "Sfn";
   }
 
   @Test
@@ -287,5 +297,25 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   @Test
   void testSecretsManagerFault() throws Exception {
     doTestSecretsManagerFault();
+  }
+
+  @Test
+  void testStepFunctionsDescribeStateMachine() throws Exception {
+    doTestStepFunctionsDescribeStateMachine();
+  }
+
+  @Test
+  void testStepFunctionsDescribeActivity() throws Exception {
+    doTestStepFunctionsDescribeActivity();
+  }
+
+  @Test
+  void testStepFunctionsError() throws Exception {
+    doTestStepFunctionsError();
+  }
+
+  @Test
+  void testStepFunctionsFault() throws Exception {
+    doTestStepFunctionsFault();
   }
 }

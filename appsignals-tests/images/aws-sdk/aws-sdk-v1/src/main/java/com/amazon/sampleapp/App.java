@@ -44,6 +44,8 @@ import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
+import com.amazonaws.services.identitymanagement.model.CreateRoleRequest;
+import com.amazonaws.services.identitymanagement.model.PutRolePolicyRequest;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.CreateStreamRequest;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
@@ -57,6 +59,9 @@ import com.amazonaws.services.secretsmanager.model.CreateSecretRequest;
 import com.amazonaws.services.secretsmanager.model.DescribeSecretRequest;
 import com.amazonaws.services.secretsmanager.model.ListSecretsRequest;
 import com.amazonaws.services.secretsmanager.model.SecretListEntry;
+import com.amazonaws.services.stepfunctions.AWSStepFunctionsClient;
+import com.amazonaws.services.stepfunctions.model.*;
+import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClient;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
@@ -131,6 +136,7 @@ public class App {
     setupSqs();
     setupKinesis();
     setupSecretsManager();
+    setupStepFunctions();
     setupBedrock();
 
     // Add this log line so that we only start testing after all routes are configured.
@@ -599,6 +605,184 @@ public class App {
             logger.debug("Error describing secret", e);
           }
           return"";
+        });
+  }
+
+  private static void setupStepFunctions() {
+    var stepFunctionsClient =
+        AWSStepFunctionsClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(endpointConfiguration)
+            .build();
+    var iamClient =
+        AmazonIdentityManagementClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(endpointConfiguration)
+            .build();
+
+    var sfnName = "test-state-machine";
+    String existingStateMachineArn = null;
+    try {
+      var listRequest = new ListStateMachinesRequest();
+      var listResponse = stepFunctionsClient.listStateMachines(listRequest);
+      existingStateMachineArn =
+          listResponse.getStateMachines().stream()
+              .filter(machine -> machine.getName().equals(sfnName))
+              .findFirst()
+              .map(StateMachineListItem::getStateMachineArn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing state machines", e);
+    }
+
+    if (existingStateMachineArn != null) {
+      logger.debug("State machine already exists, skipping creation");
+    } else {
+      logger.debug("State machine not found, creating new one");
+      String trustPolicy =
+          "{"
+              + "\"Version\": \"2012-10-17\","
+              + "\"Statement\": ["
+              + "  {"
+              + "    \"Effect\": \"Allow\","
+              + "    \"Principal\": {"
+              + "      \"Service\": \"states.amazonaws.com\""
+              + "    },"
+              + "    \"Action\": \"sts:AssumeRole\""
+              + "  }"
+              + "]}";
+      var roleRequest =
+          new CreateRoleRequest()
+              .withRoleName(sfnName + "-role")
+              .withAssumeRolePolicyDocument(trustPolicy);
+      var roleArn = iamClient.createRole(roleRequest).getRole().getArn();
+      String policyDocument =
+          "{"
+              + "\"Version\": \"2012-10-17\","
+              + "\"Statement\": ["
+              + "  {"
+              + "    \"Effect\": \"Allow\","
+              + "    \"Action\": ["
+              + "      \"lambda:InvokeFunction\""
+              + "    ],"
+              + "    \"Resource\": ["
+              + "      \"*\""
+              + "    ]"
+              + "  }"
+              + "]}";
+      var policyRequest =
+          new PutRolePolicyRequest()
+              .withRoleName(sfnName + "-role")
+              .withPolicyName(sfnName + "-policy")
+              .withPolicyDocument(policyDocument);
+      iamClient.putRolePolicy(policyRequest);
+      String stateMachineDefinition =
+          "{"
+              + "  \"Comment\": \"A Hello World example of the Amazon States Language using a Pass state\","
+              + "  \"StartAt\": \"HelloWorld\","
+              + "  \"States\": {"
+              + "    \"HelloWorld\": {"
+              + "      \"Type\": \"Pass\","
+              + "      \"Result\": \"Hello World!\","
+              + "      \"End\": true"
+              + "    }"
+              + "  }"
+              + "}";
+      var sfnRequest =
+          new CreateStateMachineRequest()
+              .withName(sfnName)
+              .withRoleArn(roleArn)
+              .withDefinition(stateMachineDefinition)
+              .withType(StateMachineType.STANDARD);
+      var createResponse = stepFunctionsClient.createStateMachine(sfnRequest);
+      existingStateMachineArn = createResponse.getStateMachineArn();
+    }
+
+    var activityName = "test-activity";
+    String existingActivityArn = null;
+    try {
+      var listRequest = new ListActivitiesRequest();
+      var listResponse = stepFunctionsClient.listActivities(listRequest);
+      existingActivityArn =
+          listResponse.getActivities().stream()
+              .filter(activity -> activity.getName().equals(activityName))
+              .findFirst()
+              .map(ActivityListItem::getActivityArn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing activities", e);
+    }
+
+    if (existingActivityArn != null) {
+      logger.debug("Activity already exists, skipping creation");
+    } else {
+      logger.debug("Activity does not exist, creating new one");
+      var createRequest = new CreateActivityRequest().withName(activityName);
+      var createResponse = stepFunctionsClient.createActivity(createRequest);
+      existingActivityArn = createResponse.getActivityArn();
+    }
+
+    String finalExistingStateMachineArn = existingStateMachineArn;
+    String finalExistingActivityArn = existingActivityArn;
+
+    get(
+        "/sfn/describestatemachine/:name",
+        (req, res) -> {
+          var describeRequest = new DescribeStateMachineRequest().withStateMachineArn(finalExistingStateMachineArn);
+          stepFunctionsClient.describeStateMachine(describeRequest);
+          return "";
+        });
+
+    get(
+        "/sfn/describeactivity/:name",
+        (req, res) -> {
+          var describeRequest = new DescribeActivityRequest().withActivityArn(finalExistingActivityArn);
+          stepFunctionsClient.describeActivity(describeRequest);
+          return "";
+        });
+
+    get(
+        "/sfn/error",
+        (req, res) -> {
+          setMainStatus(400);
+          var errorClient =
+              AWSStepFunctionsClient.builder()
+                  .withCredentials(CREDENTIALS_PROVIDER)
+                  .withEndpointConfiguration(
+                      new EndpointConfiguration("http://error.test:8080", Regions.US_WEST_2.getName()))
+                  .build();
+
+          try {
+            var describeRequest =
+                new DescribeActivityRequest()
+                    .withActivityArn("arn:aws:states:us-west-2:000000000000:activity:nonexistent-activity");
+            errorClient.describeActivity(describeRequest);
+          } catch (Exception e) {
+            logger.error("Error describing activity", e);
+          }
+          return "";
+        });
+
+    get(
+        "/sfn/fault",
+        (req, res) -> {
+          setMainStatus(500);
+          var faultClient =
+              AWSStepFunctionsClient.builder()
+                  .withCredentials(CREDENTIALS_PROVIDER)
+                  .withEndpointConfiguration(
+                      new EndpointConfiguration("http://fault.test:8080", Regions.US_WEST_2.getName()))
+                  .build();
+
+          try {
+            var describeRequest =
+                new DescribeActivityRequest()
+                    .withActivityArn("arn:aws:states:us-west-2:000000000000:activity:fault-activity");
+            faultClient.describeActivity(describeRequest);
+          } catch (Exception e) {
+            logger.error("Error describing activity", e);
+          }
+          return "";
         });
   }
 

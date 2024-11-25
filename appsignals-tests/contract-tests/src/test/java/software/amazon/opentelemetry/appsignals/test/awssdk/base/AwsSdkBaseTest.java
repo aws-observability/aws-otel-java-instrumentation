@@ -44,7 +44,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               LocalStackContainer.Service.DYNAMODB,
               LocalStackContainer.Service.SQS,
               LocalStackContainer.Service.KINESIS,
-              LocalStackContainer.Service.SECRETSMANAGER)
+              LocalStackContainer.Service.SECRETSMANAGER,
+              LocalStackContainer.Service.IAM,
+              LocalStackContainer.Service.STEPFUNCTIONS)
           .withEnv("DEFAULT_REGION", "us-west-2")
           .withNetwork(network)
           .withEnv("LOCALSTACK_HOST", "127.0.0.1")
@@ -106,6 +108,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   protected abstract String getSecretsManagerSpanNamePrefix();
 
+  protected abstract String getStepFunctionsSpanNamePrefix();
+
   protected abstract String getS3RpcServiceName();
 
   protected abstract String getDynamoDbRpcServiceName();
@@ -123,6 +127,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   protected abstract String getBedrockAgentRuntimeRpcServiceName();
 
   protected abstract String getSecretsManagerRpcServiceName();
+
+  protected abstract String getStepFunctionsRpcServiceName();
 
   private String getS3ServiceName() {
     return "AWS::S3";
@@ -160,6 +166,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     return "AWS::SecretsManager";
   }
 
+  private String getStepFunctionsServiceName() { return "AWS::StepFunctions"; }
+
   private String s3SpanName(String operation) {
     return String.format("%s.%s", getS3SpanNamePrefix(), operation);
   }
@@ -194,6 +202,10 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   private String secretsManagerSpanName(String operation) {
     return String.format("%s.%s", getSecretsManagerSpanNamePrefix(), operation);
+  }
+
+  private String stepFunctionsSpanName(String operation) {
+    return String.format("%s.%s", getStepFunctionsSpanNamePrefix(), operation);
   }
 
   protected ThrowingConsumer<KeyValue> assertAttribute(String key, String value) {
@@ -399,6 +411,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               var spanAttributes = span.getAttributesList();
               assertThat(span.getKind()).isEqualTo(spanKind);
               assertThat(span.getName()).isEqualTo(spanName);
+
               assertSemanticConventionsAttributes(
                   spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
               assertAwsAttributes(
@@ -2792,6 +2805,286 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        0.0);
+  }
+
+  protected void doTestStepFunctionsDescribeStateMachine() throws Exception {
+    appClient.get("/sfn/describestatemachine/test-state-machine").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sfn/describestatemachine/:name";
+    var type = "AWS::StepFunctions::StateMachine";
+    var identifier = "test-state-machine";
+    var cloudformationIdentifier =
+        "arn:aws:states:us-west-2:000000000000:stateMachine:test-state-machine";
+
+    assertSpanClientAttributes(
+        traces,
+        stepFunctionsSpanName("DescribeStateMachine"),
+        getStepFunctionsRpcServiceName(),
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeStateMachine",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        "localstack",
+        4566,
+        "http://localstack:4566",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_STATE_MACHINE_ARN,
+                "arn:aws:states:us-west-2:000000000000:stateMachine:test-state-machine")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeStateMachine",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeStateMachine",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeStateMachine",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+  }
+
+  protected void doTestStepFunctionsDescribeActivity() throws Exception {
+    appClient.get("/sfn/describeactivity/test-activity").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sfn/describeactivity/:name";
+    var type = "AWS::StepFunctions::Activity";
+    var identifier = "test-activity";
+    var cloudformationIdentifier = "arn:aws:states:us-west-2:000000000000:activity:test-activity";
+
+    assertSpanClientAttributes(
+        traces,
+        stepFunctionsSpanName("DescribeActivity"),
+        getStepFunctionsRpcServiceName(),
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        "localstack",
+        4566,
+        "http://localstack:4566",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_ACTIVITY_ARN,
+                "arn:aws:states:us-west-2:000000000000:activity:test-activity")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+  }
+
+  protected void doTestStepFunctionsError() throws Exception {
+    appClient.get("/sfn/error").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sfn/error";
+    var type = "AWS::StepFunctions::Activity";
+    var identifier = "nonexistent-activity";
+    var cloudformationIdentifier =
+        "arn:aws:states:us-west-2:000000000000:activity:nonexistent-activity";
+
+    assertSpanClientAttributes(
+        traces,
+        stepFunctionsSpanName("DescribeActivity"),
+        getStepFunctionsRpcServiceName(),
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        "error.test",
+        8080,
+        "http://error.test:8080",
+        400,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_ACTIVITY_ARN,
+                "arn:aws:states:us-west-2:000000000000:activity:nonexistent-activity")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        1.0);
+  }
+
+  protected void doTestStepFunctionsFault() throws Exception {
+    appClient.get("/sfn/fault").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sfn/fault";
+    var type = "AWS::StepFunctions::Activity";
+    var identifier = "fault-activity";
+    var cloudformationIdentifier = "arn:aws:states:us-west-2:000000000000:activity:fault-activity";
+
+    assertSpanClientAttributes(
+        traces,
+        stepFunctionsSpanName("DescribeActivity"),
+        getStepFunctionsRpcServiceName(),
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        "fault.test",
+        8080,
+        "http://fault.test:8080",
+        500,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_ACTIVITY_ARN,
+                "arn:aws:states:us-west-2:000000000000:activity:fault-activity")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        1.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getStepFunctionsServiceName(),
+        "DescribeActivity",
+        type,
+        identifier,
+        cloudformationIdentifier,
         0.0);
   }
 }
