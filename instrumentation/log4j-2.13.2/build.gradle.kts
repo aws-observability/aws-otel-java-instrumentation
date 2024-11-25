@@ -21,8 +21,8 @@ plugins {
 base.archivesBaseName = "aws-instrumentation-log4j-2.13.2"
 
 dependencies {
-  compileOnly("io.opentelemetry:opentelemetry-api")
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  compileOnly("io.opentelemetry:opentelemetry-api:1.44.1")
+  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:2.10.0-alpha")
   compileOnly("net.bytebuddy:byte-buddy")
 
   compileOnly("org.apache.logging.log4j:log4j-core:2.22.1")

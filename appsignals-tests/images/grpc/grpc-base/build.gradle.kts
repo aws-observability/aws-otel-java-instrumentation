@@ -18,6 +18,11 @@ plugins {
   id("com.google.protobuf") version "0.9.4"
 }
 
+java {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+}
+
 group = "software.amazon.opentelemetry"
 
 dependencies {

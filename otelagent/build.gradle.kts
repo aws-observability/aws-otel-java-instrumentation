@@ -25,8 +25,8 @@ plugins {
 }
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  sourceCompatibility = JavaVersion.VERSION_21
+  targetCompatibility = JavaVersion.VERSION_21
 }
 
 base {
@@ -145,9 +145,10 @@ jib {
   container {
     appRoot = "/aws-observability"
     setEntrypoint("INHERIT")
-    environment = mapOf(
-      "JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar",
-    )
+    environment =
+      mapOf(
+        "JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar",
+      )
   }
   containerizingMode = "packaged"
 }

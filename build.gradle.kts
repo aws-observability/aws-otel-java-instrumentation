@@ -21,6 +21,8 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 plugins {
   java
 
+//  kotlin("jvm") version "2.1.0-RC2"
+//  id("com.diffplug.spotless") version "6.25.0"
   id("com.diffplug.spotless")
   id("com.github.jk1.dependency-license-report")
   id("io.github.gradle-nexus.publish-plugin")
@@ -68,7 +70,7 @@ allprojects {
 
   spotless {
     kotlinGradle {
-      ktlint("0.48.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
+      ktlint("1.4.0").editorConfigOverride(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
 
       // Doesn't support pluginManagement block
       targetExclude("settings.gradle.kts")
@@ -81,8 +83,8 @@ allprojects {
 
   plugins.withId("java") {
     java {
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      sourceCompatibility = JavaVersion.VERSION_21
+      targetCompatibility = JavaVersion.VERSION_21
 
       withJavadocJar()
       withSourcesJar()
