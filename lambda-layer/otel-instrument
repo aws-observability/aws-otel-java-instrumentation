@@ -4,10 +4,6 @@ export OTEL_INSTRUMENTATION_AWS_SDK_EXPERIMENTAL_SPAN_ATTRIBUTES=true
 
 export OTEL_PROPAGATORS="${OTEL_PROPAGATORS:-xray,tracecontext,b3,b3multi}"
 
-# Temporarily set OTEL_SERVICE_NAME variable to work around but in javaagent not handling
-# OTEL_RESOURCE_ATTRIBUTES as set in otel-handler-upstream. It doesn't hurt to apply this
-# to wrapper as well.
-# TODO(anuraaga): Move to opentelemetry-lambda
 export OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-${AWS_LAMBDA_FUNCTION_NAME}}
 
 export JAVA_TOOL_OPTIONS="-javaagent:/opt/opentelemetry-javaagent.jar ${JAVA_TOOL_OPTIONS}"
@@ -20,5 +16,17 @@ export OTEL_INSTRUMENTATION_AWS_LAMBDA_FLUSH_TIMEOUT=10000
 
 # Disable the Application Signals runtime metrics since we are on Lambda
 export OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED=false
+
+# Use OTLP traces exporter if not specified
+export OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-"otlp"}
+
+# Enable Application Signals by default if not specified
+export OTEL_AWS_APPLICATION_SIGNALS_ENABLED=${OTEL_AWS_APPLICATION_SIGNALS_ENABLED:-"true"}
+
+# If Application Signals is enabled
+if [ "${OTEL_AWS_APPLICATION_SIGNALS_ENABLED}" = "true" ]; then
+  export OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-"none"}
+  export OTEL_LOGS_EXPORTER=${OTEL_LOGS_EXPORTER:-"none"}
+fi
 
 exec "$@"
