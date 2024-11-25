@@ -21,7 +21,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 plugins {
   java
 
-//  kotlin("jvm") version "2.1.0-RC2"
+  kotlin("jvm") version "2.1.0-RC2"
 //  id("com.diffplug.spotless") version "6.25.0"
   id("com.diffplug.spotless")
   id("com.github.jk1.dependency-license-report")
