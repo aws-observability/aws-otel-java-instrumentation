@@ -20,13 +20,19 @@ export OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED=false
 # Use OTLP traces exporter if not specified
 export OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-"otlp"}
 
+# Disable metrics and logs export by default if not specified
+export OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-"none"}
+export OTEL_LOGS_EXPORTER=${OTEL_LOGS_EXPORTER:-"none"}
+
 # Enable Application Signals by default if not specified
 export OTEL_AWS_APPLICATION_SIGNALS_ENABLED=${OTEL_AWS_APPLICATION_SIGNALS_ENABLED:-"true"}
 
-# If Application Signals is enabled
-if [ "${OTEL_AWS_APPLICATION_SIGNALS_ENABLED}" = "true" ]; then
-  export OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-"none"}
-  export OTEL_LOGS_EXPORTER=${OTEL_LOGS_EXPORTER:-"none"}
+# Append Lambda Resource Attributes to OTel Resource Attribute List
+LAMBDA_RESOURCE_ATTRIBUTES="cloud.region=$AWS_REGION,cloud.provider=aws,faas.name=$AWS_LAMBDA_FUNCTION_NAME,faas.version=$AWS_LAMBDA_FUNCTION_VERSION,faas.instance=$AWS_LAMBDA_LOG_STREAM_NAME,aws.log.group.names=$AWS_LAMBDA_LOG_GROUP_NAME";
+if [ -z "${OTEL_RESOURCE_ATTRIBUTES}" ]; then
+    export OTEL_RESOURCE_ATTRIBUTES=$LAMBDA_RESOURCE_ATTRIBUTES;
+else
+    export OTEL_RESOURCE_ATTRIBUTES="$LAMBDA_RESOURCE_ATTRIBUTES,$OTEL_RESOURCE_ATTRIBUTES";
 fi
 
 exec "$@"
