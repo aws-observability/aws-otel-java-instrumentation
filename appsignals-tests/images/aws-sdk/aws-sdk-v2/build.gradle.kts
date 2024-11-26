@@ -36,6 +36,7 @@ dependencies {
   implementation("software.amazon.awssdk:secretsmanager")
   implementation("software.amazon.awssdk:iam")
   implementation("software.amazon.awssdk:sfn")
+  implementation("software.amazon.awssdk:sns")
   implementation("software.amazon.awssdk:bedrock")
   implementation("software.amazon.awssdk:bedrockagent")
   implementation("software.amazon.awssdk:bedrockruntime")

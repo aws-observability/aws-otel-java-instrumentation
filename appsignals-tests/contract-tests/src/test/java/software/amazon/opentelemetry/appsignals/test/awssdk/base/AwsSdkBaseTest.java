@@ -23,7 +23,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,7 +45,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               LocalStackContainer.Service.KINESIS,
               LocalStackContainer.Service.SECRETSMANAGER,
               LocalStackContainer.Service.IAM,
-              LocalStackContainer.Service.STEPFUNCTIONS)
+              LocalStackContainer.Service.STEPFUNCTIONS,
+              LocalStackContainer.Service.SNS)
           .withEnv("DEFAULT_REGION", "us-west-2")
           .withNetwork(network)
           .withEnv("LOCALSTACK_HOST", "127.0.0.1")
@@ -110,6 +110,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   protected abstract String getStepFunctionsSpanNamePrefix();
 
+  protected abstract String getSnsSpanNamePrefix();
+
   protected abstract String getS3RpcServiceName();
 
   protected abstract String getDynamoDbRpcServiceName();
@@ -127,6 +129,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   protected abstract String getBedrockAgentRuntimeRpcServiceName();
 
   protected abstract String getSecretsManagerRpcServiceName();
+
+  protected abstract String getSnsRpcServiceName();
 
   protected abstract String getStepFunctionsRpcServiceName();
 
@@ -166,7 +170,13 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     return "AWS::SecretsManager";
   }
 
-  private String getStepFunctionsServiceName() { return "AWS::StepFunctions"; }
+  private String getStepFunctionsServiceName() {
+    return "AWS::StepFunctions";
+  }
+
+  protected String getSnsServiceName() {
+    return "AWS::SNS";
+  }
 
   private String s3SpanName(String operation) {
     return String.format("%s.%s", getS3SpanNamePrefix(), operation);
@@ -206,6 +216,10 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   private String stepFunctionsSpanName(String operation) {
     return String.format("%s.%s", getStepFunctionsSpanNamePrefix(), operation);
+  }
+
+  private String snsSpanName(String operation) {
+    return String.format("%s.%s", getSnsSpanNamePrefix(), operation);
   }
 
   protected ThrowingConsumer<KeyValue> assertAttribute(String key, String value) {
@@ -3085,6 +3099,175 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        0.0);
+  }
+
+  protected void doTestSnsGetTopicAttributes() throws Exception {
+    appClient.get("/sns/gettopicattributes/test-topic").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sns/gettopicattributes/:topicId";
+    var type = "AWS::SNS::Topic";
+    var identifier = "test-topic";
+    var cloudformationIdentifier = "arn:aws:sns:us-west-2:000000000000:test-topic";
+
+    assertSpanClientAttributes(
+        traces,
+        snsSpanName("GetTopicAttributes"),
+        getSnsRpcServiceName(),
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        "localstack",
+        4566,
+        "http://localstack:4566",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_TOPIC_ARN,
+                "arn:aws:sns:us-west-2:000000000000:test-topic")));
+  }
+
+  protected void doTestSnsError() throws Exception {
+    appClient.get("/sns/error").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sns/error";
+    assertSpanClientAttributes(
+        traces,
+        snsSpanName("GetTopicAttributes"),
+        getSnsRpcServiceName(),
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        "error.test",
+        8080,
+        "http://error.test:8080",
+        400,
+        List.of());
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        5000.0);
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        0.0);
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        1.0);
+  }
+
+  protected void doTestSnsFault() throws Exception {
+    appClient.get("/sns/fault").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /sns/fault";
+    assertSpanClientAttributes(
+        traces,
+        snsSpanName("GetTopicAttributes"),
+        getSnsRpcServiceName(),
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        "fault.test",
+        8080,
+        "http://fault.test:8080",
+        500,
+        List.of());
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        5000.0);
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
+        1.0);
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getSnsServiceName(),
+        "GetTopicAttributes",
+        null,
+        null,
+        null,
         0.0);
   }
 }

@@ -44,6 +44,7 @@ import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
+import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClient;
 import com.amazonaws.services.identitymanagement.model.CreateRoleRequest;
 import com.amazonaws.services.identitymanagement.model.PutRolePolicyRequest;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
@@ -59,13 +60,25 @@ import com.amazonaws.services.secretsmanager.model.CreateSecretRequest;
 import com.amazonaws.services.secretsmanager.model.DescribeSecretRequest;
 import com.amazonaws.services.secretsmanager.model.ListSecretsRequest;
 import com.amazonaws.services.secretsmanager.model.SecretListEntry;
-import com.amazonaws.services.stepfunctions.AWSStepFunctionsClient;
-import com.amazonaws.services.stepfunctions.model.*;
-import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClient;
+import com.amazonaws.services.sns.AmazonSNSClient;
+import com.amazonaws.services.sns.model.CreateTopicRequest;
+import com.amazonaws.services.sns.model.GetTopicAttributesRequest;
+import com.amazonaws.services.sns.model.ListTopicsRequest;
+import com.amazonaws.services.sns.model.Topic;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.stepfunctions.AWSStepFunctionsClient;
+import com.amazonaws.services.stepfunctions.model.ActivityListItem;
+import com.amazonaws.services.stepfunctions.model.CreateActivityRequest;
+import com.amazonaws.services.stepfunctions.model.CreateStateMachineRequest;
+import com.amazonaws.services.stepfunctions.model.DescribeActivityRequest;
+import com.amazonaws.services.stepfunctions.model.DescribeStateMachineRequest;
+import com.amazonaws.services.stepfunctions.model.ListActivitiesRequest;
+import com.amazonaws.services.stepfunctions.model.ListStateMachinesRequest;
+import com.amazonaws.services.stepfunctions.model.StateMachineListItem;
+import com.amazonaws.services.stepfunctions.model.StateMachineType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
@@ -137,6 +150,7 @@ public class App {
     setupKinesis();
     setupSecretsManager();
     setupStepFunctions();
+    setupSns();
     setupBedrock();
 
     // Add this log line so that we only start testing after all routes are configured.
@@ -570,22 +584,27 @@ public class App {
         });
 
     get(
-          "/secretsmanager/error",
+        "/secretsmanager/error",
         (req, res) -> {
-            setMainStatus(400);
-            var errorClient =
-                AWSSecretsManagerClient.builder()
-                    .withCredentials(CREDENTIALS_PROVIDER)
-                    .withEndpointConfiguration(new EndpointConfiguration("http://error.test:8080", Regions.US_WEST_2.getName()))
-                    .build();
+          setMainStatus(400);
+          var errorClient =
+              AWSSecretsManagerClient.builder()
+                  .withCredentials(CREDENTIALS_PROVIDER)
+                  .withEndpointConfiguration(
+                      new EndpointConfiguration(
+                          "http://error.test:8080", Regions.US_WEST_2.getName()))
+                  .build();
 
-            try {
-              var describeRequest = new DescribeSecretRequest().withSecretId("arn:aws:secretsmanager:us-west-2:000000000000:secret:nonexistent-secret-id");
-              errorClient.describeSecret(describeRequest);
-            } catch (Exception e) {
-              logger.debug("Error describing secret", e);
-            }
-            return "";
+          try {
+            var describeRequest =
+                new DescribeSecretRequest()
+                    .withSecretId(
+                        "arn:aws:secretsmanager:us-west-2:000000000000:secret:nonexistent-secret-id");
+            errorClient.describeSecret(describeRequest);
+          } catch (Exception e) {
+            logger.debug("Error describing secret", e);
+          }
+          return "";
         });
 
     get(
@@ -595,16 +614,21 @@ public class App {
           var faultClient =
               AWSSecretsManagerClient.builder()
                   .withCredentials(CREDENTIALS_PROVIDER)
-                  .withEndpointConfiguration(new EndpointConfiguration("http://fault.test:8080", Regions.US_WEST_2.getName()))
+                  .withEndpointConfiguration(
+                      new EndpointConfiguration(
+                          "http://fault.test:8080", Regions.US_WEST_2.getName()))
                   .build();
 
           try {
-            var describeRequest = new DescribeSecretRequest().withSecretId("arn:aws:secretsmanager:us-west-2:000000000000:secret:fault-secret-id");
+            var describeRequest =
+                new DescribeSecretRequest()
+                    .withSecretId(
+                        "arn:aws:secretsmanager:us-west-2:000000000000:secret:fault-secret-id");
             faultClient.describeSecret(describeRequest);
           } catch (Exception e) {
             logger.debug("Error describing secret", e);
           }
-          return"";
+          return "";
         });
   }
 
@@ -728,7 +752,8 @@ public class App {
     get(
         "/sfn/describestatemachine/:name",
         (req, res) -> {
-          var describeRequest = new DescribeStateMachineRequest().withStateMachineArn(finalExistingStateMachineArn);
+          var describeRequest =
+              new DescribeStateMachineRequest().withStateMachineArn(finalExistingStateMachineArn);
           stepFunctionsClient.describeStateMachine(describeRequest);
           return "";
         });
@@ -736,7 +761,8 @@ public class App {
     get(
         "/sfn/describeactivity/:name",
         (req, res) -> {
-          var describeRequest = new DescribeActivityRequest().withActivityArn(finalExistingActivityArn);
+          var describeRequest =
+              new DescribeActivityRequest().withActivityArn(finalExistingActivityArn);
           stepFunctionsClient.describeActivity(describeRequest);
           return "";
         });
@@ -749,13 +775,15 @@ public class App {
               AWSStepFunctionsClient.builder()
                   .withCredentials(CREDENTIALS_PROVIDER)
                   .withEndpointConfiguration(
-                      new EndpointConfiguration("http://error.test:8080", Regions.US_WEST_2.getName()))
+                      new EndpointConfiguration(
+                          "http://error.test:8080", Regions.US_WEST_2.getName()))
                   .build();
 
           try {
             var describeRequest =
                 new DescribeActivityRequest()
-                    .withActivityArn("arn:aws:states:us-west-2:000000000000:activity:nonexistent-activity");
+                    .withActivityArn(
+                        "arn:aws:states:us-west-2:000000000000:activity:nonexistent-activity");
             errorClient.describeActivity(describeRequest);
           } catch (Exception e) {
             logger.error("Error describing activity", e);
@@ -771,16 +799,107 @@ public class App {
               AWSStepFunctionsClient.builder()
                   .withCredentials(CREDENTIALS_PROVIDER)
                   .withEndpointConfiguration(
-                      new EndpointConfiguration("http://fault.test:8080", Regions.US_WEST_2.getName()))
+                      new EndpointConfiguration(
+                          "http://fault.test:8080", Regions.US_WEST_2.getName()))
                   .build();
 
           try {
             var describeRequest =
                 new DescribeActivityRequest()
-                    .withActivityArn("arn:aws:states:us-west-2:000000000000:activity:fault-activity");
+                    .withActivityArn(
+                        "arn:aws:states:us-west-2:000000000000:activity:fault-activity");
             faultClient.describeActivity(describeRequest);
           } catch (Exception e) {
             logger.error("Error describing activity", e);
+          }
+          return "";
+        });
+  }
+
+  private static void setupSns() {
+    var snsClient =
+        AmazonSNSClient.builder()
+            .withCredentials(CREDENTIALS_PROVIDER)
+            .withEndpointConfiguration(endpointConfiguration)
+            .build();
+
+    var topicName = "test-topic";
+    String existingTopicArn = null;
+
+    try {
+      var listTopicsRequest = new ListTopicsRequest();
+      var listTopicsResult = snsClient.listTopics(listTopicsRequest);
+      existingTopicArn =
+          listTopicsResult.getTopics().stream()
+              .filter(topic -> topic.getTopicArn().contains(topicName))
+              .findFirst()
+              .map(Topic::getTopicArn)
+              .orElse(null);
+    } catch (Exception e) {
+      logger.error("Error listing topics", e);
+    }
+
+    if (existingTopicArn != null) {
+      logger.debug("Topic already exists, skipping creation");
+    } else {
+      logger.debug("Topic does not exist, creating new one");
+      var createTopicRequest = new CreateTopicRequest().withName(topicName);
+      var createTopicResult = snsClient.createTopic(createTopicRequest);
+      existingTopicArn = createTopicResult.getTopicArn();
+    }
+
+    String finalExistingTopicArn = existingTopicArn;
+    get(
+        "/sns/gettopicattributes/:topicId",
+        (req, res) -> {
+          var getTopicAttributesRequest =
+              new GetTopicAttributesRequest().withTopicArn(finalExistingTopicArn);
+          snsClient.getTopicAttributes(getTopicAttributesRequest);
+          return "";
+        });
+
+    get(
+        "/sns/error",
+        (req, res) -> {
+          setMainStatus(400);
+          var errorClient =
+              AmazonSNSClient.builder()
+                  .withCredentials(CREDENTIALS_PROVIDER)
+                  .withEndpointConfiguration(
+                      new EndpointConfiguration(
+                          "https://error.test:8080", Regions.US_WEST_2.getName()))
+                  .build();
+
+          try {
+            var getTopicAttributesRequest =
+                new GetTopicAttributesRequest()
+                    .withTopicArn("arn:aws:sns:us-west-2:000000000000:nonexistent-topic");
+            errorClient.getTopicAttributes(getTopicAttributesRequest);
+          } catch (Exception e) {
+            logger.error("Error describing topic", e);
+          }
+          return "";
+        });
+
+    get(
+        "/sns/fault",
+        (req, res) -> {
+          setMainStatus(500);
+          var faultClient =
+              AmazonSNSClient.builder()
+                  .withCredentials(CREDENTIALS_PROVIDER)
+                  .withEndpointConfiguration(
+                      new EndpointConfiguration(
+                          "http://fault.test:8080", Regions.US_WEST_2.getName()))
+                  .build();
+
+          try {
+            var getTopicAttributesRequest =
+                new GetTopicAttributesRequest()
+                    .withTopicArn("arn:aws:sns:us-west-2:000000000000:fault-topic");
+            faultClient.getTopicAttributes(getTopicAttributesRequest);
+          } catch (Exception e) {
+            logger.error("Error describing topic", e);
           }
           return "";
         });
