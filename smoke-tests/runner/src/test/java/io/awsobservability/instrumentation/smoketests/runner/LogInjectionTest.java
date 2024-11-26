@@ -40,7 +40,7 @@ class LogInjectionTest {
 
   @Container
   private static final GenericContainer<?> log4jApp =
-      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-spark:latest")
+      new GenericContainer<>("public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-spark:latest")
           .withExposedPorts(4567)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("log4j")))
           .withLogConsumer(log4jString)
@@ -54,7 +54,8 @@ class LogInjectionTest {
 
   @Container
   private static final GenericContainer<?> logbackApp =
-      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-springboot:latest")
+      new GenericContainer<>(
+              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-springboot:latest")
           .withExposedPorts(8080)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("logback")))
           .withLogConsumer(logbackString)

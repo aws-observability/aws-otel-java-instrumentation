@@ -136,8 +136,8 @@ tasks {
 
 jib {
   configureImages(
-    "gcr.io/distroless/java17-debian11:debug",
-    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
+    "gcr.io/distroless/java21-debian12:debug",
+    "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-opentelemetry-java-base:alpha",
     localDocker = false,
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
   )

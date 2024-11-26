@@ -79,14 +79,19 @@ public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
 
       SpanContext spanContext = Java8BytecodeBridge.spanFromContext(context).getSpanContext();
 
+      // Using StringBuilder instead of + for string concatenation avoids generating invokedynamic
+      // instructions introduced in Java 9+, ensuring compatibility with Java 6 class files.
+      // This approach explicitly constructs the string, producing bytecode compatible with older
+      // versions.
       if (spanContext.isValid()) {
-        String value =
-            "1-"
-                + spanContext.getTraceId().substring(0, 8)
-                + "-"
-                + spanContext.getTraceId().substring(8)
-                + "@"
-                + spanContext.getSpanId();
+        StringBuilder valueBuilder = new StringBuilder("1-");
+        valueBuilder
+            .append(spanContext.getTraceId().substring(0, 8))
+            .append("-")
+            .append(spanContext.getTraceId().substring(8))
+            .append("@")
+            .append(spanContext.getSpanId());
+        String value = valueBuilder.toString();
         spanContextData.put(TRACE_ID_KEY, value);
       }
 
