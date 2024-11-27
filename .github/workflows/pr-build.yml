@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
       # vaadin 14 tests fail with node 18
       - name: Set up Node
@@ -58,7 +58,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
 
       - uses: gradle/wrapper-validation-action@v1
