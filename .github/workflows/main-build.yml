@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          java-version: 21
+          java-version: 17
           distribution: temurin
       # vaadin 14 tests fail with node 18
       - name: Set up Node
@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
-          java-version: 21
+          java-version: 17
           distribution: temurin
 
         # cache local patch outputs
@@ -194,7 +194,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
-          java-version: 21
+          java-version: 17
           distribution: 'temurin'
       - uses: gradle/wrapper-validation-action@v1
 
