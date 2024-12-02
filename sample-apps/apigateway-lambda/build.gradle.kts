@@ -16,8 +16,6 @@ java {
 dependencies {
   implementation("com.amazonaws:aws-lambda-java-core:1.2.2")
   implementation("com.squareup.okhttp3:okhttp:4.11.0")
-  implementation("software.amazon.awssdk:s3:2.20.0")
-  implementation("org.slf4j:jcl-over-slf4j:2.0.16")
   implementation("org.json:json:20240303")
   testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
 }

@@ -1,3 +1,4 @@
+## Lambda function related configurations
 variable "function_name" {
   type        = string
   description = "Name of sample app function"
@@ -22,6 +23,13 @@ variable "lambda_tracing_mode" {
   default     = "Active"
 }
 
+variable "adot_layer_arn" {
+  type        = string
+  description = "ARN of the ADOT JAVA layer"
+  default     = null
+}
+
+## API Gateway related configurations
 variable "api_gateway_name" {
   type        = string
   description = "Name of API gateway to create"

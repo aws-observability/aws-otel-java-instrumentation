@@ -28,7 +28,7 @@ resource "aws_iam_policy" "s3_access" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "attachBasicExecutionRolePolicy" {
+resource "aws_iam_role_policy_attachment" "attach_execution_role_policy" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
@@ -51,8 +51,16 @@ resource "aws_lambda_function" "sampleLambdaFunction" {
   role             = aws_iam_role.lambda_role.arn
   filename         = "${path.module}/../build/distributions/lambda-function.zip"
   source_code_hash = filebase64sha256("${path.module}/../build/distributions/lambda-function.zip")
+  architectures    = [var.architecture]
+  memory_size      = 512
   tracing_config {
     mode = var.lambda_tracing_mode
+  }
+  layers = var.adot_layer_arn != null && var.adot_layer_arn != "" ? [var.adot_layer_arn] : []
+  environment {
+    variables = var.adot_layer_arn != null && var.adot_layer_arn != "" ? {
+      AWS_LAMBDA_EXEC_WRAPPER = "/opt/otel-instrument"
+    } : {}
   }
 }
 
@@ -82,23 +90,6 @@ resource "aws_api_gateway_integration" "apigw_lambda_integration" {
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.sampleLambdaFunction.invoke_arn
 }
-
-# resource "aws_api_gateway_method" "lambda_api_proxy_root_nodejs" {
-#   rest_api_id   = aws_api_gateway_rest_api.lambda_api_proxy.id
-#   resource_id   = aws_api_gateway_rest_api.lambda_api_proxy.root_resource_id
-#   http_method   = "ANY"
-#   authorization = "NONE"
-# }
-#
-# resource "aws_api_gateway_integration" "lambda_api_root_nodejs" {
-#   rest_api_id = aws_api_gateway_rest_api.lambda_api_proxy.id
-#   resource_id = aws_api_gateway_method.lambda_api_proxy_root_nodejs.resource_id
-#   http_method = aws_api_gateway_method.lambda_api_proxy_root_nodejs.http_method
-#
-#   integration_http_method = "POST"
-#   type                    = "AWS_PROXY"
-#   uri                     = var.function_invoke_arn
-# }
 
 resource "aws_api_gateway_deployment" "apigw_lambda_deployment" {
   depends_on = [
