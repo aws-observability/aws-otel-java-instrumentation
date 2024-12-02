@@ -45,4 +45,4 @@ popd
 
 ## Copy ADOT Java Agent downloaded using Gradle task and bundle it with the Lambda handler script
 cp "$SOURCEDIR"/build/javaagent/aws-opentelemetry-agent*.jar ./opentelemetry-javaagent.jar
-zip -qr opentelemetry-javaagent-layer.zip opentelemetry-javaagent.jar otel-handler
+zip -qr opentelemetry-javaagent-layer.zip opentelemetry-javaagent.jar otel-instrument
