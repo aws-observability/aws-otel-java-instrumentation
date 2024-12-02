@@ -16,13 +16,13 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_iam_policy" "s3_access" {
-  name        = "S3ListBucketsPolicy"
-  description = "Allow Lambda to list S3 buckets"
+  name        = "S3ListBucketPolicy"
+  description = "Allow Lambda to check a given S3 bucket exists"
   policy      = jsonencode({
     Version = "2012-10-17",
     Statement = [{
       Effect   = "Allow",
-      Action   = ["s3:ListAllMyBuckets"],
+      Action   = ["s3:ListBucket"],
       Resource = "*"
     }]
   })
