@@ -31,7 +31,7 @@ application {
 }
 
 dependencies {
-  implementation("org.apache.tomcat.embed:tomcat-embed-core:10.1.10")
+  implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.1")
   implementation("io.opentelemetry:opentelemetry-api")
 }
 
