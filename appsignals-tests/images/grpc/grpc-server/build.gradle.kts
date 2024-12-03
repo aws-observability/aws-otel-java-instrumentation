@@ -29,7 +29,7 @@ dependencies {
 
   implementation("io.grpc:grpc-api:1.56.1")
   implementation("io.grpc:grpc-protobuf:1.56.1")
-  implementation("io.grpc:grpc-stub:1.56.1")
+  implementation("io.grpc:grpc-stub:1.68.2")
 
   runtimeOnly("io.grpc:grpc-netty-shaded")
   testImplementation(platform("org.junit:junit-bom:5.9.1"))
