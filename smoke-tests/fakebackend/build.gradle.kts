@@ -33,7 +33,7 @@ dependencies {
 
 jib {
   to {
-    image = "public.ecr.aws/u0d6r4y4/aws-otel-java-test-fakebackend:alpha"
+    image = "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-test-fakebackend:alpha"
   }
   from {
     image = "gcr.io/distroless/java17-debian11:debug"

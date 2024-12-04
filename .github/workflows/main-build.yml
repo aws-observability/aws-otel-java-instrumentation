@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - "release/v*"
+      - version-upgrade-v1
 env:
   AWS_DEFAULT_REGION: us-east-1
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
@@ -25,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
       # vaadin 14 tests fail with node 18
       - name: Set up Node
@@ -59,7 +60,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
 
         # cache local patch outputs
@@ -194,7 +195,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: 'temurin'
       - uses: gradle/wrapper-validation-action@v1
 

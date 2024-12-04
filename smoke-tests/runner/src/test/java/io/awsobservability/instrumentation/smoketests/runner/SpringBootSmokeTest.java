@@ -108,7 +108,7 @@ class SpringBootSmokeTest {
   @Container
   private static final GenericContainer<?> application =
       new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
+              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
@@ -124,7 +124,7 @@ class SpringBootSmokeTest {
   @Container
   private static final GenericContainer<?> applicationXraySampler =
       new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
+              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)

@@ -15,7 +15,7 @@
 
 pluginManagement {
   plugins {
-    id("com.diffplug.spotless") version "6.22.0"
+    id("com.diffplug.spotless") version "6.25.0"
     id("com.github.ben-manes.versions") version "0.50.0"
     id("com.github.jk1.dependency-license-report") version "2.5"
     id("com.github.johnrengelman.shadow") version "8.1.1"
@@ -63,9 +63,9 @@ include("appsignals-tests:images:http-clients:native-http-client")
 include("appsignals-tests:images:http-clients:spring-mvc-client")
 include("appsignals-tests:images:http-clients:apache-http-client")
 include("appsignals-tests:images:http-clients:netty-http-client")
-include("appsignals-tests:images:aws-sdk:aws-sdk-base")
-include("appsignals-tests:images:aws-sdk:aws-sdk-v1")
-include("appsignals-tests:images:aws-sdk:aws-sdk-v2")
+//include("appsignals-tests:images:aws-sdk:aws-sdk-base")
+//include("appsignals-tests:images:aws-sdk:aws-sdk-v1")
+//include("appsignals-tests:images:aws-sdk:aws-sdk-v2")
 include("appsignals-tests:images:grpc:grpc-base")
 include("appsignals-tests:images:grpc:grpc-server")
 include("appsignals-tests:images:grpc:grpc-client")

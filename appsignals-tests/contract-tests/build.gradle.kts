@@ -33,7 +33,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
   java
-  kotlin("jvm") version "1.8.22"
+  kotlin("jvm") version "2.1.0-RC2"
 }
 
 java {
@@ -98,8 +98,8 @@ tasks {
     dependsOn(":appsignals-tests:images:http-clients:spring-mvc-client:jibDockerBuild")
     dependsOn(":appsignals-tests:images:http-clients:apache-http-client:jibDockerBuild")
     dependsOn(":appsignals-tests:images:http-clients:netty-http-client:jibDockerBuild")
-    dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v1:jibDockerBuild")
-    dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v2:jibDockerBuild")
+//    dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v1:jibDockerBuild")
+//    dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v2:jibDockerBuild")
     dependsOn(":appsignals-tests:images:grpc:grpc-client:jibDockerBuild")
     dependsOn(":appsignals-tests:images:grpc:grpc-server:jibDockerBuild")
     dependsOn(":appsignals-tests:images:jdbc:jibDockerBuild")

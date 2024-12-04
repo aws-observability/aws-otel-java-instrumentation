@@ -25,8 +25,8 @@ plugins {
 }
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  sourceCompatibility = JavaVersion.VERSION_21
+  targetCompatibility = JavaVersion.VERSION_21
 }
 
 base {
@@ -136,8 +136,8 @@ tasks {
 
 jib {
   configureImages(
-    "gcr.io/distroless/java17-debian11:debug",
-    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
+    "gcr.io/distroless/java21-debian12:debug",
+    "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-opentelemetry-java-base:alpha",
     localDocker = false,
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
   )
@@ -145,9 +145,10 @@ jib {
   container {
     appRoot = "/aws-observability"
     setEntrypoint("INHERIT")
-    environment = mapOf(
-      "JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar",
-    )
+    environment =
+      mapOf(
+        "JAVA_TOOL_OPTIONS" to "-javaagent:/aws-observability/classpath/aws-opentelemetry-agent-$version.jar",
+      )
   }
   containerizingMode = "packaged"
 }
