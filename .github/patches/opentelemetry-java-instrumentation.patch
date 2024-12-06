@@ -2057,15 +2057,99 @@ index 53390c8d85..692cd005eb 100644
    }
  
    def "send #operation async request with builder #builder.class.getName() mocked response"() {
+diff --git a/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java b/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
+index 69b3c09c90..74a6f75ffb 100644
+--- a/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
++++ b/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
+@@ -20,6 +20,7 @@ import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+ import java.io.InputStream;
+ import java.nio.file.Files;
+ import java.nio.file.Paths;
++import java.time.Duration;
+ import java.util.List;
+ 
+ /** An {@link AgentListener} that enables JMX metrics during agent startup. */
+@@ -32,22 +33,22 @@ public class JmxMetricInsightInstaller implements AgentListener {
+ 
+     if (config.getBoolean("otel.jmx.enabled", true)) {
+       JmxMetricInsight service =
+-          JmxMetricInsight.createService(GlobalOpenTelemetry.get(), beanDiscoveryDelay(config));
++          JmxMetricInsight.createService(
++              GlobalOpenTelemetry.get(), beanDiscoveryDelay(config).toMillis());
+       MetricConfiguration conf = buildMetricConfiguration(config);
+       service.start(conf);
+     }
+   }
+ 
+-  private static long beanDiscoveryDelay(ConfigProperties configProperties) {
+-    Long discoveryDelay = configProperties.getLong("otel.jmx.discovery.delay");
++  private static Duration beanDiscoveryDelay(ConfigProperties configProperties) {
++    Duration discoveryDelay = configProperties.getDuration("otel.jmx.discovery.delay");
+     if (discoveryDelay != null) {
+       return discoveryDelay;
+     }
+ 
+     // If discovery delay has not been configured, have a peek at the metric export interval.
+     // It makes sense for both of these values to be similar.
+-    long exportInterval = configProperties.getLong("otel.metric.export.interval", 60000);
+-    return exportInterval;
++    return configProperties.getDuration("otel.metric.export.interval", Duration.ofMinutes(1));
+   }
+ 
+   private static String resourceFor(String platform) {
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
+index 8b0fd636be..b9856f1dc9 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
+@@ -25,7 +25,13 @@ class BeanFinder {
+ 
+   private final MetricRegistrar registrar;
+   private MetricConfiguration conf;
+-  private final ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
++  private final ScheduledExecutorService exec =
++      Executors.newSingleThreadScheduledExecutor(
++          runnable -> {
++            Thread result = new Thread(runnable, "jmx_bean_finder");
++            result.setDaemon(true);
++            return result;
++          });
+   private final long discoveryDelay;
+   private final long maxDelay;
+   private long delay = 1000; // number of milliseconds until first attempt to discover MBeans
+@@ -39,12 +45,18 @@ class BeanFinder {
+   void discoverBeans(MetricConfiguration conf) {
+     this.conf = conf;
+ 
+-    if (!conf.isEmpty()) {
+-      // Issue 9336: Corner case: PlatformMBeanServer will remain unitialized until a direct
+-      // reference to it is made. This call makes sure that the PlatformMBeanServer will be in
+-      // the set of MBeanServers reported by MBeanServerFactory.
+-      ManagementFactory.getPlatformMBeanServer();
+-    }
++    exec.schedule(
++        () -> {
++          // Issue 9336: Corner case: PlatformMBeanServer will remain unitialized until a direct
++          // reference to it is made. This call makes sure that the PlatformMBeanServer will be in
++          // the set of MBeanServers reported by MBeanServerFactory.
++          // Issue 11143: This call initializes java.util.logging.LogManager. We should not call it
++          // before application has had a chance to configure custom log manager. This is needed for
++          // wildfly.
++          ManagementFactory.getPlatformMBeanServer();
++        },
++        discoveryDelay,
++        TimeUnit.MILLISECONDS);
+ 
+     exec.schedule(
+         new Runnable() {
 diff --git a/version.gradle.kts b/version.gradle.kts
-index fdf57bdbea..c38a2e00f3 100644
+index fdf57bdbea..1bd7ae7f60 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
 -val stableVersion = "1.32.1"
 -val alphaVersion = "1.32.1-alpha"
-+val stableVersion = "1.32.1-adot2"
-+val alphaVersion = "1.32.1-adot2-alpha"
++val stableVersion = "1.32.1-adot3"
++val alphaVersion = "1.32.1-adot3-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {
