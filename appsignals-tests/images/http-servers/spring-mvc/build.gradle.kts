@@ -28,7 +28,7 @@ java {
 
 dependencies {
   // Spring-boot-starter uses  Spring-webmvc 6
-  implementation("org.springframework.boot:spring-boot-starter-web:3.1.1")
+  implementation("org.springframework.boot:spring-boot-starter-web:3.4.0")
   implementation("io.opentelemetry:opentelemetry-api")
 }
 

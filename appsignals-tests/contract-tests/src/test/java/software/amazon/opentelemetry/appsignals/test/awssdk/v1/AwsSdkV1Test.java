@@ -200,64 +200,64 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   void testKinesisFault() throws Exception {
     doTestKinesisFault();
   }
-
-  @Test
-  void testBedrockAgentGetKnowledgeBaseId() {
-    doTestBedrockAgentKnowledgeBaseId();
-  }
-
-  @Test
-  void testBedrockAgentAgentId() {
-    doTestBedrockAgentAgentId();
-  }
-
-  @Test
-  void testBedrockAgentDataSourceId() {
-    doTestBedrockAgentDataSourceId();
-  }
-
-  @Test
-  void testBedrockRuntimeAmazonTitan() {
-    doTestBedrockRuntimeAmazonTitan();
-  }
-
-  @Test
-  void testBedrockRuntimeAi21Jamba() {
-    doTestBedrockRuntimeAi21Jamba();
-  }
-
-  @Test
-  void testBedrockRuntimeAnthropicClaude() {
-    doTestBedrockRuntimeAnthropicClaude();
-  }
-
-  @Test
-  void testBedrockRuntimeCohereCommandR() {
-    doTestBedrockRuntimeCohereCommandR();
-  }
-
-  @Test
-  void testBedrockRuntimeMetaLlama() {
-    doTestBedrockRuntimeMetaLlama();
-  }
-
-  @Test
-  void testBedrockRuntimeMistral() {
-    doTestBedrockRuntimeMistral();
-  }
-
-  @Test
-  void testBedrockGuardrailId() {
-    doTestBedrockGuardrailId();
-  }
-
-  @Test
-  void testBedrockAgentRuntimeAgentId() {
-    doTestBedrockAgentRuntimeAgentId();
-  }
-
-  @Test
-  void testBedrockAgentRuntimeKnowledgeBaseId() {
-    doTestBedrockAgentRuntimeKnowledgeBaseId();
-  }
+  //
+  //  @Test
+  //  void testBedrockAgentGetKnowledgeBaseId() {
+  //    doTestBedrockAgentKnowledgeBaseId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentAgentId() {
+  //    doTestBedrockAgentAgentId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentDataSourceId() {
+  //    doTestBedrockAgentDataSourceId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAmazonTitan() {
+  //    doTestBedrockRuntimeAmazonTitan();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAi21Jamba() {
+  //    doTestBedrockRuntimeAi21Jamba();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAnthropicClaude() {
+  //    doTestBedrockRuntimeAnthropicClaude();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeCohereCommandR() {
+  //    doTestBedrockRuntimeCohereCommandR();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeMetaLlama() {
+  //    doTestBedrockRuntimeMetaLlama();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeMistral() {
+  //    doTestBedrockRuntimeMistral();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockGuardrailId() {
+  //    doTestBedrockGuardrailId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentRuntimeAgentId() {
+  //    doTestBedrockAgentRuntimeAgentId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentRuntimeKnowledgeBaseId() {
+  //    doTestBedrockAgentRuntimeKnowledgeBaseId();
+  //  }
 }

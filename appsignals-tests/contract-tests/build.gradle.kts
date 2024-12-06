@@ -33,7 +33,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
   java
-  kotlin("jvm") version "1.8.22"
+  kotlin("jvm") version "2.1.0-RC2"
 }
 
 java {
@@ -73,6 +73,12 @@ tasks {
       "-Dio.awsobservability.instrumentation.contracttests.agentPath=${otelAgentJarTask.get().archiveFile.get()
         .getAsFile().absolutePath}",
     )
+
+    println("Agent JAR Path!!!: ${otelAgentJarTask.get().archiveFile.get().asFile.absolutePath}")
+    testLogging {
+      events("passed", "skipped", "failed")
+      showStandardStreams = true
+    }
   }
 
   // Disable the test task from the java plugin

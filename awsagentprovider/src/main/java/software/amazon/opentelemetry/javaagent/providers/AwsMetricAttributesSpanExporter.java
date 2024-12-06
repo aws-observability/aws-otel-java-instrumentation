@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -45,6 +46,8 @@ import javax.annotation.concurrent.Immutable;
  */
 @Immutable
 public class AwsMetricAttributesSpanExporter implements SpanExporter {
+  private static final Logger logger =
+      Logger.getLogger(AwsMetricAttributesSpanExporter.class.getName());
 
   private final SpanExporter delegate;
   private final MetricAttributeGenerator generator;
@@ -65,7 +68,10 @@ public class AwsMetricAttributesSpanExporter implements SpanExporter {
 
   @Override
   public CompletableResultCode export(Collection<SpanData> spans) {
+    logger.info("Exporting spans with metric attributes!!!!!!!!!");
+    logger.info("before spans data!!!!!!!: " + spans);
     List<SpanData> modifiedSpans = addMetricAttributes(spans);
+    logger.info("after modifiedSpans data!!!!!!!: " + modifiedSpans);
     return delegate.export(modifiedSpans);
   }
 

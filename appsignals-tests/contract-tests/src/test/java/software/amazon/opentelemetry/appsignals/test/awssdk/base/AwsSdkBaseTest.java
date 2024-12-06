@@ -23,6 +23,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,6 +38,16 @@ import software.amazon.opentelemetry.appsignals.test.utils.ResourceScopeSpan;
 import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsConstants;
 
 public abstract class AwsSdkBaseTest extends ContractTestBase {
+
+  protected static final Logger LOGGER = Logger.getLogger(AwsSdkBaseTest.class.getName());
+
+  static {
+    ConsoleHandler handler = new ConsoleHandler();
+    handler.setLevel(Level.INFO);
+    LOGGER.addHandler(handler);
+    LOGGER.setLevel(Level.INFO);
+    LOGGER.setUseParentHandlers(false);
+  }
 
   private final LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.5.0"))
@@ -214,20 +227,33 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       List<KeyValue> attributesList,
       String service,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
-      int statusCode) {
+      int statusCode,
+      String awsSpanKind) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, address))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port))
         .satisfiesOnlyOnce(
-            assertAttribute(SemanticConventionsConstants.HTTP_STATUS_CODE, statusCode))
-        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+            assertAttribute(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE, statusCode))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
+    //    // Assertions based on awsSpanKind
+    //    if ("CLIENT".equals(awsSpanKind)) {
+    //      assertThat(attributesList)
+    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS,
+    // address))
+    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port));
+    //    } else if ("PRODUCER".equals(awsSpanKind)) {
+    //      assertThat(attributesList)
+    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.CLIENT_ADDRESS,
+    // address))
+    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.CLIENT_PORT, port));
+    //    }
   }
 
   /** All the spans of the AWS SDK Should have a RPC properties. */
@@ -235,16 +261,16 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       List<KeyValue> attributesList,
       String service,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
-        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, address))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
 
@@ -258,11 +284,14 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
+    LOGGER.info("assertSpanClientAttributes!!!!!!: ");
+
+    LOGGER.info("Spans!!!!!!: " + spans);
 
     assertSpanAttributes(
         spans,
@@ -276,8 +305,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
-        peerName,
-        peerPort,
+        address,
+        port,
         url,
         statusCode,
         extraAssertions);
@@ -293,8 +322,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -310,8 +339,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
-        peerName,
-        peerPort,
+        address,
+        port,
         url,
         statusCode,
         extraAssertions);
@@ -324,8 +353,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String operation,
       String localService,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -338,7 +367,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsSqsConsumerAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url);
+                  spanAttributes, rpcService, method, address, port, url);
               assertSqsConsumerAwsAttributes(span.getAttributesList(), operation);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -358,8 +387,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -372,7 +401,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getKind()).isEqualTo(spanKind);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
+                  spanAttributes, rpcService, method, address, port, url, statusCode, awsSpanKind);
               assertAwsAttributes(
                   spanAttributes,
                   localService,
@@ -540,6 +569,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   }
 
   protected void doTestS3CreateBucket() throws Exception {
+    LOGGER.info("doTestS3CreateBucket!!!!!!: ");
     appClient.get("/s3/createbucket/create-bucket").aggregate().join();
 
     var traces = mockCollectorClient.getTraces();

@@ -24,16 +24,16 @@ plugins {
 
 data class DependencySet(val group: String, val version: String, val modules: List<String>)
 
-val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
+val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "1.33.6-adot1"
-val otelSnapshotVersion = "1.33.6"
-val otelAlphaVersion = if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
-val otelJavaAgentVersion = if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
+val otelVersion = "2.10.0"
+val otelSnapshotVersion = "2.11.0"
+val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
+val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
 
-val DEPENDENCY_BOMS = listOf(
+val dependencyBoms = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.599",
   "com.fasterxml.jackson:jackson-bom:2.16.0",
   "com.google.guava:guava-bom:33.0.0-jre",
@@ -48,7 +48,7 @@ val DEPENDENCY_BOMS = listOf(
   "software.amazon.awssdk:bom:2.21.33",
 )
 
-val DEPENDENCY_SETS = listOf(
+val dependencySets = listOf(
   DependencySet(
     "org.assertj",
     "3.24.2",
@@ -69,7 +69,7 @@ val DEPENDENCY_SETS = listOf(
   ),
 )
 
-val DEPENDENCIES = listOf(
+val dependencyLists = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.12.0",
@@ -86,17 +86,17 @@ javaPlatform {
 }
 
 dependencies {
-  for (bom in DEPENDENCY_BOMS) {
+  for (bom in dependencyBoms) {
     api(platform(bom))
   }
   constraints {
-    for (set in DEPENDENCY_SETS) {
+    for (set in dependencySets) {
       for (module in set.modules) {
         api("${set.group}:$module:${set.version}")
       }
     }
 
-    for (dependency in DEPENDENCIES) {
+    for (dependency in dependencyLists) {
       api(dependency)
     }
   }
@@ -105,7 +105,7 @@ dependencies {
 rootProject.allprojects {
   plugins.withId("com.github.jk1.dependency-license-report") {
     configure<LicenseReportExtension> {
-      val bomExcludes = DEPENDENCY_BOMS.stream()
+      val bomExcludes = dependencyBoms.stream()
         .map { it.substring(0, it.lastIndexOf(':')) }
         .toArray { length -> arrayOfNulls<String>(length) }
       excludes = bomExcludes

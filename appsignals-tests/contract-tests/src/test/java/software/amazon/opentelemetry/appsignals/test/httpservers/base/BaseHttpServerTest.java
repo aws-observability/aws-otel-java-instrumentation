@@ -84,50 +84,63 @@ public abstract class BaseHttpServerTest extends ContractTestBase {
             });
   }
 
+//  some sementic attributes has been removed:
+//    https://github.com/open-telemetry/opentelemetry-java-instrumentation/commit/7cd705b55594f17f821c16181bb2f12d093e6680
   protected void assertSemanticConventionsAttributes(
       List<KeyValue> attributesList, String method, String route, String target, long status_code) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_HOST_NAME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_HOST_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
+            })
+//            --------------------------------------
+//      nettey utilize ServerAttributesExtractor which doesn't extract local socket attributes: getNetworkLocalAddress(), getNetworkLocalPort()
+//      https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/5ebb81b8a8ac0e5b3c9f2e175b847a3d0b12251f/instrumentation/netty/netty-4-common/library/src/main/java/io/opentelemetry/instrumentation/netty/v4/common/internal/client/NettyClientInstrumenterFactory.java#L64
+//      https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/5ebb81b8a8ac0e5b3c9f2e175b847a3d0b12251f/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/network/ServerAttributesExtractor.java#L24
+//      HttpServerAttributesExtractorBuilder dosen't extract local socket attributes
+//      https://opentelemetry.io/docs/specs/semconv/general/attributes/#networkpeer-and-networklocal-attributes
+//      https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/5ebb81b8a8ac0e5b3c9f2e175b847a3d0b12251f/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorBuilder.java#L141
+//        .satisfiesOnlyOnce(
+//            attribute -> {
+//              assertThat(attribute.getKey())
+//                  .isEqualTo(SemanticConventionsConstants.NETWORK_LOCAL_ADDRESS);
+//            })
+//            --------------------------------------
+//        .satisfiesOnlyOnce(
+//            attribute -> {
+//              assertThat(attribute.getKey())
+//                  .isEqualTo(SemanticConventionsConstants.NETWORK_LOCAL_PORT);
+//              assertThat(attribute.getValue().getIntValue()).isEqualTo(8080L);
+//            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
+                  .isEqualTo(SemanticConventionsConstants.NETWORK_PEER_ADDRESS);
             })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_HOST_ADDR);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_HOST_PORT);
-              assertThat(attribute.getValue().getIntValue()).isEqualTo(8080L);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_ADDR);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_SOCK_PEER_PORT);
+                  .isEqualTo(SemanticConventionsConstants.NETWORK_PEER_PORT);
               assertThat(attribute.getValue().getIntValue()).isBetween(1023L, 65536L);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_SCHEME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_SCHEME);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
             })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_CONTENT_LENGTH);
-            })
+//      HTTP_RESPONSE_HEADER_CONTENT_LENGTH -> need an explicit configuration
+//      https://opentelemetry.io/docs/specs/semconv/attributes-registry/http/#http-attributes
+//            --------------------------------------
+//        .satisfiesOnlyOnce(
+//            attribute -> {
+//              assertThat(attribute.getKey())
+//                  .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_HEADER_CONTENT_LENGTH);
+//            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_ROUTE);
@@ -135,30 +148,36 @@ public abstract class BaseHttpServerTest extends ContractTestBase {
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_TARGET);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_PATH);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(target);
             })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.HTTP_STATUS_CODE);
+                  .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE);
               assertThat(attribute.getValue().getIntValue()).isEqualTo(status_code);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_METHOD);
+              assertThat(attribute.getKey())
+                  .isEqualTo(SemanticConventionsConstants.HTTP_REQUEST_METHOD);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(method);
             })
+//            --------------------------------------
+            //      network.protocol.name has marked as Conditionally required if not http and
+            // network.protocol.version is set:
+//      HttpServerAttributesExtractorBuilder dosen't extract protocol attributes
+//      https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/5ebb81b8a8ac0e5b3c9f2e175b847a3d0b12251f/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorBuilder.java#L141
+//        .satisfiesOnlyOnce(
+//            attribute -> {
+//              assertThat(attribute.getKey())
+//                  .isEqualTo(SemanticConventionsConstants.NETWORK_PROTOCOL_NAME);
+//              assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
+//            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_PROTOCOL_NAME);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_PROTOCOL_VERSION);
+                  .isEqualTo(SemanticConventionsConstants.NETWORK_PROTOCOL_VERSION);
             })
         .satisfiesOnlyOnce(
             attribute -> {

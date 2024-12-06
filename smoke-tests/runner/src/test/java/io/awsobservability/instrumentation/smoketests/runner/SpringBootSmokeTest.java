@@ -98,7 +98,8 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> backend =
-      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-test-fakebackend:alpha")
+      new GenericContainer<>(
+              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-test-fakebackend:alpha")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
           .withLogConsumer(new Slf4jLogConsumer(backendLogger))
@@ -108,7 +109,7 @@ class SpringBootSmokeTest {
   @Container
   private static final GenericContainer<?> application =
       new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
+              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
@@ -119,12 +120,16 @@ class SpringBootSmokeTest {
           .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
+          .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
+          .withEnv("OTEL_INSTRUMENTATION_COMMON_EXPERIMENTAL_CONTROLLER_TELEMETRY_ENABLED", "true")
           .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080");
 
+  //  Suppressing controller and/or view spans:
+  // https://opentelemetry.io/docs/zero-code/java/agent/disable/#suppressing-controller-andor-view-spans
   @Container
   private static final GenericContainer<?> applicationXraySampler =
       new GenericContainer<>(
-              "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
+              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
@@ -137,6 +142,8 @@ class SpringBootSmokeTest {
           .withEnv("OTEL_BSP_MAX_EXPORT_BATCH", "1")
           .withEnv("OTEL_BSP_SCHEDULE_DELAY", "10")
           .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080")
+          .withEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
+          .withEnv("OTEL_INSTRUMENTATION_COMMON_EXPERIMENTAL_CONTROLLER_TELEMETRY_ENABLED", "true")
           .withEnv("OTEL_TRACES_SAMPLER", "xray");
 
   private static final TypeReference<List<ExportTraceServiceRequest>>

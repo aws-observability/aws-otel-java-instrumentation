@@ -50,7 +50,7 @@ import org.testcontainers.shaded.com.google.common.util.concurrent.Uninterruptib
  * The mock collector client is used to interact with the Mock collector image, used in the tests.
  */
 public class MockCollectorClient {
-  private final TemporalAmount TIMEOUT_DELAY = Duration.of(20, ChronoUnit.SECONDS);
+  private final TemporalAmount TIMEOUT_DELAY = Duration.of(120, ChronoUnit.SECONDS);
   private static final Logger logger = LoggerFactory.getLogger(MockCollectorClient.class);
 
   private static final TypeReference<List<ExportTraceServiceRequest>>

@@ -28,8 +28,8 @@ application {
 jib {
 
   configureImages(
-    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
-    "public.ecr.aws/aws-otel-test/aws-otel-java-spark",
+    "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-opentelemetry-java-base:alpha",
+    "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-spark",
     localDocker = rootProject.property("localDocker")!!.equals("true"),
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
     tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),
