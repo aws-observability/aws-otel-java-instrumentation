@@ -250,23 +250,28 @@ index 0000000000..e890cb3c0f
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-index 3e8fddec5c..8f86a67b39 100644
+index 3e8fddec5c..6c8e476c0a 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-@@ -18,6 +18,49 @@ final class AwsExperimentalAttributes {
-   static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
+@@ -19,5 +19,54 @@ final class AwsExperimentalAttributes {
    static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
    static final AttributeKey<String> AWS_REQUEST_ID = stringKey("aws.requestId");
+ 
 +  static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
++
 +  static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =
 +      stringKey("aws.bedrock.knowledge_base.id");
++
 +  static final AttributeKey<String> AWS_DATA_SOURCE_ID = stringKey("aws.bedrock.data_source.id");
++
 +  static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
++
 +  static final AttributeKey<String> AWS_GUARDRAIL_ARN = stringKey("aws.bedrock.guardrail.arn");
 +
 +  // TODO: Merge in gen_ai attributes in opentelemetry-semconv-incubating once upgrade to v1.26.0
 +  static final AttributeKey<String> AWS_BEDROCK_RUNTIME_MODEL_ID =
 +      stringKey("gen_ai.request.model");
++
 +  static final AttributeKey<String> AWS_BEDROCK_SYSTEM = stringKey("gen_ai.system");
 +
 +  static final AttributeKey<String> GEN_AI_REQUEST_MAX_TOKENS =
@@ -300,11 +305,11 @@ index 3e8fddec5c..8f86a67b39 100644
 +
 +  static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
 +      stringKey("aws.lambda.resource_mapping.id");
- 
++
    private AwsExperimentalAttributes() {}
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-index 245f09a5d8..aef7936980 100644
+index 245f09a5d8..282e045b83 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 @@ -6,13 +6,31 @@
@@ -357,7 +362,7 @@ index 245f09a5d8..aef7936980 100644
  
    @Override
    public void onStart(AttributesBuilder attributes, Context parentContext, Request<?> request) {
-@@ -34,21 +57,30 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -34,21 +57,29 @@ class AwsSdkExperimentalAttributesExtractor
      attributes.put(AWS_ENDPOINT, request.getEndpoint().toString());
  
      Object originalRequest = request.getOriginalRequest();
@@ -367,6 +372,15 @@ index 245f09a5d8..aef7936980 100644
 -    setRequestAttribute(attributes, AWS_STREAM_NAME, originalRequest, RequestAccess::getStreamName);
 -    setRequestAttribute(attributes, AWS_TABLE_NAME, originalRequest, RequestAccess::getTableName);
 -  }
+-
+-  private static void setRequestAttribute(
+-      AttributesBuilder attributes,
+-      AttributeKey<String> key,
+-      Object request,
+-      Function<Object, String> getter) {
+-    String value = getter.apply(request);
+-    if (value != null) {
+-      attributes.put(key, value);
 +    String requestClassName = originalRequest.getClass().getSimpleName();
 +    setAttribute(attributes, AWS_BUCKET_NAME, originalRequest, RequestAccess::getBucketName);
 +    setAttribute(attributes, AWS_QUEUE_URL, originalRequest, RequestAccess::getQueueUrl);
@@ -385,15 +399,6 @@ index 245f09a5d8..aef7936980 100644
 +    setAttribute(attributes, AWS_LAMBDA_NAME, originalRequest, RequestAccess::getLambdaName);
 +    setAttribute(
 +        attributes, AWS_LAMBDA_RESOURCE_ID, originalRequest, RequestAccess::getLambdaResourceId);
- 
--  private static void setRequestAttribute(
--      AttributesBuilder attributes,
--      AttributeKey<String> key,
--      Object request,
--      Function<Object, String> getter) {
--    String value = getter.apply(request);
--    if (value != null) {
--      attributes.put(key, value);
 +    // Get serviceName defined in the AWS Java SDK V1 Request class.
 +    String serviceName = request.getServiceName();
 +    // Extract request attributes only for Bedrock services.
@@ -402,7 +407,7 @@ index 245f09a5d8..aef7936980 100644
      }
    }
  
-@@ -59,12 +91,136 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -59,12 +90,136 @@ class AwsSdkExperimentalAttributesExtractor
        Request<?> request,
        @Nullable Response<?> response,
        @Nullable Throwable error) {
@@ -427,15 +432,15 @@ index 245f09a5d8..aef7936980 100644
 +        if (requestId != null) {
 +          attributes.put(AWS_REQUEST_ID, requestId);
 +        }
-       }
++      }
 +      // Get serviceName defined in the AWS Java SDK V1 Request class.
 +      String serviceName = request.getServiceName();
 +      // Extract response attributes for Bedrock services
 +      if (awsResp != null && isBedrockService(serviceName)) {
 +        bedrockOnEnd(attributes, awsResp, serviceName);
-+      }
-+    }
-+  }
+       }
+     }
+   }
 +
 +  private static void bedrockOnStart(
 +      AttributesBuilder attributes,
@@ -541,8 +546,8 @@ index 245f09a5d8..aef7936980 100644
 +    String value = getter.apply(request);
 +    if (value != null) {
 +      attributes.put(key, value);
-     }
-   }
++    }
++  }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 index bb2ae9266c..512d5345cc 100644
@@ -1042,7 +1047,7 @@ index 548631e9f1..51483839a7 100644
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-index 95e6ed8985..990fc177bc 100644
+index 95e6ed8985..8a387e8d31 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 @@ -27,6 +27,24 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
@@ -1083,7 +1088,7 @@ index 95e6ed8985..990fc177bc 100644
          </DeleteOptionGroupResponse>
        """
 +    "Bedrock"    | "GetGuardrail"      | "GET" | "/"                   |
-+    AmazonBedrockClientBuilder.standard()                             | { c -> c.getGuardrail(new GetGuardrailRequest().withGuardrailIdentifier("guardrailId")) } | ["aws.bedrock.guardrail.id":"guardrailId", "aws.bedrock.guardrail.arn": "guardrailArn"] | """
++      AmazonBedrockClientBuilder.standard()                             | { c -> c.getGuardrail(new GetGuardrailRequest().withGuardrailIdentifier("guardrailId")) } | ["aws.bedrock.guardrail.id":"guardrailId", "aws.bedrock.guardrail.arn": "guardrailArn"] | """
 +        {
 +           "blockedInputMessaging": "string",
 +           "blockedOutputsMessaging": "string",
@@ -1115,12 +1120,12 @@ index 95e6ed8985..990fc177bc 100644
 +    "AWSBedrockAgent"    | "GetKnowledgeBase"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getKnowledgeBase(new GetKnowledgeBaseRequest().withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.knowledge_base.id": "knowledgeBaseId"] | ""
 +    "AWSBedrockAgent"    | "GetDataSource"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getDataSource(new GetDataSourceRequest().withDataSourceId("datasourceId").withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.data_source.id": "datasourceId"] | ""
 +    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("ai21.jamba-1-5-mini-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
++      AmazonBedrockRuntimeClientBuilder.standard() |
++      { c ->
++        c.invokeModel(
++          new InvokeModelRequest()
++            .withModelId("ai21.jamba-1-5-mini-v1:0")
++            .withBody(StandardCharsets.UTF_8.encode('''
 +            {
 +              "messages": [{
 +                "role": "user",
@@ -1131,19 +1136,19 @@ index 95e6ed8985..990fc177bc 100644
 +              "temperature": 0.7
 +            }
 +          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "ai21.jamba-1-5-mini-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "1000",
-+            "gen_ai.request.temperature": "0.7",
-+            "gen_ai.request.top_p": "0.8",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "5",
-+            "gen_ai.usage.output_tokens": "42"
-+        ] |
-+        '''
++        )
++      } |
++      [
++        "gen_ai.request.model": "ai21.jamba-1-5-mini-v1:0",
++        "gen_ai.system": "aws_bedrock",
++        "gen_ai.request.max_tokens": "1000",
++        "gen_ai.request.temperature": "0.7",
++        "gen_ai.request.top_p": "0.8",
++        "gen_ai.response.finish_reasons": "[stop]",
++        "gen_ai.usage.input_tokens": "5",
++        "gen_ai.usage.output_tokens": "42"
++      ] |
++      '''
 +    {
 +      "choices": [{
 +        "finish_reason": "stop"
@@ -1155,12 +1160,12 @@ index 95e6ed8985..990fc177bc 100644
 +    }
 +    '''
 +    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("amazon.titan-text-premier-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
++      AmazonBedrockRuntimeClientBuilder.standard() |
++      { c ->
++        c.invokeModel(
++          new InvokeModelRequest()
++            .withModelId("amazon.titan-text-premier-v1:0")
++            .withBody(StandardCharsets.UTF_8.encode('''
 +            {
 +              "inputText": "Hello, world!",
 +              "textGenerationConfig": {
@@ -1171,19 +1176,19 @@ index 95e6ed8985..990fc177bc 100644
 +              }
 +            }
 +          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "amazon.titan-text-premier-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "100",
-+            "gen_ai.request.temperature": "0.7",
-+            "gen_ai.request.top_p": "0.9",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "5",
-+            "gen_ai.usage.output_tokens": "42"
-+        ] |
-+        '''
++        )
++      } |
++      [
++        "gen_ai.request.model": "amazon.titan-text-premier-v1:0",
++        "gen_ai.system": "aws_bedrock",
++        "gen_ai.request.max_tokens": "100",
++        "gen_ai.request.temperature": "0.7",
++        "gen_ai.request.top_p": "0.9",
++        "gen_ai.response.finish_reasons": "[stop]",
++        "gen_ai.usage.input_tokens": "5",
++        "gen_ai.usage.output_tokens": "42"
++      ] |
++      '''
 +    {
 +      "inputTextTokenCount": 5,
 +      "results": [
@@ -1196,12 +1201,12 @@ index 95e6ed8985..990fc177bc 100644
 +    }
 +    '''
 +    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("anthropic.claude-3-5-sonnet-20241022-v2:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
++      AmazonBedrockRuntimeClientBuilder.standard() |
++      { c ->
++        c.invokeModel(
++          new InvokeModelRequest()
++            .withModelId("anthropic.claude-3-5-sonnet-20241022-v2:0")
++            .withBody(StandardCharsets.UTF_8.encode('''
 +            {
 +              "anthropic_version": "bedrock-2023-05-31",
 +              "messages": [{
@@ -1213,19 +1218,19 @@ index 95e6ed8985..990fc177bc 100644
 +              "top_p": 0.9
 +            }
 +          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "100",
-+            "gen_ai.request.temperature": "0.7",
-+            "gen_ai.request.top_p": "0.9",
-+            "gen_ai.response.finish_reasons": "[end_turn]",
-+            "gen_ai.usage.input_tokens": "2095",
-+            "gen_ai.usage.output_tokens": "503"
-+        ] |
-+        '''
++        )
++      } |
++      [
++        "gen_ai.request.model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
++        "gen_ai.system": "aws_bedrock",
++        "gen_ai.request.max_tokens": "100",
++        "gen_ai.request.temperature": "0.7",
++        "gen_ai.request.top_p": "0.9",
++        "gen_ai.response.finish_reasons": "[end_turn]",
++        "gen_ai.usage.input_tokens": "2095",
++        "gen_ai.usage.output_tokens": "503"
++      ] |
++      '''
 +    {
 +      "stop_reason": "end_turn",
 +      "usage": {
@@ -1235,12 +1240,12 @@ index 95e6ed8985..990fc177bc 100644
 +    }
 +    '''
 +    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("meta.llama3-70b-instruct-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
++      AmazonBedrockRuntimeClientBuilder.standard() |
++      { c ->
++        c.invokeModel(
++          new InvokeModelRequest()
++            .withModelId("meta.llama3-70b-instruct-v1:0")
++            .withBody(StandardCharsets.UTF_8.encode('''
 +            {
 +              "prompt": "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\\\\nDescribe the purpose of a 'hello world' program in one line. <|eot_id|>\\\\n<|start_header_id|>assistant<|end_header_id|>\\\\n",
 +              "max_gen_len": 128,
@@ -1248,19 +1253,19 @@ index 95e6ed8985..990fc177bc 100644
 +              "top_p": 0.9
 +            }
 +          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "meta.llama3-70b-instruct-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "128",
-+            "gen_ai.request.temperature": "0.1",
-+            "gen_ai.request.top_p": "0.9",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "2095",
-+            "gen_ai.usage.output_tokens": "503"
-+        ] |
-+        '''
++        )
++      } |
++      [
++        "gen_ai.request.model": "meta.llama3-70b-instruct-v1:0",
++        "gen_ai.system": "aws_bedrock",
++        "gen_ai.request.max_tokens": "128",
++        "gen_ai.request.temperature": "0.1",
++        "gen_ai.request.top_p": "0.9",
++        "gen_ai.response.finish_reasons": "[stop]",
++        "gen_ai.usage.input_tokens": "2095",
++        "gen_ai.usage.output_tokens": "503"
++      ] |
++      '''
 +    {
 +      "prompt_token_count": 2095,
 +      "generation_token_count": 503,
@@ -1268,12 +1273,12 @@ index 95e6ed8985..990fc177bc 100644
 +    }
 +    '''
 +    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("cohere.command-r-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
++      AmazonBedrockRuntimeClientBuilder.standard() |
++      { c ->
++        c.invokeModel(
++          new InvokeModelRequest()
++            .withModelId("cohere.command-r-v1:0")
++            .withBody(StandardCharsets.UTF_8.encode('''
 +            {
 +              "message": "Convince me to write a LISP interpreter in one line.",
 +              "temperature": 0.8,
@@ -1281,31 +1286,31 @@ index 95e6ed8985..990fc177bc 100644
 +              "p": 0.45 
 +            }
 +          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "cohere.command-r-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "4096",
-+            "gen_ai.request.temperature": "0.8",
-+            "gen_ai.request.top_p": "0.45",
-+            "gen_ai.response.finish_reasons": "[COMPLETE]",
-+            "gen_ai.usage.input_tokens": "9",
-+            "gen_ai.usage.output_tokens": "2"
-+        ] |
-+        '''
++        )
++      } |
++      [
++        "gen_ai.request.model": "cohere.command-r-v1:0",
++        "gen_ai.system": "aws_bedrock",
++        "gen_ai.request.max_tokens": "4096",
++        "gen_ai.request.temperature": "0.8",
++        "gen_ai.request.top_p": "0.45",
++        "gen_ai.response.finish_reasons": "[COMPLETE]",
++        "gen_ai.usage.input_tokens": "9",
++        "gen_ai.usage.output_tokens": "2"
++      ] |
++      '''
 +    {
 +      "text": "test-output",
 +      "finish_reason": "COMPLETE"
 +    }
 +    '''
 +    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("mistral.mistral-large-2402-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
++      AmazonBedrockRuntimeClientBuilder.standard() |
++      { c ->
++        c.invokeModel(
++          new InvokeModelRequest()
++            .withModelId("mistral.mistral-large-2402-v1:0")
++            .withBody(StandardCharsets.UTF_8.encode('''
 +        {
 +            "prompt": "<s>[INST] Describe the difference between a compiler and interpreter in one line. [/INST]\\\\n",
 +            "max_tokens": 4096,
@@ -1313,19 +1318,19 @@ index 95e6ed8985..990fc177bc 100644
 +            "top_p": 0.25
 +        }
 +    '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "mistral.mistral-large-2402-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "4096",
-+            "gen_ai.request.temperature": "0.75",
-+            "gen_ai.request.top_p": "0.25",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "16",
-+            "gen_ai.usage.output_tokens": "2"
-+        ] |
-+        '''
++        )
++      } |
++      [
++        "gen_ai.request.model": "mistral.mistral-large-2402-v1:0",
++        "gen_ai.system": "aws_bedrock",
++        "gen_ai.request.max_tokens": "4096",
++        "gen_ai.request.temperature": "0.75",
++        "gen_ai.request.top_p": "0.25",
++        "gen_ai.response.finish_reasons": "[stop]",
++        "gen_ai.usage.input_tokens": "16",
++        "gen_ai.usage.output_tokens": "2"
++      ] |
++      '''
 +        {
 +          "outputs": [{
 +            "text": "test-output",
@@ -1334,17 +1339,17 @@ index 95e6ed8985..990fc177bc 100644
 +        }
 +    '''
 +    "AWSStepFunctions" | "DescribeStateMachine" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
-+    | { c -> c.describeStateMachine(new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn")) }
-+    | ["aws.stepfunctions.state_machine.arn": "stateMachineArn"]
-+    | ""
++      | { c -> c.describeStateMachine(new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn")) }
++      | ["aws.stepfunctions.state_machine.arn": "stateMachineArn"]
++      | ""
 +    "AWSStepFunctions" | "DescribeActivity" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
-+    | { c -> c.describeActivity(new DescribeActivityRequest().withActivityArn("activityArn")) }
-+    | ["aws.stepfunctions.activity.arn": "activityArn"]
-+    | ""
++      | { c -> c.describeActivity(new DescribeActivityRequest().withActivityArn("activityArn")) }
++      | ["aws.stepfunctions.activity.arn": "activityArn"]
++      | ""
 +    "SNS" | "Publish" | "POST" | "/" | AmazonSNSClientBuilder.standard()
-+    | { c -> c.publish(new PublishRequest().withMessage("message").withTopicArn("topicArn")) }
-+    | ["aws.sns.topic.arn": "topicArn"]
-+    | """
++      | { c -> c.publish(new PublishRequest().withMessage("message").withTopicArn("topicArn")) }
++      | ["aws.sns.topic.arn": "topicArn"]
++      | """
 +      <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
 +          <PublishResult>
 +              <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -1355,9 +1360,9 @@ index 95e6ed8985..990fc177bc 100644
 +      </PublishResponse>
 +      """
 +    "AWSSecretsManager" | "CreateSecret" | "POST" | "/" | AWSSecretsManagerClientBuilder.standard()
-+    | { c -> c.createSecret(new CreateSecretRequest().withName("secretName").withSecretString("secretValue")) }
-+    | ["aws.secretsmanager.secret.arn": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3"]
-+    | """
++      | { c -> c.createSecret(new CreateSecretRequest().withName("secretName").withSecretString("secretValue")) }
++      | ["aws.secretsmanager.secret.arn": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3"]
++      | """
 +      {
 +        "ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3",
 +        "Name":"MyTestDatabaseSecret",
@@ -1365,18 +1370,18 @@ index 95e6ed8985..990fc177bc 100644
 +      }
 +    """
 +    "AWSLambda" | "GetEventSourceMapping" | "GET" | "/" | AWSLambdaClientBuilder.standard()
-+    | { c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid")) }
-+    | ["aws.lambda.resource_mapping.id": "uuid"]
-+    | ""
++      | { c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid")) }
++      | ["aws.lambda.resource_mapping.id": "uuid"]
++      | ""
 +    "AWSLambda" | "GetFunction" | "GET" | "/" | AWSLambdaClientBuilder.standard()
-+    | { c-> c.getFunction(new GetFunctionRequest().withFunctionName("functionName")) }
-+    | ["aws.lambda.function.name": "functionName"]
-+    | ""
++      | { c-> c.getFunction(new GetFunctionRequest().withFunctionName("functionName")) }
++      | ["aws.lambda.function.name": "functionName"]
++      | ""
    }
  
    def "send #operation request to closed port"() {
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
-index 8f442b268b..24c14dec4e 100644
+index 3b6efbd696..9f4487d727 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
 @@ -84,6 +84,9 @@ dependencies {
@@ -1386,11 +1391,11 @@ index 8f442b268b..24c14dec4e 100644
 +  testLibrary("software.amazon.awssdk:sfn:2.2.0")
 +  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
 +  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ }
  
-   // last version that does not use json protocol
-   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+ val latestDepTest = findProperty("testLatestDeps") as Boolean
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
-index e73abc7bc3..d387a7472c 100644
+index 6e0ea36a64..68b9c72b7d 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
 @@ -21,6 +21,9 @@ dependencies {
@@ -1400,11 +1405,11 @@ index e73abc7bc3..d387a7472c 100644
 +  testLibrary("software.amazon.awssdk:sfn:2.2.0")
 +  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
 +  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ }
  
-   // last version that does not use json protocol
-   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+ tasks {
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
-index 081d542e76..4f71a06a57 100644
+index 862df156ae..2ed33d6f03 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
 @@ -19,6 +19,9 @@ dependencies {
@@ -1414,9 +1419,9 @@ index 081d542e76..4f71a06a57 100644
 +  testLibrary("software.amazon.awssdk:sfn:2.2.0")
 +  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
 +  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ }
  
-   // last version that does not use json protocol
-   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+ testing {
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
 new file mode 100644
 index 0000000000..9e9f9cf59f
@@ -1497,7 +1502,7 @@ index 0000000000..9e9f9cf59f
 +  private AwsExperimentalAttributes() {}
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
-index 54253d0f7b..5326400f7e 100644
+index 54253d0f7b..2374bd4a52 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
 @@ -5,10 +5,20 @@
@@ -1521,10 +1526,11 @@ index 54253d0f7b..5326400f7e 100644
  import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.request;
  import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.response;
  
-@@ -32,6 +42,49 @@ enum AwsSdkRequest {
+@@ -32,6 +42,54 @@ enum AwsSdkRequest {
    S3Request(S3, "S3Request"),
    SqsRequest(SQS, "SqsRequest"),
    KinesisRequest(KINESIS, "KinesisRequest"),
++
 +  BedrockRequest(BEDROCK, "BedrockRequest"),
 +  BedrockAgentRuntimeRequest(BEDROCKAGENTRUNTIMEOPERATION, "BedrockAgentRuntimeRequest"),
 +  BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),
@@ -1564,18 +1570,22 @@ index 54253d0f7b..5326400f7e 100644
 +  BedrockListDataSourcesRequest(BEDROCKKNOWLEDGEBASEOPERATION, "ListDataSourcesRequest"),
 +  BedrockUpdateAgentKnowledgeBaseRequest(
 +      BEDROCKKNOWLEDGEBASEOPERATION, "UpdateAgentKnowledgeBaseRequest"),
++
 +  SfnRequest(STEPFUNCTION, "SfnRequest"),
++
 +  SnsRequest(SNS, "SnsRequest"),
++
 +  SecretsManagerRequest(SECRETSMANAGER, "SecretsManagerRequest"),
++
 +  LambdaRequest(LAMBDA, "LambdaRequest"),
    // specific requests
    BatchGetItem(
        DYNAMODB,
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-index 9062f2aa17..4cd468e095 100644
+index 9062f2aa17..aa77d8d227 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-@@ -5,17 +5,76 @@
+@@ -5,17 +5,84 @@
  
  package io.opentelemetry.instrumentation.awssdk.v2_2;
  
@@ -1616,9 +1626,13 @@ index 9062f2aa17..4cd468e095 100644
 -  KINESIS(request("aws.stream.name", "StreamName")),
 -  DYNAMODB(request("aws.table.name", "TableName"));
 +  S3(request(AWS_BUCKET_NAME.getKey(), "Bucket")),
++
 +  SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
++
 +  KINESIS(request(AWS_STREAM_NAME.getKey(), "StreamName")),
++
 +  DYNAMODB(request(AWS_TABLE_NAME.getKey(), "TableName")),
++
 +  BEDROCK(
 +      request(AWS_GUARDRAIL_ID.getKey(), "guardrailIdentifier"),
 +      response(AWS_GUARDRAIL_ARN.getKey(), "guardrailArn")),
@@ -1644,11 +1658,15 @@ index 9062f2aa17..4cd468e095 100644
 +      response(GEN_AI_RESPONSE_FINISH_REASONS.getKey(), "body"),
 +      response(GEN_AI_USAGE_INPUT_TOKENS.getKey(), "body"),
 +      response(GEN_AI_USAGE_OUTPUT_TOKENS.getKey(), "body")),
++
 +  STEPFUNCTION(
 +      request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
 +      request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
++
 +  SNS(request(AWS_SNS_TOPIC_ARN.getKey(), "TopicArn")),
++
 +  SECRETSMANAGER(response(AWS_SECRET_ARN.getKey(), "ARN")),
++
 +  LAMBDA(
 +      request(AWS_LAMBDA_NAME.getKey(), "FunctionName"),
 +      request(AWS_LAMBDA_RESOURCE_ID.getKey(), "UUID"),
@@ -1946,7 +1964,7 @@ index f717b1efc4..352b02093e 100644
  
    @Override
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
-index 2a7f14d14b..584b8dda6c 100644
+index 9981aa9a19..1caed55e62 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
 @@ -19,6 +19,9 @@ dependencies {
@@ -1958,12 +1976,12 @@ index 2a7f14d14b..584b8dda6c 100644
 +  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
  
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
-   implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
+   implementation("org.elasticmq:elasticmq-rest-sqs_2.13:1.5.1")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-index 53390c8d85..692cd005eb 100644
+index 7c152bb91b..b30b8fa2c7 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-@@ -33,8 +33,19 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
+@@ -35,6 +35,16 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
  import software.amazon.awssdk.services.sqs.SqsClient
  import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
  import software.amazon.awssdk.services.sqs.model.SendMessageRequest
@@ -1979,11 +1997,8 @@ index 53390c8d85..692cd005eb 100644
 +import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
  import spock.lang.Unroll
  
-+
- import java.time.Duration
- import java.util.concurrent.Future
- 
-@@ -120,7 +131,31 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+ import java.nio.charset.StandardCharsets
+@@ -144,6 +154,29 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
                "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
              } else if (service == "Kinesis") {
                "aws.stream.name" "somestream"
@@ -2011,29 +2026,27 @@ index 53390c8d85..692cd005eb 100644
 +            } else if (service == "SecretsManager") {
 +              "aws.secretsmanager.secret.arn" "someSecretArn"
              }
-+
            }
          }
-       }
-@@ -162,6 +197,41 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+@@ -218,6 +251,41 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
            <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
          </DeleteOptionGroupResponse>
          """
 +    "Sfn" | "DescribeStateMachine" | "POST" | "UNKNOWN" | SfnClient.builder()
-+    | { c -> c.describeStateMachine(DescribeStateMachineRequest.builder().stateMachineArn("stateMachineArn").build()) }
-+    | ""
++      | { c -> c.describeStateMachine(DescribeStateMachineRequest.builder().stateMachineArn("stateMachineArn").build()) }
++      | ""
 +    "Sfn" | "DescribeActivity" | "POST" | "UNKNOWN" | SfnClient.builder()
-+    | { c -> c.describeActivity(DescribeActivityRequest.builder().activityArn("activityArn").build()) }
-+    | ""
++      | { c -> c.describeActivity(DescribeActivityRequest.builder().activityArn("activityArn").build()) }
++      | ""
 +    "Lambda" | "GetFunction" | "GET" | "UNKNOWN" | LambdaClient.builder()
-+    | { c -> c.getFunction(GetFunctionRequest.builder().functionName("functionName").build()) }
-+    | ""
++      | { c -> c.getFunction(GetFunctionRequest.builder().functionName("functionName").build()) }
++      | ""
 +    "Lambda" | "GetEventSourceMapping" | "GET" |"UNKNOWN" | LambdaClient.builder()
-+    | { c -> c.getEventSourceMapping(GetEventSourceMappingRequest.builder().uuid("sourceEventId").build()) }
-+    | ""
++      | { c -> c.getEventSourceMapping(GetEventSourceMappingRequest.builder().uuid("sourceEventId").build()) }
++      | ""
 +    "Sns" | "Publish" | "POST" | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()
-+    | { c -> c.publish(PublishRequest.builder().topicArn("topicArn").message("message").build()) }
-+    | """
++      | { c -> c.publish(PublishRequest.builder().topicArn("topicArn").message("message").build()) }
++      | """
 +      <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
 +          <PublishResult>
 +              <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -2044,8 +2057,8 @@ index 53390c8d85..692cd005eb 100644
 +      </PublishResponse>
 +    """
 +    "SecretsManager" | "GetSecretValue" | "POST" | "UNKNOWN" | SecretsManagerClient.builder()
-+    | { c -> c.getSecretValue(GetSecretValueRequest.builder().secretId("someSecret1").build()) }
-+    | """
++      | { c -> c.getSecretValue(GetSecretValueRequest.builder().secretId("someSecret1").build()) }
++      | """
 +      {
 +        "ARN":"someSecretArn",
 +        "CreatedDate":1.523477145713E9,
@@ -2058,14 +2071,14 @@ index 53390c8d85..692cd005eb 100644
  
    def "send #operation async request with builder #builder.class.getName() mocked response"() {
 diff --git a/version.gradle.kts b/version.gradle.kts
-index fdf57bdbea..c38a2e00f3 100644
+index 5217d396e2..66cc8ecb2a 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.32.1"
--val alphaVersion = "1.32.1-alpha"
-+val stableVersion = "1.32.1-adot2"
-+val alphaVersion = "1.32.1-adot2-alpha"
+-val stableVersion = "1.33.6"
+-val alphaVersion = "1.33.6-alpha"
++val stableVersion = "1.33.6-adot1"
++val alphaVersion = "1.33.6-adot1-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {

@@ -27,8 +27,8 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val TEST_SNAPSHOTS = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "1.32.1-adot2"
-val otelSnapshotVersion = "1.33.0"
+val otelVersion = "1.33.6-adot1"
+val otelSnapshotVersion = "1.33.6"
 val otelAlphaVersion = if (!TEST_SNAPSHOTS) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
 val otelJavaAgentVersion = if (!TEST_SNAPSHOTS) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
@@ -73,10 +73,11 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.12.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.32.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.32.0-alpha",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.39.0",
+  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.39.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
+  "io.opentelemetry:opentelemetry-extension-aws:1.20.1",
   "net.bytebuddy:byte-buddy:1.14.10",
 )
 

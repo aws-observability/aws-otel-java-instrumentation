@@ -46,7 +46,7 @@ tasks {
 }
 jib {
   configureImages(
-    "public.ecr.aws/docker/library/amazoncorretto:17-alpine",
+    "public.ecr.aws/docker/library/amazoncorretto:21-alpine",
     "grpc-server",
     localDocker = rootProject.property("localDocker")!! == "true",
     multiPlatform = false,
