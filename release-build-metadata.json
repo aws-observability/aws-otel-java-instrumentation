@@ -1,0 +1,13 @@
+{
+    "release": [
+        {
+            "version": "1.32.5",
+            "checksum": [
+                {
+                    "name": "aws-opentelemetry-agent.jar",
+                    "checksum": "1644b11c2c90747c99934c3c52d800e95bfb854e459ba9f50054b21233c65c37"
+                }
+            ]
+        }
+    ]
+}
