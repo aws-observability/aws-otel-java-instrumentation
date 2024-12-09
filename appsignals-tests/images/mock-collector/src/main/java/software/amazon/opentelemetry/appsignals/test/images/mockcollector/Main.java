@@ -120,6 +120,7 @@ public class Main {
                       HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
                 })
             .service("/health", HealthCheckService.of())
+            .annotatedService(metricsCollector.HTTP_INSTANCE)
             .build();
 
     server.start().join();

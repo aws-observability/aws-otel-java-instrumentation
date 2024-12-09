@@ -16,15 +16,24 @@
 package software.amazon.opentelemetry.appsignals.test.images.mockcollector;
 
 import com.google.common.collect.ImmutableList;
+import com.linecorp.armeria.common.AggregatedHttpRequest;
+import com.linecorp.armeria.common.annotation.Nullable;
+import com.linecorp.armeria.server.ServiceRequestContext;
+import com.linecorp.armeria.server.annotation.Post;
+import com.linecorp.armeria.server.annotation.RequestConverter;
+import com.linecorp.armeria.server.annotation.RequestConverterFunction;
 import io.grpc.stub.StreamObserver;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse;
 import io.opentelemetry.proto.collector.metrics.v1.MetricsServiceGrpc;
+import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 class MockCollectorMetricsService extends MetricsServiceGrpc.MetricsServiceImplBase {
+
+  protected final HttpService HTTP_INSTANCE = new HttpService();
 
   private final BlockingQueue<ExportMetricsServiceRequest> exportRequests =
       new LinkedBlockingDeque<>();
@@ -44,5 +53,31 @@ class MockCollectorMetricsService extends MetricsServiceGrpc.MetricsServiceImplB
     exportRequests.add(request);
     responseObserver.onNext(ExportMetricsServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
+  }
+
+  class HttpService {
+    @Post("/v1/metrics")
+    @RequestConverter(ExportMetricsServiceRequestConverter.class)
+    public void consumeMetrics(ExportMetricsServiceRequest request) {
+      exportRequests.add(request);
+    }
+  }
+
+  static class ExportMetricsServiceRequestConverter implements RequestConverterFunction {
+
+    @Override
+    public @Nullable Object convertRequest(
+        ServiceRequestContext ctx,
+        AggregatedHttpRequest request,
+        Class<?> expectedResultType,
+        @Nullable ParameterizedType expectedParameterizedResultType)
+        throws Exception {
+      if (expectedResultType == ExportMetricsServiceRequest.class) {
+        try (var content = request.content()) {
+          return ExportMetricsServiceRequest.parseFrom(content.array());
+        }
+      }
+      return RequestConverterFunction.fallthrough();
+    }
   }
 }

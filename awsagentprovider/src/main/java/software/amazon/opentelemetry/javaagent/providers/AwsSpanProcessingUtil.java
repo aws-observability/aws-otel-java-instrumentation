@@ -23,6 +23,8 @@ import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
+import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
+import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.isLambdaEnvironment;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -82,9 +84,13 @@ final class AwsSpanProcessingUtil {
   /**
    * Ingress operation (i.e. operation for Server and Consumer spans) will be generated from
    * "http.method + http.target/with the first API path parameter" if the default span name equals
-   * null, UnknownOperation or http.method value.
+   * null, UnknownOperation or http.method value. If running in Lambda, the ingress operation will
+   * be the function name + /FunctionHandler.
    */
   static String getIngressOperation(SpanData span) {
+    if (isLambdaEnvironment()) {
+      return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) + "/FunctionHandler";
+    }
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
       operation = INTERNAL_OPERATION;
