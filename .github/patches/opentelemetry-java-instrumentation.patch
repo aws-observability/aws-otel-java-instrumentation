@@ -1046,10 +1046,10 @@ index 54253d0f7b..5326400f7e 100644
    BatchGetItem(
        DYNAMODB,
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-index 9062f2aa17..2b62320c0b 100644
+index 9062f2aa17..9511cd6f05 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-@@ -5,17 +5,61 @@
+@@ -5,17 +5,62 @@
  
  package io.opentelemetry.instrumentation.awssdk.v2_2;
  
@@ -1103,6 +1103,7 @@ index 9062f2aa17..2b62320c0b 100644
 +  BEDROCKKNOWLEDGEBASEOPERATION(
 +      request(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId"),
 +      response(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId")),
++  BEDROCKRUNTIME(request(GEN_AI_MODEL.getKey(), "modelId")),
 +  STEPFUNCTION(
 +      request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
 +      request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
