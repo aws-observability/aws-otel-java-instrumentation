@@ -250,10 +250,10 @@ index 0000000000..e890cb3c0f
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-index 3e8fddec5c..8f86a67b39 100644
+index 3e8fddec5c..70e8eeae7f 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-@@ -18,6 +18,49 @@ final class AwsExperimentalAttributes {
+@@ -18,6 +18,32 @@ final class AwsExperimentalAttributes {
    static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
    static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
    static final AttributeKey<String> AWS_REQUEST_ID = stringKey("aws.requestId");
@@ -268,23 +268,6 @@ index 3e8fddec5c..8f86a67b39 100644
 +  static final AttributeKey<String> AWS_BEDROCK_RUNTIME_MODEL_ID =
 +      stringKey("gen_ai.request.model");
 +  static final AttributeKey<String> AWS_BEDROCK_SYSTEM = stringKey("gen_ai.system");
-+
-+  static final AttributeKey<String> GEN_AI_REQUEST_MAX_TOKENS =
-+      stringKey("gen_ai.request.max_tokens");
-+
-+  static final AttributeKey<String> GEN_AI_REQUEST_TEMPERATURE =
-+      stringKey("gen_ai.request.temperature");
-+
-+  static final AttributeKey<String> GEN_AI_REQUEST_TOP_P = stringKey("gen_ai.request.top_p");
-+
-+  static final AttributeKey<String> GEN_AI_RESPONSE_FINISH_REASONS =
-+      stringKey("gen_ai.response.finish_reasons");
-+
-+  static final AttributeKey<String> GEN_AI_USAGE_INPUT_TOKENS =
-+      stringKey("gen_ai.usage.input_tokens");
-+
-+  static final AttributeKey<String> GEN_AI_USAGE_OUTPUT_TOKENS =
-+      stringKey("gen_ai.usage.output_tokens");
 +
 +  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
 +      stringKey("aws.stepfunctions.state_machine.arn");
@@ -304,10 +287,10 @@ index 3e8fddec5c..8f86a67b39 100644
    private AwsExperimentalAttributes() {}
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-index 245f09a5d8..aef7936980 100644
+index 245f09a5d8..178579a2b7 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-@@ -6,13 +6,31 @@
+@@ -6,11 +6,23 @@
  package io.opentelemetry.instrumentation.awssdk.v1_11;
  
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_AGENT;
@@ -330,16 +313,8 @@ index 245f09a5d8..aef7936980 100644
 +import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_STREAM_NAME;
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_TABLE_NAME;
-+import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.GEN_AI_REQUEST_MAX_TOKENS;
-+import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.GEN_AI_REQUEST_TEMPERATURE;
-+import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.GEN_AI_REQUEST_TOP_P;
-+import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.GEN_AI_RESPONSE_FINISH_REASONS;
-+import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.GEN_AI_USAGE_INPUT_TOKENS;
-+import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.GEN_AI_USAGE_OUTPUT_TOKENS;
  
- import com.amazonaws.AmazonWebServiceResponse;
- import com.amazonaws.Request;
-@@ -21,12 +39,17 @@ import io.opentelemetry.api.common.AttributeKey;
+@@ -21,12 +33,17 @@ import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.AttributesBuilder;
  import io.opentelemetry.context.Context;
  import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor;
@@ -357,7 +332,7 @@ index 245f09a5d8..aef7936980 100644
  
    @Override
    public void onStart(AttributesBuilder attributes, Context parentContext, Request<?> request) {
-@@ -34,21 +57,30 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -34,21 +51,30 @@ class AwsSdkExperimentalAttributesExtractor
      attributes.put(AWS_ENDPOINT, request.getEndpoint().toString());
  
      Object originalRequest = request.getOriginalRequest();
@@ -402,7 +377,7 @@ index 245f09a5d8..aef7936980 100644
      }
    }
  
-@@ -59,12 +91,136 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -59,12 +85,118 @@ class AwsSdkExperimentalAttributesExtractor
        Request<?> request,
        @Nullable Response<?> response,
        @Nullable Throwable error) {
@@ -471,13 +446,6 @@ index 245f09a5d8..aef7936980 100644
 +        String modelId = getter.apply(originalRequest);
 +        attributes.put(AWS_BEDROCK_RUNTIME_MODEL_ID, modelId);
 +
-+        setAttribute(
-+            attributes, GEN_AI_REQUEST_MAX_TOKENS, originalRequest, RequestAccess::getMaxTokens);
-+        setAttribute(
-+            attributes, GEN_AI_REQUEST_TEMPERATURE, originalRequest, RequestAccess::getTemperature);
-+        setAttribute(attributes, GEN_AI_REQUEST_TOP_P, originalRequest, RequestAccess::getTopP);
-+        setAttribute(
-+            attributes, GEN_AI_USAGE_INPUT_TOKENS, originalRequest, RequestAccess::getInputTokens);
 +        break;
 +      default:
 +        break;
@@ -507,17 +475,6 @@ index 245f09a5d8..aef7936980 100644
 +        setAttribute(attributes, AWS_AGENT_ID, awsResp, RequestAccess::getAgentId);
 +        setAttribute(attributes, AWS_KNOWLEDGE_BASE_ID, awsResp, RequestAccess::getKnowledgeBaseId);
 +        break;
-+      case BEDROCK_RUNTIME_SERVICE:
-+        if (!Objects.equals(awsResp.getClass().getSimpleName(), "InvokeModelResult")) {
-+          break;
-+        }
-+
-+        setAttribute(attributes, GEN_AI_USAGE_INPUT_TOKENS, awsResp, RequestAccess::getInputTokens);
-+        setAttribute(
-+            attributes, GEN_AI_USAGE_OUTPUT_TOKENS, awsResp, RequestAccess::getOutputTokens);
-+        setAttribute(
-+            attributes, GEN_AI_RESPONSE_FINISH_REASONS, awsResp, RequestAccess::getFinishReasons);
-+        break;
 +      default:
 +        break;
 +    }
@@ -545,238 +502,21 @@ index 245f09a5d8..aef7936980 100644
    }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-index bb2ae9266c..512d5345cc 100644
+index bb2ae9266c..36e216047f 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-@@ -5,9 +5,17 @@
- 
- package io.opentelemetry.instrumentation.awssdk.v1_11;
- 
-+import com.fasterxml.jackson.databind.JsonNode;
-+import com.fasterxml.jackson.databind.ObjectMapper;
-+import java.io.IOException;
+@@ -8,6 +8,7 @@ package io.opentelemetry.instrumentation.awssdk.v1_11;
  import java.lang.invoke.MethodHandle;
  import java.lang.invoke.MethodHandles;
  import java.lang.invoke.MethodType;
 +import java.lang.reflect.Method;
-+import java.nio.ByteBuffer;
-+import java.util.Arrays;
-+import java.util.Objects;
-+import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
  final class RequestAccess {
-@@ -20,36 +28,365 @@ final class RequestAccess {
+@@ -20,36 +21,158 @@ final class RequestAccess {
          }
        };
  
-+  private static final ObjectMapper objectMapper = new ObjectMapper();
-+
-+  @Nullable
-+  private static JsonNode parseTargetBody(ByteBuffer buffer) {
-+    try {
-+      byte[] bytes;
-+      // Create duplicate to avoid mutating the original buffer position
-+      ByteBuffer duplicate = buffer.duplicate();
-+      if (buffer.hasArray()) {
-+        bytes =
-+            Arrays.copyOfRange(
-+                duplicate.array(),
-+                duplicate.arrayOffset(),
-+                duplicate.arrayOffset() + duplicate.remaining());
-+      } else {
-+        bytes = new byte[buffer.remaining()];
-+        buffer.get(bytes);
-+      }
-+      return objectMapper.readTree(bytes);
-+    } catch (IOException e) {
-+      return null;
-+    }
-+  }
-+
-+  @Nullable
-+  private static JsonNode getJsonBody(Object target) {
-+    if (target == null) {
-+      return null;
-+    }
-+
-+    RequestAccess access = REQUEST_ACCESSORS.get(target.getClass());
-+    ByteBuffer bodyBuffer = invokeOrNullGeneric(access.getBody, target, ByteBuffer.class);
-+    if (bodyBuffer == null) {
-+      return null;
-+    }
-+
-+    return parseTargetBody(bodyBuffer);
-+  }
-+
-+  @Nullable
-+  private static String findFirstMatchingPath(JsonNode jsonBody, String... paths) {
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    return Stream.of(paths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                return node.asText();
-+              }
-+              return null;
-+            })
-+        .filter(Objects::nonNull)
-+        .findFirst()
-+        .orElse(null);
-+  }
-+
-+  @Nullable
-+  private static String approximateTokenCount(JsonNode jsonBody, String... textPaths) {
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    return Stream.of(textPaths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                int tokenEstimate = (int) Math.ceil(node.asText().length() / 6.0);
-+                return Integer.toString(tokenEstimate);
-+              }
-+              return null;
-+            })
-+        .filter(Objects::nonNull)
-+        .findFirst()
-+        .orElse(null);
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/textGenerationConfig/maxTokenCount"
-+  // Anthropic Claude -> "/max_tokens"
-+  // Cohere Command -> "/max_tokens"
-+  // Cohere Command R -> "/max_tokens"
-+  // AI21 Jamba -> "/max_tokens"
-+  // Meta Llama -> "/max_gen_len"
-+  // Mistral AI -> "/max_tokens"
-+  @Nullable
-+  static String getMaxTokens(Object target) {
-+    return findFirstMatchingPath(
-+        getJsonBody(target), "/textGenerationConfig/maxTokenCount", "/max_tokens", "/max_gen_len");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/textGenerationConfig/temperature"
-+  // Anthropic Claude -> "/temperature"
-+  // Cohere Command -> "/temperature"
-+  // Cohere Command R -> "/temperature"
-+  // AI21 Jamba -> "/temperature"
-+  // Meta Llama -> "/temperature"
-+  // Mistral AI -> "/temperature"
-+  @Nullable
-+  static String getTemperature(Object target) {
-+    return findFirstMatchingPath(
-+        getJsonBody(target), "/textGenerationConfig/temperature", "/temperature");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/textGenerationConfig/topP"
-+  // Anthropic Claude -> "/top_p"
-+  // Cohere Command -> "/p"
-+  // Cohere Command R -> "/p"
-+  // AI21 Jamba -> "/top_p"
-+  // Meta Llama -> "/top_p"
-+  // Mistral AI -> "/top_p"
-+  @Nullable
-+  static String getTopP(Object target) {
-+    return findFirstMatchingPath(getJsonBody(target), "/textGenerationConfig/topP", "/top_p", "/p");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/inputTextTokenCount"
-+  // Anthropic Claude -> "/usage/input_tokens"
-+  // Cohere Command -> "/prompt"
-+  // Cohere Command R -> "/message"
-+  // AI21 Jamba -> "/usage/prompt_tokens"
-+  // Meta Llama -> "/prompt_token_count"
-+  // Mistral AI -> "/prompt"
-+  @Nullable
-+  static String getInputTokens(Object target) {
-+    JsonNode jsonBody = getJsonBody(target);
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    // Try direct tokens counts first
-+    String directCount =
-+        findFirstMatchingPath(
-+            jsonBody,
-+            "/inputTextTokenCount",
-+            "/usage/input_tokens",
-+            "/usage/prompt_tokens",
-+            "/prompt_token_count");
-+
-+    if (directCount != null) {
-+      return directCount;
-+    }
-+
-+    // Fall back to token approximation
-+    return approximateTokenCount(jsonBody, "/prompt", "/message");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/results/0/tokenCount"
-+  // Anthropic Claude -> "/usage/output_tokens"
-+  // Cohere Command -> "/generations/0/text"
-+  // Cohere Command R -> "/text"
-+  // AI21 Jamba -> "/usage/completion_tokens"
-+  // Meta Llama -> "/generation_token_count"
-+  // Mistral AI -> "/outputs/0/text"
-+  @Nullable
-+  static String getOutputTokens(Object target) {
-+    JsonNode jsonBody = getJsonBody(target);
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    // Try direct token counts first
-+    String directCount =
-+        findFirstMatchingPath(
-+            jsonBody,
-+            "/results/0/tokenCount",
-+            "/usage/output_tokens",
-+            "/usage/completion_tokens",
-+            "/generation_token_count");
-+
-+    if (directCount != null) {
-+      return directCount;
-+    }
-+
-+    return approximateTokenCount(jsonBody, "/outputs/0/text", "/text");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/results/0/completionReason"
-+  // Anthropic Claude -> "/stop_reason"
-+  // Cohere Command -> "/generations/0/finish_reason"
-+  // Cohere Command R -> "/finish_reason"
-+  // AI21 Jamba -> "/choices/0/finish_reason"
-+  // Meta Llama -> "/stop_reason"
-+  // Mistral AI -> "/outputs/0/stop_reason"
-+  @Nullable
-+  static String getFinishReasons(Object target) {
-+    String finishReason =
-+        findFirstMatchingPath(
-+            getJsonBody(target),
-+            "/results/0/completionReason",
-+            "/stop_reason",
-+            "/generations/0/finish_reason",
-+            "/choices/0/finish_reason",
-+            "/outputs/0/stop_reason",
-+            "/finish_reason");
-+
-+    return finishReason != null ? "[" + finishReason + "]" : null;
-+  }
-+
 +  @Nullable
 +  static String getLambdaName(Object request) {
 +    if (request == null) {
@@ -932,25 +672,7 @@ index bb2ae9266c..512d5345cc 100644
    @Nullable
    private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
      if (method == null) {
-@@ -62,27 +399,82 @@ final class RequestAccess {
-     }
-   }
- 
-+  @Nullable
-+  private static <T> T invokeOrNullGeneric(
-+      @Nullable MethodHandle method, Object obj, Class<T> returnType) {
-+    if (method == null) {
-+      return null;
-+    }
-+    try {
-+      return returnType.cast(method.invoke(obj));
-+    } catch (Throwable e) {
-+      return null;
-+    }
-+  }
-+
-   @Nullable private final MethodHandle getBucketName;
-   @Nullable private final MethodHandle getQueueUrl;
+@@ -67,6 +190,17 @@ final class RequestAccess {
    @Nullable private final MethodHandle getQueueName;
    @Nullable private final MethodHandle getStreamName;
    @Nullable private final MethodHandle getTableName;
@@ -959,7 +681,6 @@ index bb2ae9266c..512d5345cc 100644
 +  @Nullable private final MethodHandle getDataSourceId;
 +  @Nullable private final MethodHandle getGuardrailId;
 +  @Nullable private final MethodHandle getModelId;
-+  @Nullable private final MethodHandle getBody;
 +  @Nullable private final MethodHandle getStateMachineArn;
 +  @Nullable private final MethodHandle getStepFunctionsActivityArn;
 +  @Nullable private final MethodHandle getSnsTopicArn;
@@ -968,39 +689,26 @@ index bb2ae9266c..512d5345cc 100644
 +  @Nullable private final MethodHandle getLambdaResourceId;
  
    private RequestAccess(Class<?> clz) {
--    getBucketName = findAccessorOrNull(clz, "getBucketName");
--    getQueueUrl = findAccessorOrNull(clz, "getQueueUrl");
--    getQueueName = findAccessorOrNull(clz, "getQueueName");
--    getStreamName = findAccessorOrNull(clz, "getStreamName");
--    getTableName = findAccessorOrNull(clz, "getTableName");
-+    getBucketName = findAccessorOrNull(clz, "getBucketName", String.class);
-+    getQueueUrl = findAccessorOrNull(clz, "getQueueUrl", String.class);
-+    getQueueName = findAccessorOrNull(clz, "getQueueName", String.class);
-+    getStreamName = findAccessorOrNull(clz, "getStreamName", String.class);
-+    getTableName = findAccessorOrNull(clz, "getTableName", String.class);
-+    getAgentId = findAccessorOrNull(clz, "getAgentId", String.class);
-+    getKnowledgeBaseId = findAccessorOrNull(clz, "getKnowledgeBaseId", String.class);
-+    getDataSourceId = findAccessorOrNull(clz, "getDataSourceId", String.class);
-+    getGuardrailId = findAccessorOrNull(clz, "getGuardrailId", String.class);
-+    getModelId = findAccessorOrNull(clz, "getModelId", String.class);
-+    getBody = findAccessorOrNull(clz, "getBody", ByteBuffer.class);
-+    getStateMachineArn = findAccessorOrNull(clz, "getStateMachineArn", String.class);
-+    getStepFunctionsActivityArn = findAccessorOrNull(clz, "getActivityArn", String.class);
-+    getSnsTopicArn = findAccessorOrNull(clz, "getTopicArn", String.class);
-+    getSecretArn = findAccessorOrNull(clz, "getARN", String.class);
-+    getLambdaName = findAccessorOrNull(clz, "getFunctionName", String.class);
-+    getLambdaResourceId = findAccessorOrNull(clz, "getUUID", String.class);
+     getBucketName = findAccessorOrNull(clz, "getBucketName");
+@@ -74,6 +208,17 @@ final class RequestAccess {
+     getQueueName = findAccessorOrNull(clz, "getQueueName");
+     getStreamName = findAccessorOrNull(clz, "getStreamName");
+     getTableName = findAccessorOrNull(clz, "getTableName");
++    getAgentId = findAccessorOrNull(clz, "getAgentId");
++    getKnowledgeBaseId = findAccessorOrNull(clz, "getKnowledgeBaseId");
++    getDataSourceId = findAccessorOrNull(clz, "getDataSourceId");
++    getGuardrailId = findAccessorOrNull(clz, "getGuardrailId");
++    getModelId = findAccessorOrNull(clz, "getModelId");
++    getStateMachineArn = findAccessorOrNull(clz, "getStateMachineArn");
++    getStepFunctionsActivityArn = findAccessorOrNull(clz, "getActivityArn");
++    getSnsTopicArn = findAccessorOrNull(clz, "getTopicArn");
++    getSecretArn = findAccessorOrNull(clz, "getARN");
++    getLambdaName = findAccessorOrNull(clz, "getFunctionName");
++    getLambdaResourceId = findAccessorOrNull(clz, "getUUID");
    }
  
    @Nullable
--  private static MethodHandle findAccessorOrNull(Class<?> clz, String methodName) {
-+  private static MethodHandle findAccessorOrNull(
-+      Class<?> clz, String methodName, Class<?> returnType) {
-     try {
-       return MethodHandles.publicLookup()
--          .findVirtual(clz, methodName, MethodType.methodType(String.class));
-+          .findVirtual(clz, methodName, MethodType.methodType(returnType));
-     } catch (Throwable t) {
+@@ -85,4 +230,21 @@ final class RequestAccess {
        return null;
      }
    }
@@ -1042,7 +750,7 @@ index 548631e9f1..51483839a7 100644
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-index 95e6ed8985..990fc177bc 100644
+index 95e6ed8985..613a93fc7b 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 @@ -27,6 +27,24 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
@@ -1078,7 +786,7 @@ index 95e6ed8985..990fc177bc 100644
  
  import static io.opentelemetry.api.trace.SpanKind.CLIENT
  import static io.opentelemetry.api.trace.SpanKind.PRODUCER
-@@ -156,6 +175,296 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
+@@ -156,6 +175,88 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
            </ResponseMetadata>
          </DeleteOptionGroupResponse>
        """
@@ -1114,225 +822,17 @@ index 95e6ed8985..990fc177bc 100644
 +    "AWSBedrockAgent"    | "GetAgent"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getAgent(new GetAgentRequest().withAgentId("agentId")) } | ["aws.bedrock.agent.id": "agentId"] | ""
 +    "AWSBedrockAgent"    | "GetKnowledgeBase"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getKnowledgeBase(new GetKnowledgeBaseRequest().withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.knowledge_base.id": "knowledgeBaseId"] | ""
 +    "AWSBedrockAgent"    | "GetDataSource"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getDataSource(new GetDataSourceRequest().withDataSourceId("datasourceId").withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.data_source.id": "datasourceId"] | ""
-+    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("ai21.jamba-1-5-mini-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
-+            {
-+              "messages": [{
-+                "role": "user",
-+                "message": "Which LLM are you?"
-+              }],
-+              "max_tokens": 1000,
-+              "top_p": 0.8,
-+              "temperature": 0.7
-+            }
-+          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "ai21.jamba-1-5-mini-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "1000",
-+            "gen_ai.request.temperature": "0.7",
-+            "gen_ai.request.top_p": "0.8",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "5",
-+            "gen_ai.usage.output_tokens": "42"
-+        ] |
-+        '''
-+    {
-+      "choices": [{
-+        "finish_reason": "stop"
-+      }],
-+      "usage": {
-+        "prompt_tokens": 5,
-+        "completion_tokens": 42
-+      }
-+    }
-+    '''
-+    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("amazon.titan-text-premier-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
-+            {
-+              "inputText": "Hello, world!",
-+              "textGenerationConfig": {
-+                "temperature": 0.7,
-+                "topP": 0.9,
-+                "maxTokenCount": 100,
-+                "stopSequences": ["END"]
-+              }
-+            }
-+          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "amazon.titan-text-premier-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "100",
-+            "gen_ai.request.temperature": "0.7",
-+            "gen_ai.request.top_p": "0.9",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "5",
-+            "gen_ai.usage.output_tokens": "42"
-+        ] |
-+        '''
-+    {
-+      "inputTextTokenCount": 5,
-+      "results": [
++    "BedrockRuntime"    | "InvokeModel"      | "POST" | "/"                   | AmazonBedrockRuntimeClientBuilder.standard()                             |
++      { c -> c.invokeModel(
++        new InvokeModelRequest().withModelId("anthropic.claude-v2").withBody(StandardCharsets.UTF_8.encode(
++          "{\"prompt\":\"Hello, world!\",\"temperature\":0.7,\"top_p\":0.9,\"max_tokens_to_sample\":100}\n"
++        ))) } | ["gen_ai.request.model": "anthropic.claude-v2", "gen_ai.system": "aws_bedrock"] | """
 +        {
-+          "tokenCount": 42,
-+          "outputText": "Hi! I'm Titan, an AI assistant. How can I help you today?",
-+          "completionReason": "stop"
++            "completion": " Here is a simple explanation of black ",
++            "stop_reason": "length",
++            "stop": "holes"
 +        }
-+      ]
-+    }
-+    '''
-+    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("anthropic.claude-3-5-sonnet-20241022-v2:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
-+            {
-+              "anthropic_version": "bedrock-2023-05-31",
-+              "messages": [{
-+                "role": "user",
-+                "content": "Hello, world"
-+              }],
-+              "max_tokens": 100,
-+              "temperature": 0.7,
-+              "top_p": 0.9
-+            }
-+          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "100",
-+            "gen_ai.request.temperature": "0.7",
-+            "gen_ai.request.top_p": "0.9",
-+            "gen_ai.response.finish_reasons": "[end_turn]",
-+            "gen_ai.usage.input_tokens": "2095",
-+            "gen_ai.usage.output_tokens": "503"
-+        ] |
-+        '''
-+    {
-+      "stop_reason": "end_turn",
-+      "usage": {
-+        "input_tokens": 2095,
-+        "output_tokens": 503
-+      }
-+    }
-+    '''
-+    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("meta.llama3-70b-instruct-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
-+            {
-+              "prompt": "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\\\\nDescribe the purpose of a 'hello world' program in one line. <|eot_id|>\\\\n<|start_header_id|>assistant<|end_header_id|>\\\\n",
-+              "max_gen_len": 128,
-+              "temperature": 0.1,
-+              "top_p": 0.9
-+            }
-+          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "meta.llama3-70b-instruct-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "128",
-+            "gen_ai.request.temperature": "0.1",
-+            "gen_ai.request.top_p": "0.9",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "2095",
-+            "gen_ai.usage.output_tokens": "503"
-+        ] |
-+        '''
-+    {
-+      "prompt_token_count": 2095,
-+      "generation_token_count": 503,
-+      "stop_reason": "stop"
-+    }
-+    '''
-+    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("cohere.command-r-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
-+            {
-+              "message": "Convince me to write a LISP interpreter in one line.",
-+              "temperature": 0.8,
-+              "max_tokens": 4096,
-+              "p": 0.45 
-+            }
-+          '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "cohere.command-r-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "4096",
-+            "gen_ai.request.temperature": "0.8",
-+            "gen_ai.request.top_p": "0.45",
-+            "gen_ai.response.finish_reasons": "[COMPLETE]",
-+            "gen_ai.usage.input_tokens": "9",
-+            "gen_ai.usage.output_tokens": "2"
-+        ] |
-+        '''
-+    {
-+      "text": "test-output",
-+      "finish_reason": "COMPLETE"
-+    }
-+    '''
-+    "BedrockRuntime" | "InvokeModel" | "POST" | "/" |
-+        AmazonBedrockRuntimeClientBuilder.standard() |
-+        { c ->
-+          c.invokeModel(
-+              new InvokeModelRequest()
-+                  .withModelId("mistral.mistral-large-2402-v1:0")
-+                  .withBody(StandardCharsets.UTF_8.encode('''
-+        {
-+            "prompt": "<s>[INST] Describe the difference between a compiler and interpreter in one line. [/INST]\\\\n",
-+            "max_tokens": 4096,
-+            "temperature": 0.75,
-+            "top_p": 0.25
-+        }
-+    '''))
-+          )
-+        } |
-+        [
-+            "gen_ai.request.model": "mistral.mistral-large-2402-v1:0",
-+            "gen_ai.system": "aws_bedrock",
-+            "gen_ai.request.max_tokens": "4096",
-+            "gen_ai.request.temperature": "0.75",
-+            "gen_ai.request.top_p": "0.25",
-+            "gen_ai.response.finish_reasons": "[stop]",
-+            "gen_ai.usage.input_tokens": "16",
-+            "gen_ai.usage.output_tokens": "2"
-+        ] |
-+        '''
-+        {
-+          "outputs": [{
-+            "text": "test-output",
-+            "stop_reason": "stop"
-+          }]
-+        }
-+    '''
++      """
 +    "AWSStepFunctions" | "DescribeStateMachine" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
 +    | { c -> c.describeStateMachine(new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn")) }
 +    | ["aws.stepfunctions.state_machine.arn": "stateMachineArn"]
@@ -1419,10 +919,10 @@ index 081d542e76..4f71a06a57 100644
    latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
 new file mode 100644
-index 0000000000..9e9f9cf59f
+index 0000000000..e1cb180d75
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,47 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1451,23 +951,6 @@ index 0000000000..9e9f9cf59f
 +  static final AttributeKey<String> GEN_AI_MODEL = stringKey("gen_ai.request.model");
 +  static final AttributeKey<String> GEN_AI_SYSTEM = stringKey("gen_ai.system");
 +
-+  static final AttributeKey<String> GEN_AI_REQUEST_MAX_TOKENS =
-+      stringKey("gen_ai.request.max_tokens");
-+
-+  static final AttributeKey<String> GEN_AI_REQUEST_TEMPERATURE =
-+      stringKey("gen_ai.request.temperature");
-+
-+  static final AttributeKey<String> GEN_AI_REQUEST_TOP_P = stringKey("gen_ai.request.top_p");
-+
-+  static final AttributeKey<String> GEN_AI_RESPONSE_FINISH_REASONS =
-+      stringKey("gen_ai.response.finish_reasons");
-+
-+  static final AttributeKey<String> GEN_AI_USAGE_INPUT_TOKENS =
-+      stringKey("gen_ai.usage.input_tokens");
-+
-+  static final AttributeKey<String> GEN_AI_USAGE_OUTPUT_TOKENS =
-+      stringKey("gen_ai.usage.output_tokens");
-+
 +  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
 +      stringKey("aws.stepfunctions.state_machine.arn");
 +
@@ -1484,15 +967,6 @@ index 0000000000..9e9f9cf59f
 +
 +  static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
 +      stringKey("aws.lambda.resource_mapping.id");
-+
-+  static boolean isGenAiAttribute(String attributeKey) {
-+    return attributeKey.equals(GEN_AI_REQUEST_MAX_TOKENS.getKey())
-+        || attributeKey.equals(GEN_AI_REQUEST_TEMPERATURE.getKey())
-+        || attributeKey.equals(GEN_AI_REQUEST_TOP_P.getKey())
-+        || attributeKey.equals(GEN_AI_RESPONSE_FINISH_REASONS.getKey())
-+        || attributeKey.equals(GEN_AI_USAGE_INPUT_TOKENS.getKey())
-+        || attributeKey.equals(GEN_AI_USAGE_OUTPUT_TOKENS.getKey());
-+  }
 +
 +  private AwsExperimentalAttributes() {}
 +}
@@ -1572,10 +1046,10 @@ index 54253d0f7b..5326400f7e 100644
    BatchGetItem(
        DYNAMODB,
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-index 9062f2aa17..4cd468e095 100644
+index 9062f2aa17..9511cd6f05 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-@@ -5,17 +5,76 @@
+@@ -5,17 +5,62 @@
  
  package io.opentelemetry.instrumentation.awssdk.v2_2;
  
@@ -1597,12 +1071,6 @@ index 9062f2aa17..4cd468e095 100644
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_STREAM_NAME;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.AWS_TABLE_NAME;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_MODEL;
-+import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_REQUEST_MAX_TOKENS;
-+import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_REQUEST_TEMPERATURE;
-+import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_REQUEST_TOP_P;
-+import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_RESPONSE_FINISH_REASONS;
-+import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_USAGE_INPUT_TOKENS;
-+import static io.opentelemetry.instrumentation.awssdk.v2_2.AwsExperimentalAttributes.GEN_AI_USAGE_OUTPUT_TOKENS;
  import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.request;
 +import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.response;
  
@@ -1635,15 +1103,7 @@ index 9062f2aa17..4cd468e095 100644
 +  BEDROCKKNOWLEDGEBASEOPERATION(
 +      request(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId"),
 +      response(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId")),
-+  BEDROCKRUNTIME(
-+      request(GEN_AI_MODEL.getKey(), "modelId"),
-+      request(GEN_AI_REQUEST_MAX_TOKENS.getKey(), "body"),
-+      request(GEN_AI_REQUEST_TEMPERATURE.getKey(), "body"),
-+      request(GEN_AI_REQUEST_TOP_P.getKey(), "body"),
-+      request(GEN_AI_USAGE_INPUT_TOKENS.getKey(), "body"),
-+      response(GEN_AI_RESPONSE_FINISH_REASONS.getKey(), "body"),
-+      response(GEN_AI_USAGE_INPUT_TOKENS.getKey(), "body"),
-+      response(GEN_AI_USAGE_OUTPUT_TOKENS.getKey(), "body")),
++  BEDROCKRUNTIME(request(GEN_AI_MODEL.getKey(), "modelId")),
 +  STEPFUNCTION(
 +      request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
 +      request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
@@ -1656,263 +1116,6 @@ index 9062f2aa17..4cd468e095 100644
  
    // Wrapping in unmodifiableMap
    @SuppressWarnings("ImmutableEnumChecker")
-diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/FieldMapper.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/FieldMapper.java
-index 569d0eb5ae..8f2d463237 100644
---- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/FieldMapper.java
-+++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/FieldMapper.java
-@@ -65,8 +65,13 @@ class FieldMapper {
-     for (int i = 1; i < path.size() && target != null; i++) {
-       target = next(target, path.get(i));
-     }
-+    String value;
-     if (target != null) {
--      String value = serializer.serialize(target);
-+      if (AwsExperimentalAttributes.isGenAiAttribute(fieldMapping.getAttribute())) {
-+        value = serializer.serialize(fieldMapping.getAttribute(), target);
-+      } else {
-+        value = serializer.serialize(target);
-+      }
-       if (!StringUtils.isEmpty(value)) {
-         span.setAttribute(fieldMapping.getAttribute(), value);
-       }
-diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/Serializer.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/Serializer.java
-index 979ecb08e8..fb846cae6a 100644
---- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/Serializer.java
-+++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/Serializer.java
-@@ -5,13 +5,19 @@
- 
- package io.opentelemetry.instrumentation.awssdk.v2_2;
- 
-+import com.fasterxml.jackson.core.JsonProcessingException;
-+import com.fasterxml.jackson.databind.JsonNode;
-+import com.fasterxml.jackson.databind.ObjectMapper;
- import java.io.IOException;
- import java.io.InputStream;
- import java.util.Collection;
- import java.util.Map;
-+import java.util.Objects;
- import java.util.Optional;
- import java.util.stream.Collectors;
-+import java.util.stream.Stream;
- import javax.annotation.Nullable;
-+import software.amazon.awssdk.core.SdkBytes;
- import software.amazon.awssdk.core.SdkPojo;
- import software.amazon.awssdk.http.ContentStreamProvider;
- import software.amazon.awssdk.http.SdkHttpFullRequest;
-@@ -21,6 +27,8 @@ import software.amazon.awssdk.utils.StringUtils;
- 
- class Serializer {
- 
-+  private static final ObjectMapper objectMapper = new ObjectMapper();
-+
-   @Nullable
-   String serialize(Object target) {
- 
-@@ -41,6 +49,41 @@ class Serializer {
-     return target.toString();
-   }
- 
-+  @Nullable
-+  String serialize(String attributeName, Object target) {
-+    try {
-+      JsonNode jsonBody;
-+      if (target instanceof SdkBytes) {
-+        String jsonString = ((SdkBytes) target).asUtf8String();
-+        jsonBody = objectMapper.readTree(jsonString);
-+      } else {
-+        if (target != null) {
-+          return target.toString();
-+        }
-+        return null;
-+      }
-+
-+      switch (attributeName) {
-+        case "gen_ai.request.max_tokens":
-+          return getMaxTokens(jsonBody);
-+        case "gen_ai.request.temperature":
-+          return getTemperature(jsonBody);
-+        case "gen_ai.request.top_p":
-+          return getTopP(jsonBody);
-+        case "gen_ai.response.finish_reasons":
-+          return getFinishReasons(jsonBody);
-+        case "gen_ai.usage.input_tokens":
-+          return getInputTokens(jsonBody);
-+        case "gen_ai.usage.output_tokens":
-+          return getOutputTokens(jsonBody);
-+        default:
-+          return null;
-+      }
-+    } catch (JsonProcessingException e) {
-+      return null;
-+    }
-+  }
-+
-   @Nullable
-   private static String serialize(SdkPojo sdkPojo) {
-     ProtocolMarshaller<SdkHttpFullRequest> marshaller =
-@@ -65,4 +108,162 @@ class Serializer {
-     String serialized = collection.stream().map(this::serialize).collect(Collectors.joining(","));
-     return (StringUtils.isEmpty(serialized) ? null : "[" + serialized + "]");
-   }
-+
-+  @Nullable
-+  private static String findFirstMatchingPath(JsonNode jsonBody, String... paths) {
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    return Stream.of(paths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                return node.asText();
-+              }
-+              return null;
-+            })
-+        .filter(Objects::nonNull)
-+        .findFirst()
-+        .orElse(null);
-+  }
-+
-+  @Nullable
-+  private static String approximateTokenCount(JsonNode jsonBody, String... textPaths) {
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    return Stream.of(textPaths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                int tokenEstimate = (int) Math.ceil(node.asText().length() / 6.0);
-+                return Integer.toString(tokenEstimate);
-+              }
-+              return null;
-+            })
-+        .filter(Objects::nonNull)
-+        .findFirst()
-+        .orElse(null);
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/textGenerationConfig/maxTokenCount"
-+  // Anthropic Claude -> "/max_tokens"
-+  // Cohere Command -> "/max_tokens"
-+  // Cohere Command R -> "/max_tokens"
-+  // AI21 Jamba -> "/max_tokens"
-+  // Meta Llama -> "/max_gen_len"
-+  // Mistral AI -> "/max_tokens"
-+  @Nullable
-+  private static String getMaxTokens(JsonNode jsonBody) {
-+    return findFirstMatchingPath(
-+        jsonBody, "/textGenerationConfig/maxTokenCount", "/max_tokens", "/max_gen_len");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/textGenerationConfig/temperature"
-+  // Anthropic Claude -> "/temperature"
-+  // Cohere Command -> "/temperature"
-+  // Cohere Command R -> "/temperature"
-+  // AI21 Jamba -> "/temperature"
-+  // Meta Llama -> "/temperature"
-+  // Mistral AI -> "/temperature"
-+  @Nullable
-+  private static String getTemperature(JsonNode jsonBody) {
-+    return findFirstMatchingPath(jsonBody, "/textGenerationConfig/temperature", "/temperature");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/textGenerationConfig/topP"
-+  // Anthropic Claude -> "/top_p"
-+  // Cohere Command -> "/p"
-+  // Cohere Command R -> "/p"
-+  // AI21 Jamba -> "/top_p"
-+  // Meta Llama -> "/top_p"
-+  // Mistral AI -> "/top_p"
-+  @Nullable
-+  private static String getTopP(JsonNode jsonBody) {
-+    return findFirstMatchingPath(jsonBody, "/textGenerationConfig/topP", "/top_p", "/p");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/results/0/completionReason"
-+  // Anthropic Claude -> "/stop_reason"
-+  // Cohere Command -> "/generations/0/finish_reason"
-+  // Cohere Command R -> "/finish_reason"
-+  // AI21 Jamba -> "/choices/0/finish_reason"
-+  // Meta Llama -> "/stop_reason"
-+  // Mistral AI -> "/outputs/0/stop_reason"
-+  @Nullable
-+  private static String getFinishReasons(JsonNode jsonBody) {
-+    String finishReason =
-+        findFirstMatchingPath(
-+            jsonBody,
-+            "/results/0/completionReason",
-+            "/stop_reason",
-+            "/generations/0/finish_reason",
-+            "/choices/0/finish_reason",
-+            "/outputs/0/stop_reason",
-+            "/finish_reason");
-+
-+    return finishReason != null ? "[" + finishReason + "]" : null;
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/inputTextTokenCount"
-+  // Anthropic Claude -> "/usage/input_tokens"
-+  // Cohere Command -> "/prompt"
-+  // Cohere Command R -> "/message"
-+  // AI21 Jamba -> "/usage/prompt_tokens"
-+  // Meta Llama -> "/prompt_token_count"
-+  // Mistral AI -> "/prompt"
-+  @Nullable
-+  private static String getInputTokens(JsonNode jsonBody) {
-+    // Try direct tokens counts first
-+    String directCount =
-+        findFirstMatchingPath(
-+            jsonBody,
-+            "/inputTextTokenCount",
-+            "/usage/input_tokens",
-+            "/usage/prompt_tokens",
-+            "/prompt_token_count");
-+
-+    if (directCount != null) {
-+      return directCount;
-+    }
-+
-+    // Fall back to token approximation
-+    return approximateTokenCount(jsonBody, "/prompt", "/message");
-+  }
-+
-+  // Model -> Path Mapping:
-+  // Amazon Titan -> "/results/0/tokenCount"
-+  // Anthropic Claude -> "/usage/output_tokens"
-+  // Cohere Command -> "/generations/0/text"
-+  // Cohere Command R -> "/text"
-+  // AI21 Jamba -> "/usage/completion_tokens"
-+  // Meta Llama -> "/generation_token_count"
-+  // Mistral AI -> "/outputs/0/text"
-+  @Nullable
-+  private static String getOutputTokens(JsonNode jsonBody) {
-+    // Try direct token counts first
-+    String directCount =
-+        findFirstMatchingPath(
-+            jsonBody,
-+            "/results/0/tokenCount",
-+            "/usage/output_tokens",
-+            "/usage/completion_tokens",
-+            "/generation_token_count");
-+
-+    if (directCount != null) {
-+      return directCount;
-+    }
-+
-+    // Fall back to token approximation
-+    return approximateTokenCount(jsonBody, "/outputs/0/text", "/text");
-+  }
- }
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java
 index f717b1efc4..352b02093e 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/TracingExecutionInterceptor.java
@@ -2057,6 +1260,90 @@ index 53390c8d85..692cd005eb 100644
    }
  
    def "send #operation async request with builder #builder.class.getName() mocked response"() {
+diff --git a/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java b/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
+index 69b3c09c90..74a6f75ffb 100644
+--- a/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
++++ b/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
+@@ -20,6 +20,7 @@ import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+ import java.io.InputStream;
+ import java.nio.file.Files;
+ import java.nio.file.Paths;
++import java.time.Duration;
+ import java.util.List;
+ 
+ /** An {@link AgentListener} that enables JMX metrics during agent startup. */
+@@ -32,22 +33,22 @@ public class JmxMetricInsightInstaller implements AgentListener {
+ 
+     if (config.getBoolean("otel.jmx.enabled", true)) {
+       JmxMetricInsight service =
+-          JmxMetricInsight.createService(GlobalOpenTelemetry.get(), beanDiscoveryDelay(config));
++          JmxMetricInsight.createService(
++              GlobalOpenTelemetry.get(), beanDiscoveryDelay(config).toMillis());
+       MetricConfiguration conf = buildMetricConfiguration(config);
+       service.start(conf);
+     }
+   }
+ 
+-  private static long beanDiscoveryDelay(ConfigProperties configProperties) {
+-    Long discoveryDelay = configProperties.getLong("otel.jmx.discovery.delay");
++  private static Duration beanDiscoveryDelay(ConfigProperties configProperties) {
++    Duration discoveryDelay = configProperties.getDuration("otel.jmx.discovery.delay");
+     if (discoveryDelay != null) {
+       return discoveryDelay;
+     }
+ 
+     // If discovery delay has not been configured, have a peek at the metric export interval.
+     // It makes sense for both of these values to be similar.
+-    long exportInterval = configProperties.getLong("otel.metric.export.interval", 60000);
+-    return exportInterval;
++    return configProperties.getDuration("otel.metric.export.interval", Duration.ofMinutes(1));
+   }
+ 
+   private static String resourceFor(String platform) {
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
+index 8b0fd636be..b9856f1dc9 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
+@@ -25,7 +25,13 @@ class BeanFinder {
+ 
+   private final MetricRegistrar registrar;
+   private MetricConfiguration conf;
+-  private final ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
++  private final ScheduledExecutorService exec =
++      Executors.newSingleThreadScheduledExecutor(
++          runnable -> {
++            Thread result = new Thread(runnable, "jmx_bean_finder");
++            result.setDaemon(true);
++            return result;
++          });
+   private final long discoveryDelay;
+   private final long maxDelay;
+   private long delay = 1000; // number of milliseconds until first attempt to discover MBeans
+@@ -39,12 +45,18 @@ class BeanFinder {
+   void discoverBeans(MetricConfiguration conf) {
+     this.conf = conf;
+ 
+-    if (!conf.isEmpty()) {
+-      // Issue 9336: Corner case: PlatformMBeanServer will remain unitialized until a direct
+-      // reference to it is made. This call makes sure that the PlatformMBeanServer will be in
+-      // the set of MBeanServers reported by MBeanServerFactory.
+-      ManagementFactory.getPlatformMBeanServer();
+-    }
++    exec.schedule(
++        () -> {
++          // Issue 9336: Corner case: PlatformMBeanServer will remain unitialized until a direct
++          // reference to it is made. This call makes sure that the PlatformMBeanServer will be in
++          // the set of MBeanServers reported by MBeanServerFactory.
++          // Issue 11143: This call initializes java.util.logging.LogManager. We should not call it
++          // before application has had a chance to configure custom log manager. This is needed for
++          // wildfly.
++          ManagementFactory.getPlatformMBeanServer();
++        },
++        discoveryDelay,
++        TimeUnit.MILLISECONDS);
+ 
+     exec.schedule(
+         new Runnable() {
 diff --git a/version.gradle.kts b/version.gradle.kts
 index fdf57bdbea..c38a2e00f3 100644
 --- a/version.gradle.kts

@@ -246,35 +246,35 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
     doTestBedrockAgentDataSourceId();
   }
 
-  @Test
-  void testBedrockRuntimeAmazonTitan() {
-    doTestBedrockRuntimeAmazonTitan();
-  }
-
-  @Test
-  void testBedrockRuntimeAi21Jamba() {
-    doTestBedrockRuntimeAi21Jamba();
-  }
-
-  @Test
-  void testBedrockRuntimeAnthropicClaude() {
-    doTestBedrockRuntimeAnthropicClaude();
-  }
-
-  @Test
-  void testBedrockRuntimeCohereCommandR() {
-    doTestBedrockRuntimeCohereCommandR();
-  }
-
-  @Test
-  void testBedrockRuntimeMetaLlama() {
-    doTestBedrockRuntimeMetaLlama();
-  }
-
-  @Test
-  void testBedrockRuntimeMistral() {
-    doTestBedrockRuntimeMistral();
-  }
+  //  @Test
+  //  void testBedrockRuntimeAmazonTitan() {
+  //    doTestBedrockRuntimeAmazonTitan();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAi21Jamba() {
+  //    doTestBedrockRuntimeAi21Jamba();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAnthropicClaude() {
+  //    doTestBedrockRuntimeAnthropicClaude();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeCohereCommandR() {
+  //    doTestBedrockRuntimeCohereCommandR();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeMetaLlama() {
+  //    doTestBedrockRuntimeMetaLlama();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeMistral() {
+  //    doTestBedrockRuntimeMistral();
+  //  }
 
   @Test
   void testBedrockGuardrailId() {
