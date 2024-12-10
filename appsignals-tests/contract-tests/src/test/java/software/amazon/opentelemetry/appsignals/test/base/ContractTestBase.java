@@ -17,9 +17,9 @@ package software.amazon.opentelemetry.appsignals.test.base;
 
 import com.linecorp.armeria.client.WebClient;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -146,38 +146,39 @@ public abstract class ContractTestBase {
     envVars.put("OTEL_EXPORTER_OTLP_ENDPOINT", COLLECTOR_HTTP_ENDPOINT);
     envVars.put("OTEL_RESOURCE_ATTRIBUTES", getApplicationOtelResourceAttributes());
     envVars.put("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc");
-//    envVars.put("OTEL_INSTRUMENTATION_NETTY_CONNECTION_TELEMETRY_ENABLED", "true");
+    //    envVars.put("OTEL_INSTRUMENTATION_NETTY_CONNECTION_TELEMETRY_ENABLED", "true");
     return envVars;
   }
 
-//  protected Map<String, String> getApplicationEnvironmentVariables() {
-//    return Map.of(
-//        "JAVA_TOOL_OPTIONS",
-//        "-javaagent:" + MOUNT_PATH,
-//        "OTEL_METRIC_EXPORT_INTERVAL",
-//        "100", // 100 ms
-//        "OTEL_AWS_APPLICATION_SIGNALS_ENABLED",
-//        "true",
-//        "OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED",
-//        isRuntimeEnabled(),
-//        "OTEL_METRICS_EXPORTER",
-//        "none",
-//        "OTEL_BSP_SCHEDULE_DELAY",
-//        "0", // Don't wait to export spans to the collector
-//        "OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT",
-//        COLLECTOR_HTTP_ENDPOINT,
-//        "OTEL_EXPORTER_OTLP_ENDPOINT",
-//        COLLECTOR_HTTP_ENDPOINT,
-//        "OTEL_RESOURCE_ATTRIBUTES",
-//        getApplicationOtelResourceAttributes(),
-//        //            The default OTLP protocol has been changed from grpc to http/protobuf in order
-//        // to align with the specification. You can switch to the grpc protocol using
-//        // OTEL_EXPORTER_OTLP_PROTOCOL=grpc or -Dotel.exporter.otlp.protocol=grpc.
-//        "OTEL_EXPORTER_OTLP_PROTOCOL",
-//        "grpc",
-//        "OTEL_INSTRUMENTATION_NETTY_CONNECTION_TELEMETRY_ENABLED",
-//        "true");
-//  }
+  //  protected Map<String, String> getApplicationEnvironmentVariables() {
+  //    return Map.of(
+  //        "JAVA_TOOL_OPTIONS",
+  //        "-javaagent:" + MOUNT_PATH,
+  //        "OTEL_METRIC_EXPORT_INTERVAL",
+  //        "100", // 100 ms
+  //        "OTEL_AWS_APPLICATION_SIGNALS_ENABLED",
+  //        "true",
+  //        "OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED",
+  //        isRuntimeEnabled(),
+  //        "OTEL_METRICS_EXPORTER",
+  //        "none",
+  //        "OTEL_BSP_SCHEDULE_DELAY",
+  //        "0", // Don't wait to export spans to the collector
+  //        "OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT",
+  //        COLLECTOR_HTTP_ENDPOINT,
+  //        "OTEL_EXPORTER_OTLP_ENDPOINT",
+  //        COLLECTOR_HTTP_ENDPOINT,
+  //        "OTEL_RESOURCE_ATTRIBUTES",
+  //        getApplicationOtelResourceAttributes(),
+  //        //            The default OTLP protocol has been changed from grpc to http/protobuf in
+  // order
+  //        // to align with the specification. You can switch to the grpc protocol using
+  //        // OTEL_EXPORTER_OTLP_PROTOCOL=grpc or -Dotel.exporter.otlp.protocol=grpc.
+  //        "OTEL_EXPORTER_OTLP_PROTOCOL",
+  //        "grpc",
+  //        "OTEL_INSTRUMENTATION_NETTY_CONNECTION_TELEMETRY_ENABLED",
+  //        "true");
+  //  }
 
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {
     return Map.of();

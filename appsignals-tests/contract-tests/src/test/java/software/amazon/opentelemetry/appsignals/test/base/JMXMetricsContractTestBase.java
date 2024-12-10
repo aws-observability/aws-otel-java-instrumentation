@@ -75,6 +75,14 @@ public abstract class JMXMetricsContractTestBase extends ContractTestBase {
     assertDataPoints(dps, (value) -> assertThat(value).isGreaterThanOrEqualTo(threshold));
   }
 
+//  private void assertDataPoints(List<NumberDataPoint> dps, Consumer<Long> consumer) {
+//    dps.forEach(datapoint -> {
+//      long value = datapoint.getAsInt();
+//      System.out.println("Data point value!!!!!!!: " + value);  // Print each value
+//      consumer.accept(value);      // Retain original logic
+//    });
+//  }
+
   private void assertDataPoints(List<NumberDataPoint> dps, Consumer<Long> consumer) {
     dps.forEach(datapoint -> consumer.accept(datapoint.getAsInt()));
   }

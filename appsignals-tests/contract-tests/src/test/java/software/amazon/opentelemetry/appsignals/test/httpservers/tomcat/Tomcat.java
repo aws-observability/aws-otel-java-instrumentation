@@ -31,6 +31,7 @@ package software.amazon.opentelemetry.appsignals.test.httpservers.tomcat;
  */
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentelemetry.proto.common.v1.KeyValue;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -55,68 +56,68 @@ class Tomcat extends BaseHttpServerTest {
 
   @Override
   protected void assertSemanticConventionsAttributes(
-          List<KeyValue> attributesList, String method, String route, String target, long status_code) {
+      List<KeyValue> attributesList, String method, String route, String target, long status_code) {
     assertThat(attributesList)
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
-          assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey())
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.NETWORK_PEER_ADDRESS);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey())
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.NETWORK_PEER_PORT);
-          assertThat(attribute.getValue().getIntValue()).isBetween(1023L, 65536L);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_SCHEME);
-          assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_ROUTE);
-          assertThat(attribute.getValue().getStringValue()).isEqualTo(route);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey())
+              assertThat(attribute.getValue().getIntValue()).isBetween(1023L, 65536L);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_SCHEME);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_ROUTE);
+              assertThat(attribute.getValue().getStringValue()).isEqualTo(route);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE);
-          assertThat(attribute.getValue().getIntValue()).isEqualTo(status_code);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey())
+              assertThat(attribute.getValue().getIntValue()).isEqualTo(status_code);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.HTTP_REQUEST_METHOD);
-          assertThat(attribute.getValue().getStringValue()).isEqualTo(method);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey())
+              assertThat(attribute.getValue().getStringValue()).isEqualTo(method);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.NETWORK_PROTOCOL_VERSION);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.THREAD_ID);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.THREAD_NAME);
-        })
-      .satisfiesOnlyOnce(
-        attribute -> {
-          assertThat(attribute.getKey())
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.THREAD_ID);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.THREAD_NAME);
+            })
+        .satisfiesOnlyOnce(
+            attribute -> {
+              assertThat(attribute.getKey())
                   .isEqualTo(SemanticConventionsConstants.USER_AGENT_ORIGINAL);
-        });
+            });
   }
 
   @Test
