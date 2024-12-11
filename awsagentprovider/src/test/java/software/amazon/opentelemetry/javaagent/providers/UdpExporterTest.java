@@ -129,7 +129,9 @@ public class UdpExporterTest {
     when(mockSpanData.getParentSpanContext()).thenReturn(parentSpanContextMock);
 
     SpanContext spanContextMock = mock(SpanContext.class);
+    TraceFlags spanContextTraceFlagsMock = mock(TraceFlags.class);
     when(spanContextMock.isValid()).thenReturn(true);
+    when(spanContextMock.getTraceFlags()).thenReturn(spanContextTraceFlagsMock);
     when(mockSpanData.getSpanContext()).thenReturn(spanContextMock);
 
     TraceState traceState = TraceState.builder().build();
