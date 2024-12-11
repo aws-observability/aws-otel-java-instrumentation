@@ -135,7 +135,7 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
     if (isKeyPresent(spanData, HTTP_RESPONSE_STATUS_CODE)) {
       httpStatusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
     } else if (isKeyPresent(spanData, HTTP_STATUS_CODE)) {
-      httpStatusCode = attributes.get(HTTP_STATUS_CODE);
+      httpStatusCode = spanData.getAttributes().get(HTTP_STATUS_CODE);
     }
     StatusCode statusCode = spanData.getStatus().getStatusCode();
 

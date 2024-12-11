@@ -667,6 +667,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       return;
     }
 
+    if (isKeyPresent(span, HTTP_RESPONSE_STATUS_CODE)) {
+      Long statusCode = span.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
+      builder.put(HTTP_STATUS_CODE, statusCode);
+      return;
+    }
+
     Long statusCode = getAwsStatusCode(span);
     if (statusCode != null) {
       builder.put(HTTP_RESPONSE_STATUS_CODE, statusCode);
