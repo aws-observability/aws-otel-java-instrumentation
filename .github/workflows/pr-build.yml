@@ -147,5 +147,5 @@ jobs:
         if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         with:
           arguments: build --stacktrace -PenableCoverage=true
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
 
