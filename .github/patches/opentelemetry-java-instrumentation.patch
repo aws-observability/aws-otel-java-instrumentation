@@ -506,7 +506,7 @@ index 245f09a5d8..d2bdf1c987 100644
 +  }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-index bb2ae9266c..4af4a56b26 100644
+index bb2ae9266c..36e216047f 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 @@ -8,6 +8,7 @@ package io.opentelemetry.instrumentation.awssdk.v1_11;
@@ -676,7 +676,7 @@ index bb2ae9266c..4af4a56b26 100644
    @Nullable
    private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
      if (method == null) {
-@@ -67,6 +190,18 @@ final class RequestAccess {
+@@ -67,6 +190,17 @@ final class RequestAccess {
    @Nullable private final MethodHandle getQueueName;
    @Nullable private final MethodHandle getStreamName;
    @Nullable private final MethodHandle getTableName;
@@ -685,7 +685,6 @@ index bb2ae9266c..4af4a56b26 100644
 +  @Nullable private final MethodHandle getDataSourceId;
 +  @Nullable private final MethodHandle getGuardrailId;
 +  @Nullable private final MethodHandle getModelId;
-+  @Nullable private final MethodHandle getBody;
 +  @Nullable private final MethodHandle getStateMachineArn;
 +  @Nullable private final MethodHandle getStepFunctionsActivityArn;
 +  @Nullable private final MethodHandle getSnsTopicArn;
@@ -695,7 +694,7 @@ index bb2ae9266c..4af4a56b26 100644
  
    private RequestAccess(Class<?> clz) {
      getBucketName = findAccessorOrNull(clz, "getBucketName");
-@@ -74,6 +209,17 @@ final class RequestAccess {
+@@ -74,6 +208,17 @@ final class RequestAccess {
      getQueueName = findAccessorOrNull(clz, "getQueueName");
      getStreamName = findAccessorOrNull(clz, "getStreamName");
      getTableName = findAccessorOrNull(clz, "getTableName");
@@ -713,7 +712,7 @@ index bb2ae9266c..4af4a56b26 100644
    }
  
    @Nullable
-@@ -85,4 +231,21 @@ final class RequestAccess {
+@@ -85,4 +230,21 @@ final class RequestAccess {
        return null;
      }
    }
@@ -1053,7 +1052,7 @@ index 54253d0f7b..2374bd4a52 100644
    BatchGetItem(
        DYNAMODB,
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-index 9062f2aa17..a09098af79 100644
+index 9062f2aa17..1c34035588 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 @@ -5,17 +5,69 @@
@@ -1114,7 +1113,7 @@ index 9062f2aa17..a09098af79 100644
 +  BEDROCKKNOWLEDGEBASEOPERATION(
 +      request(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId"),
 +      response(AWS_KNOWLEDGE_BASE_ID.getKey(), "knowledgeBaseId")),
-+
++  BEDROCKRUNTIME(request(GEN_AI_MODEL.getKey(), "modelId")),
 +  STEPFUNCTION(
 +      request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
 +      request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
