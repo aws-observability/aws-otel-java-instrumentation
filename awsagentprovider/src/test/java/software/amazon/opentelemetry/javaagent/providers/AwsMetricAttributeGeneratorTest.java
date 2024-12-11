@@ -374,23 +374,25 @@ class AwsMetricAttributeGeneratorTest {
   public void testServerSpanWithSpanNameAsHttpMethod() {
     updateResourceWithServiceName();
     when(spanDataMock.getName()).thenReturn("GET");
-    mockAttribute(HTTP_METHOD, "GET");
-
     Attributes expectedAttributes =
         Attributes.of(
             AWS_SPAN_KIND, SpanKind.SERVER.name(),
             AWS_LOCAL_SERVICE, SERVICE_NAME_VALUE,
             AWS_LOCAL_OPERATION, UNKNOWN_OPERATION);
+    // Validate the span with http.method.
+    mockAttribute(HTTP_METHOD, "GET");
     validateAttributesProducedForNonLocalRootSpanOfKind(expectedAttributes, SpanKind.SERVER);
     mockAttribute(HTTP_METHOD, null);
+    // Validate the span with http.request.method.
+    mockAttribute(HTTP_REQUEST_METHOD, "GET");
+    validateAttributesProducedForNonLocalRootSpanOfKind(expectedAttributes, SpanKind.SERVER);
+    mockAttribute(HTTP_REQUEST_METHOD, null);
   }
 
   @Test
   public void testServerSpanWithSpanNameWithHttpTarget() {
     updateResourceWithServiceName();
     when(spanDataMock.getName()).thenReturn("POST");
-    mockAttribute(HTTP_METHOD, "POST");
-    mockAttribute(HTTP_TARGET, "/payment/123");
 
     Attributes expectedAttributes =
         Attributes.of(
@@ -400,9 +402,18 @@ class AwsMetricAttributeGeneratorTest {
             SERVICE_NAME_VALUE,
             AWS_LOCAL_OPERATION,
             "POST /payment");
+    // Validate the span with http.method and http.target.
+    mockAttribute(HTTP_METHOD, "POST");
+    mockAttribute(HTTP_TARGET, "/payment/123");
     validateAttributesProducedForNonLocalRootSpanOfKind(expectedAttributes, SpanKind.SERVER);
     mockAttribute(HTTP_METHOD, null);
     mockAttribute(HTTP_TARGET, null);
+    // Validate the span with http.request.method and url.path.
+    mockAttribute(HTTP_REQUEST_METHOD, "POST");
+    mockAttribute(URL_PATH, "/payment/123");
+    validateAttributesProducedForNonLocalRootSpanOfKind(expectedAttributes, SpanKind.SERVER);
+    mockAttribute(HTTP_REQUEST_METHOD, null);
+    mockAttribute(URL_PATH, null);
   }
 
   @Test
@@ -507,6 +518,11 @@ class AwsMetricAttributeGeneratorTest {
     validateExpectedRemoteAttributes("www.example.com", UNKNOWN_REMOTE_OPERATION);
     mockAttribute(NET_PEER_NAME, null);
 
+    // Validate behaviour of extracting Remote Service from service.address
+    mockAttribute(SERVER_ADDRESS, "www.example.com");
+    validateExpectedRemoteAttributes("www.example.com", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(SERVER_ADDRESS, null);
+
     // Validate behaviour of extracting Remote Service from net.peer.name and net.peer.port
     mockAttribute(NET_PEER_NAME, "192.168.0.0");
     mockAttribute(NET_PEER_PORT, 8081L);
@@ -514,10 +530,22 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_PEER_NAME, null);
     mockAttribute(NET_PEER_PORT, null);
 
+    // Validate behaviour of extracting Remote Service from service.address and service.port
+    mockAttribute(SERVER_ADDRESS, "192.168.0.0");
+    mockAttribute(SERVER_PORT, 8081L);
+    validateExpectedRemoteAttributes("192.168.0.0:8081", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(SERVER_ADDRESS, null);
+    mockAttribute(SERVER_PORT, null);
+
     // Validate behaviour of extracting Remote Service from net.peer.socket.addr
     mockAttribute(NET_SOCK_PEER_ADDR, "www.example.com");
     validateExpectedRemoteAttributes("www.example.com", UNKNOWN_REMOTE_OPERATION);
     mockAttribute(NET_SOCK_PEER_ADDR, null);
+
+    // Validate behaviour of extracting Remote Service from net.peer.socket.addr
+    mockAttribute(NETWORK_PEER_ADDRESS, "www.example.com");
+    validateExpectedRemoteAttributes("www.example.com", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(NETWORK_PEER_ADDRESS, null);
 
     // Validate behaviour of extracting Remote Service from net.peer.socket.addr and
     // net.sock.peer.port
@@ -527,11 +555,24 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_SOCK_PEER_ADDR, null);
     mockAttribute(NET_SOCK_PEER_PORT, null);
 
+    // Validate behaviour of extracting Remote Service from net.peer.socket.addr and
+    // net.sock.peer.port
+    mockAttribute(NETWORK_PEER_ADDRESS, "192.168.0.0");
+    mockAttribute(NETWORK_PEER_PORT, 8081L);
+    validateExpectedRemoteAttributes("192.168.0.0:8081", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(NETWORK_PEER_ADDRESS, null);
+    mockAttribute(NETWORK_PEER_PORT, null);
+
     // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates
     // that RemoteService is extracted from HttpUrl.
     mockAttribute(HTTP_URL, "http://www.example.com/payment/123");
     validateExpectedRemoteAttributes("www.example.com", "/payment");
     mockAttribute(HTTP_URL, null);
+
+    // that RemoteService is extracted from url.full.
+    mockAttribute(URL_FULL, "http://www.example.com/payment/123");
+    validateExpectedRemoteAttributes("www.example.com", "/payment");
+    mockAttribute(URL_FULL, null);
 
     // Validate behavior of Remote Operation from HttpTarget - with 1st api part. Also validates
     // that RemoteService is extracted from HttpUrl.
@@ -539,30 +580,60 @@ class AwsMetricAttributeGeneratorTest {
     validateExpectedRemoteAttributes("www.example.com", "/");
     mockAttribute(HTTP_URL, null);
 
+    // that RemoteService is extracted from url.full.
+    mockAttribute(URL_FULL, "http://www.example.com");
+    validateExpectedRemoteAttributes("www.example.com", "/");
+    mockAttribute(URL_FULL, null);
+
     // Validate behavior of Remote Service from HttpUrl
     mockAttribute(HTTP_URL, "http://192.168.1.1:8000");
     validateExpectedRemoteAttributes("192.168.1.1:8000", "/");
     mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Service from url.full
+    mockAttribute(URL_FULL, "http://192.168.1.1:8000");
+    validateExpectedRemoteAttributes("192.168.1.1:8000", "/");
+    mockAttribute(URL_FULL, null);
 
     // Validate behavior of Remote Service from HttpUrl
     mockAttribute(HTTP_URL, "http://192.168.1.1");
     validateExpectedRemoteAttributes("192.168.1.1", "/");
     mockAttribute(HTTP_URL, null);
 
+    // Validate behavior of Remote Service from url.full
+    mockAttribute(URL_FULL, "http://192.168.1.1");
+    validateExpectedRemoteAttributes("192.168.1.1", "/");
+    mockAttribute(URL_FULL, null);
+
     // Validate behavior of Remote Service from HttpUrl
     mockAttribute(HTTP_URL, "");
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
     mockAttribute(HTTP_URL, null);
 
+    // Validate behavior of Remote Service from url.full
+    mockAttribute(URL_FULL, "");
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(URL_FULL, null);
+
     // Validate behavior of Remote Service from HttpUrl
     mockAttribute(HTTP_URL, null);
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
     mockAttribute(HTTP_URL, null);
 
+    // Validate behavior of Remote Service from url.full
+    mockAttribute(URL_FULL, null);
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(URL_FULL, null);
+
     // Validate behavior of Remote Operation from HttpTarget - invalid url, then remove it
     mockAttribute(HTTP_URL, "abc");
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
     mockAttribute(HTTP_URL, null);
+
+    // Validate behavior of Remote Operation from url.full - invalid url, then remove it
+    mockAttribute(URL_FULL, "abc");
+    validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(URL_FULL, null);
 
     // Validate behaviour of Peer service attribute, then remove it.
     mockAttribute(PEER_SERVICE, "Peer service");
@@ -660,7 +731,9 @@ class AwsMetricAttributeGeneratorTest {
     validatePeerServiceDoesOverride(MESSAGING_SYSTEM);
     validatePeerServiceDoesOverride(GRAPHQL_OPERATION_TYPE);
     validatePeerServiceDoesOverride(NET_PEER_NAME);
+    validatePeerServiceDoesOverride(SERVER_ADDRESS);
     validatePeerServiceDoesOverride(NET_SOCK_PEER_ADDR);
+    validatePeerServiceDoesOverride(NETWORK_PEER_ADDRESS);
     // Actually testing that peer service overrides "UnknownRemoteService".
     validatePeerServiceDoesOverride(AttributeKey.stringKey("unknown.service.key"));
   }
