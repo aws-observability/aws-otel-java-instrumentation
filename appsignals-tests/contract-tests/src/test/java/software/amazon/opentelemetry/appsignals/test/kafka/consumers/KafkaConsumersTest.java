@@ -126,7 +126,7 @@ public class KafkaConsumersTest extends ContractTestBase {
                   .isEqualTo(String.format("%s process", kafkaTopic));
               assertThat(rss.getSpan().getStatus().getCode().equals(otelStatusCode));
               var attributesList = rss.getSpan().getAttributesList();
-              //              assertSemanticConventionsAttributes(attributesList, kafkaTopic);
+              assertSemanticConventionsAttributes(attributesList, kafkaTopic);
             });
   }
 

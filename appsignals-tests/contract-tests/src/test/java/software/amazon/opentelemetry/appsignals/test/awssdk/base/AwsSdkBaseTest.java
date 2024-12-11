@@ -242,18 +242,6 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE, statusCode))
         .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
-    //    // Assertions based on awsSpanKind
-    //    if ("CLIENT".equals(awsSpanKind)) {
-    //      assertThat(attributesList)
-    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS,
-    // address))
-    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port));
-    //    } else if ("PRODUCER".equals(awsSpanKind)) {
-    //      assertThat(attributesList)
-    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.CLIENT_ADDRESS,
-    // address))
-    //          .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.CLIENT_PORT, port));
-    //    }
   }
 
   /** All the spans of the AWS SDK Should have a RPC properties. */

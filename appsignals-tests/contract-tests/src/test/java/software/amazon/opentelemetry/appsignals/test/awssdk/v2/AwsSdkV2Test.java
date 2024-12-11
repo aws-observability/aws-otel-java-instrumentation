@@ -259,8 +259,8 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
     doTestBedrockAgentRuntimeAgentId();
   }
 
-  //  // TODO: Enable testBedrockAgentRuntimeKnowledgeBaseId test after KnowledgeBaseId is supported
-  // in
+  // TODO: Enable testBedrockAgentRuntimeKnowledgeBaseId test after KnowledgeBaseId is supported in
+  // OTEL BedrockAgentRuntime instrumentation
   @Test
   void testBedrockAgentRuntimeKnowledgeBaseId() {
     doTestBedrockAgentRuntimeKnowledgeBaseId();
