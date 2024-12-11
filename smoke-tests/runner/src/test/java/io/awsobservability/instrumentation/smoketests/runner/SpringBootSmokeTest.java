@@ -98,8 +98,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> backend =
-      new GenericContainer<>(
-              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-test-fakebackend:alpha")
+      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-test-fakebackend:alpha-v2")
           .withExposedPorts(8080)
           .waitingFor(Wait.forHttp("/health").forPort(8080))
           .withLogConsumer(new Slf4jLogConsumer(backendLogger))
@@ -108,8 +107,7 @@ class SpringBootSmokeTest {
 
   @Container
   private static final GenericContainer<?> application =
-      new GenericContainer<>(
-              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
+      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:v2")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
@@ -128,8 +126,7 @@ class SpringBootSmokeTest {
   // https://opentelemetry.io/docs/zero-code/java/agent/disable/#suppressing-controller-andor-view-spans
   @Container
   private static final GenericContainer<?> applicationXraySampler =
-      new GenericContainer<>(
-              "public.ecr.aws/u8q5x3l1/aws-otel-test/aws-otel-java-smoketests-springboot:latest")
+      new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:v2")
           .dependsOn(backend)
           .withExposedPorts(8080)
           .withNetwork(network)
