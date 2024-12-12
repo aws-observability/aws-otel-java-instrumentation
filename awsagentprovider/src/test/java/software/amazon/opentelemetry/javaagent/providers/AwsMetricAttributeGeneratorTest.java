@@ -54,8 +54,8 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.data.EventData;
+import io.opentelemetry.sdk.trace.data.ExceptionEventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.sdk.trace.internal.data.ExceptionEventData;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -393,7 +393,6 @@ class AwsMetricAttributeGeneratorTest {
   public void testServerSpanWithSpanNameWithHttpTarget() {
     updateResourceWithServiceName();
     when(spanDataMock.getName()).thenReturn("POST");
-
     Attributes expectedAttributes =
         Attributes.of(
             AWS_SPAN_KIND,
@@ -402,12 +401,14 @@ class AwsMetricAttributeGeneratorTest {
             SERVICE_NAME_VALUE,
             AWS_LOCAL_OPERATION,
             "POST /payment");
+
     // Validate the span with http.method and http.target.
     mockAttribute(HTTP_METHOD, "POST");
     mockAttribute(HTTP_TARGET, "/payment/123");
     validateAttributesProducedForNonLocalRootSpanOfKind(expectedAttributes, SpanKind.SERVER);
     mockAttribute(HTTP_METHOD, null);
     mockAttribute(HTTP_TARGET, null);
+
     // Validate the span with http.request.method and url.path.
     mockAttribute(HTTP_REQUEST_METHOD, "POST");
     mockAttribute(URL_PATH, "/payment/123");
@@ -1045,7 +1046,7 @@ class AwsMetricAttributeGeneratorTest {
   @Test
   public void testHttpStatusAttributeStatusAlreadyPresent() {
     when(instrumentationScopeInfoMock.getName()).thenReturn("aws-sdk");
-    mockAttribute(HTTP_STATUS_CODE, 200L);
+    mockAttribute(HTTP_RESPONSE_STATUS_CODE, 200L);
     validateHttpStatusWithThrowable(new ThrowableWithMethodGetStatusCode(500), null);
   }
 
@@ -1202,9 +1203,9 @@ class AwsMetricAttributeGeneratorTest {
         actualAttributes = attributeMap.get(SERVICE_METRIC);
       }
     }
-    assertThat(actualAttributes.get(HTTP_STATUS_CODE)).isEqualTo(expectedStatusCode);
+    assertThat(actualAttributes.get(HTTP_RESPONSE_STATUS_CODE)).isEqualTo(expectedStatusCode);
     if (expectedStatusCode == null) {
-      assertThat(actualAttributes.asMap().containsKey(HTTP_STATUS_CODE)).isFalse();
+      assertThat(actualAttributes.asMap().containsKey(HTTP_RESPONSE_STATUS_CODE)).isFalse();
     }
   }
 

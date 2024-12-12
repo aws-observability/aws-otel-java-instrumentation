@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine-jdk
+FROM public.ecr.aws/docker/library/amazoncorretto:23-alpine-jdk
 
 # Copied from https://github.com/corretto/corretto-docker/blob/master/11/jre/alpine/Dockerfile
 RUN apk update && apk add binutils && jlink --endian little --release-info $JAVA_HOME/release \

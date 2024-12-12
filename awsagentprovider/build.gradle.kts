@@ -13,9 +13,11 @@
  * permissions and limitations under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   java
-  id("com.github.johnrengelman.shadow")
+  id("com.gradleup.shadow")
 }
 
 base {
@@ -56,7 +58,8 @@ dependencies {
 }
 
 tasks {
-  shadowJar {
+  val shadowJar by existing(ShadowJar::class) {
+    // You can configure the existing task here
     archiveClassifier.set("")
   }
 }
