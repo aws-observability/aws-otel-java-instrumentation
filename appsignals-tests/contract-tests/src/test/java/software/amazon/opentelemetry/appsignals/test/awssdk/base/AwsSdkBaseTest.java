@@ -23,9 +23,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,16 +35,6 @@ import software.amazon.opentelemetry.appsignals.test.utils.ResourceScopeSpan;
 import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsConstants;
 
 public abstract class AwsSdkBaseTest extends ContractTestBase {
-
-  protected static final Logger LOGGER = Logger.getLogger(AwsSdkBaseTest.class.getName());
-
-  static {
-    ConsoleHandler handler = new ConsoleHandler();
-    handler.setLevel(Level.INFO);
-    LOGGER.addHandler(handler);
-    LOGGER.setLevel(Level.INFO);
-    LOGGER.setUseParentHandlers(false);
-  }
 
   private final LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.5.0"))
@@ -620,7 +607,6 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   }
 
   protected void doTestS3CreateBucket() throws Exception {
-    LOGGER.info("doTestS3CreateBucket!!!!!!: ");
     appClient.get("/s3/createbucket/create-bucket").aggregate().join();
 
     var traces = mockCollectorClient.getTraces();

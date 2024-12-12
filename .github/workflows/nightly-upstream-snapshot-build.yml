@@ -32,6 +32,20 @@ jobs:
           java-version: 17
           distribution: 'temurin'
 
+        # cache local patch outputs
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+
       - uses: gradle/wrapper-validation-action@v1
 
       - name: Configure AWS Credentials

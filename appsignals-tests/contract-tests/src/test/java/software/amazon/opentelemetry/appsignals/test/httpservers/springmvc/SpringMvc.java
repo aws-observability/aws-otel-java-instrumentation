@@ -87,14 +87,6 @@ class SpringMvc extends BaseHttpServerTest {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_ROUTE);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(route);
             })
-        //            springmvc 4.1 dosen't support getUrlPath, only support in newer version:
-        // https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/5ebb81b8a8ac0e5b3c9f2e175b847a3d0b12251f/instrumentation/spring/spring-webmvc/spring-webmvc-5.3/library/src/main/java/io/opentelemetry/instrumentation/spring/webmvc/v5_3/SpringWebMvcHttpAttributesGetter.java#L74
-        //        .satisfiesOnlyOnce(
-        //            attribute -> {
-        //
-        // assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_PATH);
-        //              assertThat(attribute.getValue().getStringValue()).isEqualTo(target);
-        //            })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())

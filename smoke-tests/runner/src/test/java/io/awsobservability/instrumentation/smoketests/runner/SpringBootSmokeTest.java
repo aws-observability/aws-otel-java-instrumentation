@@ -122,8 +122,6 @@ class SpringBootSmokeTest {
           .withEnv("OTEL_INSTRUMENTATION_COMMON_EXPERIMENTAL_CONTROLLER_TELEMETRY_ENABLED", "true")
           .withEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://backend:8080");
 
-  //  Suppressing controller and/or view spans:
-  // https://opentelemetry.io/docs/zero-code/java/agent/disable/#suppressing-controller-andor-view-spans
   @Container
   private static final GenericContainer<?> applicationXraySampler =
       new GenericContainer<>("public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:v2")

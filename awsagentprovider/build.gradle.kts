@@ -59,7 +59,6 @@ dependencies {
 
 tasks {
   val shadowJar by existing(ShadowJar::class) {
-    // You can configure the existing task here
     archiveClassifier.set("")
   }
 }

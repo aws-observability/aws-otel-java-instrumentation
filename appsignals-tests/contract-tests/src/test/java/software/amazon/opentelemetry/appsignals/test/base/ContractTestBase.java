@@ -153,11 +153,6 @@ public abstract class ContractTestBase {
         COLLECTOR_HTTP_ENDPOINT,
         "OTEL_RESOURCE_ATTRIBUTES",
         getApplicationOtelResourceAttributes(),
-        //        //            The default OTLP protocol has been changed from grpc to
-        // http/protobuf in
-        // order
-        //        // to align with the specification. You can switch to the grpc protocol using
-        //        // OTEL_EXPORTER_OTLP_PROTOCOL=grpc or -Dotel.exporter.otlp.protocol=grpc.
         "OTEL_EXPORTER_OTLP_PROTOCOL",
         "grpc");
   }

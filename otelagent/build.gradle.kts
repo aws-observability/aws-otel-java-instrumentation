@@ -41,9 +41,6 @@ val javaagentLibs by configurations.creating {
   exclude("io.opentelemetry", "opentelemetry-sdk")
   exclude("io.opentelemetry", "opentelemetry-sdk-common")
   exclude("io.opentelemetry.semconv", "opentelemetry-semconv")
-  // Once io.opentelemetry.contrib:opentelemetry-aws-resources starts using
-  // the new semantic convention packages we will need to exclude it here.
-  // io.opentelemetry.semconv:opentelemetry-semconv
 }
 
 val shadowClasspath by configurations.creating {

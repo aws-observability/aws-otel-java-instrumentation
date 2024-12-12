@@ -77,9 +77,6 @@ public class SemanticConventionsConstants {
   // kafka
   public static final String MESSAGING_CLIENT_ID = "messaging.client_id";
   public static final String MESSAGING_DESTINATION_NAME = "messaging.destination.name";
-  //  Rename `messaging.kafka.destination.partition` to `messaging.destination.partition.id`
-  //
-  // https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/57c7cf2ad5f7272c1eb83b9816e652bf832c91d4/CHANGELOG.md?plain=1#L430C3-L430C89
   public static final String MESSAGING_DESTINATION_PARTITION_ID =
       "messaging.destination.partition.id";
   public static final String MESSAGING_KAFKA_MESSAGE_OFFSET = "messaging.kafka.message.offset";

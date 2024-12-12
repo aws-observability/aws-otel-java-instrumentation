@@ -73,12 +73,6 @@ tasks {
       "-Dio.awsobservability.instrumentation.contracttests.agentPath=${otelAgentJarTask.get().archiveFile.get()
         .getAsFile().absolutePath}",
     )
-
-    println("Agent JAR Path!!!: ${otelAgentJarTask.get().archiveFile.get().asFile.absolutePath}")
-    testLogging {
-      events("passed", "skipped", "failed")
-      showStandardStreams = true
-    }
   }
 
   // Disable the test task from the java plugin

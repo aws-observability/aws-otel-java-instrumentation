@@ -138,8 +138,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   @Override
   public Map<String, Attributes> generateMetricAttributeMapFromSpan(
       SpanData span, Resource resource) {
-    logger.info("generateMetricAttributeMapFromSpan!!!!!!!");
-    logger.info("span!!!!!: " + span);
     Map<String, Attributes> attributesMap = new HashMap<>();
     if (AwsSpanProcessingUtil.shouldGenerateServiceMetricAttributes(span)) {
       attributesMap.put(
