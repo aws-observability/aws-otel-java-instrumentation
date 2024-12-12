@@ -1387,10 +1387,10 @@ index 0000000000..e9d2c32262
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractLambdaClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractLambdaClientTest.java
 new file mode 100644
-index 0000000000..eb2cca3574
+index 0000000000..f6ab4363bf
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractLambdaClientTest.java
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,66 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1425,8 +1425,8 @@ index 0000000000..eb2cca3574
 +  @ParameterizedTest
 +  @MethodSource("provideArguments")
 +  public void testSendRequestWithMockedResponse(
-+      String operation, Map<String, String> additionalAttributes,
-+      Function<AWSLambda, Object> call) throws Exception {
++      String operation, Map<String, String> additionalAttributes, Function<AWSLambda, Object> call)
++      throws Exception {
 +
 +    AWSLambdaClientBuilder clientBuilder = AWSLambdaClientBuilder.standard();
 +
@@ -1449,20 +1449,17 @@ index 0000000000..eb2cca3574
 +            "GetEventSourceMapping",
 +            ImmutableMap.of("aws.lambda.resource_mapping.id", "uuid"),
 +            (Function<AWSLambda, Object>)
-+                c -> c.getEventSourceMapping(
-+                    new GetEventSourceMappingRequest().withUUID("uuid"))),
-+
++                c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid"))),
 +        Arguments.of(
 +            "GetFunction",
 +            ImmutableMap.of("aws.lambda.function.name", "functionName"),
 +            (Function<AWSLambda, Object>)
-+                c -> c.getFunction(
-+                    new GetFunctionRequest().withFunctionName("functionName"))));
++                c -> c.getFunction(new GetFunctionRequest().withFunctionName("functionName"))));
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSecretsManagerClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSecretsManagerClientTest.java
 new file mode 100644
-index 0000000000..733da3d453
+index 0000000000..f3fa5ad08c
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSecretsManagerClientTest.java
 @@ -0,0 +1,58 @@
@@ -1476,15 +1473,16 @@ index 0000000000..733da3d453
 +import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 +import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 +import com.amazonaws.services.secretsmanager.model.CreateSecretRequest;
++import com.google.common.collect.ImmutableMap;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
-+import com.google.common.collect.ImmutableMap;
 +import org.junit.jupiter.api.Test;
 +
 +public abstract class AbstractSecretsManagerClientTest extends AbstractBaseAwsClientTest {
 +
-+  public abstract AWSSecretsManagerClientBuilder configureClient(AWSSecretsManagerClientBuilder client);
++  public abstract AWSSecretsManagerClientBuilder configureClient(
++      AWSSecretsManagerClientBuilder client);
 +
 +  @Override
 +  protected boolean hasRequestId() {
@@ -1508,10 +1506,9 @@ index 0000000000..733da3d453
 +            + "}";
 +    server.enqueue(HttpResponse.of(HttpStatus.OK, MediaType.PLAIN_TEXT_UTF_8, body));
 +
-+    Object response = client.createSecret(
-+        new CreateSecretRequest()
-+            .withName("secretName")
-+            .withSecretString("secretValue"));
++    Object response =
++        client.createSecret(
++            new CreateSecretRequest().withName("secretName").withSecretString("secretValue"));
 +
 +    assertRequestWithMockedResponse(
 +        response,
@@ -1613,10 +1610,10 @@ index 4a728f645c..4499e550e0 100644
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java
 new file mode 100644
-index 0000000000..2536bc538d
+index 0000000000..24a1f148ee
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,73 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1652,8 +1649,10 @@ index 0000000000..2536bc538d
 +  @ParameterizedTest
 +  @MethodSource("provideArguments")
 +  public void testSendRequestWithMockedResponse(
-+      String operation, Map<String, String> additionalAttributes,
-+      Function<AWSStepFunctions, Object> call) throws Exception {
++      String operation,
++      Map<String, String> additionalAttributes,
++      Function<AWSStepFunctions, Object> call)
++      throws Exception {
 +
 +    AWSStepFunctionsClientBuilder clientBuilder = AWSStepFunctionsClientBuilder.standard();
 +
