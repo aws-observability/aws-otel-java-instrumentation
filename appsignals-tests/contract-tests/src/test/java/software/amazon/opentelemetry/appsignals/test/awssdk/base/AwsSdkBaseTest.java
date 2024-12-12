@@ -279,8 +279,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String address,
       int port,
       String url,
-      int statusCode,
-      String awsSpanKind) {
+      int statusCode) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
@@ -321,14 +320,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       String address,
       int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
-    LOGGER.info("assertSpanClientAttributes!!!!!!: ");
-
-    LOGGER.info("Spans!!!!!!: " + spans);
 
     assertSpanAttributes(
         spans,
@@ -342,6 +339,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         address,
         port,
         url,
@@ -359,6 +357,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       String address,
       int port,
       String url,
@@ -376,6 +375,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         method,
         type,
         identifier,
+        cloudformationIdentifier,
         address,
         port,
         url,
@@ -424,6 +424,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String method,
       String type,
       String identifier,
+      String cloudformationIdentifier,
       String address,
       int port,
       String url,
@@ -438,7 +439,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getKind()).isEqualTo(spanKind);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsAttributes(
-                  spanAttributes, rpcService, method, address, port, url, statusCode, awsSpanKind);
+                  spanAttributes, rpcService, method, address, port, url, statusCode);
               assertAwsAttributes(
                   spanAttributes,
                   localService,
