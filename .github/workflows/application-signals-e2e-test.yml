@@ -45,7 +45,7 @@ jobs:
 
   default-v8-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -55,7 +55,7 @@ jobs:
 
   default-v11-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -65,7 +65,7 @@ jobs:
 
   default-v17-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -75,7 +75,7 @@ jobs:
 
   default-v21-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -85,7 +85,7 @@ jobs:
 
   default-v22-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -99,7 +99,7 @@ jobs:
   #
 
   eks-v8-amd64:
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -110,7 +110,7 @@ jobs:
 
   eks-v11-amd64:
     needs: eks-v8-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -121,7 +121,7 @@ jobs:
 
   eks-v17-amd64:
     needs: eks-v11-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -132,7 +132,7 @@ jobs:
 
   eks-v21-amd64:
     needs: eks-v17-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -143,7 +143,7 @@ jobs:
 
   eks-v22-amd64:
     needs: eks-v21-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -159,7 +159,7 @@ jobs:
 
   asg-v11-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -172,7 +172,7 @@ jobs:
   #
 
   k8s-v11-amd64:
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-k8s-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-k8s-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -182,7 +182,7 @@ jobs:
 
 
   ecs-v11-amd64:
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ecs-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ecs-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -197,7 +197,7 @@ jobs:
 
   default-v11-arm64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -211,7 +211,7 @@ jobs:
 
   metric-limiter-v11-amd64:
     needs: [ eks-v22-amd64 ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@adot-java-v2
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
