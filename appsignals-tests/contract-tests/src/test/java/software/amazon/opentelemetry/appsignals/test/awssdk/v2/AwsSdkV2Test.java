@@ -76,6 +76,21 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Override
+  protected String getSecretsManagerSpanNamePrefix() {
+    return "SecretsManager";
+  }
+
+  @Override
+  protected String getStepFunctionsSpanNamePrefix() {
+    return "Sfn";
+  }
+
+  @Override
+  protected String getSnsSpanNamePrefix() {
+    return "Sns";
+  }
+
+  @Override
   protected String getS3RpcServiceName() {
     return "S3";
   }
@@ -112,6 +127,21 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   @Override
   protected String getBedrockAgentRuntimeRpcServiceName() {
     return "BedrockAgentRuntime";
+  }
+
+  @Override
+  protected String getSecretsManagerRpcServiceName() {
+    return "SecretsManager";
+  }
+
+  @Override
+  protected String getStepFunctionsRpcServiceName() {
+    return "Sfn";
+  }
+
+  @Override
+  protected String getSnsRpcServiceName() {
+    return "Sns";
   }
 
   @Test
@@ -219,10 +249,35 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
     doTestBedrockAgentDataSourceId();
   }
 
-  @Test
-  void testBedrockRuntimeModelId() {
-    doTestBedrockRuntimeModelId();
-  }
+  //  @Test
+  //  void testBedrockRuntimeAmazonTitan() {
+  //    doTestBedrockRuntimeAmazonTitan();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAi21Jamba() {
+  //    doTestBedrockRuntimeAi21Jamba();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeAnthropicClaude() {
+  //    doTestBedrockRuntimeAnthropicClaude();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeCohereCommandR() {
+  //    doTestBedrockRuntimeCohereCommandR();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeMetaLlama() {
+  //    doTestBedrockRuntimeMetaLlama();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockRuntimeMistral() {
+  //    doTestBedrockRuntimeMistral();
+  //  }
 
   @Test
   void testBedrockGuardrailId() {
@@ -234,10 +289,58 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
     doTestBedrockAgentRuntimeAgentId();
   }
 
-  // TODO: Enable testBedrockAgentRuntimeKnowledgeBaseId test after KnowledgeBaseId is supported in
-  // OTEL BedrockAgentRuntime instrumentation
   //  @Test
   //  void testBedrockAgentRuntimeKnowledgeBaseId() {
   //    doTestBedrockAgentRuntimeKnowledgeBaseId();
   //  }
+
+  @Test
+  void testSecretsManagerDescribeSecret() throws Exception {
+    doTestSecretsManagerDescribeSecret();
+  }
+
+  @Test
+  void testSecretsManagerError() throws Exception {
+    doTestSecretsManagerError();
+  }
+
+  @Test
+  void testSecretsManagerFault() throws Exception {
+    doTestSecretsManagerFault();
+  }
+
+  @Test
+  void testStepFunctionsDescribeStateMachine() throws Exception {
+    doTestStepFunctionsDescribeStateMachine();
+  }
+
+  @Test
+  void testStepFunctionsDescribeActivity() throws Exception {
+    doTestStepFunctionsDescribeActivity();
+  }
+
+  @Test
+  void testStepFunctionsError() throws Exception {
+    doTestStepFunctionsError();
+  }
+
+  @Test
+  void testStepFunctionsFault() throws Exception {
+    doTestStepFunctionsFault();
+  }
+
+  @Test
+  void testSnsGetTopicAttributes() throws Exception {
+    doTestSnsGetTopicAttributes();
+  }
+
+  @Test
+  void testSnsError() throws Exception {
+    doTestStepFunctionsError();
+  }
+
+  @Test
+  void testSnsFault() throws Exception {
+    doTestStepFunctionsFault();
+  }
 }

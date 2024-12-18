@@ -19,10 +19,14 @@ import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
 import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
+import static io.opentelemetry.semconv.SemanticAttributes.URL_PATH;
+import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
+import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.isLambdaEnvironment;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -82,9 +86,13 @@ final class AwsSpanProcessingUtil {
   /**
    * Ingress operation (i.e. operation for Server and Consumer spans) will be generated from
    * "http.method + http.target/with the first API path parameter" if the default span name equals
-   * null, UnknownOperation or http.method value.
+   * null, UnknownOperation or http.method value. If running in Lambda, the ingress operation will
+   * be the function name + /FunctionHandler.
    */
   static String getIngressOperation(SpanData span) {
+    if (isLambdaEnvironment()) {
+      return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) + "/FunctionHandler";
+    }
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
       operation = INTERNAL_OPERATION;
@@ -194,7 +202,10 @@ final class AwsSpanProcessingUtil {
     if (operation == null || operation.equals(UNKNOWN_OPERATION)) {
       return false;
     }
-    if (isKeyPresent(span, HTTP_METHOD)) {
+    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
+      String httpMethod = span.getAttributes().get(HTTP_REQUEST_METHOD);
+      return !operation.equals(httpMethod);
+    } else if (isKeyPresent(span, HTTP_METHOD)) {
       String httpMethod = span.getAttributes().get(HTTP_METHOD);
       return !operation.equals(httpMethod);
     }
@@ -207,15 +218,21 @@ final class AwsSpanProcessingUtil {
    */
   private static String generateIngressOperation(SpanData span) {
     String operation = UNKNOWN_OPERATION;
-    if (isKeyPresent(span, HTTP_TARGET)) {
-      String httpTarget = span.getAttributes().get(HTTP_TARGET);
+    if (isKeyPresent(span, URL_PATH) || isKeyPresent(span, HTTP_TARGET)) {
+      String httpTarget =
+          isKeyPresent(span, URL_PATH)
+              ? span.getAttributes().get(URL_PATH)
+              : span.getAttributes().get(HTTP_TARGET);
       // get the first part from API path string as operation value
       // the more levels/parts we get from API path the higher chance for getting high cardinality
       // data
       if (httpTarget != null) {
         operation = extractAPIPathValue(httpTarget);
-        if (isKeyPresent(span, HTTP_METHOD)) {
-          String httpMethod = span.getAttributes().get(HTTP_METHOD);
+        if (isKeyPresent(span, HTTP_REQUEST_METHOD) || isKeyPresent(span, HTTP_METHOD)) {
+          String httpMethod =
+              isKeyPresent(span, HTTP_REQUEST_METHOD)
+                  ? span.getAttributes().get(HTTP_REQUEST_METHOD)
+                  : span.getAttributes().get(HTTP_METHOD);
           if (httpMethod != null) {
             operation = httpMethod + " " + operation;
           }

@@ -1,5 +1,5 @@
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
-index f357a19f88..8a78577580 100644
+index f357a19f88..fa90530579 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
 @@ -47,6 +47,14 @@ dependencies {
@@ -8,7 +8,7 @@ index f357a19f88..8a78577580 100644
    testLibrary("com.amazonaws:aws-java-sdk-sns:1.11.106")
 +  testLibrary("com.amazonaws:aws-java-sdk-sqs:1.11.106")
 +  testLibrary("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
-+  // testLibrary("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
++  testLibrary("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
 +  testLibrary("com.amazonaws:aws-java-sdk-lambda:1.11.678")
 +  testLibrary("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
 +  testLibrary("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
@@ -18,1765 +18,63 @@ index f357a19f88..8a78577580 100644
    testImplementation(project(":instrumentation:aws-sdk:aws-sdk-1.11:testing"))
  
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy
-index 987a50ed95..a39b216252 100644
+index 987a50ed95..889c856a7c 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy
-@@ -19,679 +19,679 @@ class S3TracingTest extends AgentInstrumentationSpecification {
-     awsConnector.disconnect()
-   }
- 
--  def "S3 upload triggers SQS message"() {
--    setup:
--    String queueName = "s3ToSqsTestQueue"
--    String bucketName = "otel-s3-to-sqs-test-bucket"
-+  //def "S3 upload triggers SQS message"() {
-+  //  setup:
-+  //  String queueName = "s3ToSqsTestQueue"
-+  //  String bucketName = "otel-s3-to-sqs-test-bucket"
-+  //
-+  //  String queueUrl = awsConnector.createQueue(queueName)
-+  //  awsConnector.createBucket(bucketName)
-+  //
-+  //  String queueArn = awsConnector.getQueueArn(queueUrl)
-+  //  awsConnector.setQueuePublishingPolicy(queueUrl, queueArn)
-+  //  awsConnector.enableS3ToSqsNotifications(bucketName, queueArn)
-+  //
-+  //  when:
-+  //  // test message, auto created by AWS
-+  //  awsConnector.receiveMessage(queueUrl)
-+  //  awsConnector.putSampleData(bucketName)
-+  //  // traced message
-+  //  def receiveMessageResult = awsConnector.receiveMessage(queueUrl)
-+  //  receiveMessageResult.messages.each {message ->
-+  //    runWithSpan("process child") {}
-+  //  }
-+  //
-+  //  // cleanup
-+  //  awsConnector.deleteBucket(bucketName)
-+  //  awsConnector.purgeQueue(queueUrl)
-+  //
-+  //  then:
-+  //  assertTraces(10) {
-+  //    trace(0, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SQS.CreateQueue"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateQueue"
-+  //          "aws.queue.name" queueName
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(1, 1) {
-+  //
-+  //      span(0) {
-+  //        name "S3.CreateBucket"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateBucket"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "PUT"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(2, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SQS.GetQueueAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "GetQueueAttributes"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(3, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SQS.SetQueueAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "SetQueueAttributes"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(4, 1) {
-+  //
-+  //      span(0) {
-+  //        name "S3.SetBucketNotificationConfiguration"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "SetBucketNotificationConfiguration"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "PUT"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(5, 3) {
-+  //      span(0) {
-+  //        name "S3.PutObject"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "PutObject"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "PUT"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //      span(1) {
-+  //        name "s3ToSqsTestQueue process"
-+  //        kind CONSUMER
-+  //        childOf span(0)
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "ReceiveMessage"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
-+  //          "$SemanticAttributes.MESSAGING_DESTINATION_NAME" "s3ToSqsTestQueue"
-+  //          "$SemanticAttributes.MESSAGING_OPERATION" "process"
-+  //          "$SemanticAttributes.MESSAGING_MESSAGE_ID" String
-+  //        }
-+  //      }
-+  //      span(2) {
-+  //        name "process child"
-+  //        childOf span(1)
-+  //        attributes {
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(6, 1) {
-+  //      span(0) {
-+  //        name "S3.ListObjects"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "ListObjects"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "GET"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(7, 1) {
-+  //      span(0) {
-+  //        name "S3.DeleteObject"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "DeleteObject"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "DELETE"
-+  //          "http.status_code" 204
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(8, 1) {
-+  //      span(0) {
-+  //        name "S3.DeleteBucket"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "DeleteBucket"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "DELETE"
-+  //          "http.status_code" 204
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(9, 1) {
-+  //      span(0) {
-+  //        name "SQS.PurgeQueue"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "PurgeQueue"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //  }
-+  //}
- 
--    String queueUrl = awsConnector.createQueue(queueName)
--    awsConnector.createBucket(bucketName)
--
--    String queueArn = awsConnector.getQueueArn(queueUrl)
--    awsConnector.setQueuePublishingPolicy(queueUrl, queueArn)
--    awsConnector.enableS3ToSqsNotifications(bucketName, queueArn)
--
--    when:
--    // test message, auto created by AWS
--    awsConnector.receiveMessage(queueUrl)
--    awsConnector.putSampleData(bucketName)
--    // traced message
--    def receiveMessageResult = awsConnector.receiveMessage(queueUrl)
--    receiveMessageResult.messages.each {message ->
--      runWithSpan("process child") {}
--    }
--
--    // cleanup
--    awsConnector.deleteBucket(bucketName)
--    awsConnector.purgeQueue(queueUrl)
--
--    then:
--    assertTraces(10) {
--      trace(0, 1) {
--
--        span(0) {
--          name "SQS.CreateQueue"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateQueue"
--            "aws.queue.name" queueName
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(1, 1) {
--
--        span(0) {
--          name "S3.CreateBucket"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateBucket"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "PUT"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(2, 1) {
--
--        span(0) {
--          name "SQS.GetQueueAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "GetQueueAttributes"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(3, 1) {
--
--        span(0) {
--          name "SQS.SetQueueAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "SetQueueAttributes"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(4, 1) {
--
--        span(0) {
--          name "S3.SetBucketNotificationConfiguration"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "SetBucketNotificationConfiguration"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "PUT"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(5, 3) {
--        span(0) {
--          name "S3.PutObject"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "PutObject"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "PUT"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--        span(1) {
--          name "s3ToSqsTestQueue process"
--          kind CONSUMER
--          childOf span(0)
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "ReceiveMessage"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.url" String
--            "net.peer.name" String
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
--            "$SemanticAttributes.MESSAGING_DESTINATION_NAME" "s3ToSqsTestQueue"
--            "$SemanticAttributes.MESSAGING_OPERATION" "process"
--            "$SemanticAttributes.MESSAGING_MESSAGE_ID" String
--          }
--        }
--        span(2) {
--          name "process child"
--          childOf span(1)
--          attributes {
--          }
--        }
--      }
--      trace(6, 1) {
--        span(0) {
--          name "S3.ListObjects"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "ListObjects"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "GET"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(7, 1) {
--        span(0) {
--          name "S3.DeleteObject"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "DeleteObject"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "DELETE"
--            "http.status_code" 204
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(8, 1) {
--        span(0) {
--          name "S3.DeleteBucket"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "DeleteBucket"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "DELETE"
--            "http.status_code" 204
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(9, 1) {
--        span(0) {
--          name "SQS.PurgeQueue"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "PurgeQueue"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--    }
--  }
--
--  def "S3 upload triggers SNS topic notification, then creates SQS message"() {
--    setup:
--    String queueName = "s3ToSnsToSqsTestQueue"
--    String bucketName = "otel-s3-sns-sqs-test-bucket"
--    String topicName = "s3ToSnsToSqsTestTopic"
--
--    String queueUrl = awsConnector.createQueue(queueName)
--    String queueArn = awsConnector.getQueueArn(queueUrl)
--    awsConnector.createBucket(bucketName)
--    String topicArn = awsConnector.createTopicAndSubscribeQueue(topicName, queueArn)
--
--    awsConnector.setQueuePublishingPolicy(queueUrl, queueArn)
--    awsConnector.setTopicPublishingPolicy(topicArn)
--    awsConnector.enableS3ToSnsNotifications(bucketName, topicArn)
--
--    when:
--    // test message, auto created by AWS
--    awsConnector.receiveMessage(queueUrl)
--    awsConnector.putSampleData(bucketName)
--    // traced message
--    def receiveMessageResult = awsConnector.receiveMessage(queueUrl)
--    receiveMessageResult.messages.each {message ->
--      runWithSpan("process child") {}
--    }
--    // cleanup
--    awsConnector.deleteBucket(bucketName)
--    awsConnector.purgeQueue(queueUrl)
--
--    then:
--    assertTraces(14) {
--      trace(0, 1) {
--        span(0) {
--          name "SQS.CreateQueue"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateQueue"
--            "aws.queue.name" queueName
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(1, 1) {
--        span(0) {
--          name "SQS.GetQueueAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "GetQueueAttributes"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(2, 1) {
--        span(0) {
--          name "S3.CreateBucket"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateBucket"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "PUT"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(3, 1) {
--        span(0) {
--          name "SNS.CreateTopic"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateTopic"
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSNS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(4, 1) {
--        span(0) {
--          name "SNS.Subscribe"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "Subscribe"
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSNS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(5, 1) {
--        span(0) {
--          name "SQS.SetQueueAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "SetQueueAttributes"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(6, 1) {
--        span(0) {
--          name "SNS.SetTopicAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "SetTopicAttributes"
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSNS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(7, 1) {
--        span(0) {
--          name "S3.SetBucketNotificationConfiguration"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "SetBucketNotificationConfiguration"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "PUT"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(8, 1) {
--        span(0) {
--          name "S3.PutObject"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "PutObject"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "PUT"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(9, 2) {
--        span(0) {
--          name "s3ToSnsToSqsTestQueue process"
--          kind CONSUMER
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "ReceiveMessage"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.url" String
--            "net.peer.name" String
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
--            "$SemanticAttributes.MESSAGING_DESTINATION_NAME" "s3ToSnsToSqsTestQueue"
--            "$SemanticAttributes.MESSAGING_OPERATION" "process"
--            "$SemanticAttributes.MESSAGING_MESSAGE_ID" String
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--        span(1) {
--          name "process child"
--          childOf span(0)
--          attributes {
--          }
--        }
--      }
--      trace(10, 1) {
--        span(0) {
--          name "S3.ListObjects"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "ListObjects"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "GET"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(11, 1) {
--        span(0) {
--          name "S3.DeleteObject"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "DeleteObject"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "DELETE"
--            "http.status_code" 204
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(12, 1) {
--        span(0) {
--          name "S3.DeleteBucket"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "DeleteBucket"
--            "rpc.system" "aws-api"
--            "rpc.service" "Amazon S3"
--            "aws.bucket.name" bucketName
--            "http.method" "DELETE"
--            "http.status_code" 204
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--      trace(13, 1) {
--        span(0) {
--          name "SQS.PurgeQueue"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "PurgeQueue"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
--          }
--        }
--      }
--    }
--  }
-+  //def "S3 upload triggers SNS topic notification, then creates SQS message"() {
-+  //  setup:
-+  //  String queueName = "s3ToSnsToSqsTestQueue"
-+  //  String bucketName = "otel-s3-sns-sqs-test-bucket"
-+  //  String topicName = "s3ToSnsToSqsTestTopic"
-+  //
-+  //  String queueUrl = awsConnector.createQueue(queueName)
-+  //  String queueArn = awsConnector.getQueueArn(queueUrl)
-+  //  awsConnector.createBucket(bucketName)
-+  //  String topicArn = awsConnector.createTopicAndSubscribeQueue(topicName, queueArn)
-+  //
-+  //  awsConnector.setQueuePublishingPolicy(queueUrl, queueArn)
-+  //  awsConnector.setTopicPublishingPolicy(topicArn)
-+  //  awsConnector.enableS3ToSnsNotifications(bucketName, topicArn)
-+  //
-+  //  when:
-+  //  // test message, auto created by AWS
-+  //  awsConnector.receiveMessage(queueUrl)
-+  //  awsConnector.putSampleData(bucketName)
-+  //  // traced message
-+  //  def receiveMessageResult = awsConnector.receiveMessage(queueUrl)
-+  //  receiveMessageResult.messages.each {message ->
-+  //    runWithSpan("process child") {}
-+  //  }
-+  //  // cleanup
-+  //  awsConnector.deleteBucket(bucketName)
-+  //  awsConnector.purgeQueue(queueUrl)
-+  //
-+  //  then:
-+  //  assertTraces(14) {
-+  //    trace(0, 1) {
-+  //      span(0) {
-+  //        name "SQS.CreateQueue"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateQueue"
-+  //          "aws.queue.name" queueName
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(1, 1) {
-+  //      span(0) {
-+  //        name "SQS.GetQueueAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "GetQueueAttributes"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(2, 1) {
-+  //      span(0) {
-+  //        name "S3.CreateBucket"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateBucket"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "PUT"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(3, 1) {
-+  //      span(0) {
-+  //        name "SNS.CreateTopic"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateTopic"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSNS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(4, 1) {
-+  //      span(0) {
-+  //        name "SNS.Subscribe"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "Subscribe"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSNS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(5, 1) {
-+  //      span(0) {
-+  //        name "SQS.SetQueueAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "SetQueueAttributes"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(6, 1) {
-+  //      span(0) {
-+  //        name "SNS.SetTopicAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "SetTopicAttributes"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSNS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(7, 1) {
-+  //      span(0) {
-+  //        name "S3.SetBucketNotificationConfiguration"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "SetBucketNotificationConfiguration"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "PUT"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(8, 1) {
-+  //      span(0) {
-+  //        name "S3.PutObject"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "PutObject"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "PUT"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(9, 2) {
-+  //      span(0) {
-+  //        name "s3ToSnsToSqsTestQueue process"
-+  //        kind CONSUMER
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "ReceiveMessage"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
-+  //          "$SemanticAttributes.MESSAGING_DESTINATION_NAME" "s3ToSnsToSqsTestQueue"
-+  //          "$SemanticAttributes.MESSAGING_OPERATION" "process"
-+  //          "$SemanticAttributes.MESSAGING_MESSAGE_ID" String
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //      span(1) {
-+  //        name "process child"
-+  //        childOf span(0)
-+  //        attributes {
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(10, 1) {
-+  //      span(0) {
-+  //        name "S3.ListObjects"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "ListObjects"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "GET"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(11, 1) {
-+  //      span(0) {
-+  //        name "S3.DeleteObject"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "DeleteObject"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "DELETE"
-+  //          "http.status_code" 204
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(12, 1) {
-+  //      span(0) {
-+  //        name "S3.DeleteBucket"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "DeleteBucket"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "Amazon S3"
-+  //          "aws.bucket.name" bucketName
-+  //          "http.method" "DELETE"
-+  //          "http.status_code" 204
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(13, 1) {
-+  //      span(0) {
-+  //        name "SQS.PurgeQueue"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "PurgeQueue"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
-+  //        }
-+  //      }
-+  //    }
-+  //  }
-+  //}
- }
+@@ -444,6 +444,7 @@ class S3TracingTest extends AgentInstrumentationSpecification {
+             "net.peer.port" { it == null || Number }
+             "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
+             "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
++            "aws.sns.topic.arn" "$topicArn"
+           }
+         }
+       }
+@@ -467,6 +468,7 @@ class S3TracingTest extends AgentInstrumentationSpecification {
+             "net.peer.port" { it == null || Number }
+             "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
+             "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
++            "aws.sns.topic.arn" "$topicArn"
+           }
+         }
+       }
+@@ -514,6 +516,7 @@ class S3TracingTest extends AgentInstrumentationSpecification {
+             "net.peer.port" { it == null || Number }
+             "$SemanticAttributes.HTTP_REQUEST_CONTENT_LENGTH" { it == null || it instanceof Long }
+             "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" { it == null || it instanceof Long }
++            "aws.sns.topic.arn" "$topicArn"
+           }
+         }
+       }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy
-index 97749cf085..f7402c1e4b 100644
+index 97749cf085..a0b83ca870 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy
-@@ -20,192 +20,192 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
-     awsConnector.disconnect()
-   }
- 
--  def "SNS notification triggers SQS message consumed with AWS SDK"() {
--    setup:
--    String queueName = "snsToSqsTestQueue"
--    String topicName = "snsToSqsTestTopic"
--
--    String queueUrl = awsConnector.createQueue(queueName)
--    String queueArn = awsConnector.getQueueArn(queueUrl)
--    awsConnector.setQueuePublishingPolicy(queueUrl, queueArn)
--    String topicArn = awsConnector.createTopicAndSubscribeQueue(topicName, queueArn)
--
--    when:
--    awsConnector.publishSampleNotification(topicArn)
--    def receiveMessageResult = awsConnector.receiveMessage(queueUrl)
--    receiveMessageResult.messages.each {message ->
--      runWithSpan("process child") {}
--    }
--
--    then:
--    assertTraces(6) {
--      trace(0, 1) {
--
--        span(0) {
--          name "SQS.CreateQueue"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateQueue"
--            "aws.queue.name" queueName
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
--          }
--        }
--      }
--      trace(1, 1) {
--
--        span(0) {
--          name "SQS.GetQueueAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "GetQueueAttributes"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
--          }
--        }
--      }
--      trace(2, 1) {
--
--        span(0) {
--          name "SQS.SetQueueAttributes"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "SetQueueAttributes"
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
--          }
--        }
--      }
--      trace(3, 1) {
--
--        span(0) {
--          name "SNS.CreateTopic"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "CreateTopic"
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSNS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
--          }
--        }
--      }
--      trace(4, 1) {
--
--        span(0) {
--          name "SNS.Subscribe"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "Subscribe"
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSNS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
--          }
--        }
--      }
--      trace(5, 3) {
--        span(0) {
--          name "SNS.Publish"
--          kind CLIENT
--          hasNoParent()
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "rpc.method" "Publish"
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSNS"
--            "http.method" "POST"
--            "http.status_code" 200
--            "http.url" String
--            "net.peer.name" String
--            "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
--            "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
--          }
--        }
--        span(1) {
--          name "snsToSqsTestQueue process"
--          kind CONSUMER
--          childOf span(0)
--          attributes {
--            "aws.agent" "java-aws-sdk"
--            "aws.endpoint" String
--            "aws.queue.url" queueUrl
--            "rpc.system" "aws-api"
--            "rpc.service" "AmazonSQS"
--            "rpc.method" "ReceiveMessage"
--            "http.method" "POST"
--            "http.url" String
--            "net.peer.name" String
--            "net.peer.port" { it == null || Number }
--            "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
--            "$SemanticAttributes.MESSAGING_DESTINATION_NAME" "snsToSqsTestQueue"
--            "$SemanticAttributes.MESSAGING_OPERATION" "process"
--            "$SemanticAttributes.MESSAGING_MESSAGE_ID" String
--          }
--        }
--        span(2) {
--          name "process child"
--          childOf span(1)
--          attributes {
--          }
--        }
--      }
--    }
--  }
-+  //def "SNS notification triggers SQS message consumed with AWS SDK"() {
-+  //  setup:
-+  //  String queueName = "snsToSqsTestQueue"
-+  //  String topicName = "snsToSqsTestTopic"
-+  //
-+  //  String queueUrl = awsConnector.createQueue(queueName)
-+  //  String queueArn = awsConnector.getQueueArn(queueUrl)
-+  //  awsConnector.setQueuePublishingPolicy(queueUrl, queueArn)
-+  //  String topicArn = awsConnector.createTopicAndSubscribeQueue(topicName, queueArn)
-+  //
-+  //  when:
-+  //  awsConnector.publishSampleNotification(topicArn)
-+  //  def receiveMessageResult = awsConnector.receiveMessage(queueUrl)
-+  //  receiveMessageResult.messages.each {message ->
-+  //    runWithSpan("process child") {}
-+  //  }
-+  //
-+  //  then:
-+  //  assertTraces(6) {
-+  //    trace(0, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SQS.CreateQueue"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateQueue"
-+  //          "aws.queue.name" queueName
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(1, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SQS.GetQueueAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "GetQueueAttributes"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(2, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SQS.SetQueueAttributes"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "SetQueueAttributes"
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(3, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SNS.CreateTopic"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "CreateTopic"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSNS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(4, 1) {
-+  //
-+  //      span(0) {
-+  //        name "SNS.Subscribe"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "Subscribe"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSNS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
-+  //        }
-+  //      }
-+  //    }
-+  //    trace(5, 3) {
-+  //      span(0) {
-+  //        name "SNS.Publish"
-+  //        kind CLIENT
-+  //        hasNoParent()
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "rpc.method" "Publish"
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSNS"
-+  //          "http.method" "POST"
-+  //          "http.status_code" 200
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "$SemanticAttributes.NET_PROTOCOL_NAME" "http"
-+  //          "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
-+  //        }
-+  //      }
-+  //      span(1) {
-+  //        name "snsToSqsTestQueue process"
-+  //        kind CONSUMER
-+  //        childOf span(0)
-+  //        attributes {
-+  //          "aws.agent" "java-aws-sdk"
-+  //          "aws.endpoint" String
-+  //          "aws.queue.url" queueUrl
-+  //          "rpc.system" "aws-api"
-+  //          "rpc.service" "AmazonSQS"
-+  //          "rpc.method" "ReceiveMessage"
-+  //          "http.method" "POST"
-+  //          "http.url" String
-+  //          "net.peer.name" String
-+  //          "net.peer.port" { it == null || Number }
-+  //          "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
-+  //          "$SemanticAttributes.MESSAGING_DESTINATION_NAME" "snsToSqsTestQueue"
-+  //          "$SemanticAttributes.MESSAGING_OPERATION" "process"
-+  //          "$SemanticAttributes.MESSAGING_MESSAGE_ID" String
-+  //        }
-+  //      }
-+  //      span(2) {
-+  //        name "process child"
-+  //        childOf span(1)
-+  //        attributes {
-+  //        }
-+  //      }
-+  //    }
-+  //  }
-+  //}
- }
-diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test_before_1_11_106/groovy/Aws0ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test_before_1_11_106/groovy/Aws0ClientTest.groovy
-index 543b6e8e8e..e4703eac17 100644
---- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test_before_1_11_106/groovy/Aws0ClientTest.groovy
-+++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test_before_1_11_106/groovy/Aws0ClientTest.groovy
-@@ -133,8 +133,8 @@ class Aws0ClientTest extends AgentInstrumentationSpecification {
- 
-     where:
-     service | operation           | method | path                  | handlerCount | client                                                    | additionalAttributes              | call                                                                                                                    | body
--    "S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("${server.httpUri()}")  | ["aws.bucket.name": "testbucket"] | { c -> c.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); c.createBucket("testbucket") } | ""
--    "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("${server.httpUri()}")  | ["aws.bucket.name": "someBucket"] | { c -> c.getObject("someBucket", "someKey") }                                                                           | ""
-+    //"S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("${server.httpUri()}")  | ["aws.bucket.name": "testbucket"] | { c -> c.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); c.createBucket("testbucket") } | ""
-+    //"S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("${server.httpUri()}")  | ["aws.bucket.name": "someBucket"] | { c -> c.getObject("someBucket", "someKey") }                                                                           | ""
-     "EC2"   | "AllocateAddress"   | "POST" | "/"                   | 4            | new AmazonEC2Client().withEndpoint("${server.httpUri()}") | [:]                               | { c -> c.allocateAddress() }                                                                                            | """
-             <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
-                <requestId>59dbff89-35bd-4eac-99ed-be587EXAMPLE</requestId> 
+@@ -131,6 +131,7 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
+             "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
+             "net.peer.port" { it == null || Number }
+             "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
++            "aws.sns.topic.arn" "$topicArn"
+           }
+         }
+       }
+@@ -154,6 +155,7 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
+             "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
+             "net.peer.port" { it == null || Number }
+             "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
++            "aws.sns.topic.arn" "$topicArn"
+           }
+         }
+       }
+@@ -176,6 +178,7 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
+             "$SemanticAttributes.NET_PROTOCOL_VERSION" "1.1"
+             "net.peer.port" { it == null || Number }
+             "$SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH" Long
++            "aws.sns.topic.arn" "$topicArn"
+           }
+         }
+         span(1) {
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
-index 6cf49a21c4..d2f9267072 100644
+index 6cf49a21c4..3705634153 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
 @@ -18,6 +18,13 @@ dependencies {
@@ -1784,7 +82,7 @@ index 6cf49a21c4..d2f9267072 100644
    testLibrary("com.amazonaws:aws-java-sdk-sns:1.11.106")
    testLibrary("com.amazonaws:aws-java-sdk-sqs:1.11.106")
 +  testLibrary("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
-+  // testLibrary("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
++  testLibrary("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
 +  testLibrary("com.amazonaws:aws-java-sdk-lambda:1.11.678")
 +  testLibrary("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
 +  testLibrary("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
@@ -1794,7 +92,7 @@ index 6cf49a21c4..d2f9267072 100644
    // last version that does not use json protocol
    latestDepTestLibrary("com.amazonaws:aws-java-sdk-sqs:1.12.583")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts
-index bfe844e413..a2cedc9fa2 100644
+index bfe844e413..dec4935b55 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/build.gradle.kts
 @@ -17,6 +17,14 @@ dependencies {
@@ -1803,7 +101,7 @@ index bfe844e413..a2cedc9fa2 100644
    testLibrary("com.amazonaws:aws-java-sdk-sns:1.11.106")
 +  testLibrary("com.amazonaws:aws-java-sdk-sqs:1.11.106")
 +  testLibrary("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
-+  // testLibrary("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
++  testLibrary("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
 +  testLibrary("com.amazonaws:aws-java-sdk-lambda:1.11.678")
 +  testLibrary("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
 +  testLibrary("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
@@ -1952,23 +250,28 @@ index 0000000000..e890cb3c0f
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-index 3e8fddec5c..70e8eeae7f 100644
+index 3e8fddec5c..c0c2bb7de5 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsExperimentalAttributes.java
-@@ -18,6 +18,32 @@ final class AwsExperimentalAttributes {
-   static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
+@@ -19,5 +19,37 @@ final class AwsExperimentalAttributes {
    static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
    static final AttributeKey<String> AWS_REQUEST_ID = stringKey("aws.requestId");
+ 
 +  static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
++
 +  static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =
 +      stringKey("aws.bedrock.knowledge_base.id");
++
 +  static final AttributeKey<String> AWS_DATA_SOURCE_ID = stringKey("aws.bedrock.data_source.id");
++
 +  static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
++
 +  static final AttributeKey<String> AWS_GUARDRAIL_ARN = stringKey("aws.bedrock.guardrail.arn");
 +
 +  // TODO: Merge in gen_ai attributes in opentelemetry-semconv-incubating once upgrade to v1.26.0
 +  static final AttributeKey<String> AWS_BEDROCK_RUNTIME_MODEL_ID =
 +      stringKey("gen_ai.request.model");
++
 +  static final AttributeKey<String> AWS_BEDROCK_SYSTEM = stringKey("gen_ai.system");
 +
 +  static final AttributeKey<String> AWS_STATE_MACHINE_ARN =
@@ -1985,11 +288,11 @@ index 3e8fddec5c..70e8eeae7f 100644
 +
 +  static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
 +      stringKey("aws.lambda.resource_mapping.id");
- 
++
    private AwsExperimentalAttributes() {}
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-index 245f09a5d8..157fd891c3 100644
+index 245f09a5d8..d2bdf1c987 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 @@ -6,11 +6,23 @@
@@ -2034,7 +337,7 @@ index 245f09a5d8..157fd891c3 100644
  
    @Override
    public void onStart(AttributesBuilder attributes, Context parentContext, Request<?> request) {
-@@ -34,21 +51,30 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -34,21 +51,29 @@ class AwsSdkExperimentalAttributesExtractor
      attributes.put(AWS_ENDPOINT, request.getEndpoint().toString());
  
      Object originalRequest = request.getOriginalRequest();
@@ -2044,6 +347,15 @@ index 245f09a5d8..157fd891c3 100644
 -    setRequestAttribute(attributes, AWS_STREAM_NAME, originalRequest, RequestAccess::getStreamName);
 -    setRequestAttribute(attributes, AWS_TABLE_NAME, originalRequest, RequestAccess::getTableName);
 -  }
+-
+-  private static void setRequestAttribute(
+-      AttributesBuilder attributes,
+-      AttributeKey<String> key,
+-      Object request,
+-      Function<Object, String> getter) {
+-    String value = getter.apply(request);
+-    if (value != null) {
+-      attributes.put(key, value);
 +    String requestClassName = originalRequest.getClass().getSimpleName();
 +    setAttribute(attributes, AWS_BUCKET_NAME, originalRequest, RequestAccess::getBucketName);
 +    setAttribute(attributes, AWS_QUEUE_URL, originalRequest, RequestAccess::getQueueUrl);
@@ -2062,15 +374,6 @@ index 245f09a5d8..157fd891c3 100644
 +    setAttribute(attributes, AWS_LAMBDA_NAME, originalRequest, RequestAccess::getLambdaName);
 +    setAttribute(
 +        attributes, AWS_LAMBDA_RESOURCE_ID, originalRequest, RequestAccess::getLambdaResourceId);
- 
--  private static void setRequestAttribute(
--      AttributesBuilder attributes,
--      AttributeKey<String> key,
--      Object request,
--      Function<Object, String> getter) {
--    String value = getter.apply(request);
--    if (value != null) {
--      attributes.put(key, value);
 +    // Get serviceName defined in the AWS Java SDK V1 Request class.
 +    String serviceName = request.getServiceName();
 +    // Extract request attributes only for Bedrock services.
@@ -2079,7 +382,7 @@ index 245f09a5d8..157fd891c3 100644
      }
    }
  
-@@ -59,12 +85,117 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -59,12 +84,117 @@ class AwsSdkExperimentalAttributesExtractor
        Request<?> request,
        @Nullable Response<?> response,
        @Nullable Throwable error) {
@@ -2432,7 +735,7 @@ index bb2ae9266c..36e216047f 100644
 +  }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
-index 548631e9f1..b31b01b87b 100644
+index 548631e9f1..51483839a7 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
 @@ -14,6 +14,14 @@ dependencies {
@@ -2440,7 +743,7 @@ index 548631e9f1..b31b01b87b 100644
    compileOnly("com.amazonaws:aws-java-sdk-sns:1.11.106")
    compileOnly("com.amazonaws:aws-java-sdk-sqs:1.11.106")
 +  compileOnly("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
-+  // compileOnly("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
++  compileOnly("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
 +  compileOnly("com.amazonaws:aws-java-sdk-lambda:1.11.678")
 +
 +  compileOnly("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
@@ -2451,7 +754,7 @@ index 548631e9f1..b31b01b87b 100644
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
-index 95e6ed8985..25ff9f5a70 100644
+index 95e6ed8985..48fb10624e 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractAws1ClientTest.groovy
 @@ -27,6 +27,24 @@ import com.amazonaws.services.rds.AmazonRDSClientBuilder
@@ -2466,9 +769,9 @@ index 95e6ed8985..25ff9f5a70 100644
 +import com.amazonaws.services.bedrock.model.GetGuardrailRequest
 +import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntimeClientBuilder
 +import com.amazonaws.services.bedrockruntime.model.InvokeModelRequest
-+//import com.amazonaws.services.stepfunctions.AWSStepFunctionsClientBuilder
-+//import com.amazonaws.services.stepfunctions.model.DescribeStateMachineRequest
-+//import com.amazonaws.services.stepfunctions.model.DescribeActivityRequest
++import com.amazonaws.services.stepfunctions.AWSStepFunctionsClientBuilder
++import com.amazonaws.services.stepfunctions.model.DescribeStateMachineRequest
++import com.amazonaws.services.stepfunctions.model.DescribeActivityRequest
 +import com.amazonaws.services.sns.AmazonSNSClientBuilder
 +import com.amazonaws.services.sns.model.PublishRequest
 +import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder
@@ -2487,23 +790,12 @@ index 95e6ed8985..25ff9f5a70 100644
  
  import static io.opentelemetry.api.trace.SpanKind.CLIENT
  import static io.opentelemetry.api.trace.SpanKind.PRODUCER
-@@ -130,8 +149,8 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
- 
-     where:
-     service      | operation           | method | path                  | clientBuilder                                                     | call                                                                            | additionalAttributes              | body
--    "S3"         | "CreateBucket"      | "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true) | { c -> c.createBucket("testbucket") }                                           | ["aws.bucket.name": "testbucket"] | ""
--    "S3"         | "GetObject"         | "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true) | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket"] | ""
-+    //"S3"         | "CreateBucket"      | "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true) | { c -> c.createBucket("testbucket") }                                           | ["aws.bucket.name": "testbucket"] | ""
-+    //"S3"         | "GetObject"         | "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true) | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket"] | ""
-     "DynamoDBv2" | "CreateTable"       | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable"]   | ""
-     "Kinesis"    | "DeleteStream"      | "POST" | "/"                   | AmazonKinesisClientBuilder.standard()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream"] | ""
-     // Some users may implicitly subclass the request object to mimic a fluent style
-@@ -156,6 +175,88 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
+@@ -156,6 +175,85 @@ abstract class AbstractAws1ClientTest extends InstrumentationSpecification {
            </ResponseMetadata>
          </DeleteOptionGroupResponse>
        """
 +    "Bedrock"    | "GetGuardrail"      | "GET" | "/"                   |
-+    AmazonBedrockClientBuilder.standard()                             | { c -> c.getGuardrail(new GetGuardrailRequest().withGuardrailIdentifier("guardrailId")) } | ["aws.bedrock.guardrail.id":"guardrailId", "aws.bedrock.guardrail.arn": "guardrailArn"] | """
++      AmazonBedrockClientBuilder.standard()                             | { c -> c.getGuardrail(new GetGuardrailRequest().withGuardrailIdentifier("guardrailId")) } | ["aws.bedrock.guardrail.id":"guardrailId", "aws.bedrock.guardrail.arn": "guardrailArn"] | """
 +        {
 +           "blockedInputMessaging": "string",
 +           "blockedOutputsMessaging": "string",
@@ -2535,28 +827,25 @@ index 95e6ed8985..25ff9f5a70 100644
 +    "AWSBedrockAgent"    | "GetKnowledgeBase"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getKnowledgeBase(new GetKnowledgeBaseRequest().withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.knowledge_base.id": "knowledgeBaseId"] | ""
 +    "AWSBedrockAgent"    | "GetDataSource"      | "GET" | "/"                   | AWSBedrockAgentClientBuilder.standard()                             | { c -> c.getDataSource(new GetDataSourceRequest().withDataSourceId("datasourceId").withKnowledgeBaseId("knowledgeBaseId")) } | ["aws.bedrock.data_source.id": "datasourceId"] | ""
 +    "BedrockRuntime"    | "InvokeModel"      | "POST" | "/"                   | AmazonBedrockRuntimeClientBuilder.standard()                             |
-+      { c -> c.invokeModel(
-+        new InvokeModelRequest().withModelId("anthropic.claude-v2").withBody(StandardCharsets.UTF_8.encode(
-+          "{\"prompt\":\"Hello, world!\",\"temperature\":0.7,\"top_p\":0.9,\"max_tokens_to_sample\":100}\n"
-+        ))) } | ["gen_ai.request.model": "anthropic.claude-v2", "gen_ai.system": "aws_bedrock"] | """
++      { c -> c.invokeModel(new InvokeModelRequest().withModelId("anthropic.claude-v2").withBody(StandardCharsets.UTF_8.encode("{\"prompt\":\"Hello, world!\",\"temperature\":0.7,\"top_p\":0.9,\"max_tokens_to_sample\":100}\n"))) } | ["gen_ai.request.model": "anthropic.claude-v2", "gen_ai.system": "aws_bedrock"] | """
 +        {
 +            "completion": " Here is a simple explanation of black ",
 +            "stop_reason": "length",
 +            "stop": "holes"
 +        }
 +      """
-+    //"AWSStepFunctions" | "DescribeStateMachine" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
-+    //| { c -> c.describeStateMachine(new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn")) }
-+    //| ["aws.stepfunctions.state_machine.arn": "stateMachineArn"]
-+    //| ""
-+    //"AWSStepFunctions" | "DescribeActivity" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
-+    //| { c -> c.describeActivity(new DescribeActivityRequest().withActivityArn("activityArn")) }
-+    //| ["aws.stepfunctions.activity.arn": "activityArn"]
-+    //| ""
++    "AWSStepFunctions" | "DescribeStateMachine" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
++      | { c -> c.describeStateMachine(new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn")) }
++      | ["aws.stepfunctions.state_machine.arn": "stateMachineArn"]
++      | ""
++    "AWSStepFunctions" | "DescribeActivity" | "POST" | "/" | AWSStepFunctionsClientBuilder.standard()
++      | { c -> c.describeActivity(new DescribeActivityRequest().withActivityArn("activityArn")) }
++      | ["aws.stepfunctions.activity.arn": "activityArn"]
++      | ""
 +    "SNS" | "Publish" | "POST" | "/" | AmazonSNSClientBuilder.standard()
-+    | { c -> c.publish(new PublishRequest().withMessage("message").withTopicArn("topicArn")) }
-+    | ["aws.sns.topic.arn": "topicArn"]
-+    | """
++      | { c -> c.publish(new PublishRequest().withMessage("message").withTopicArn("topicArn")) }
++      | ["aws.sns.topic.arn": "topicArn"]
++      | """
 +      <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
 +          <PublishResult>
 +              <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -2567,9 +856,9 @@ index 95e6ed8985..25ff9f5a70 100644
 +      </PublishResponse>
 +      """
 +    "AWSSecretsManager" | "CreateSecret" | "POST" | "/" | AWSSecretsManagerClientBuilder.standard()
-+    | { c -> c.createSecret(new CreateSecretRequest().withName("secretName").withSecretString("secretValue")) }
-+    | ["aws.secretsmanager.secret.arn": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3"]
-+    | """
++      | { c -> c.createSecret(new CreateSecretRequest().withName("secretName").withSecretString("secretValue")) }
++      | ["aws.secretsmanager.secret.arn": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3"]
++      | """
 +      {
 +        "ARN": "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3",
 +        "Name":"MyTestDatabaseSecret",
@@ -2577,18 +866,18 @@ index 95e6ed8985..25ff9f5a70 100644
 +      }
 +    """
 +    "AWSLambda" | "GetEventSourceMapping" | "GET" | "/" | AWSLambdaClientBuilder.standard()
-+    | { c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid")) }
-+    | ["aws.lambda.resource_mapping.id": "uuid"]
-+    | ""
++      | { c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid")) }
++      | ["aws.lambda.resource_mapping.id": "uuid"]
++      | ""
 +    "AWSLambda" | "GetFunction" | "GET" | "/" | AWSLambdaClientBuilder.standard()
-+    | { c-> c.getFunction(new GetFunctionRequest().withFunctionName("functionName")) }
-+    | ["aws.lambda.function.name": "functionName"]
-+    | ""
++      | { c-> c.getFunction(new GetFunctionRequest().withFunctionName("functionName")) }
++      | ["aws.lambda.function.name": "functionName"]
++      | ""
    }
  
    def "send #operation request to closed port"() {
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
-index 8f442b268b..24c14dec4e 100644
+index 3b6efbd696..9f4487d727 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/build.gradle.kts
 @@ -84,6 +84,9 @@ dependencies {
@@ -2598,11 +887,11 @@ index 8f442b268b..24c14dec4e 100644
 +  testLibrary("software.amazon.awssdk:sfn:2.2.0")
 +  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
 +  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ }
  
-   // last version that does not use json protocol
-   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+ val latestDepTest = findProperty("testLatestDeps") as Boolean
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
-index e73abc7bc3..d387a7472c 100644
+index 6e0ea36a64..68b9c72b7d 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library-autoconfigure/build.gradle.kts
 @@ -21,6 +21,9 @@ dependencies {
@@ -2612,11 +901,11 @@ index e73abc7bc3..d387a7472c 100644
 +  testLibrary("software.amazon.awssdk:sfn:2.2.0")
 +  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
 +  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ }
  
-   // last version that does not use json protocol
-   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+ tasks {
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
-index 081d542e76..4f71a06a57 100644
+index 862df156ae..2ed33d6f03 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/build.gradle.kts
 @@ -19,6 +19,9 @@ dependencies {
@@ -2626,9 +915,9 @@ index 081d542e76..4f71a06a57 100644
 +  testLibrary("software.amazon.awssdk:sfn:2.2.0")
 +  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
 +  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+ }
  
-   // last version that does not use json protocol
-   latestDepTestLibrary("software.amazon.awssdk:sqs:2.21.17")
+ testing {
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsExperimentalAttributes.java
 new file mode 100644
 index 0000000000..e1cb180d75
@@ -2683,7 +972,7 @@ index 0000000000..e1cb180d75
 +  private AwsExperimentalAttributes() {}
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
-index 54253d0f7b..5326400f7e 100644
+index 54253d0f7b..2374bd4a52 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequest.java
 @@ -5,10 +5,20 @@
@@ -2707,10 +996,11 @@ index 54253d0f7b..5326400f7e 100644
  import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.request;
  import static io.opentelemetry.instrumentation.awssdk.v2_2.FieldMapping.response;
  
-@@ -32,6 +42,49 @@ enum AwsSdkRequest {
+@@ -32,6 +42,54 @@ enum AwsSdkRequest {
    S3Request(S3, "S3Request"),
    SqsRequest(SQS, "SqsRequest"),
    KinesisRequest(KINESIS, "KinesisRequest"),
++
 +  BedrockRequest(BEDROCK, "BedrockRequest"),
 +  BedrockAgentRuntimeRequest(BEDROCKAGENTRUNTIMEOPERATION, "BedrockAgentRuntimeRequest"),
 +  BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),
@@ -2750,18 +1040,22 @@ index 54253d0f7b..5326400f7e 100644
 +  BedrockListDataSourcesRequest(BEDROCKKNOWLEDGEBASEOPERATION, "ListDataSourcesRequest"),
 +  BedrockUpdateAgentKnowledgeBaseRequest(
 +      BEDROCKKNOWLEDGEBASEOPERATION, "UpdateAgentKnowledgeBaseRequest"),
++
 +  SfnRequest(STEPFUNCTION, "SfnRequest"),
++
 +  SnsRequest(SNS, "SnsRequest"),
++
 +  SecretsManagerRequest(SECRETSMANAGER, "SecretsManagerRequest"),
++
 +  LambdaRequest(LAMBDA, "LambdaRequest"),
    // specific requests
    BatchGetItem(
        DYNAMODB,
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-index 9062f2aa17..9511cd6f05 100644
+index 9062f2aa17..1c34035588 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AwsSdkRequestType.java
-@@ -5,17 +5,62 @@
+@@ -5,17 +5,69 @@
  
  package io.opentelemetry.instrumentation.awssdk.v2_2;
  
@@ -2796,9 +1090,13 @@ index 9062f2aa17..9511cd6f05 100644
 -  KINESIS(request("aws.stream.name", "StreamName")),
 -  DYNAMODB(request("aws.table.name", "TableName"));
 +  S3(request(AWS_BUCKET_NAME.getKey(), "Bucket")),
++
 +  SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
++
 +  KINESIS(request(AWS_STREAM_NAME.getKey(), "StreamName")),
++
 +  DYNAMODB(request(AWS_TABLE_NAME.getKey(), "TableName")),
++
 +  BEDROCK(
 +      request(AWS_GUARDRAIL_ID.getKey(), "guardrailIdentifier"),
 +      response(AWS_GUARDRAIL_ARN.getKey(), "guardrailArn")),
@@ -2819,8 +1117,11 @@ index 9062f2aa17..9511cd6f05 100644
 +  STEPFUNCTION(
 +      request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
 +      request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
++
 +  SNS(request(AWS_SNS_TOPIC_ARN.getKey(), "TopicArn")),
++
 +  SECRETSMANAGER(response(AWS_SECRET_ARN.getKey(), "ARN")),
++
 +  LAMBDA(
 +      request(AWS_LAMBDA_NAME.getKey(), "FunctionName"),
 +      request(AWS_LAMBDA_RESOURCE_ID.getKey(), "UUID"),
@@ -2861,7 +1162,7 @@ index f717b1efc4..352b02093e 100644
  
    @Override
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
-index 2a7f14d14b..584b8dda6c 100644
+index 9981aa9a19..1caed55e62 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
 @@ -19,6 +19,9 @@ dependencies {
@@ -2873,12 +1174,12 @@ index 2a7f14d14b..584b8dda6c 100644
 +  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
  
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
-   implementation("org.elasticmq:elasticmq-rest-sqs_2.12:1.0.0")
+   implementation("org.elasticmq:elasticmq-rest-sqs_2.13:1.5.1")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-index 53390c8d85..692cd005eb 100644
+index 7c152bb91b..b30b8fa2c7 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-@@ -33,8 +33,19 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
+@@ -35,6 +35,16 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
  import software.amazon.awssdk.services.sqs.SqsClient
  import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
  import software.amazon.awssdk.services.sqs.model.SendMessageRequest
@@ -2894,11 +1195,8 @@ index 53390c8d85..692cd005eb 100644
 +import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
  import spock.lang.Unroll
  
-+
- import java.time.Duration
- import java.util.concurrent.Future
- 
-@@ -120,7 +131,31 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+ import java.nio.charset.StandardCharsets
+@@ -144,6 +154,29 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
                "$SemanticAttributes.MESSAGING_SYSTEM" "AmazonSQS"
              } else if (service == "Kinesis") {
                "aws.stream.name" "somestream"
@@ -2926,29 +1224,27 @@ index 53390c8d85..692cd005eb 100644
 +            } else if (service == "SecretsManager") {
 +              "aws.secretsmanager.secret.arn" "someSecretArn"
              }
-+
            }
          }
-       }
-@@ -162,6 +197,41 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
+@@ -218,6 +251,41 @@ abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
            <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
          </DeleteOptionGroupResponse>
          """
 +    "Sfn" | "DescribeStateMachine" | "POST" | "UNKNOWN" | SfnClient.builder()
-+    | { c -> c.describeStateMachine(DescribeStateMachineRequest.builder().stateMachineArn("stateMachineArn").build()) }
-+    | ""
++      | { c -> c.describeStateMachine(DescribeStateMachineRequest.builder().stateMachineArn("stateMachineArn").build()) }
++      | ""
 +    "Sfn" | "DescribeActivity" | "POST" | "UNKNOWN" | SfnClient.builder()
-+    | { c -> c.describeActivity(DescribeActivityRequest.builder().activityArn("activityArn").build()) }
-+    | ""
++      | { c -> c.describeActivity(DescribeActivityRequest.builder().activityArn("activityArn").build()) }
++      | ""
 +    "Lambda" | "GetFunction" | "GET" | "UNKNOWN" | LambdaClient.builder()
-+    | { c -> c.getFunction(GetFunctionRequest.builder().functionName("functionName").build()) }
-+    | ""
++      | { c -> c.getFunction(GetFunctionRequest.builder().functionName("functionName").build()) }
++      | ""
 +    "Lambda" | "GetEventSourceMapping" | "GET" |"UNKNOWN" | LambdaClient.builder()
-+    | { c -> c.getEventSourceMapping(GetEventSourceMappingRequest.builder().uuid("sourceEventId").build()) }
-+    | ""
++      | { c -> c.getEventSourceMapping(GetEventSourceMappingRequest.builder().uuid("sourceEventId").build()) }
++      | ""
 +    "Sns" | "Publish" | "POST" | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()
-+    | { c -> c.publish(PublishRequest.builder().topicArn("topicArn").message("message").build()) }
-+    | """
++      | { c -> c.publish(PublishRequest.builder().topicArn("topicArn").message("message").build()) }
++      | """
 +      <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
 +          <PublishResult>
 +              <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
@@ -2959,8 +1255,8 @@ index 53390c8d85..692cd005eb 100644
 +      </PublishResponse>
 +    """
 +    "SecretsManager" | "GetSecretValue" | "POST" | "UNKNOWN" | SecretsManagerClient.builder()
-+    | { c -> c.getSecretValue(GetSecretValueRequest.builder().secretId("someSecret1").build()) }
-+    | """
++      | { c -> c.getSecretValue(GetSecretValueRequest.builder().secretId("someSecret1").build()) }
++      | """
 +      {
 +        "ARN":"someSecretArn",
 +        "CreatedDate":1.523477145713E9,
@@ -2972,213 +1268,99 @@ index 53390c8d85..692cd005eb 100644
    }
  
    def "send #operation async request with builder #builder.class.getName() mocked response"() {
-diff --git a/instrumentation/vaadin-14.2/testing/src/main/java/io/opentelemetry/javaagent/instrumentation/vaadin/AbstractVaadinTest.java b/instrumentation/vaadin-14.2/testing/src/main/java/io/opentelemetry/javaagent/instrumentation/vaadin/AbstractVaadinTest.java
-index 161a574119..08070aa332 100644
---- a/instrumentation/vaadin-14.2/testing/src/main/java/io/opentelemetry/javaagent/instrumentation/vaadin/AbstractVaadinTest.java
-+++ b/instrumentation/vaadin-14.2/testing/src/main/java/io/opentelemetry/javaagent/instrumentation/vaadin/AbstractVaadinTest.java
-@@ -5,17 +5,17 @@
- 
- package io.opentelemetry.javaagent.instrumentation.vaadin;
- 
--import static org.assertj.core.api.Assertions.assertThat;
--import static org.awaitility.Awaitility.await;
-+// import static org.assertj.core.api.Assertions.assertThat;
-+// import static org.awaitility.Awaitility.await;
- 
- import com.vaadin.flow.server.Version;
- import com.vaadin.flow.spring.annotation.EnableVaadin;
--import io.opentelemetry.api.trace.SpanKind;
-+// import io.opentelemetry.api.trace.SpanKind;
- import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
- import io.opentelemetry.instrumentation.testing.junit.http.AbstractHttpServerUsingTest;
- import io.opentelemetry.instrumentation.testing.junit.http.HttpServerInstrumentationExtension;
--import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
--import io.opentelemetry.sdk.trace.data.SpanData;
-+// import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
-+// import io.opentelemetry.sdk.trace.data.SpanData;
- import java.io.File;
- import java.io.IOException;
+diff --git a/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java b/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
+index 69b3c09c90..74a6f75ffb 100644
+--- a/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
++++ b/instrumentation/jmx-metrics/javaagent/src/main/java/io/opentelemetry/instrumentation/javaagent/jmx/JmxMetricInsightInstaller.java
+@@ -20,6 +20,7 @@ import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
  import java.io.InputStream;
-@@ -23,17 +23,17 @@ import java.net.URI;
- import java.net.URISyntaxException;
  import java.nio.file.Files;
- import java.nio.file.Path;
--import java.time.Duration;
-+// import java.time.Duration;
- import java.util.HashMap;
--import java.util.List;
-+// import java.util.List;
- import java.util.Map;
- import org.junit.jupiter.api.AfterAll;
- import org.junit.jupiter.api.BeforeAll;
--import org.junit.jupiter.api.Test;
-+// import org.junit.jupiter.api.Test;
- import org.junit.jupiter.api.extension.RegisterExtension;
--import org.openqa.selenium.By;
-+// import org.openqa.selenium.By;
- import org.openqa.selenium.chrome.ChromeOptions;
--import org.openqa.selenium.remote.RemoteWebDriver;
-+// import org.openqa.selenium.remote.RemoteWebDriver;
- import org.slf4j.Logger;
- import org.slf4j.LoggerFactory;
- import org.springframework.boot.SpringApplication;
-@@ -126,77 +126,77 @@ public abstract class AbstractVaadinTest
-     return "/xyz";
+ import java.nio.file.Paths;
++import java.time.Duration;
+ import java.util.List;
+ 
+ /** An {@link AgentListener} that enables JMX metrics during agent startup. */
+@@ -32,22 +33,22 @@ public class JmxMetricInsightInstaller implements AgentListener {
+ 
+     if (config.getBoolean("otel.jmx.enabled", true)) {
+       JmxMetricInsight service =
+-          JmxMetricInsight.createService(GlobalOpenTelemetry.get(), beanDiscoveryDelay(config));
++          JmxMetricInsight.createService(
++              GlobalOpenTelemetry.get(), beanDiscoveryDelay(config).toMillis());
+       MetricConfiguration conf = buildMetricConfiguration(config);
+       service.start(conf);
+     }
    }
  
--  private void waitForStart(RemoteWebDriver driver) {
--    // In development mode ui javascript is compiled when application starts
--    // this involves downloading and installing npm and a bunch of packages
--    // and running webpack. Wait until all of this is done before starting test.
--    driver.manage().timeouts().implicitlyWait(Duration.ofMinutes(3));
--    driver.get(address.resolve("main").toString());
--    // wait for page to load
--    driver.findElement(By.id("main.label"));
--    // clear traces so test would start from clean state
--    testing.clearData();
--
--    driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
--  }
--
--  private RemoteWebDriver getWebDriver() {
--    return new RemoteWebDriver(browser.getSeleniumAddress(), new ChromeOptions(), false);
--  }
-+  // private void waitForStart(RemoteWebDriver driver) {
-+  //  // In development mode ui javascript is compiled when application starts
-+  //  // this involves downloading and installing npm and a bunch of packages
-+  //  // and running webpack. Wait until all of this is done before starting test.
-+  //  driver.manage().timeouts().implicitlyWait(Duration.ofMinutes(3));
-+  //  driver.get(address.resolve("main").toString());
-+  //  // wait for page to load
-+  //  driver.findElement(By.id("main.label"));
-+  //  // clear traces so test would start from clean state
-+  //  testing.clearData();
-+  //
-+  //  driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
-+  // }
-+
-+  // private RemoteWebDriver getWebDriver() {
-+  //  return new RemoteWebDriver(browser.getSeleniumAddress(), new ChromeOptions(), false);
-+  // }
+-  private static long beanDiscoveryDelay(ConfigProperties configProperties) {
+-    Long discoveryDelay = configProperties.getLong("otel.jmx.discovery.delay");
++  private static Duration beanDiscoveryDelay(ConfigProperties configProperties) {
++    Duration discoveryDelay = configProperties.getDuration("otel.jmx.discovery.delay");
+     if (discoveryDelay != null) {
+       return discoveryDelay;
+     }
  
-   abstract void assertFirstRequest();
+     // If discovery delay has not been configured, have a peek at the metric export interval.
+     // It makes sense for both of these values to be similar.
+-    long exportInterval = configProperties.getLong("otel.metric.export.interval", 60000);
+-    return exportInterval;
++    return configProperties.getDuration("otel.metric.export.interval", Duration.ofMinutes(1));
+   }
  
--  private void assertButtonClick() {
--    await()
--        .untilAsserted(
--            () -> {
--              List<List<SpanData>> traces = testing.waitForTraces(1);
--              assertThat(traces.get(0))
--                  .satisfies(
--                      spans -> {
--                        OpenTelemetryAssertions.assertThat(spans.get(0))
--                            .hasName("POST " + getContextPath() + "/main")
--                            .hasNoParent()
--                            .hasKind(SpanKind.SERVER);
--                        OpenTelemetryAssertions.assertThat(spans.get(1))
--                            .hasName("SpringVaadinServletService.handleRequest")
--                            .hasParent(spans.get(0))
--                            .hasKind(SpanKind.INTERNAL);
--                        // we don't assert all the handler spans as these vary between
--                        // vaadin versions
--                        OpenTelemetryAssertions.assertThat(spans.get(spans.size() - 2))
--                            .hasName("UidlRequestHandler.handleRequest")
--                            .hasParent(spans.get(1))
--                            .hasKind(SpanKind.INTERNAL);
--                        OpenTelemetryAssertions.assertThat(spans.get(spans.size() - 1))
--                            .hasName("EventRpcHandler.handle/click")
--                            .hasParent(spans.get(spans.size() - 2))
--                            .hasKind(SpanKind.INTERNAL);
--                      });
--            });
--  }
--
--  @Test
--  public void navigateFromMainToOtherView() {
--    RemoteWebDriver driver = getWebDriver();
--    waitForStart(driver);
--
--    // fetch the test page
--    driver.get(address.resolve("main").toString());
--
--    // wait for page to load
--    assertThat(driver.findElement(By.id("main.label")).getText()).isEqualTo("Main view");
--    assertFirstRequest();
--
--    testing.clearData();
--
--    // click a button to trigger calling java code in MainView
--    driver.findElement(By.id("main.button")).click();
--
--    // wait for page to load
--    assertThat(driver.findElement(By.id("other.label")).getText()).isEqualTo("Other view");
--    assertButtonClick();
--
--    driver.close();
--  }
-+  // private void assertButtonClick() {
-+  //  await()
-+  //      .untilAsserted(
-+  //          () -> {
-+  //            List<List<SpanData>> traces = testing.waitForTraces(1);
-+  //            assertThat(traces.get(0))
-+  //                .satisfies(
-+  //                    spans -> {
-+  //                      OpenTelemetryAssertions.assertThat(spans.get(0))
-+  //                          .hasName("POST " + getContextPath() + "/main")
-+  //                          .hasNoParent()
-+  //                          .hasKind(SpanKind.SERVER);
-+  //                      OpenTelemetryAssertions.assertThat(spans.get(1))
-+  //                          .hasName("SpringVaadinServletService.handleRequest")
-+  //                          .hasParent(spans.get(0))
-+  //                          .hasKind(SpanKind.INTERNAL);
-+  //                      // we don't assert all the handler spans as these vary between
-+  //                      // vaadin versions
-+  //                      OpenTelemetryAssertions.assertThat(spans.get(spans.size() - 2))
-+  //                          .hasName("UidlRequestHandler.handleRequest")
-+  //                          .hasParent(spans.get(1))
-+  //                          .hasKind(SpanKind.INTERNAL);
-+  //                      OpenTelemetryAssertions.assertThat(spans.get(spans.size() - 1))
-+  //                          .hasName("EventRpcHandler.handle/click")
-+  //                          .hasParent(spans.get(spans.size() - 2))
-+  //                          .hasKind(SpanKind.INTERNAL);
-+  //                    });
-+  //          });
-+  // }
-+
-+  // @Test
-+  // public void navigateFromMainToOtherView() {
-+  //  RemoteWebDriver driver = getWebDriver();
-+  //  waitForStart(driver);
-+  //
-+  //  // fetch the test page
-+  //  driver.get(address.resolve("main").toString());
-+  //
-+  //  // wait for page to load
-+  //  assertThat(driver.findElement(By.id("main.label")).getText()).isEqualTo("Main view");
-+  //  assertFirstRequest();
-+  //
-+  //  testing.clearData();
-+  //
-+  //  // click a button to trigger calling java code in MainView
-+  //  driver.findElement(By.id("main.button")).click();
-+  //
-+  //  // wait for page to load
-+  //  assertThat(driver.findElement(By.id("other.label")).getText()).isEqualTo("Other view");
-+  //  assertButtonClick();
-+  //
-+  //  driver.close();
-+  // }
- }
+   private static String resourceFor(String platform) {
+diff --git a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
+index 8b0fd636be..b9856f1dc9 100644
+--- a/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
++++ b/instrumentation/jmx-metrics/library/src/main/java/io/opentelemetry/instrumentation/jmx/engine/BeanFinder.java
+@@ -25,7 +25,13 @@ class BeanFinder {
+ 
+   private final MetricRegistrar registrar;
+   private MetricConfiguration conf;
+-  private final ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
++  private final ScheduledExecutorService exec =
++      Executors.newSingleThreadScheduledExecutor(
++          runnable -> {
++            Thread result = new Thread(runnable, "jmx_bean_finder");
++            result.setDaemon(true);
++            return result;
++          });
+   private final long discoveryDelay;
+   private final long maxDelay;
+   private long delay = 1000; // number of milliseconds until first attempt to discover MBeans
+@@ -39,12 +45,18 @@ class BeanFinder {
+   void discoverBeans(MetricConfiguration conf) {
+     this.conf = conf;
+ 
+-    if (!conf.isEmpty()) {
+-      // Issue 9336: Corner case: PlatformMBeanServer will remain unitialized until a direct
+-      // reference to it is made. This call makes sure that the PlatformMBeanServer will be in
+-      // the set of MBeanServers reported by MBeanServerFactory.
+-      ManagementFactory.getPlatformMBeanServer();
+-    }
++    exec.schedule(
++        () -> {
++          // Issue 9336: Corner case: PlatformMBeanServer will remain unitialized until a direct
++          // reference to it is made. This call makes sure that the PlatformMBeanServer will be in
++          // the set of MBeanServers reported by MBeanServerFactory.
++          // Issue 11143: This call initializes java.util.logging.LogManager. We should not call it
++          // before application has had a chance to configure custom log manager. This is needed for
++          // wildfly.
++          ManagementFactory.getPlatformMBeanServer();
++        },
++        discoveryDelay,
++        TimeUnit.MILLISECONDS);
+ 
+     exec.schedule(
+         new Runnable() {
 diff --git a/version.gradle.kts b/version.gradle.kts
-index fdf57bdbea..c38a2e00f3 100644
+index 5217d396e2..66cc8ecb2a 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.32.1"
--val alphaVersion = "1.32.1-alpha"
-+val stableVersion = "1.32.1-adot2"
-+val alphaVersion = "1.32.1-adot2-alpha"
+-val stableVersion = "1.33.6"
+-val alphaVersion = "1.33.6-alpha"
++val stableVersion = "1.33.6-adot1"
++val alphaVersion = "1.33.6-adot1-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {

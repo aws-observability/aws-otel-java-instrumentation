@@ -62,7 +62,18 @@ public class SemanticConventionsConstants {
   public static final String AWS_DATA_SOURCE_ID = "aws.bedrock.data_source.id";
   public static final String AWS_AGENT_ID = "aws.bedrock.agent.id";
   public static final String AWS_GUARDRAIL_ID = "aws.bedrock.guardrail.id";
+  public static final String AWS_GUARDRAIL_ARN = "aws.bedrock.guardrail.arn";
   public static final String GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
+  public static final String GEN_AI_REQUEST_MAX_TOKENS = "gen_ai.request.max_tokens";
+  public static final String GEN_AI_REQUEST_TEMPERATURE = "gen_ai.request.temperature";
+  public static final String GEN_AI_REQUEST_TOP_P = "gen_ai.request.top_p";
+  public static final String GEN_AI_RESPONSE_FINISH_REASONS = "gen_ai.response.finish_reasons";
+  public static final String GEN_AI_USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens";
+  public static final String GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens";
+  public static final String AWS_SECRET_ARN = "aws.secretsmanager.secret.arn";
+  public static final String AWS_STATE_MACHINE_ARN = "aws.stepfunctions.state_machine.arn";
+  public static final String AWS_ACTIVITY_ARN = "aws.stepfunctions.activity.arn";
+  public static final String AWS_TOPIC_ARN = "aws.sns.topic.arn";
 
   // kafka
   public static final String MESSAGING_CLIENT_ID = "messaging.client_id";

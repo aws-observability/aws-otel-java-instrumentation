@@ -70,6 +70,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
       AttributeKey.stringKey("aws.lambda.resource_mapping.id");
 
+  static final AttributeKey<Boolean> AWS_TRACE_FLAG_SAMPLED =
+      AttributeKey.booleanKey("aws.trace.flag.sampled");
+
   // use the same AWS Resource attribute name defined by OTel java auto-instr for aws_sdk_v_1_1
   // TODO: all AWS specific attributes should be defined in semconv package and reused cross all
   // otel packages. Related sim -
