@@ -63,20 +63,12 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
-        # Check disk usage before cleanup
-      - name: Check disk usage before cleanup
-        run: df -h
-
         # Cleanup directories before proceeding with setup
       - name: Clean up old installations
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/share/dotnet
-
-        # Check disk usage after cleanup
-      - name: Check disk usage after cleanup
-        run: df -h
 
         # cache local patch outputs
       - name: Cache local Maven repository
@@ -163,8 +155,4 @@ jobs:
         with:
           arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@v3
-
-        # Check disk usage after cleanup
-      - name: Check disk usage after worflow
-        run: df -h
 
