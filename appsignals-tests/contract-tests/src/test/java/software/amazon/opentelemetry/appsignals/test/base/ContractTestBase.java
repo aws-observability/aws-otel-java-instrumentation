@@ -152,7 +152,9 @@ public abstract class ContractTestBase {
         "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         COLLECTOR_HTTP_ENDPOINT,
         "OTEL_RESOURCE_ATTRIBUTES",
-        getApplicationOtelResourceAttributes());
+        getApplicationOtelResourceAttributes(),
+        "OTEL_EXPORTER_OTLP_PROTOCOL",
+        "grpc");
   }
 
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {

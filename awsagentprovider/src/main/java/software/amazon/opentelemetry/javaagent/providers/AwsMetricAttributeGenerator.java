@@ -86,8 +86,8 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.data.EventData;
+import io.opentelemetry.sdk.trace.data.ExceptionEventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.sdk.trace.internal.data.ExceptionEventData;
 import io.opentelemetry.semconv.ResourceAttributes;
 import io.opentelemetry.semconv.SemanticAttributes;
 import java.lang.reflect.Method;
@@ -655,7 +655,13 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * allow for desired metric creation.
    */
   private static void setHttpStatus(SpanData span, AttributesBuilder builder) {
+    if (isKeyPresent(span, HTTP_RESPONSE_STATUS_CODE)) {
+      return;
+    }
+
     if (isKeyPresent(span, HTTP_STATUS_CODE)) {
+      Long statusCode = span.getAttributes().get(HTTP_STATUS_CODE);
+      builder.put(HTTP_RESPONSE_STATUS_CODE, statusCode);
       return;
     }
 
@@ -667,7 +673,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
     Long statusCode = getAwsStatusCode(span);
     if (statusCode != null) {
-      builder.put(HTTP_STATUS_CODE, statusCode);
+      builder.put(HTTP_RESPONSE_STATUS_CODE, statusCode);
     }
   }
 

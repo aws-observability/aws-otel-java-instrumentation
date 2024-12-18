@@ -15,7 +15,7 @@
 
 plugins {
   java
-  id("com.github.johnrengelman.shadow")
+  id("com.gradleup.shadow")
 }
 
 base.archivesBaseName = "aws-instrumentation-logback-1.0"

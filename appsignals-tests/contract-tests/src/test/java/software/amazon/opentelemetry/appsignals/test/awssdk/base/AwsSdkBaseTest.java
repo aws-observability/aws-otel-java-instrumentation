@@ -263,19 +263,19 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       List<KeyValue> attributesList,
       String service,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, address))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port))
         .satisfiesOnlyOnce(
-            assertAttribute(SemanticConventionsConstants.HTTP_STATUS_CODE, statusCode))
-        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+            assertAttribute(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE, statusCode))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
 
@@ -284,16 +284,16 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       List<KeyValue> attributesList,
       String service,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
-        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, address))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
 
@@ -308,8 +308,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -327,8 +327,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
-        peerName,
-        peerPort,
+        address,
+        port,
         url,
         statusCode,
         extraAssertions);
@@ -345,8 +345,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -363,8 +363,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
-        peerName,
-        peerPort,
+        address,
+        port,
         url,
         statusCode,
         extraAssertions);
@@ -377,8 +377,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String operation,
       String localService,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -391,7 +391,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsSqsConsumerAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url);
+                  spanAttributes, rpcService, method, address, port, url);
               assertSqsConsumerAwsAttributes(span.getAttributesList(), operation);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -412,8 +412,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -425,9 +425,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               var spanAttributes = span.getAttributesList();
               assertThat(span.getKind()).isEqualTo(spanKind);
               assertThat(span.getName()).isEqualTo(spanName);
-
               assertSemanticConventionsAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
+                  spanAttributes, rpcService, method, address, port, url, statusCode);
               assertAwsAttributes(
                   spanAttributes,
                   localService,
