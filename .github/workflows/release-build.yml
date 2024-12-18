@@ -13,6 +13,7 @@ env:
   PUBLIC_REPOSITORY: public.ecr.aws/aws-observability/adot-autoinstrumentation-java
   PRIVATE_REPOSITORY: 020628701572.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java
   PRIVATE_REGISTRY: 020628701572.dkr.ecr.us-west-2.amazonaws.com
+  ARTIFACT_NAME: aws-opentelemetry-agent.jar 
 
 permissions:
   id-token: write
@@ -117,13 +118,20 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+
+      - name: Get SHA256 checksum of release artifact
+        id: get_sha256
+        run: |
+          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
+          shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
-          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" aws-opentelemetry-agent.jar
           gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ github.event.inputs.version }}" \
              --draft \
              "v${{ github.event.inputs.version }}" \
-             aws-opentelemetry-agent.jar
+             ${{ env.ARTIFACT_NAME }} \
+             ${{ env.ARTIFACT_NAME }}.sha256
