@@ -33,7 +33,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
   java
-  kotlin("jvm") version "1.8.22"
+  kotlin("jvm") version "2.1.0-RC2"
 }
 
 java {

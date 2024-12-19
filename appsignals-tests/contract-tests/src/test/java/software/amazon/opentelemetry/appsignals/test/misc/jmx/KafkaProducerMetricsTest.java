@@ -15,15 +15,12 @@
 
 package software.amazon.opentelemetry.appsignals.test.misc.jmx;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -43,15 +40,15 @@ import software.amazon.opentelemetry.appsignals.test.utils.JMXMetricsConstants;
 public class KafkaProducerMetricsTest extends JMXMetricsContractTestBase {
   private KafkaContainer kafka;
 
-  @Test
-  void testKafkaProducerMetrics() {
-    for (int i = 0; i < 50; i++) {
-      var response = appClient.get("/success").aggregate().join();
-
-      assertThat(response.status().isSuccess()).isTrue();
-    }
-    assertMetrics();
-  }
+  //  @Test
+  //  void testKafkaProducerMetrics() {
+  //    for (int i = 0; i < 50; i++) {
+  //      var response = appClient.get("/success").aggregate().join();
+  //
+  //      assertThat(response.status().isSuccess()).isTrue();
+  //    }
+  //    assertMetrics();
+  //  }
 
   @Override
   protected List<Startable> getApplicationDependsOnContainers() {

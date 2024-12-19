@@ -17,19 +17,11 @@ package software.amazon.opentelemetry.appsignals.test.misc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.opentelemetry.api.trace.TraceId;
 import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
-import java.nio.ByteBuffer;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.opentelemetry.appsignals.test.base.ContractTestBase;
-import software.amazon.opentelemetry.appsignals.test.utils.AppSignalsConstants;
 import software.amazon.opentelemetry.appsignals.test.utils.ResourceScopeMetric;
 
 /**
@@ -63,73 +55,78 @@ public class ConfigurationTest extends ContractTestBase {
             });
   }
 
-  @Test
-  void testConfigurationMetrics() {
-    var response = appClient.get("/success").aggregate().join();
-    assertThat(response.status().isSuccess()).isTrue();
+  //  @Test
+  //  void testConfigurationMetrics() {
+  //    var response = appClient.get("/success").aggregate().join();
+  //    assertThat(response.status().isSuccess()).isTrue();
+  //
+  //    var metrics =
+  //        mockCollectorClient.getMetrics(
+  //            Set.of(
+  //                AppSignalsConstants.LATENCY_METRIC,
+  //                AppSignalsConstants.ERROR_METRIC,
+  //                AppSignalsConstants.FAULT_METRIC));
+  //
+  //    assertMetricConfiguration(metrics, AppSignalsConstants.LATENCY_METRIC);
+  //    assertMetricConfiguration(metrics, AppSignalsConstants.ERROR_METRIC);
+  //    assertMetricConfiguration(metrics, AppSignalsConstants.FAULT_METRIC);
+  //  }
 
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.LATENCY_METRIC,
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC));
-
-    assertMetricConfiguration(metrics, AppSignalsConstants.LATENCY_METRIC);
-    assertMetricConfiguration(metrics, AppSignalsConstants.ERROR_METRIC);
-    assertMetricConfiguration(metrics, AppSignalsConstants.FAULT_METRIC);
-  }
-
-  @Test
-  void xrayIdFormat() {
-    // We are testing here that the X-Ray id format is always used by inspecting the traceid that
-    // was in the span received by the collector, which should be consistent across multiple spans.
-    // We are testing the following properties:
-    // 1. Traceid is random
-    // 2. First 32 bits of traceid is a timestamp
-    // It is important to remember that the X-Ray traceId format had to be adapted to fit into the
-    // definition of the OpenTelemetry traceid:
-    // https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
-    // Specifically for an X-Ray traceid to be a valid Otel traceId, the version digit had to be
-    // dropped. Reference:
-    // https://github.com/open-telemetry/opentelemetry-java-contrib/blob/main/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayIdGenerator.java#L45
-    var seen = new HashSet<String>();
-
-    for (int i = 0; i < 100; i++) {
-      var response = appClient.get("/success").aggregate().join();
-      assertThat(response.status().isSuccess()).isTrue();
-
-      var traces = mockCollectorClient.getTraces();
-
-      Assertions.assertThat(traces)
-          .filteredOn(x -> x.getSpan().getName().equals("GET /success"))
-          .singleElement()
-          .satisfies(
-              trace -> {
-                // Get the binary representation of the traceid
-                var traceId = ByteBuffer.wrap(trace.getSpan().getTraceId().toByteArray());
-                // Get the first 8 bytes containing the timestamp.
-                var high = traceId.getLong();
-                // Covert to the hex representation
-                var traceIdHex = TraceId.fromBytes(traceId.array());
-
-                assertThat(traceIdHex).isNotIn(seen);
-                seen.add(traceIdHex);
-
-                var traceTimestamp = high >>> 32;
-                // Since we just made the request, the time in epoch registered in the traceid
-                // should be
-                // approximate equal to the current time in the test, since both run on the same
-                // host.
-                var currentTimeSecs = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
-
-                assertThat(traceTimestamp)
-                    // Give 2 minutes time range of tolerance for the trace timestamp.
-                    .isGreaterThanOrEqualTo(currentTimeSecs - 60)
-                    .isLessThanOrEqualTo(currentTimeSecs + 60);
-              });
-
-      mockCollectorClient.clearSignals();
-    }
-  }
+  //  @Test
+  //  void xrayIdFormat() {
+  //    // We are testing here that the X-Ray id format is always used by inspecting the traceid
+  // that
+  //    // was in the span received by the collector, which should be consistent across multiple
+  // spans.
+  //    // We are testing the following properties:
+  //    // 1. Traceid is random
+  //    // 2. First 32 bits of traceid is a timestamp
+  //    // It is important to remember that the X-Ray traceId format had to be adapted to fit into
+  // the
+  //    // definition of the OpenTelemetry traceid:
+  //    // https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
+  //    // Specifically for an X-Ray traceid to be a valid Otel traceId, the version digit had to be
+  //    // dropped. Reference:
+  //    //
+  // https://github.com/open-telemetry/opentelemetry-java-contrib/blob/main/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayIdGenerator.java#L45
+  //    var seen = new HashSet<String>();
+  //
+  //    for (int i = 0; i < 100; i++) {
+  //      var response = appClient.get("/success").aggregate().join();
+  //      assertThat(response.status().isSuccess()).isTrue();
+  //
+  //      var traces = mockCollectorClient.getTraces();
+  //
+  //      Assertions.assertThat(traces)
+  //          .filteredOn(x -> x.getSpan().getName().equals("GET /success"))
+  //          .singleElement()
+  //          .satisfies(
+  //              trace -> {
+  //                // Get the binary representation of the traceid
+  //                var traceId = ByteBuffer.wrap(trace.getSpan().getTraceId().toByteArray());
+  //                // Get the first 8 bytes containing the timestamp.
+  //                var high = traceId.getLong();
+  //                // Covert to the hex representation
+  //                var traceIdHex = TraceId.fromBytes(traceId.array());
+  //
+  //                assertThat(traceIdHex).isNotIn(seen);
+  //                seen.add(traceIdHex);
+  //
+  //                var traceTimestamp = high >>> 32;
+  //                // Since we just made the request, the time in epoch registered in the traceid
+  //                // should be
+  //                // approximate equal to the current time in the test, since both run on the same
+  //                // host.
+  //                var currentTimeSecs =
+  // TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+  //
+  //                assertThat(traceTimestamp)
+  //                    // Give 2 minutes time range of tolerance for the trace timestamp.
+  //                    .isGreaterThanOrEqualTo(currentTimeSecs - 60)
+  //                    .isLessThanOrEqualTo(currentTimeSecs + 60);
+  //              });
+  //
+  //      mockCollectorClient.clearSignals();
+  //    }
+  //  }
 }

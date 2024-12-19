@@ -17,8 +17,8 @@ dependencies {
 
 jib {
   configureImages(
-    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
-    "public.ecr.aws/aws-otel-test/aws-otel-java-springboot",
+    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha-v2",
+    "public.ecr.aws/aws-otel-test/aws-otel-java-springboot:v2",
     rootProject.property("localDocker")!!.equals("true"),
     !rootProject.property("localDocker")!!.equals("true"),
     tags = setOf("latest", "${System.getenv("COMMIT_HASH")}"),

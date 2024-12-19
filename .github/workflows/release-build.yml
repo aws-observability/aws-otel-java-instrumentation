@@ -9,7 +9,7 @@ on:
 env:
   AWS_PUBLIC_ECR_REGION: us-east-1
   AWS_PRIVATE_ECR_REGION: us-west-2
-  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
   PUBLIC_REPOSITORY: public.ecr.aws/aws-observability/adot-autoinstrumentation-java
   PRIVATE_REPOSITORY: 020628701572.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java
   PRIVATE_REGISTRY: 020628701572.dkr.ecr.us-west-2.amazonaws.com
