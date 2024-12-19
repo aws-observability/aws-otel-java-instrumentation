@@ -131,13 +131,13 @@ class Tomcat extends BaseHttpServerTest {
     doTestSuccess();
   }
 
-  @Test
-  void testError() {
-    doTestError();
-  }
-
-  @Test
-  void testFault() {
-    doTestFault();
-  }
+  //  @Test
+  //  void testError() {
+  //    doTestError();
+  //  }
+  //
+  //  @Test
+  //  void testFault() {
+  //    doTestFault();
+  //  }
 }

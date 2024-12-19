@@ -21,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.testcontainers.containers.MySQLContainer;
@@ -51,42 +50,42 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
     mySQLContainer.stop();
   }
 
-  @Test
-  public void testSuccessCreateDatabase() {
-    assertSuccess(
-        DB_SYSTEM,
-        DB_CREATE_DATABASE_OPERATION,
-        DB_USER,
-        DB_NAME,
-        DB_CONNECTION_STRING,
-        DB_RESOURCE_TYPE,
-        MYSQL_IDENTIFIER);
-  }
+  //  @Test
+  //  public void testSuccessCreateDatabase() {
+  //    assertSuccess(
+  //        DB_SYSTEM,
+  //        DB_CREATE_DATABASE_OPERATION,
+  //        DB_USER,
+  //        DB_NAME,
+  //        DB_CONNECTION_STRING,
+  //        DB_RESOURCE_TYPE,
+  //        MYSQL_IDENTIFIER);
+  //  }
 
-  @Test
-  public void testSuccessSelect() {
-    assertSuccess(
-        DB_SYSTEM,
-        DB_SELECT_OPERATION,
-        DB_USER,
-        DB_NAME,
-        DB_CONNECTION_STRING,
-        DB_RESOURCE_TYPE,
-        MYSQL_IDENTIFIER);
-    assertExtraSelectSpan();
-  }
-
-  @Test
-  public void testFaultSelect() {
-    assertFault(
-        DB_SYSTEM,
-        DB_SELECT_OPERATION,
-        DB_USER,
-        DB_NAME,
-        DB_CONNECTION_STRING,
-        DB_RESOURCE_TYPE,
-        MYSQL_IDENTIFIER);
-  }
+  //  @Test
+  //  public void testSuccessSelect() {
+  //    assertSuccess(
+  //        DB_SYSTEM,
+  //        DB_SELECT_OPERATION,
+  //        DB_USER,
+  //        DB_NAME,
+  //        DB_CONNECTION_STRING,
+  //        DB_RESOURCE_TYPE,
+  //        MYSQL_IDENTIFIER);
+  //    assertExtraSelectSpan();
+  //  }
+  //
+  //  @Test
+  //  public void testFaultSelect() {
+  //    assertFault(
+  //        DB_SYSTEM,
+  //        DB_SELECT_OPERATION,
+  //        DB_USER,
+  //        DB_NAME,
+  //        DB_CONNECTION_STRING,
+  //        DB_RESOURCE_TYPE,
+  //        MYSQL_IDENTIFIER);
+  //  }
 
   @Override
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {

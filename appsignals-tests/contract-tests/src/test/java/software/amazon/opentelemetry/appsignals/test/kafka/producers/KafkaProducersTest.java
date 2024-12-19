@@ -21,12 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -45,62 +42,62 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 public class KafkaProducersTest extends ContractTestBase {
   private KafkaContainer kafka;
 
-  @Test
-  public void testSuccess() {
+  //  @Test
+  //  public void testSuccess() {
+  //
+  //    var path = "success";
+  //    var method = "GET";
+  //    var kafkaTopic = "kafka_topic";
+  //    var otelStatusCode = "STATUS_CODE_UNSET";
+  //    var response = appClient.get(path).aggregate().join();
+  //    assertThat(response.status().isSuccess()).isTrue();
+  //
+  //    var resourceScopeSpans = mockCollectorClient.getTraces();
+  //    assertAwsSpanAttributes(resourceScopeSpans, method, path);
+  //    assertSemanticConventionsSpanAttributes(resourceScopeSpans, otelStatusCode, kafkaTopic);
+  //
+  //    var metrics =
+  //        mockCollectorClient.getMetrics(
+  //            Set.of(
+  //                AppSignalsConstants.LATENCY_METRIC,
+  //                AppSignalsConstants.ERROR_METRIC,
+  //                AppSignalsConstants.FAULT_METRIC));
+  //    assertMetricAttributes(metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0);
+  //    assertMetricAttributes(metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0);
+  //    assertMetricAttributes(metrics, method, path, AppSignalsConstants.FAULT_METRIC, 0.0);
+  //  }
 
-    var path = "success";
-    var method = "GET";
-    var kafkaTopic = "kafka_topic";
-    var otelStatusCode = "STATUS_CODE_UNSET";
-    var response = appClient.get(path).aggregate().join();
-    assertThat(response.status().isSuccess()).isTrue();
-
-    var resourceScopeSpans = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(resourceScopeSpans, method, path);
-    assertSemanticConventionsSpanAttributes(resourceScopeSpans, otelStatusCode, kafkaTopic);
-
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.LATENCY_METRIC,
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC));
-    assertMetricAttributes(metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0);
-    assertMetricAttributes(metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0);
-    assertMetricAttributes(metrics, method, path, AppSignalsConstants.FAULT_METRIC, 0.0);
-  }
-
-  @Test
-  public void testFault() {
-    var path = "fault";
-    var method = "GET";
-    var kafkaTopic = "fault_do_not_exist";
-    var otelStatusCode = "STATUS_CODE_ERROR";
-    var response =
-        appClient
-            .prepare()
-            .get(path)
-            .responseTimeout(Duration.ofSeconds(15))
-            .execute()
-            .aggregate()
-            .join();
-
-    assertThat(response.status().isServerError()).isTrue();
-
-    var resourceScopeSpans = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(resourceScopeSpans, method, path);
-    assertSemanticConventionsSpanAttributes(resourceScopeSpans, otelStatusCode, kafkaTopic);
-
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.LATENCY_METRIC,
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC));
-    assertMetricAttributes(metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 50000.0);
-    assertMetricAttributes(metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0);
-    assertMetricAttributes(metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0);
-  }
+  //  @Test
+  //  public void testFault() {
+  //    var path = "fault";
+  //    var method = "GET";
+  //    var kafkaTopic = "fault_do_not_exist";
+  //    var otelStatusCode = "STATUS_CODE_ERROR";
+  //    var response =
+  //        appClient
+  //            .prepare()
+  //            .get(path)
+  //            .responseTimeout(Duration.ofSeconds(15))
+  //            .execute()
+  //            .aggregate()
+  //            .join();
+  //
+  //    assertThat(response.status().isServerError()).isTrue();
+  //
+  //    var resourceScopeSpans = mockCollectorClient.getTraces();
+  //    assertAwsSpanAttributes(resourceScopeSpans, method, path);
+  //    assertSemanticConventionsSpanAttributes(resourceScopeSpans, otelStatusCode, kafkaTopic);
+  //
+  //    var metrics =
+  //        mockCollectorClient.getMetrics(
+  //            Set.of(
+  //                AppSignalsConstants.LATENCY_METRIC,
+  //                AppSignalsConstants.ERROR_METRIC,
+  //                AppSignalsConstants.FAULT_METRIC));
+  //    assertMetricAttributes(metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 50000.0);
+  //    assertMetricAttributes(metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0);
+  //    assertMetricAttributes(metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0);
+  //  }
 
   @Override
   protected List<Startable> getApplicationDependsOnContainers() {

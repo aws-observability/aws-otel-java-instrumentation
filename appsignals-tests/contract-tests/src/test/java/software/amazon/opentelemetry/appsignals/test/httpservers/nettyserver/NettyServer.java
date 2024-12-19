@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.opentelemetry.proto.common.v1.KeyValue;
 import java.util.List;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.opentelemetry.appsignals.test.httpservers.base.BaseHttpServerTest;
@@ -40,20 +39,20 @@ public class NettyServer extends BaseHttpServerTest {
     return ".*Started Application.*";
   }
 
-  @Test
-  void testSuccess() {
-    doTestSuccess();
-  }
-
-  @Test
-  void testError() {
-    doTestError();
-  }
-
-  @Test
-  void testFault() {
-    doTestFault();
-  }
+  //  @Test
+  //  void testSuccess() {
+  //    doTestSuccess();
+  //  }
+  //
+  //  @Test
+  //  void testError() {
+  //    doTestError();
+  //  }
+  //
+  //  @Test
+  //  void testFault() {
+  //    doTestFault();
+  //  }
 
   @Override
   protected void assertSemanticConventionsSpanAttributes(

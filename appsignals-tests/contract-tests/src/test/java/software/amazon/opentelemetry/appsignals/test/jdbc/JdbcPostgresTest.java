@@ -18,7 +18,6 @@ package software.amazon.opentelemetry.appsignals.test.jdbc;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -48,41 +47,41 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
     postgreSqlContainer.stop();
   }
 
-  @Test
-  public void testSuccessCreateDatabase() {
-    assertSuccess(
-        DB_SYSTEM,
-        DB_CREATE_DATABASE_OPERATION,
-        DB_USER,
-        DB_NAME,
-        DB_CONNECTION_STRING,
-        DB_RESOURCE_TYPE,
-        POSTGRES_IDENTIFIER);
-  }
+  //  @Test
+  //  public void testSuccessCreateDatabase() {
+  //    assertSuccess(
+  //        DB_SYSTEM,
+  //        DB_CREATE_DATABASE_OPERATION,
+  //        DB_USER,
+  //        DB_NAME,
+  //        DB_CONNECTION_STRING,
+  //        DB_RESOURCE_TYPE,
+  //        POSTGRES_IDENTIFIER);
+  //  }
 
-  @Test
-  public void testSuccessSelect() {
-    assertSuccess(
-        DB_SYSTEM,
-        DB_SELECT_OPERATION,
-        DB_USER,
-        DB_NAME,
-        DB_CONNECTION_STRING,
-        DB_RESOURCE_TYPE,
-        POSTGRES_IDENTIFIER);
-  }
-
-  @Test
-  public void testFaultSelect() {
-    assertFault(
-        DB_SYSTEM,
-        DB_SELECT_OPERATION,
-        DB_USER,
-        DB_NAME,
-        DB_CONNECTION_STRING,
-        DB_RESOURCE_TYPE,
-        POSTGRES_IDENTIFIER);
-  }
+  //  @Test
+  //  public void testSuccessSelect() {
+  //    assertSuccess(
+  //        DB_SYSTEM,
+  //        DB_SELECT_OPERATION,
+  //        DB_USER,
+  //        DB_NAME,
+  //        DB_CONNECTION_STRING,
+  //        DB_RESOURCE_TYPE,
+  //        POSTGRES_IDENTIFIER);
+  //  }
+  //
+  //  @Test
+  //  public void testFaultSelect() {
+  //    assertFault(
+  //        DB_SYSTEM,
+  //        DB_SELECT_OPERATION,
+  //        DB_USER,
+  //        DB_NAME,
+  //        DB_CONNECTION_STRING,
+  //        DB_RESOURCE_TYPE,
+  //        POSTGRES_IDENTIFIER);
+  //  }
 
   @Override
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {

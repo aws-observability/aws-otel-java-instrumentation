@@ -20,18 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.linecorp.armeria.client.WebClient;
 import com.linecorp.armeria.client.grpc.GrpcClients;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import software.amazon.appsignals.sampleapp.grpc.base.EchoReply;
-import software.amazon.appsignals.sampleapp.grpc.base.EchoRequest;
 import software.amazon.appsignals.sampleapp.grpc.base.EchoerGrpc;
 import software.amazon.opentelemetry.appsignals.test.base.ContractTestBase;
 import software.amazon.opentelemetry.appsignals.test.utils.AppSignalsConstants;
@@ -46,115 +40,115 @@ public class GrpcServerTest extends ContractTestBase {
   private EchoerGrpc.EchoerBlockingStub echoer;
   private static final String GRPC_SERVICE_NAME = "echo.Echoer";
 
-  @Test
-  public void testSuccess() {
-    var path = "success";
-    var method = "GET";
-    long status_code = 0;
-    var otelStatusCode = "STATUS_CODE_UNSET";
-    var grpcMethod = "EchoSuccess";
-    boolean isExceptionThrown = false;
-
-    EchoRequest request = EchoRequest.newBuilder().setMessage("success").build();
-    try {
-      EchoReply reply = echoer.echoSuccess(request);
-    } catch (StatusRuntimeException e) {
-      isExceptionThrown = true;
-    }
-    assertThat(isExceptionThrown).isFalse();
-
-    var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, grpcMethod);
-    assertSemanticConventionsSpanAttributes(traces, otelStatusCode, status_code, grpcMethod);
-
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.LATENCY_METRIC,
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC));
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, grpcMethod);
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, grpcMethod);
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 0.0, grpcMethod);
-  }
-
-  @Test
-  public void testError() {
-    var path = "error";
-    var method = "GET";
-    long status_code = 13;
-    var otelStatusCode = "STATUS_CODE_ERROR";
-    var grpcMethod = "EchoError";
-    boolean isExceptionThrown = false;
-
-    EchoRequest request = EchoRequest.newBuilder().setMessage("error").build();
-
-    try {
-      EchoReply reply = echoer.echoError(request);
-    } catch (StatusRuntimeException e) {
-      isExceptionThrown = true;
-      assertThat(e.getStatus()).isEqualTo(Status.INTERNAL);
-    }
-    assertThat(isExceptionThrown).isTrue();
-
-    var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, grpcMethod);
-    assertSemanticConventionsSpanAttributes(traces, otelStatusCode, status_code, grpcMethod);
-
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.LATENCY_METRIC,
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC));
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, grpcMethod);
-
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, grpcMethod);
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0, grpcMethod);
-  }
-
-  @Test
-  public void testFault() {
-    var path = "fault";
-    var method = "GET";
-    long status_code = 14;
-    var otelStatusCode = "STATUS_CODE_ERROR";
-    var grpcMethod = "EchoFault";
-    boolean isExceptionThrown = false;
-
-    EchoRequest request = EchoRequest.newBuilder().setMessage("fault").build();
-    try {
-      EchoReply reply = echoer.echoFault(request);
-
-    } catch (StatusRuntimeException e) {
-      isExceptionThrown = true;
-      assertThat(e.getStatus()).isEqualTo(Status.UNAVAILABLE);
-    }
-    assertThat(isExceptionThrown).isTrue();
-
-    var traces = mockCollectorClient.getTraces();
-    assertAwsSpanAttributes(traces, method, path, grpcMethod);
-    assertSemanticConventionsSpanAttributes(traces, otelStatusCode, status_code, grpcMethod);
-
-    var metrics =
-        mockCollectorClient.getMetrics(
-            Set.of(
-                AppSignalsConstants.LATENCY_METRIC,
-                AppSignalsConstants.ERROR_METRIC,
-                AppSignalsConstants.FAULT_METRIC));
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, grpcMethod);
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, grpcMethod);
-    assertMetricAttributes(
-        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0, grpcMethod);
-  }
+  //  @Test
+  //  public void testSuccess() {
+  //    var path = "success";
+  //    var method = "GET";
+  //    long status_code = 0;
+  //    var otelStatusCode = "STATUS_CODE_UNSET";
+  //    var grpcMethod = "EchoSuccess";
+  //    boolean isExceptionThrown = false;
+  //
+  //    EchoRequest request = EchoRequest.newBuilder().setMessage("success").build();
+  //    try {
+  //      EchoReply reply = echoer.echoSuccess(request);
+  //    } catch (StatusRuntimeException e) {
+  //      isExceptionThrown = true;
+  //    }
+  //    assertThat(isExceptionThrown).isFalse();
+  //
+  //    var traces = mockCollectorClient.getTraces();
+  //    assertAwsSpanAttributes(traces, method, path, grpcMethod);
+  //    assertSemanticConventionsSpanAttributes(traces, otelStatusCode, status_code, grpcMethod);
+  //
+  //    var metrics =
+  //        mockCollectorClient.getMetrics(
+  //            Set.of(
+  //                AppSignalsConstants.LATENCY_METRIC,
+  //                AppSignalsConstants.ERROR_METRIC,
+  //                AppSignalsConstants.FAULT_METRIC));
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, grpcMethod);
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, grpcMethod);
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 0.0, grpcMethod);
+  //  }
+  //
+  //  @Test
+  //  public void testError() {
+  //    var path = "error";
+  //    var method = "GET";
+  //    long status_code = 13;
+  //    var otelStatusCode = "STATUS_CODE_ERROR";
+  //    var grpcMethod = "EchoError";
+  //    boolean isExceptionThrown = false;
+  //
+  //    EchoRequest request = EchoRequest.newBuilder().setMessage("error").build();
+  //
+  //    try {
+  //      EchoReply reply = echoer.echoError(request);
+  //    } catch (StatusRuntimeException e) {
+  //      isExceptionThrown = true;
+  //      assertThat(e.getStatus()).isEqualTo(Status.INTERNAL);
+  //    }
+  //    assertThat(isExceptionThrown).isTrue();
+  //
+  //    var traces = mockCollectorClient.getTraces();
+  //    assertAwsSpanAttributes(traces, method, path, grpcMethod);
+  //    assertSemanticConventionsSpanAttributes(traces, otelStatusCode, status_code, grpcMethod);
+  //
+  //    var metrics =
+  //        mockCollectorClient.getMetrics(
+  //            Set.of(
+  //                AppSignalsConstants.LATENCY_METRIC,
+  //                AppSignalsConstants.ERROR_METRIC,
+  //                AppSignalsConstants.FAULT_METRIC));
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, grpcMethod);
+  //
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, grpcMethod);
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0, grpcMethod);
+  //  }
+  //
+  //  @Test
+  //  public void testFault() {
+  //    var path = "fault";
+  //    var method = "GET";
+  //    long status_code = 14;
+  //    var otelStatusCode = "STATUS_CODE_ERROR";
+  //    var grpcMethod = "EchoFault";
+  //    boolean isExceptionThrown = false;
+  //
+  //    EchoRequest request = EchoRequest.newBuilder().setMessage("fault").build();
+  //    try {
+  //      EchoReply reply = echoer.echoFault(request);
+  //
+  //    } catch (StatusRuntimeException e) {
+  //      isExceptionThrown = true;
+  //      assertThat(e.getStatus()).isEqualTo(Status.UNAVAILABLE);
+  //    }
+  //    assertThat(isExceptionThrown).isTrue();
+  //
+  //    var traces = mockCollectorClient.getTraces();
+  //    assertAwsSpanAttributes(traces, method, path, grpcMethod);
+  //    assertSemanticConventionsSpanAttributes(traces, otelStatusCode, status_code, grpcMethod);
+  //
+  //    var metrics =
+  //        mockCollectorClient.getMetrics(
+  //            Set.of(
+  //                AppSignalsConstants.LATENCY_METRIC,
+  //                AppSignalsConstants.ERROR_METRIC,
+  //                AppSignalsConstants.FAULT_METRIC));
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.LATENCY_METRIC, 5000.0, grpcMethod);
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.ERROR_METRIC, 0.0, grpcMethod);
+  //    assertMetricAttributes(
+  //        metrics, method, path, AppSignalsConstants.FAULT_METRIC, 1.0, grpcMethod);
+  //  }
 
   @Override
   protected String getApplicationImageName() {

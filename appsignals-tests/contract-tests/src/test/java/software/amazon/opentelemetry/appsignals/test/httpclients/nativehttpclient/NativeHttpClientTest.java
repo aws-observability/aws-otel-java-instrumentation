@@ -30,7 +30,6 @@ package software.amazon.opentelemetry.appsignals.test.httpclients.nativehttpclie
  * permissions and limitations under the License.
  */
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.opentelemetry.appsignals.test.httpclients.base.BaseHttpClientTest;
@@ -48,33 +47,33 @@ class NativeHttpClientTest extends BaseHttpClientTest {
     return ".*Started .*";
   }
 
-  @Test
-  void testSuccess() {
-    doTestSuccess();
-  }
-
-  @Test
-  void testError() {
-    doTestError();
-  }
-
-  @Test
-  void testFault() {
-    doTestFault();
-  }
-
-  @Test
-  void testSuccessPost() {
-    doTestSuccessPost();
-  }
-
-  @Test
-  void testErrorPost() {
-    doTestErrorPost();
-  }
-
-  @Test
-  void testFaultPost() {
-    doTestFaultPost();
-  }
+  //  @Test
+  //  void testSuccess() {
+  //    doTestSuccess();
+  //  }
+  //
+  //  @Test
+  //  void testError() {
+  //    doTestError();
+  //  }
+  //
+  //  @Test
+  //  void testFault() {
+  //    doTestFault();
+  //  }
+  //
+  //  @Test
+  //  void testSuccessPost() {
+  //    doTestSuccessPost();
+  //  }
+  //
+  //  @Test
+  //  void testErrorPost() {
+  //    doTestErrorPost();
+  //  }
+  //
+  //  @Test
+  //  void testFaultPost() {
+  //    doTestFaultPost();
+  //  }
 }

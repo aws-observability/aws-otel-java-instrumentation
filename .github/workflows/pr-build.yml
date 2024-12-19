@@ -91,7 +91,7 @@ jobs:
       - name: Set up Java version for tests
         uses: actions/setup-java@v4
         with:
-          java-version: 23
+          java-version: 21
           distribution: temurin
 
       - name: Pull base image of Contract Tests Sample Apps

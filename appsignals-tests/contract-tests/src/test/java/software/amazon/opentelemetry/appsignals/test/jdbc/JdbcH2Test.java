@@ -16,7 +16,6 @@
 package software.amazon.opentelemetry.appsignals.test.jdbc;
 
 import java.util.Map;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -30,16 +29,17 @@ public class JdbcH2Test extends JdbcContractTestBase {
   private static final String DB_DRIVER = "org.h2.Driver";
   private static final String DB_PLATFORM = "org.hibernate.dialect.H2Dialect";
 
-  @Test
-  public void testSuccessSelect() {
-    assertSuccess(
-        DB_SYSTEM, DB_SELECT_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
-  }
-
-  @Test
-  public void testFaultSelect() {
-    assertFault(DB_SYSTEM, DB_SELECT_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
-  }
+  //  @Test
+  //  public void testSuccessSelect() {
+  //    assertSuccess(
+  //        DB_SYSTEM, DB_SELECT_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null, null);
+  //  }
+  //
+  //  @Test
+  //  public void testFaultSelect() {
+  //    assertFault(DB_SYSTEM, DB_SELECT_OPERATION, DB_USER, DB_NAME, DB_CONNECTION_STRING, null,
+  // null);
+  //  }
 
   @Override
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {

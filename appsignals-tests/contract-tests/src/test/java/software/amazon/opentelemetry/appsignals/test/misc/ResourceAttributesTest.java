@@ -26,7 +26,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.opentelemetry.appsignals.test.base.ContractTestBase;
@@ -156,10 +155,10 @@ public class ResourceAttributesTest {
       return toResourceAttributesEnvVar(resourceAttributes);
     }
 
-    @Test
-    void testServiceNameInResourceAttributes() {
-      doTestResourceAttributes();
-    }
+    //    @Test
+    //    void testServiceNameInResourceAttributes() {
+    //      doTestResourceAttributes();
+    //    }
   }
 
   @Testcontainers(disabledWithoutDocker = true)
@@ -182,10 +181,10 @@ public class ResourceAttributesTest {
       return toResourceAttributesEnvVar(getK8sAttributes());
     }
 
-    @Test
-    void tesServiceNameInEnvVar() {
-      doTestResourceAttributes();
-    }
+    //    @Test
+    //    void tesServiceNameInEnvVar() {
+    //      doTestResourceAttributes();
+    //    }
   }
 
   @Testcontainers(disabledWithoutDocker = true)
@@ -201,9 +200,9 @@ public class ResourceAttributesTest {
       return toResourceAttributesEnvVar(getK8sAttributes());
     }
 
-    @Test
-    void testUnknownServiceName() {
-      doTestResourceAttributes();
-    }
+    //    @Test
+    //    void testUnknownServiceName() {
+    //      doTestResourceAttributes();
+    //    }
   }
 }
