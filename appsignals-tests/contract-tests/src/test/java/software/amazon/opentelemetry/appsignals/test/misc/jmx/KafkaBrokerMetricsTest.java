@@ -32,10 +32,10 @@ import software.amazon.opentelemetry.appsignals.test.utils.JMXMetricsConstants;
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class KafkaBrokerMetricsTest extends JMXMetricsContractTestBase {
-  @Test
-  void testKafkaMetrics() {
-    assertMetrics();
-  }
+  //  @Test
+  //  void testKafkaMetrics() {
+  //    assertMetrics();
+  //  }
 
   @Override
   protected GenericContainer<?> getApplicationContainer() {

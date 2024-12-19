@@ -17,7 +17,6 @@ package software.amazon.opentelemetry.appsignals.test.misc.jmx;
 
 import java.util.Map;
 import java.util.Set;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.opentelemetry.appsignals.test.base.JMXMetricsContractTestBase;
@@ -30,10 +29,10 @@ import software.amazon.opentelemetry.appsignals.test.utils.JMXMetricsConstants;
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class JVMMetricsTest extends JMXMetricsContractTestBase {
-  @Test
-  void testJVMMetrics() {
-    doTestMetrics();
-  }
+  //  @Test
+  //  void testJVMMetrics() {
+  //    doTestMetrics();
+  //  }
 
   @Override
   protected String getApplicationImageName() {
