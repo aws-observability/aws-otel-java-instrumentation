@@ -63,9 +63,6 @@ public abstract class JMXMetricsContractTestBase extends ContractTestBase {
         // If maximum memory size is undefined, then value is -1
         // https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/MemoryUsage.html#getMax()
         // TODO: Figure out why tomcat thread counts can be negative.
-      case JMXMetricsConstants.TOMCAT_THREADS:
-        threshold = -3;
-        break;
       case JMXMetricsConstants.JVM_HEAP_MAX:
       case JMXMetricsConstants.JVM_NON_HEAP_MAX:
       case JMXMetricsConstants.JVM_POOL_MAX:
