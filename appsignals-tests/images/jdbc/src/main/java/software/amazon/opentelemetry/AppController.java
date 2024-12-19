@@ -46,7 +46,7 @@ public class AppController {
     logger.info("Application Ready");
   }
 
-  @GetMapping("/success/CREATE DATABASE")
+  @GetMapping("/success/CREATE database")
   @ResponseBody
   public ResponseEntity<String> successCreateDatabase() {
     jdbcTemplate.execute("create database testdb2");

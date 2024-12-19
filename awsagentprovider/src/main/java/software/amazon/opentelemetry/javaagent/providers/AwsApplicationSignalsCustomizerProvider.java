@@ -80,6 +80,9 @@ public class AwsApplicationSignalsCustomizerProvider
       "otel.aws.app.signals.enabled";
   private static final String APPLICATION_SIGNALS_ENABLED_CONFIG =
       "otel.aws.application.signals.enabled";
+
+  private static final String OTEL_RESOURCE_PROVIDERS_AWS_ENABLED =
+      "otel.resource.providers.aws.enabled";
   private static final String APPLICATION_SIGNALS_RUNTIME_ENABLED_CONFIG =
       "otel.aws.application.signals.runtime.enabled";
   private static final String DEPRECATED_SMP_EXPORTER_ENDPOINT_CONFIG =
@@ -132,19 +135,23 @@ public class AwsApplicationSignalsCustomizerProvider
   }
 
   private Map<String, String> customizeProperties(ConfigProperties configProps) {
-    if (isApplicationSignalsRuntimeEnabled(configProps)) {
-      List<String> list = configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
-      if (list.contains("jvm")) {
-        logger.log(Level.INFO, "Found jmx in {0}", OTEL_JMX_TARGET_SYSTEM_CONFIG);
-        return Collections.emptyMap();
-      } else {
-        logger.log(Level.INFO, "Configure jmx in {0}", OTEL_JMX_TARGET_SYSTEM_CONFIG);
-        List<String> jmxTargets = new ArrayList<>(list);
-        jmxTargets.add("jvm");
-        Map<String, String> propsOverride = new HashMap<>(1);
-        propsOverride.put(OTEL_JMX_TARGET_SYSTEM_CONFIG, String.join(",", jmxTargets));
-        return propsOverride;
+    if (isApplicationSignalsEnabled(configProps)) {
+      Map<String, String> propsOverride = new HashMap<>();
+      // Enable AWS Resource Providers
+      propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
+
+      if (isApplicationSignalsRuntimeEnabled(configProps)) {
+        List<String> list = configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
+        if (list.contains("jvm")) {
+          logger.log(Level.INFO, "Found jmx in {0}", OTEL_JMX_TARGET_SYSTEM_CONFIG);
+        } else {
+          logger.log(Level.INFO, "Configure jmx in {0}", OTEL_JMX_TARGET_SYSTEM_CONFIG);
+          List<String> jmxTargets = new ArrayList<>(list);
+          jmxTargets.add("jvm");
+          propsOverride.put(OTEL_JMX_TARGET_SYSTEM_CONFIG, String.join(",", jmxTargets));
+        }
       }
+      return propsOverride;
     }
     return Collections.emptyMap();
   }

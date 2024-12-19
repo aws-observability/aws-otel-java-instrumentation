@@ -57,7 +57,7 @@ tasks {
 }
 jib {
   configureImages(
-    "public.ecr.aws/docker/library/amazoncorretto:21-alpine",
+    "public.ecr.aws/docker/library/amazoncorretto:23-alpine",
     "aws-appsignals-tests-aws-sdk-v2",
     localDocker = rootProject.property("localDocker")!! == "true",
     multiPlatform = false,

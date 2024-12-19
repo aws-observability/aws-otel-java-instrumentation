@@ -34,7 +34,7 @@ public class JdbcContractTestBase extends ContractTestBase {
   protected static final String DB_USER = "root";
   protected static final String DB_PASSWORD = "password";
   protected static final String DB_SELECT_OPERATION = "SELECT";
-  protected static final String DB_CREATE_DATABASE_OPERATION = "CREATE DATABASE";
+  protected static final String DB_CREATE_DATABASE_OPERATION = "CREATE database";
   protected static final String DB_RESOURCE_TYPE = "DB::Connection";
 
   @Override
@@ -159,7 +159,7 @@ public class JdbcContractTestBase extends ContractTestBase {
   private void assertSemanticConventionForOperation(
       ResourceScopeSpan rss, String dbOperation, String dbName, String dbSqlTable) {
     if (dbOperation.equals(DB_CREATE_DATABASE_OPERATION)) {
-      assertThat(rss.getSpan().getName()).isEqualTo(String.format("%s", dbName));
+      assertThat(rss.getSpan().getName()).isEqualTo(String.format("%s %s", dbOperation, dbName));
     } else if (dbOperation.equals(DB_SELECT_OPERATION)) {
       assertThat(rss.getSpan().getName())
           .isEqualTo(String.format("%s %s.%s", dbOperation, dbName, dbSqlTable));

@@ -140,7 +140,7 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
     StatusCode statusCode = spanData.getStatus().getStatusCode();
 
     if (httpStatusCode == null) {
-      httpStatusCode = attributes.get(HTTP_STATUS_CODE);
+      httpStatusCode = attributes.get(HTTP_RESPONSE_STATUS_CODE);
     }
 
     if (httpStatusCode == null
