@@ -71,7 +71,7 @@ jobs:
         env:
           COMMIT_HASH: ${{ inputs.image_tag }}
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
 
   test_Spring_App_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
