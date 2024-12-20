@@ -63,6 +63,7 @@ public class SemanticConventionsConstants {
   public static final String AWS_GUARDRAIL_ID = "aws.bedrock.guardrail.id";
   public static final String AWS_GUARDRAIL_ARN = "aws.bedrock.guardrail.arn";
   public static final String GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
+  public static final String GEN_AI_SYSTEM = "gen_ai.system";
   public static final String GEN_AI_REQUEST_MAX_TOKENS = "gen_ai.request.max_tokens";
   public static final String GEN_AI_REQUEST_TEMPERATURE = "gen_ai.request.temperature";
   public static final String GEN_AI_REQUEST_TOP_P = "gen_ai.request.top_p";
