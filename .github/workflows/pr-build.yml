@@ -33,6 +33,13 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
+      # Cleanup directories before proceeding with setup
+      - name: Clean up old installations
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
