@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   otel:
-    image: amazon/aws-otel-collector:latest
+    image: amazon/aws-otel-collector:v0.41.1
     command: --config /config/collector-config.yml
     environment:
       - AWS_ACCESS_KEY_ID

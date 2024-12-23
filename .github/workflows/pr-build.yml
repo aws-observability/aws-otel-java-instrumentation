@@ -88,27 +88,36 @@ jobs:
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
-      - name: Set up Java version for tests
-        uses: actions/setup-java@v4
+      - e2e-test:
+        needs: [ build, default-region-output ]
+        uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
+        secrets: inherit
         with:
-          java-version: 23
-          distribution: temurin
+          aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
+          image_tag: ${{ github.sha }}
+          caller-workflow-name: 'main-build'
 
-      - name: Pull base image of Contract Tests Sample Apps
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
-
-      - name: Run contract tests
-        uses: gradle/gradle-build-action@v3
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        with:
-          arguments: contractTests -PlocalDocker=true -i
-
-      - name: Set up Java version for image build
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
+#      - name: Set up Java version for tests
+#        uses: actions/setup-java@v4
+#        with:
+#          java-version: 23
+#          distribution: temurin
+#
+#      - name: Pull base image of Contract Tests Sample Apps
+#        if: ${{ matrix.os == 'ubuntu-latest' }}
+#        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
+#
+#      - name: Run contract tests
+#        uses: gradle/gradle-build-action@v3
+#        if: ${{ matrix.os == 'ubuntu-latest' }}
+#        with:
+#          arguments: contractTests -PlocalDocker=true -i
+#
+#      - name: Set up Java version for image build
+#        uses: actions/setup-java@v4
+#        with:
+#          java-version: 17
+#          distribution: temurin
 
       - name: Get current version
         if: ${{ matrix.os == 'ubuntu-latest' }}
