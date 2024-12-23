@@ -79,8 +79,8 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
-
-      - uses: gradle/wrapper-validation-action@v1
+#
+#      - uses: gradle/wrapper-validation-action@v1
 
 #      - name: Configure AWS Credentials
 #        uses: aws-actions/configure-aws-credentials@v4
@@ -96,12 +96,7 @@ jobs:
       - name: Build snapshot with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
-        env:
-          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
-          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
       - name: Get current version
         id: getADOTJavaVersion
