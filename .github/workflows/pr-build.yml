@@ -89,6 +89,7 @@ jobs:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
       - name: e2e-test
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
         with:
           aws-region: 'us-east-1'
