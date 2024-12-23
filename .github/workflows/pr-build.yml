@@ -88,12 +88,11 @@ jobs:
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
-      - e2e-test:
-        needs: [ build, default-region-output ]
+      - name: e2e-test
         uses: ./.github/workflows/e2e-tests-app-with-java-agent.yml
         secrets: inherit
         with:
-          aws-region: ${{ needs.default-region-output.outputs.aws_default_region }}
+          aws-region: 'us-east-1'
           image_tag: ${{ github.sha }}
           caller-workflow-name: 'main-build'
 
