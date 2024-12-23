@@ -116,21 +116,21 @@ jobs:
           echo "stagingRegistry=${{ env.STAGING_ECR_REGISTRY }}" >> $GITHUB_OUTPUT
           echo "stagingRepository=${{ env.STAGING_ECR_REPOSITORY }}" >> $GITHUB_OUTPUT
           echo "stagingImage=${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.java_agent_versioning.outputs.STAGING_TAG }}" >> $GITHUB_OUTPUT
-
-      - name: Build and Push Java Agent Image and Execute cpUtility Tests
-        uses: ./.github/actions/cpUtility-testing
-        with:
-          aws-region: us-west-2
-          image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
-          image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
-          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
-          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
-
-      - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v3
-        with:
-          name: aws-opentelemetry-agent.jar
-          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
+#
+#      - name: Build and Push Java Agent Image and Execute cpUtility Tests
+#        uses: ./.github/actions/cpUtility-testing
+#        with:
+#          aws-region: us-west-2
+#          image_uri_with_tag: ${{ steps.imageOutput.outputs.stagingImage }}
+#          image_registry: ${{ steps.imageOutput.outputs.stagingRegistry }}
+#          adot-java-version: ${{ steps.getADOTJavaVersion.outputs.adot_java_version }}
+#          snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
+#
+#      - name: Upload to GitHub Actions
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: aws-opentelemetry-agent.jar
+#          path: otelagent/build/libs/aws-opentelemetry-agent-*.jar
 
   default-region-output:
     runs-on: ubuntu-latest

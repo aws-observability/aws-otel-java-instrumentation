@@ -18,7 +18,7 @@ permissions:
 
 env:
   # The precense of this env var is required. It is not redundant
-  AWS_DEFAULT_REGION: ${{ inputs.aws-region }} 
+  AWS_DEFAULT_REGION: 'us-east-1'
   
 jobs:
   build_Images_For_Testing_Sample_App_With_Java_Agent:
