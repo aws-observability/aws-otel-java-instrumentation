@@ -26,6 +26,7 @@ services:
       - AWS_REGION=us-west-2
       - OTEL_JAVAAGENT_DEBUG=true
       - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
     volumes:
       - /tmp/awscreds:/tmp/awscreds
     ports:
