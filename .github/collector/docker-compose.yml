@@ -27,6 +27,7 @@ services:
       - OTEL_JAVAAGENT_DEBUG=true
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_INSTRUMENTATION_COMMON_EXPERIMENTAL_CONTROLLER_TELEMETRY_ENABLED=true
     volumes:
       - /tmp/awscreds:/tmp/awscreds
     ports:
