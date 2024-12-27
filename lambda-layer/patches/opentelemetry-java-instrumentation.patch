@@ -636,8 +636,8 @@ index cc1414c0bf..db8a59b046 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.33.6"
--val alphaVersion = "1.33.6-alpha"
+-val stableVersion = "1.33.6-adot1"
+-val alphaVersion = "1.33.6-adot1-alpha"
 +val stableVersion = "1.33.6-adot-lambda1"
 +val alphaVersion = "1.33.6-adot-lambda1-alpha"
 
