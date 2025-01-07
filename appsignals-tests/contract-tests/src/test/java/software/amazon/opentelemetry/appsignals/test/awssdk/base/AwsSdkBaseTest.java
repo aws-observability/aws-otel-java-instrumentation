@@ -1996,6 +1996,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "ai21.jamba-1-5-mini-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.7"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.8"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
@@ -2070,6 +2071,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
                 "amazon.titan-text-premier-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "100"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.7"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
@@ -2148,6 +2150,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
                 "anthropic.claude-3-haiku-20240307-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "512"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.6"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.53"),
@@ -2225,6 +2228,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "cohere.command-r-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.8"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.45"),
@@ -2302,6 +2306,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "meta.llama3-70b-instruct-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "128"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.1"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
@@ -2379,11 +2384,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
                 "mistral.mistral-large-2402-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.75"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.25"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
-            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "15"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "16"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "24")));
     assertMetricClientAttributes(
         metrics,
