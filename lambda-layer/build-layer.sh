@@ -46,8 +46,12 @@ popd
 echo "Info: Building ADOT Lambda Java SDK Layer Code"
 ./gradlew build -PotelVersion=${version}
 
-
 ## Copy ADOT Java Agent downloaded using Gradle task and bundle it with the Lambda handler script
 echo "Info: Creating the layer artifact"
-cp "$SOURCEDIR"/build/javaagent/aws-opentelemetry-agent*.jar ./opentelemetry-javaagent.jar
-zip -qr opentelemetry-javaagent-layer.zip opentelemetry-javaagent.jar otel-instrument
+mkdir -p "$SOURCEDIR"/build/distributions/
+cp "$SOURCEDIR"/build/javaagent/aws-opentelemetry-agent*.jar "$SOURCEDIR"/build/distributions/aws-opentelemetry-javaagent.jar
+zip -r ./build/distributions/aws-opentelemetry-java-layer.zip "$SOURCEDIR"/build/distributions/aws-opentelemetry-javaagent.jar otel-instrument
+
+## Cleanup
+# revert the patch applied since it is only needed while building the layer.
+git restore ../dependencyManagement/build.gradle.kts
