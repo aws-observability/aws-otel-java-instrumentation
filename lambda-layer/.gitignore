@@ -5,7 +5,7 @@
 build
 
 # Ignore Terraform state files
-.terraform
+.terraform/
 *.tfstate
 *.tfstate.backup
 *.lock.hcl
