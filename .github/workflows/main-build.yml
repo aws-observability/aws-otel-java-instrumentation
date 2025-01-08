@@ -240,15 +240,15 @@ jobs:
         working-directory: lambda-layer
         run: |
           ./build-layer.sh
-      - name: Upload layer zip to S3
-        working-directory: lambda-layer
-        run: |
-          aws s3 cp ./build/distributions/aws-opentelemetry-java-layer.zip s3://adot-main-build-staging-jar/adot-java-lambda-layer-${{ github.run_id }}.zip
       - name: Upload layer zip to GitHub Actions
         uses: actions/upload-artifact@v3
         with:
           name: aws-opentelemetry-java-layer.zip
           path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
+      - name: Upload layer zip to S3
+        working-directory: lambda-layer
+        run: |
+          aws s3 cp ./build/distributions/aws-opentelemetry-java-layer.zip s3://adot-main-build-staging-jar/adot-java-lambda-layer-${{ github.run_id }}.zip
 
 
   application-signals-e2e-test:
@@ -272,3 +272,4 @@ jobs:
       region: us-east-1
     secrets:
       roleArn: ${{ secrets.METRICS_ROLE_ARN }}
+
