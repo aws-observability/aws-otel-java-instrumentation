@@ -245,6 +245,11 @@ jobs:
         with:
           name: aws-opentelemetry-java-layer.zip
           path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ACCOUNT_ID }}:role/${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ROLE_NAME }}
+          aws-region: us-east-1
       - name: Upload layer zip to S3
         working-directory: lambda-layer
         run: |
