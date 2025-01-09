@@ -327,7 +327,7 @@ index 096c7826a1..a271b16da8 100644
    private AwsExperimentalAttributes() {}
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-index 541e67d23b..6627348e73 100644
+index 541e67d23b..1abf8e9c28 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 @@ -6,12 +6,30 @@
@@ -469,7 +469,7 @@ index 541e67d23b..6627348e73 100644
 +        if (!Objects.equals(requestClassName, "InvokeModelRequest")) {
 +          break;
 +        }
-+        attributes.put(AWS_BEDROCK_SYSTEM, "aws_bedrock");
++        attributes.put(AWS_BEDROCK_SYSTEM, "aws.bedrock");
 +        Function<Object, String> getter = RequestAccess::getModelId;
 +        String modelId = getter.apply(originalRequest);
 +        attributes.put(AWS_BEDROCK_RUNTIME_MODEL_ID, modelId);
@@ -554,36 +554,302 @@ index 541e67d23b..6627348e73 100644
 -      @Nullable Response<?> response,
 -      @Nullable Throwable error) {}
  }
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/BedrockJsonParser.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/BedrockJsonParser.java
+new file mode 100644
+index 0000000000..d1acc5768a
+--- /dev/null
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/BedrockJsonParser.java
+@@ -0,0 +1,267 @@
++/*
++ * Copyright The OpenTelemetry Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package io.opentelemetry.instrumentation.awssdk.v1_11;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++public class BedrockJsonParser {
++
++  // Prevent instantiation
++  private BedrockJsonParser() {
++    throw new UnsupportedOperationException("Utility class");
++  }
++
++  public static LlmJson parse(String jsonString) {
++    JsonParser parser = new JsonParser(jsonString);
++    Map<String, Object> jsonBody = parser.parse();
++    return new LlmJson(jsonBody);
++  }
++
++  static class JsonParser {
++    private final String json;
++    private int position;
++
++    public JsonParser(String json) {
++      this.json = json.trim();
++      this.position = 0;
++    }
++
++    private void skipWhitespace() {
++      while (position < json.length() && Character.isWhitespace(json.charAt(position))) {
++        position++;
++      }
++    }
++
++    private char currentChar() {
++      return json.charAt(position);
++    }
++
++    private static boolean isHexDigit(char c) {
++      return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
++    }
++
++    private void expect(char c) {
++      skipWhitespace();
++      if (currentChar() != c) {
++        throw new IllegalArgumentException(
++            "Expected '" + c + "' but found '" + currentChar() + "'");
++      }
++      position++;
++    }
++
++    private String readString() {
++      skipWhitespace();
++      expect('"'); // Ensure the string starts with a quote
++      StringBuilder result = new StringBuilder();
++      while (currentChar() != '"') {
++        // Handle escape sequences
++        if (currentChar() == '\\') {
++          position++; // Move past the backslash
++          if (position >= json.length()) {
++            throw new IllegalArgumentException("Unexpected end of input in string escape sequence");
++          }
++          char escapeChar = currentChar();
++          switch (escapeChar) {
++            case '"':
++            case '\\':
++            case '/':
++              result.append(escapeChar);
++              break;
++            case 'b':
++              result.append('\b');
++              break;
++            case 'f':
++              result.append('\f');
++              break;
++            case 'n':
++              result.append('\n');
++              break;
++            case 'r':
++              result.append('\r');
++              break;
++            case 't':
++              result.append('\t');
++              break;
++            case 'u': // Unicode escape sequence
++              if (position + 4 >= json.length()) {
++                throw new IllegalArgumentException("Invalid unicode escape sequence in string");
++              }
++              char[] hexChars = new char[4];
++              for (int i = 0; i < 4; i++) {
++                position++; // Move to the next character
++                char hexChar = json.charAt(position);
++                if (!isHexDigit(hexChar)) {
++                  throw new IllegalArgumentException(
++                      "Invalid hexadecimal digit in unicode escape sequence");
++                }
++                hexChars[i] = hexChar;
++              }
++              int unicodeValue = Integer.parseInt(new String(hexChars), 16);
++              result.append((char) unicodeValue);
++              break;
++            default:
++              throw new IllegalArgumentException("Invalid escape character: \\" + escapeChar);
++          }
++          position++;
++        } else {
++          result.append(currentChar());
++          position++;
++        }
++      }
++      position++; // Skip closing quote
++      return result.toString();
++    }
++
++    private Object readValue() {
++      skipWhitespace();
++      char c = currentChar();
++
++      if (c == '"') {
++        return readString();
++      } else if (Character.isDigit(c)) {
++        return readScopedNumber();
++      } else if (c == '{') {
++        return readObject(); // JSON Objects
++      } else if (c == '[') {
++        return readArray(); // JSON Arrays
++      } else if (json.startsWith("true", position)) {
++        position += 4;
++        return true;
++      } else if (json.startsWith("false", position)) {
++        position += 5;
++        return false;
++      } else if (json.startsWith("null", position)) {
++        position += 4;
++        return null; // JSON null
++      } else {
++        throw new IllegalArgumentException("Unexpected character: " + c);
++      }
++    }
++
++    private Number readScopedNumber() {
++      int start = position;
++
++      // Consume digits and the optional decimal point
++      while (position < json.length()
++          && (Character.isDigit(json.charAt(position)) || json.charAt(position) == '.')) {
++        position++;
++      }
++
++      String number = json.substring(start, position);
++
++      if (number.contains(".")) {
++        double value = Double.parseDouble(number);
++        if (value < 0.0 || value > 1.0) {
++          throw new IllegalArgumentException(
++              "Value out of bounds for Bedrock Floating Point Attribute: " + number);
++        }
++        return value;
++      } else {
++        return Integer.parseInt(number);
++      }
++    }
++
++    private Map<String, Object> readObject() {
++      Map<String, Object> map = new HashMap<>();
++      expect('{');
++      skipWhitespace();
++      while (currentChar() != '}') {
++        String key = readString();
++        expect(':');
++        Object value = readValue();
++        map.put(key, value);
++        skipWhitespace();
++        if (currentChar() == ',') {
++          position++;
++        }
++      }
++      position++; // Skip closing brace
++      return map;
++    }
++
++    private List<Object> readArray() {
++      List<Object> list = new ArrayList<>();
++      expect('[');
++      skipWhitespace();
++      while (currentChar() != ']') {
++        list.add(readValue());
++        skipWhitespace();
++        if (currentChar() == ',') {
++          position++;
++        }
++      }
++      position++;
++      return list;
++    }
++
++    public Map<String, Object> parse() {
++      return readObject();
++    }
++  }
++
++  // Resolves paths in a JSON structure
++  static class JsonPathResolver {
++
++    // Private constructor to prevent instantiation
++    private JsonPathResolver() {
++      throw new UnsupportedOperationException("Utility class");
++    }
++
++    public static Object resolvePath(LlmJson llmJson, String... paths) {
++      for (String path : paths) {
++        Object value = resolvePath(llmJson.getJsonBody(), path);
++        if (value != null) {
++          return value;
++        }
++      }
++      return null;
++    }
++
++    private static Object resolvePath(Map<String, Object> json, String path) {
++      String[] keys = path.split("/");
++      Object current = json;
++
++      for (String key : keys) {
++        if (key.isEmpty()) {
++          continue;
++        }
++
++        if (current instanceof Map) {
++          current = ((Map<?, ?>) current).get(key);
++        } else if (current instanceof List) {
++          try {
++            int index = Integer.parseInt(key);
++            current = ((List<?>) current).get(index);
++          } catch (NumberFormatException | IndexOutOfBoundsException e) {
++            return null;
++          }
++        } else {
++          return null;
++        }
++
++        if (current == null) {
++          return null;
++        }
++      }
++      return current;
++    }
++  }
++
++  public static class LlmJson {
++    private final Map<String, Object> jsonBody;
++
++    public LlmJson(Map<String, Object> jsonBody) {
++      this.jsonBody = jsonBody;
++    }
++
++    public Map<String, Object> getJsonBody() {
++      return jsonBody;
++    }
++  }
++}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-index c212a69678..6a3db50881 100644
+index c212a69678..3101685194 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/RequestAccess.java
-@@ -5,9 +5,17 @@
- 
- package io.opentelemetry.instrumentation.awssdk.v1_11;
- 
-+import com.fasterxml.jackson.databind.JsonNode;
-+import com.fasterxml.jackson.databind.ObjectMapper;
-+import java.io.IOException;
+@@ -8,6 +8,12 @@ package io.opentelemetry.instrumentation.awssdk.v1_11;
  import java.lang.invoke.MethodHandle;
  import java.lang.invoke.MethodHandles;
  import java.lang.invoke.MethodType;
 +import java.lang.reflect.Method;
 +import java.nio.ByteBuffer;
++import java.nio.charset.StandardCharsets;
 +import java.util.Arrays;
 +import java.util.Objects;
 +import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
  final class RequestAccess {
-@@ -20,48 +28,383 @@ final class RequestAccess {
+@@ -20,48 +26,392 @@ final class RequestAccess {
          }
        };
  
-+  private static final ObjectMapper objectMapper = new ObjectMapper();
-+
 +  @Nullable
-+  private static JsonNode parseTargetBody(ByteBuffer buffer) {
++  private static BedrockJsonParser.LlmJson parseTargetBody(ByteBuffer buffer) {
 +    try {
 +      byte[] bytes;
 +      // Create duplicate to avoid mutating the original buffer position
@@ -598,14 +864,15 @@ index c212a69678..6a3db50881 100644
 +        bytes = new byte[buffer.remaining()];
 +        buffer.get(bytes);
 +      }
-+      return objectMapper.readTree(bytes);
-+    } catch (IOException e) {
++      String jsonString = new String(bytes, StandardCharsets.UTF_8); // Convert to String
++      return BedrockJsonParser.parse(jsonString);
++    } catch (RuntimeException e) {
 +      return null;
 +    }
 +  }
 +
 +  @Nullable
-+  private static JsonNode getJsonBody(Object target) {
++  private static BedrockJsonParser.LlmJson getJsonBody(Object target) {
 +    if (target == null) {
 +      return null;
 +    }
@@ -620,47 +887,36 @@ index c212a69678..6a3db50881 100644
 +  }
 +
 +  @Nullable
-+  private static String findFirstMatchingPath(JsonNode jsonBody, String... paths) {
++  private static String findFirstMatchingPath(BedrockJsonParser.LlmJson jsonBody, String... paths) {
 +    if (jsonBody == null) {
 +      return null;
 +    }
 +
 +    return Stream.of(paths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                return node.asText();
-+              }
-+              return null;
-+            })
++        .map(path -> BedrockJsonParser.JsonPathResolver.resolvePath(jsonBody, path))
 +        .filter(Objects::nonNull)
++        .map(Object::toString)
 +        .findFirst()
 +        .orElse(null);
 +  }
 +
 +  @Nullable
-+  private static String approximateTokenCount(JsonNode jsonBody, String... textPaths) {
++  private static String approximateTokenCount(
++      BedrockJsonParser.LlmJson jsonBody, String... textPaths) {
 +    if (jsonBody == null) {
 +      return null;
 +    }
 +
 +    return Stream.of(textPaths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                int tokenEstimate = (int) Math.ceil(node.asText().length() / 6.0);
-+                return Integer.toString(tokenEstimate);
-+              }
-+              return null;
-+            })
-+        .filter(Objects::nonNull)
++        .map(path -> BedrockJsonParser.JsonPathResolver.resolvePath(jsonBody, path))
++        .filter(value -> value instanceof String)
++        .map(value -> Integer.toString((int) Math.ceil(((String) value).length() / 6.0)))
 +        .findFirst()
 +        .orElse(null);
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/inferenceConfig/max_new_tokens"
 +  // Amazon Titan -> "/textGenerationConfig/maxTokenCount"
 +  // Anthropic Claude -> "/max_tokens"
 +  // Cohere Command -> "/max_tokens"
@@ -670,11 +926,17 @@ index c212a69678..6a3db50881 100644
 +  // Mistral AI -> "/max_tokens"
 +  @Nullable
 +  static String getMaxTokens(Object target) {
++    BedrockJsonParser.LlmJson jsonBody = getJsonBody(target);
 +    return findFirstMatchingPath(
-+        getJsonBody(target), "/textGenerationConfig/maxTokenCount", "/max_tokens", "/max_gen_len");
++        jsonBody,
++        "/max_tokens",
++        "/max_gen_len",
++        "/textGenerationConfig/maxTokenCount",
++        "/inferenceConfig/max_new_tokens");
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/inferenceConfig/temperature"
 +  // Amazon Titan -> "/textGenerationConfig/temperature"
 +  // Anthropic Claude -> "/temperature"
 +  // Cohere Command -> "/temperature"
@@ -684,11 +946,16 @@ index c212a69678..6a3db50881 100644
 +  // Mistral AI -> "/temperature"
 +  @Nullable
 +  static String getTemperature(Object target) {
++    BedrockJsonParser.LlmJson jsonBody = getJsonBody(target);
 +    return findFirstMatchingPath(
-+        getJsonBody(target), "/textGenerationConfig/temperature", "/temperature");
++        jsonBody,
++        "/temperature",
++        "/textGenerationConfig/temperature",
++        "inferenceConfig/temperature");
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/inferenceConfig/top_p"
 +  // Amazon Titan -> "/textGenerationConfig/topP"
 +  // Anthropic Claude -> "/top_p"
 +  // Cohere Command -> "/p"
@@ -698,10 +965,13 @@ index c212a69678..6a3db50881 100644
 +  // Mistral AI -> "/top_p"
 +  @Nullable
 +  static String getTopP(Object target) {
-+    return findFirstMatchingPath(getJsonBody(target), "/textGenerationConfig/topP", "/top_p", "/p");
++    BedrockJsonParser.LlmJson jsonBody = getJsonBody(target);
++    return findFirstMatchingPath(
++        jsonBody, "/top_p", "/p", "/textGenerationConfig/topP", "/inferenceConfig/top_p");
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/usage/inputTokens"
 +  // Amazon Titan -> "/inputTextTokenCount"
 +  // Anthropic Claude -> "/usage/input_tokens"
 +  // Cohere Command -> "/prompt"
@@ -711,21 +981,22 @@ index c212a69678..6a3db50881 100644
 +  // Mistral AI -> "/prompt"
 +  @Nullable
 +  static String getInputTokens(Object target) {
-+    JsonNode jsonBody = getJsonBody(target);
++    BedrockJsonParser.LlmJson jsonBody = getJsonBody(target);
 +    if (jsonBody == null) {
 +      return null;
 +    }
 +
-+    // Try direct tokens counts first
++    // Try direct token counts first
 +    String directCount =
 +        findFirstMatchingPath(
 +            jsonBody,
 +            "/inputTextTokenCount",
++            "/prompt_token_count",
 +            "/usage/input_tokens",
 +            "/usage/prompt_tokens",
-+            "/prompt_token_count");
++            "/usage/inputTokens");
 +
-+    if (directCount != null) {
++    if (directCount != null && !directCount.equals("null")) {
 +      return directCount;
 +    }
 +
@@ -734,6 +1005,7 @@ index c212a69678..6a3db50881 100644
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/usage/outputTokens"
 +  // Amazon Titan -> "/results/0/tokenCount"
 +  // Anthropic Claude -> "/usage/output_tokens"
 +  // Cohere Command -> "/generations/0/text"
@@ -743,7 +1015,7 @@ index c212a69678..6a3db50881 100644
 +  // Mistral AI -> "/outputs/0/text"
 +  @Nullable
 +  static String getOutputTokens(Object target) {
-+    JsonNode jsonBody = getJsonBody(target);
++    BedrockJsonParser.LlmJson jsonBody = getJsonBody(target);
 +    if (jsonBody == null) {
 +      return null;
 +    }
@@ -752,19 +1024,22 @@ index c212a69678..6a3db50881 100644
 +    String directCount =
 +        findFirstMatchingPath(
 +            jsonBody,
++            "/generation_token_count",
 +            "/results/0/tokenCount",
 +            "/usage/output_tokens",
 +            "/usage/completion_tokens",
-+            "/generation_token_count");
++            "/usage/outputTokens");
 +
-+    if (directCount != null) {
++    if (directCount != null && !directCount.equals("null")) {
 +      return directCount;
 +    }
 +
-+    return approximateTokenCount(jsonBody, "/outputs/0/text", "/text");
++    // Fall back to token approximation
++    return approximateTokenCount(jsonBody, "/text", "/outputs/0/text");
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/stopReason"
 +  // Amazon Titan -> "/results/0/completionReason"
 +  // Anthropic Claude -> "/stop_reason"
 +  // Cohere Command -> "/generations/0/finish_reason"
@@ -774,15 +1049,17 @@ index c212a69678..6a3db50881 100644
 +  // Mistral AI -> "/outputs/0/stop_reason"
 +  @Nullable
 +  static String getFinishReasons(Object target) {
++    BedrockJsonParser.LlmJson jsonBody = getJsonBody(target);
 +    String finishReason =
 +        findFirstMatchingPath(
-+            getJsonBody(target),
-+            "/results/0/completionReason",
++            jsonBody,
++            "/stopReason",
++            "/finish_reason",
 +            "/stop_reason",
++            "/results/0/completionReason",
 +            "/generations/0/finish_reason",
 +            "/choices/0/finish_reason",
-+            "/outputs/0/stop_reason",
-+            "/finish_reason");
++            "/outputs/0/stop_reason");
 +
 +    return finishReason != null ? "[" + finishReason + "]" : null;
 +  }
@@ -960,7 +1237,7 @@ index c212a69678..6a3db50881 100644
    @Nullable
    private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
      if (method == null) {
-@@ -74,6 +417,19 @@ final class RequestAccess {
+@@ -74,6 +424,19 @@ final class RequestAccess {
      }
    }
  
@@ -980,7 +1257,7 @@ index c212a69678..6a3db50881 100644
    @Nullable private final MethodHandle getBucketName;
    @Nullable private final MethodHandle getQueueUrl;
    @Nullable private final MethodHandle getQueueName;
-@@ -81,24 +437,66 @@ final class RequestAccess {
+@@ -81,24 +444,66 @@ final class RequestAccess {
    @Nullable private final MethodHandle getTableName;
    @Nullable private final MethodHandle getTopicArn;
    @Nullable private final MethodHandle getTargetArn;
@@ -1056,6 +1333,119 @@ index c212a69678..6a3db50881 100644
 +    return (current instanceof String) ? (String) current : null;
 +  }
  }
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/test/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/BedrockJsonParserTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/test/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/BedrockJsonParserTest.groovy
+new file mode 100644
+index 0000000000..03563b1d5b
+--- /dev/null
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/test/groovy/io/opentelemetry/instrumentation/awssdk/v1_11/BedrockJsonParserTest.groovy
+@@ -0,0 +1,107 @@
++/*
++ * Copyright The OpenTelemetry Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package io.opentelemetry.instrumentation.awssdk.v1_11
++
++import spock.lang.Specification
++
++class BedrockJsonParserTest extends Specification {
++  def "should parse simple JSON object"() {
++    given:
++    String json = '{"key":"value"}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++
++    then:
++    parsedJson.getJsonBody() == [key: "value"]
++  }
++
++  def "should parse nested JSON object"() {
++    given:
++    String json = '{"parent":{"child":"value"}}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++
++    then:
++    def parent = parsedJson.getJsonBody().get("parent")
++    parent instanceof Map
++    parent["child"] == "value"
++  }
++
++  def "should parse JSON array"() {
++    given:
++    String json = '{"array":[1, "two", 1.0]}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++
++    then:
++    def array = parsedJson.getJsonBody().get("array")
++    array instanceof List
++    array == [1, "two", 1.0]
++  }
++
++  def "should parse escape sequences"() {
++    given:
++    String json = '{"escaped":"Line1\\nLine2\\tTabbed\\\"Quoted\\\"\\bBackspace\\fFormfeed\\rCarriageReturn\\\\Backslash\\/Slash\\u0041"}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++
++    then:
++    parsedJson.getJsonBody().get("escaped") ==
++        "Line1\nLine2\tTabbed\"Quoted\"\bBackspace\fFormfeed\rCarriageReturn\\Backslash/SlashA"
++  }
++
++  def "should throw exception for malformed JSON"() {
++    given:
++    String malformedJson = '{"key":value}'
++
++    when:
++    BedrockJsonParser.parse(malformedJson)
++
++    then:
++    def ex = thrown(IllegalArgumentException)
++    ex.message.contains("Unexpected character")
++  }
++
++  def "should resolve path in JSON object"() {
++    given:
++    String json = '{"parent":{"child":{"key":"value"}}}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++    def resolvedValue = BedrockJsonParser.JsonPathResolver.resolvePath(parsedJson, "/parent/child/key")
++
++    then:
++    resolvedValue == "value"
++  }
++
++  def "should resolve path in JSON array"() {
++    given:
++    String json = '{"array":[{"key":"value1"}, {"key":"value2"}]}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++    def resolvedValue = BedrockJsonParser.JsonPathResolver.resolvePath(parsedJson, "/array/1/key")
++
++    then:
++    resolvedValue == "value2"
++  }
++
++  def "should return null for invalid path resolution"() {
++    given:
++    String json = '{"parent":{"child":{"key":"value"}}}'
++
++    when:
++    def parsedJson = BedrockJsonParser.parse(json)
++    def resolvedValue = BedrockJsonParser.JsonPathResolver.resolvePath(parsedJson, "/invalid/path")
++
++    then:
++    resolvedValue == null
++  }
++}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
 index 545f5dffce..227a205ebd 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/build.gradle.kts
@@ -1256,7 +1646,7 @@ index 0000000000..498fbc2433
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockRuntimeClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockRuntimeClientTest.java
 new file mode 100644
-index 0000000000..e9d2c32262
+index 0000000000..a2a27f6ab2
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockRuntimeClientTest.java
 @@ -0,0 +1,125 @@
@@ -1319,7 +1709,7 @@ index 0000000000..e9d2c32262
 +          "{\"choices\":[{\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":42}}",
 +          ImmutableMap.of(
 +              "gen_ai.request.model", "ai21.jamba-1-5-mini-v1:0",
-+              "gen_ai.system", "aws_bedrock",
++              "gen_ai.system", "aws.bedrock",
 +              "gen_ai.request.max_tokens", "1000",
 +              "gen_ai.request.temperature", "0.7",
 +              "gen_ai.request.top_p", "0.8",
@@ -1333,7 +1723,7 @@ index 0000000000..e9d2c32262
 +          "{\"inputTextTokenCount\":5,\"results\":[{\"tokenCount\":42,\"outputText\":\"Hi! I'm Titan, an AI assistant.\",\"completionReason\":\"stop\"}]}",
 +          ImmutableMap.of(
 +              "gen_ai.request.model", "amazon.titan-text-premier-v1:0",
-+              "gen_ai.system", "aws_bedrock",
++              "gen_ai.system", "aws.bedrock",
 +              "gen_ai.request.max_tokens", "100",
 +              "gen_ai.request.temperature", "0.7",
 +              "gen_ai.request.top_p", "0.9",
@@ -1347,7 +1737,7 @@ index 0000000000..e9d2c32262
 +          "{\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":2095,\"output_tokens\":503}}",
 +          ImmutableMap.of(
 +              "gen_ai.request.model", "anthropic.claude-3-5-sonnet-20241022-v2:0",
-+              "gen_ai.system", "aws_bedrock",
++              "gen_ai.system", "aws.bedrock",
 +              "gen_ai.request.max_tokens", "100",
 +              "gen_ai.request.temperature", "0.7",
 +              "gen_ai.request.top_p", "0.9",
@@ -1361,7 +1751,7 @@ index 0000000000..e9d2c32262
 +          "{\"prompt_token_count\":2095,\"generation_token_count\":503,\"stop_reason\":\"stop\"}",
 +          ImmutableMap.of(
 +              "gen_ai.request.model", "meta.llama3-70b-instruct-v1:0",
-+              "gen_ai.system", "aws_bedrock",
++              "gen_ai.system", "aws.bedrock",
 +              "gen_ai.request.max_tokens", "128",
 +              "gen_ai.request.temperature", "0.1",
 +              "gen_ai.request.top_p", "0.9",
@@ -1375,7 +1765,7 @@ index 0000000000..e9d2c32262
 +          "{\"text\":\"test-output\",\"finish_reason\":\"COMPLETE\"}",
 +          ImmutableMap.of(
 +              "gen_ai.request.model", "cohere.command-r-v1:0",
-+              "gen_ai.system", "aws_bedrock",
++              "gen_ai.system", "aws.bedrock",
 +              "gen_ai.request.max_tokens", "4096",
 +              "gen_ai.request.temperature", "0.8",
 +              "gen_ai.request.top_p", "0.45",
@@ -1989,6 +2379,291 @@ index 274ec27194..83d9353c3b 100644
  
    // Wrapping in unmodifiableMap
    @SuppressWarnings("ImmutableEnumChecker")
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/BedrockJsonParser.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/BedrockJsonParser.java
+new file mode 100644
+index 0000000000..9812f1afa5
+--- /dev/null
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/BedrockJsonParser.java
+@@ -0,0 +1,279 @@
++/*
++ * Copyright The OpenTelemetry Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package io.opentelemetry.instrumentation.awssdk.v2_2.internal;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++/**
++ * This class is internal and is hence not for public use. Its APIs are unstable and can change at
++ * any time.
++ */
++public class BedrockJsonParser {
++
++  // Prevent instantiation
++  private BedrockJsonParser() {
++    throw new UnsupportedOperationException("Utility class");
++  }
++
++  /**
++   * This class is internal and is hence not for public use. Its APIs are unstable and can change at
++   * any time.
++   */
++  public static LlmJson parse(String jsonString) {
++    JsonParser parser = new JsonParser(jsonString);
++    Map<String, Object> jsonBody = parser.parse();
++    return new LlmJson(jsonBody);
++  }
++
++  static class JsonParser {
++    private final String json;
++    private int position;
++
++    public JsonParser(String json) {
++      this.json = json.trim();
++      this.position = 0;
++    }
++
++    private void skipWhitespace() {
++      while (position < json.length() && Character.isWhitespace(json.charAt(position))) {
++        position++;
++      }
++    }
++
++    private char currentChar() {
++      return json.charAt(position);
++    }
++
++    private static boolean isHexDigit(char c) {
++      return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
++    }
++
++    private void expect(char c) {
++      skipWhitespace();
++      if (currentChar() != c) {
++        throw new IllegalArgumentException(
++            "Expected '" + c + "' but found '" + currentChar() + "'");
++      }
++      position++;
++    }
++
++    private String readString() {
++      skipWhitespace();
++      expect('"'); // Ensure the string starts with a quote
++      StringBuilder result = new StringBuilder();
++      while (currentChar() != '"') {
++        // Handle escape sequences
++        if (currentChar() == '\\') {
++          position++; // Move past the backslash
++          if (position >= json.length()) {
++            throw new IllegalArgumentException("Unexpected end of input in string escape sequence");
++          }
++          char escapeChar = currentChar();
++          switch (escapeChar) {
++            case '"':
++            case '\\':
++            case '/':
++              result.append(escapeChar);
++              break;
++            case 'b':
++              result.append('\b');
++              break;
++            case 'f':
++              result.append('\f');
++              break;
++            case 'n':
++              result.append('\n');
++              break;
++            case 'r':
++              result.append('\r');
++              break;
++            case 't':
++              result.append('\t');
++              break;
++            case 'u': // Unicode escape sequence
++              if (position + 4 >= json.length()) {
++                throw new IllegalArgumentException("Invalid unicode escape sequence in string");
++              }
++              char[] hexChars = new char[4];
++              for (int i = 0; i < 4; i++) {
++                position++; // Move to the next character
++                char hexChar = json.charAt(position);
++                if (!isHexDigit(hexChar)) {
++                  throw new IllegalArgumentException(
++                      "Invalid hexadecimal digit in unicode escape sequence");
++                }
++                hexChars[i] = hexChar;
++              }
++              int unicodeValue = Integer.parseInt(new String(hexChars), 16);
++              result.append((char) unicodeValue);
++              break;
++            default:
++              throw new IllegalArgumentException("Invalid escape character: \\" + escapeChar);
++          }
++          position++;
++        } else {
++          result.append(currentChar());
++          position++;
++        }
++      }
++      position++; // Skip closing quote
++      return result.toString();
++    }
++
++    private Object readValue() {
++      skipWhitespace();
++      char c = currentChar();
++
++      if (c == '"') {
++        return readString();
++      } else if (Character.isDigit(c)) {
++        return readScopedNumber();
++      } else if (c == '{') {
++        return readObject(); // JSON Objects
++      } else if (c == '[') {
++        return readArray(); // JSON Arrays
++      } else if (json.startsWith("true", position)) {
++        position += 4;
++        return true;
++      } else if (json.startsWith("false", position)) {
++        position += 5;
++        return false;
++      } else if (json.startsWith("null", position)) {
++        position += 4;
++        return null; // JSON null
++      } else {
++        throw new IllegalArgumentException("Unexpected character: " + c);
++      }
++    }
++
++    private Number readScopedNumber() {
++      int start = position;
++
++      // Consume digits and the optional decimal point
++      while (position < json.length()
++          && (Character.isDigit(json.charAt(position)) || json.charAt(position) == '.')) {
++        position++;
++      }
++
++      String number = json.substring(start, position);
++
++      if (number.contains(".")) {
++        double value = Double.parseDouble(number);
++        if (value < 0.0 || value > 1.0) {
++          throw new IllegalArgumentException(
++              "Value out of bounds for Bedrock Floating Point Attribute: " + number);
++        }
++        return value;
++      } else {
++        return Integer.parseInt(number);
++      }
++    }
++
++    private Map<String, Object> readObject() {
++      Map<String, Object> map = new HashMap<>();
++      expect('{');
++      skipWhitespace();
++      while (currentChar() != '}') {
++        String key = readString();
++        expect(':');
++        Object value = readValue();
++        map.put(key, value);
++        skipWhitespace();
++        if (currentChar() == ',') {
++          position++;
++        }
++      }
++      position++; // Skip closing brace
++      return map;
++    }
++
++    private List<Object> readArray() {
++      List<Object> list = new ArrayList<>();
++      expect('[');
++      skipWhitespace();
++      while (currentChar() != ']') {
++        list.add(readValue());
++        skipWhitespace();
++        if (currentChar() == ',') {
++          position++;
++        }
++      }
++      position++;
++      return list;
++    }
++
++    public Map<String, Object> parse() {
++      return readObject();
++    }
++  }
++
++  // Resolves paths in a JSON structure
++  static class JsonPathResolver {
++
++    // Private constructor to prevent instantiation
++    private JsonPathResolver() {
++      throw new UnsupportedOperationException("Utility class");
++    }
++
++    public static Object resolvePath(LlmJson llmJson, String... paths) {
++      for (String path : paths) {
++        Object value = resolvePath(llmJson.getJsonBody(), path);
++        if (value != null) {
++          return value;
++        }
++      }
++      return null;
++    }
++
++    private static Object resolvePath(Map<String, Object> json, String path) {
++      String[] keys = path.split("/");
++      Object current = json;
++
++      for (String key : keys) {
++        if (key.isEmpty()) {
++          continue;
++        }
++
++        if (current instanceof Map) {
++          current = ((Map<?, ?>) current).get(key);
++        } else if (current instanceof List) {
++          try {
++            int index = Integer.parseInt(key);
++            current = ((List<?>) current).get(index);
++          } catch (NumberFormatException | IndexOutOfBoundsException e) {
++            return null;
++          }
++        } else {
++          return null;
++        }
++
++        if (current == null) {
++          return null;
++        }
++      }
++      return current;
++    }
++  }
++
++  /**
++   * This class is internal and is hence not for public use. Its APIs are unstable and can change at
++   * any time.
++   */
++  public static class LlmJson {
++    private final Map<String, Object> jsonBody;
++
++    public LlmJson(Map<String, Object> jsonBody) {
++      this.jsonBody = jsonBody;
++    }
++
++    public Map<String, Object> getJsonBody() {
++      return jsonBody;
++    }
++  }
++}
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/FieldMapper.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/FieldMapper.java
 index 9e7aeacbce..9a38a753ca 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/FieldMapper.java
@@ -2009,49 +2684,35 @@ index 9e7aeacbce..9a38a753ca 100644
          span.setAttribute(fieldMapping.getAttribute(), value);
        }
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/Serializer.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/Serializer.java
-index 7ae1590152..18f9dd41ee 100644
+index 7ae1590152..5b7a188914 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/Serializer.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/Serializer.java
-@@ -5,13 +5,19 @@
+@@ -7,11 +7,14 @@ package io.opentelemetry.instrumentation.awssdk.v2_2.internal;
  
- package io.opentelemetry.instrumentation.awssdk.v2_2.internal;
- 
-+import com.fasterxml.jackson.core.JsonProcessingException;
-+import com.fasterxml.jackson.databind.JsonNode;
-+import com.fasterxml.jackson.databind.ObjectMapper;
  import java.io.IOException;
  import java.io.InputStream;
++import java.util.Arrays;
  import java.util.Collection;
  import java.util.Map;
 +import java.util.Objects;
  import java.util.Optional;
  import java.util.stream.Collectors;
-+import java.util.stream.Stream;
  import javax.annotation.Nullable;
 +import software.amazon.awssdk.core.SdkBytes;
  import software.amazon.awssdk.core.SdkPojo;
  import software.amazon.awssdk.http.ContentStreamProvider;
  import software.amazon.awssdk.http.SdkHttpFullRequest;
-@@ -21,6 +27,8 @@ import software.amazon.awssdk.utils.StringUtils;
- 
- class Serializer {
- 
-+  private static final ObjectMapper objectMapper = new ObjectMapper();
-+
-   @Nullable
-   String serialize(Object target) {
- 
-@@ -41,6 +49,41 @@ class Serializer {
+@@ -41,6 +44,45 @@ class Serializer {
      return target.toString();
    }
  
 +  @Nullable
 +  String serialize(String attributeName, Object target) {
 +    try {
-+      JsonNode jsonBody;
++      // Extract JSON string from target if it is a Bedrock Runtime JSON blob
++      String jsonString;
 +      if (target instanceof SdkBytes) {
-+        String jsonString = ((SdkBytes) target).asUtf8String();
-+        jsonBody = objectMapper.readTree(jsonString);
++        jsonString = ((SdkBytes) target).asUtf8String();
 +      } else {
 +        if (target != null) {
 +          return target.toString();
@@ -2059,23 +2720,27 @@ index 7ae1590152..18f9dd41ee 100644
 +        return null;
 +      }
 +
++      // Parse the LLM JSON string into a Map
++      BedrockJsonParser.LlmJson llmJson = BedrockJsonParser.parse(jsonString);
++
++      // Use attribute name to extract the corresponding value
 +      switch (attributeName) {
 +        case "gen_ai.request.max_tokens":
-+          return getMaxTokens(jsonBody);
++          return getMaxTokens(llmJson);
 +        case "gen_ai.request.temperature":
-+          return getTemperature(jsonBody);
++          return getTemperature(llmJson);
 +        case "gen_ai.request.top_p":
-+          return getTopP(jsonBody);
++          return getTopP(llmJson);
 +        case "gen_ai.response.finish_reasons":
-+          return getFinishReasons(jsonBody);
++          return getFinishReasons(llmJson);
 +        case "gen_ai.usage.input_tokens":
-+          return getInputTokens(jsonBody);
++          return getInputTokens(llmJson);
 +        case "gen_ai.usage.output_tokens":
-+          return getOutputTokens(jsonBody);
++          return getOutputTokens(llmJson);
 +        default:
 +          return null;
 +      }
-+    } catch (JsonProcessingException e) {
++    } catch (RuntimeException e) {
 +      return null;
 +    }
 +  }
@@ -2083,43 +2748,20 @@ index 7ae1590152..18f9dd41ee 100644
    @Nullable
    private static String serialize(SdkPojo sdkPojo) {
      ProtocolMarshaller<SdkHttpFullRequest> marshaller =
-@@ -65,4 +108,162 @@ class Serializer {
+@@ -65,4 +107,167 @@ class Serializer {
      String serialized = collection.stream().map(this::serialize).collect(Collectors.joining(","));
      return (StringUtils.isEmpty(serialized) ? null : "[" + serialized + "]");
    }
 +
 +  @Nullable
-+  private static String findFirstMatchingPath(JsonNode jsonBody, String... paths) {
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    return Stream.of(paths)
++  private static String approximateTokenCount(
++      BedrockJsonParser.LlmJson jsonBody, String... textPaths) {
++    return Arrays.stream(textPaths)
 +        .map(
 +            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                return node.asText();
-+              }
-+              return null;
-+            })
-+        .filter(Objects::nonNull)
-+        .findFirst()
-+        .orElse(null);
-+  }
-+
-+  @Nullable
-+  private static String approximateTokenCount(JsonNode jsonBody, String... textPaths) {
-+    if (jsonBody == null) {
-+      return null;
-+    }
-+
-+    return Stream.of(textPaths)
-+        .map(
-+            path -> {
-+              JsonNode node = jsonBody.at(path);
-+              if (node != null && !node.isMissingNode()) {
-+                int tokenEstimate = (int) Math.ceil(node.asText().length() / 6.0);
++              Object value = BedrockJsonParser.JsonPathResolver.resolvePath(jsonBody, path);
++              if (value instanceof String) {
++                int tokenEstimate = (int) Math.ceil(((String) value).length() / 6.0);
 +                return Integer.toString(tokenEstimate);
 +              }
 +              return null;
@@ -2130,6 +2772,7 @@ index 7ae1590152..18f9dd41ee 100644
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/inferenceConfig/max_new_tokens"
 +  // Amazon Titan -> "/textGenerationConfig/maxTokenCount"
 +  // Anthropic Claude -> "/max_tokens"
 +  // Cohere Command -> "/max_tokens"
@@ -2138,12 +2781,19 @@ index 7ae1590152..18f9dd41ee 100644
 +  // Meta Llama -> "/max_gen_len"
 +  // Mistral AI -> "/max_tokens"
 +  @Nullable
-+  private static String getMaxTokens(JsonNode jsonBody) {
-+    return findFirstMatchingPath(
-+        jsonBody, "/textGenerationConfig/maxTokenCount", "/max_tokens", "/max_gen_len");
++  private static String getMaxTokens(BedrockJsonParser.LlmJson jsonBody) {
++    Object value =
++        BedrockJsonParser.JsonPathResolver.resolvePath(
++            jsonBody,
++            "/max_tokens",
++            "/max_gen_len",
++            "/textGenerationConfig/maxTokenCount",
++            "inferenceConfig/max_new_tokens");
++    return value != null ? String.valueOf(value) : null;
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/inferenceConfig/temperature"
 +  // Amazon Titan -> "/textGenerationConfig/temperature"
 +  // Anthropic Claude -> "/temperature"
 +  // Cohere Command -> "/temperature"
@@ -2152,11 +2802,18 @@ index 7ae1590152..18f9dd41ee 100644
 +  // Meta Llama -> "/temperature"
 +  // Mistral AI -> "/temperature"
 +  @Nullable
-+  private static String getTemperature(JsonNode jsonBody) {
-+    return findFirstMatchingPath(jsonBody, "/textGenerationConfig/temperature", "/temperature");
++  private static String getTemperature(BedrockJsonParser.LlmJson jsonBody) {
++    Object value =
++        BedrockJsonParser.JsonPathResolver.resolvePath(
++            jsonBody,
++            "/temperature",
++            "/textGenerationConfig/temperature",
++            "/inferenceConfig/temperature");
++    return value != null ? String.valueOf(value) : null;
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/inferenceConfig/top_p"
 +  // Amazon Titan -> "/textGenerationConfig/topP"
 +  // Anthropic Claude -> "/top_p"
 +  // Cohere Command -> "/p"
@@ -2165,11 +2822,15 @@ index 7ae1590152..18f9dd41ee 100644
 +  // Meta Llama -> "/top_p"
 +  // Mistral AI -> "/top_p"
 +  @Nullable
-+  private static String getTopP(JsonNode jsonBody) {
-+    return findFirstMatchingPath(jsonBody, "/textGenerationConfig/topP", "/top_p", "/p");
++  private static String getTopP(BedrockJsonParser.LlmJson jsonBody) {
++    Object value =
++        BedrockJsonParser.JsonPathResolver.resolvePath(
++            jsonBody, "/top_p", "/p", "/textGenerationConfig/topP", "/inferenceConfig/top_p");
++    return value != null ? String.valueOf(value) : null;
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/stopReason"
 +  // Amazon Titan -> "/results/0/completionReason"
 +  // Anthropic Claude -> "/stop_reason"
 +  // Cohere Command -> "/generations/0/finish_reason"
@@ -2178,21 +2839,23 @@ index 7ae1590152..18f9dd41ee 100644
 +  // Meta Llama -> "/stop_reason"
 +  // Mistral AI -> "/outputs/0/stop_reason"
 +  @Nullable
-+  private static String getFinishReasons(JsonNode jsonBody) {
-+    String finishReason =
-+        findFirstMatchingPath(
++  private static String getFinishReasons(BedrockJsonParser.LlmJson jsonBody) {
++    Object value =
++        BedrockJsonParser.JsonPathResolver.resolvePath(
 +            jsonBody,
-+            "/results/0/completionReason",
++            "/stopReason",
++            "/finish_reason",
 +            "/stop_reason",
++            "/results/0/completionReason",
 +            "/generations/0/finish_reason",
 +            "/choices/0/finish_reason",
-+            "/outputs/0/stop_reason",
-+            "/finish_reason");
++            "/outputs/0/stop_reason");
 +
-+    return finishReason != null ? "[" + finishReason + "]" : null;
++    return value != null ? "[" + value + "]" : null;
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/usage/inputTokens"
 +  // Amazon Titan -> "/inputTextTokenCount"
 +  // Anthropic Claude -> "/usage/input_tokens"
 +  // Cohere Command -> "/prompt"
@@ -2201,25 +2864,29 @@ index 7ae1590152..18f9dd41ee 100644
 +  // Meta Llama -> "/prompt_token_count"
 +  // Mistral AI -> "/prompt"
 +  @Nullable
-+  private static String getInputTokens(JsonNode jsonBody) {
++  private static String getInputTokens(BedrockJsonParser.LlmJson jsonBody) {
 +    // Try direct tokens counts first
-+    String directCount =
-+        findFirstMatchingPath(
++    Object directCount =
++        BedrockJsonParser.JsonPathResolver.resolvePath(
 +            jsonBody,
 +            "/inputTextTokenCount",
++            "/prompt_token_count",
 +            "/usage/input_tokens",
 +            "/usage/prompt_tokens",
-+            "/prompt_token_count");
++            "/usage/inputTokens");
 +
 +    if (directCount != null) {
-+      return directCount;
++      return String.valueOf(directCount);
 +    }
 +
 +    // Fall back to token approximation
-+    return approximateTokenCount(jsonBody, "/prompt", "/message");
++    Object approxTokenCount = approximateTokenCount(jsonBody, "/prompt", "/message");
++
++    return approxTokenCount != null ? String.valueOf(approxTokenCount) : null;
 +  }
 +
 +  // Model -> Path Mapping:
++  // Amazon Nova -> "/usage/outputTokens"
 +  // Amazon Titan -> "/results/0/tokenCount"
 +  // Anthropic Claude -> "/usage/output_tokens"
 +  // Cohere Command -> "/generations/0/text"
@@ -2228,26 +2895,29 @@ index 7ae1590152..18f9dd41ee 100644
 +  // Meta Llama -> "/generation_token_count"
 +  // Mistral AI -> "/outputs/0/text"
 +  @Nullable
-+  private static String getOutputTokens(JsonNode jsonBody) {
++  private static String getOutputTokens(BedrockJsonParser.LlmJson jsonBody) {
 +    // Try direct token counts first
-+    String directCount =
-+        findFirstMatchingPath(
++    Object directCount =
++        BedrockJsonParser.JsonPathResolver.resolvePath(
 +            jsonBody,
++            "/generation_token_count",
 +            "/results/0/tokenCount",
 +            "/usage/output_tokens",
 +            "/usage/completion_tokens",
-+            "/generation_token_count");
++            "/usage/outputTokens");
 +
 +    if (directCount != null) {
-+      return directCount;
++      return String.valueOf(directCount);
 +    }
 +
 +    // Fall back to token approximation
-+    return approximateTokenCount(jsonBody, "/outputs/0/text", "/text");
++    Object approxTokenCount = approximateTokenCount(jsonBody, "/text", "/outputs/0/text");
++
++    return approxTokenCount != null ? String.valueOf(approxTokenCount) : null;
 +  }
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java
-index 94243d0b11..747620b108 100644
+index 94243d0b11..7b15a1c84b 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java
 @@ -5,6 +5,8 @@
@@ -2263,7 +2933,7 @@ index 94243d0b11..747620b108 100644
   * at any time.
   */
  public final class TracingExecutionInterceptor implements ExecutionInterceptor {
-+  private static final String GEN_AI_SYSTEM_BEDROCK = "aws_bedrock";
++  private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
  
    // copied from DbIncubatingAttributes
    private static final AttributeKey<String> DB_OPERATION = AttributeKey.stringKey("db.operation");
@@ -2278,6 +2948,119 @@ index 94243d0b11..747620b108 100644
    }
  
    @Override
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/library/src/test/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/internal/BedrockJsonParserTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/test/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/internal/BedrockJsonParserTest.groovy
+new file mode 100644
+index 0000000000..9dff7aa804
+--- /dev/null
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/library/src/test/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/internal/BedrockJsonParserTest.groovy
+@@ -0,0 +1,107 @@
++/*
++ * Copyright The OpenTelemetry Authors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package io.opentelemetry.instrumentation.awssdk.v2_2.internal
++
++import spock.lang.Specification
++
++class BedrockJsonParserTest extends Specification {
++    def "should parse simple JSON object"() {
++        given:
++        String json = '{"key":"value"}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++
++        then:
++        parsedJson.getJsonBody() == [key: "value"]
++    }
++
++    def "should parse nested JSON object"() {
++        given:
++        String json = '{"parent":{"child":"value"}}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++
++        then:
++        def parent = parsedJson.getJsonBody().get("parent")
++        parent instanceof Map
++        parent["child"] == "value"
++    }
++
++    def "should parse JSON array"() {
++        given:
++        String json = '{"array":[1, "two", 1.0]}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++
++        then:
++        def array = parsedJson.getJsonBody().get("array")
++        array instanceof List
++        array == [1, "two", 1.0]
++    }
++
++    def "should parse escape sequences"() {
++        given:
++        String json = '{"escaped":"Line1\\nLine2\\tTabbed\\\"Quoted\\\"\\bBackspace\\fFormfeed\\rCarriageReturn\\\\Backslash\\/Slash\\u0041"}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++
++        then:
++        parsedJson.getJsonBody().get("escaped") ==
++                "Line1\nLine2\tTabbed\"Quoted\"\bBackspace\fFormfeed\rCarriageReturn\\Backslash/SlashA"
++    }
++
++    def "should throw exception for malformed JSON"() {
++        given:
++        String malformedJson = '{"key":value}'
++
++        when:
++        BedrockJsonParser.parse(malformedJson)
++
++        then:
++        def ex = thrown(IllegalArgumentException)
++        ex.message.contains("Unexpected character")
++    }
++
++    def "should resolve path in JSON object"() {
++        given:
++        String json = '{"parent":{"child":{"key":"value"}}}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++        def resolvedValue = BedrockJsonParser.JsonPathResolver.resolvePath(parsedJson, "/parent/child/key")
++
++        then:
++        resolvedValue == "value"
++    }
++
++    def "should resolve path in JSON array"() {
++        given:
++        String json = '{"array":[{"key":"value1"}, {"key":"value2"}]}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++        def resolvedValue = BedrockJsonParser.JsonPathResolver.resolvePath(parsedJson, "/array/1/key")
++
++        then:
++        resolvedValue == "value2"
++    }
++
++    def "should return null for invalid path resolution"() {
++        given:
++        String json = '{"parent":{"child":{"key":"value"}}}'
++
++        when:
++        def parsedJson = BedrockJsonParser.parse(json)
++        def resolvedValue = BedrockJsonParser.JsonPathResolver.resolvePath(parsedJson, "/invalid/path")
++
++        then:
++        resolvedValue == null
++    }
++}
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
 index 08b000a05c..de0fe82638 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/build.gradle.kts
@@ -2293,7 +3076,7 @@ index 08b000a05c..de0fe82638 100644
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.13")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-index 2533a0202d..c6350d0749 100644
+index 2533a0202d..a275e7e2f7 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 @@ -37,10 +37,19 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -2337,7 +3120,7 @@ index 2533a0202d..c6350d0749 100644
 +              "aws.bedrock.data_source.id" "datasourceId"
 +            } else if (service == "BedrockRuntime" && operation == "InvokeModel") {
 +              "gen_ai.request.model" "meta.llama2-13b-chat-v1"
-+              "gen_ai.system" "aws_bedrock"
++              "gen_ai.system" "aws.bedrock"
 +            } else if (service == "Sfn" && operation == "DescribeStateMachine") {
 +              "aws.stepfunctions.state_machine.arn" "stateMachineArn"
 +            } else if (service == "Sfn" && operation == "DescribeActivity") {
