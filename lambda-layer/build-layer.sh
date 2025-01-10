@@ -49,7 +49,10 @@ echo "Info: Building ADOT Lambda Java SDK Layer Code"
 echo "Info: Creating the layer artifact"
 mkdir -p "$SOURCEDIR"/build/distributions/
 cp "$SOURCEDIR"/build/javaagent/aws-opentelemetry-agent*.jar "$SOURCEDIR"/build/distributions/aws-opentelemetry-javaagent.jar
-zip -r ./build/distributions/aws-opentelemetry-java-layer.zip "$SOURCEDIR"/build/distributions/aws-opentelemetry-javaagent.jar otel-instrument
+cp otel-instrument "$SOURCEDIR"/build/distributions/otel-instrument
+pushd "$SOURCEDIR"/build/distributions
+zip -r aws-opentelemetry-java-layer.zip aws-opentelemetry-javaagent.jar otel-instrument
+popd
 
 ## Cleanup
 # revert the patch applied since it is only needed while building the layer.
