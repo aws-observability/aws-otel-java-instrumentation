@@ -643,3 +643,89 @@ index cc1414c0bf..db8a59b046 100644
 
  allprojects {
    if (findProperty("otel.stable") != "true") {
+diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
+index 2332f24a8f..0743cdea75 100644
+--- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
++++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
+@@ -10,7 +10,9 @@ import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.
+ import static io.opentelemetry.javaagent.instrumentation.awslambdacore.v1_0.AwsLambdaInstrumentationHelper.functionInstrumenter;
+ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
++import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
+ import static net.bytebuddy.matcher.ElementMatchers.named;
++import static net.bytebuddy.matcher.ElementMatchers.not;
+ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+ import com.amazonaws.services.lambda.runtime.Context;
+@@ -35,7 +37,8 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
+
+   @Override
+   public ElementMatcher<TypeDescription> typeMatcher() {
+-    return implementsInterface(named("com.amazonaws.services.lambda.runtime.RequestHandler"));
++    return implementsInterface(named("com.amazonaws.services.lambda.runtime.RequestHandler"))
++        .and(not(nameStartsWith("com.amazonaws.services.lambda.runtime.api.client")));
+   }
+
+   @Override
+diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaTest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaTest.java
+index af939fcb6d..8b8398950a 100644
+--- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaTest.java
++++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaTest.java
+@@ -5,14 +5,19 @@
+
+ package io.opentelemetry.javaagent.instrumentation.awslambdacore.v1_0;
+
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+ import static org.assertj.core.api.Assertions.assertThat;
+
+ import com.amazonaws.services.lambda.runtime.Context;
+ import com.amazonaws.services.lambda.runtime.RequestHandler;
++import com.amazonaws.services.lambda.runtime.api.client.AwsLambdaInternalRequestHandler;
++import io.opentelemetry.api.trace.SpanKind;
+ import io.opentelemetry.instrumentation.awslambdacore.v1_0.AbstractAwsLambdaTest;
+ import io.opentelemetry.instrumentation.testing.junit.AgentInstrumentationExtension;
+ import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
++import io.opentelemetry.semconv.SemanticAttributes;
+ import org.junit.jupiter.api.AfterEach;
++import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.api.extension.RegisterExtension;
+
+ public class AwsLambdaTest extends AbstractAwsLambdaTest {
+@@ -35,6 +40,22 @@ public class AwsLambdaTest extends AbstractAwsLambdaTest {
+     assertThat(testing.forceFlushCalled()).isTrue();
+   }
+
++  @Test
++  void awsLambdaInternalHandlerIgnoredAndUserHandlerTraced() {
++    RequestHandler<String, String> handler = new AwsLambdaInternalRequestHandler(handler());
++    String result = handler.handleRequest("hello", context());
++    assertThat(result).isEqualTo("world");
++    testing()
++        .waitAndAssertTraces(
++            trace ->
++                trace.hasSpansSatisfyingExactly(
++                    span ->
++                        span.hasName("my_function")
++                            .hasKind(SpanKind.SERVER)
++                            .hasAttributesSatisfyingExactly(
++                                equalTo(SemanticAttributes.FAAS_INVOCATION_ID, "1-22-333"))));
++  }
++
+   private static final class TestRequestHandler implements RequestHandler<String, String> {
+
+     @Override
+diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/testing/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/AbstractAwsLambdaTest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/testing/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/AbstractAwsLambdaTest.java
+index 94a85244e2..25a32896aa 100644
+--- a/instrumentation/aws-lambda/aws-lambda-core-1.0/testing/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/AbstractAwsLambdaTest.java
++++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/testing/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/AbstractAwsLambdaTest.java
+@@ -53,6 +53,10 @@ public abstract class AbstractAwsLambdaTest {
+     assertThat(testing().forceFlushCalled()).isTrue();
+   }
+
++  protected Context context() {
++    return context;
++  }
++
+   @Test
+   void handlerTraced() {
+     String result = handler().handleRequest("hello", context);
