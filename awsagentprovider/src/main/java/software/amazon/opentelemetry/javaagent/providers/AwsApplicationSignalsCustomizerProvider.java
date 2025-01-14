@@ -206,7 +206,8 @@ public class AwsApplicationSignalsCustomizerProvider
 
       // If running on Lambda, we just need to export 100% spans and skip generating any Application
       // Signals metrics.
-      if (isLambdaEnvironment()) {
+      if (isLambdaEnvironment()
+          && System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) == null) {
         String tracesEndpoint =
             Optional.ofNullable(System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG))
                 .orElse(DEFAULT_UDP_ENDPOINT);
