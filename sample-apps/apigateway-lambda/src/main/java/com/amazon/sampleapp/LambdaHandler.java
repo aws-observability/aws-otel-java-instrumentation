@@ -3,18 +3,20 @@ package com.amazon.sampleapp;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.HashMap;
 import java.util.Map;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.json.JSONObject;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 public class LambdaHandler implements RequestHandler<Object, Map<String, Object>> {
 
-  private final OkHttpClient client = new OkHttpClient();
+  HttpClient client = HttpClient.newHttpClient();
   private final S3Client s3Client = S3Client.create();
 
   @Override
@@ -36,35 +38,30 @@ public class LambdaHandler implements RequestHandler<Object, Map<String, Object>
     responseBody.put("traceId", traceId);
 
     // Make a remote call using OkHttp
-    System.out.println("Making a remote call using OkHttp");
-    String url = "https://www.amazon.com";
-    Request request = new Request.Builder().url(url).build();
-
-    try (Response response = client.newCall(request).execute()) {
+    System.out.println("Making a remote call using Java HttpClient");
+    String url = "https://aws.amazon.com/";
+    HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .GET()
+            .build();
+    try {
+      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+      System.out.println("Response status code: " + response.statusCode());
       responseBody.put("httpRequest", "Request successful");
-    } catch (IOException e) {
-      context.getLogger().log("Error: " + e.getMessage());
+    } catch (Exception e) {
+      System.err.println("Error: " + e.getMessage());
       responseBody.put("httpRequest", "Request failed");
     }
     System.out.println("Remote call done");
 
-    // Make a S3 HeadBucket call to check whether the bucket exists
-    System.out.println("Making a S3 HeadBucket call");
-    String bucketName = "SomeDummyBucket";
+    // Make a S3 ListBuckets call to list the S3 buckets in the account
+    System.out.println("Making a S3 ListBuckets call");
     try {
-      HeadBucketRequest headBucketRequest = HeadBucketRequest.builder().bucket(bucketName).build();
-      s3Client.headBucket(headBucketRequest);
-      responseBody.put("s3Request", "Bucket exists and is accessible: " + bucketName);
+      ListBucketsResponse listBucketsResponse = s3Client.listBuckets();
+      responseBody.put("s3Request", "ListBuckets successful");
     } catch (S3Exception e) {
-      if (e.statusCode() == 403) {
-        responseBody.put("s3Request", "Access denied to bucket: " + bucketName);
-      } else if (e.statusCode() == 404) {
-        responseBody.put("s3Request", "Bucket does not exist: " + bucketName);
-      } else {
-        System.err.println("Error checking bucket: " + e.awsErrorDetails().errorMessage());
-        responseBody.put(
-            "s3Request", "Error checking bucket: " + e.awsErrorDetails().errorMessage());
-      }
+      System.err.println("Error listing buckets: " + e.awsErrorDetails().errorMessage());
+      responseBody.put("s3Request", "Error listing buckets: " + e.awsErrorDetails().errorMessage());
     }
     System.out.println("S3 HeadBucket call done");
 
