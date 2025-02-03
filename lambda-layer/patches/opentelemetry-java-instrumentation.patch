@@ -729,3 +729,21 @@ index 94a85244e2..25a32896aa 100644
    @Test
    void handlerTraced() {
      String result = handler().handleRequest("hello", context);
+diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
+index 0743cdea75..dfc70b368f 100644
+--- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
++++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
+@@ -38,7 +38,12 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
+   @Override
+   public ElementMatcher<TypeDescription> typeMatcher() {
+     return implementsInterface(named("com.amazonaws.services.lambda.runtime.RequestHandler"))
+-        .and(not(nameStartsWith("com.amazonaws.services.lambda.runtime.api.client")));
++        .and(not(nameStartsWith("com.amazonaws.services.lambda.runtime.api.client")))
++        // In Java 8 and Java 11 runtimes,
++        // AWS Lambda runtime is packaged under `lambdainternal` package.
++        // But it is `com.amazonaws.services.lambda.runtime.api.client`
++        // for new runtime likes Java 17 and Java 21.
++        .and(not(nameStartsWith("lambdainternal")));
+   }
+
+   @Override
