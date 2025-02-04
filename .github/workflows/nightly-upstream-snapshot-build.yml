@@ -95,7 +95,7 @@ jobs:
           snapshot-ecr-role: ${{ secrets.JAVA_INSTRUMENTATION_SNAPSHOT_ECR }}
 
       - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aws-opentelemetry-agent.jar
           path: otelagent/build/libs/aws-opentelemetry-agent-*.jar

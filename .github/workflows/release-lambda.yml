@@ -52,7 +52,7 @@ jobs:
           ./build-layer.sh
 
       - name: Upload layer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aws-opentelemetry-java-layer.zip
           path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
@@ -138,7 +138,7 @@ jobs:
 
       - name: upload layer arn artifact
         if: ${{ success() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.LAYER_NAME }}
           path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
@@ -201,7 +201,7 @@ jobs:
           cat layer.tf
 
       - name: upload layer tf file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: layer.tf
           path: layer.tf
