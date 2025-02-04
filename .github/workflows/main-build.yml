@@ -241,7 +241,7 @@ jobs:
         run: |
           ./build-layer.sh
       - name: Upload layer zip to GitHub Actions
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aws-opentelemetry-java-layer.zip
           path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
