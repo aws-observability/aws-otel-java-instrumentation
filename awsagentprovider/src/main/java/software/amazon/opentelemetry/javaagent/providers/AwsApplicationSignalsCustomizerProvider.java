@@ -221,6 +221,8 @@ public class AwsApplicationSignalsCustomizerProvider
         return tracerProviderBuilder;
       }
 
+      // TODO: RETURN HERE IF OUR USE CASE IS HIT
+
       // Construct meterProvider
       MetricExporter metricsExporter =
           ApplicationSignalsExporterProvider.INSTANCE.createExporter(configProps);
@@ -285,6 +287,12 @@ public class AwsApplicationSignalsCustomizerProvider
                 .setEndpoint(tracesEndpoint)
                 .build();
       }
+    }
+    // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication
+    // TODO: Figure out if `isOtlpSpanExporter(spanExporter)` is needed in the condition
+    else if (OtlpSigV4HttpSpanExporterBuilder.CLOUDWATCH_OTLP_TRACES_ENDPOINT.equals(
+        System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))) {
+      spanExporter = new OtlpSigV4HttpSpanExporterBuilder().build();
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
