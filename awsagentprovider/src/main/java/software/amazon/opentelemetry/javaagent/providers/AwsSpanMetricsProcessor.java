@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 
 import io.opentelemetry.api.common.Attributes;
@@ -60,6 +61,10 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   private static final int ERROR_CODE_UPPER_BOUND = 499;
   private static final int FAULT_CODE_LOWER_BOUND = 500;
   private static final int FAULT_CODE_UPPER_BOUND = 599;
+
+  // EC2 Metadata API IP Address
+  // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html#instancedata-inside-access
+  private final String EC2_METADATA_API_IP = "169.254.169.254";
 
   // Metric instruments
   private final LongHistogram errorHistogram;
@@ -117,8 +122,10 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
     Map<String, Attributes> attributeMap =
         generator.generateMetricAttributeMapFromSpan(spanData, resource);
 
-    for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
-      recordMetrics(span, spanData, attribute.getValue());
+    if (!isEc2MetadataSpan(attributeMap)) {
+      for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
+        recordMetrics(span, spanData, attribute.getValue());
+      }
     }
   }
 
@@ -176,5 +183,19 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       recordErrorOrFault(spanData, attributes);
       recordLatency(span, attributes);
     }
+  }
+
+  private boolean isEc2MetadataSpan(Map<String, Attributes> attributeMap) {
+    if (attributeMap.get(MetricAttributeGenerator.DEPENDENCY_METRIC) != null
+        && attributeMap.get(MetricAttributeGenerator.DEPENDENCY_METRIC).get(AWS_REMOTE_SERVICE)
+            != null
+        && attributeMap
+            .get(MetricAttributeGenerator.DEPENDENCY_METRIC)
+            .get(AWS_REMOTE_SERVICE)
+            .equals(EC2_METADATA_API_IP)) {
+      return true;
+    }
+
+    return false;
   }
 }
