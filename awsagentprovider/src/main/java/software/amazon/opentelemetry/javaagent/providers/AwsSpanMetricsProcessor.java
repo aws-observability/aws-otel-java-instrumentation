@@ -122,10 +122,8 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
     Map<String, Attributes> attributeMap =
         generator.generateMetricAttributeMapFromSpan(spanData, resource);
 
-    if (!isEc2MetadataSpan(attributeMap)) {
-      for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
-        recordMetrics(span, spanData, attribute.getValue());
-      }
+    for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
+      recordMetrics(span, spanData, attribute.getValue());
     }
   }
 
@@ -179,20 +177,15 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
 
   private void recordMetrics(ReadableSpan span, SpanData spanData, Attributes attributes) {
     // Only record metrics if non-empty attributes are returned.
-    if (!attributes.isEmpty()) {
+    if (!attributes.isEmpty() && !isEc2MetadataSpan((attributes))) {
       recordErrorOrFault(spanData, attributes);
       recordLatency(span, attributes);
     }
   }
 
-  private boolean isEc2MetadataSpan(Map<String, Attributes> attributeMap) {
-    if (attributeMap.get(MetricAttributeGenerator.DEPENDENCY_METRIC) != null
-        && attributeMap.get(MetricAttributeGenerator.DEPENDENCY_METRIC).get(AWS_REMOTE_SERVICE)
-            != null
-        && attributeMap
-            .get(MetricAttributeGenerator.DEPENDENCY_METRIC)
-            .get(AWS_REMOTE_SERVICE)
-            .equals(EC2_METADATA_API_IP)) {
+  private boolean isEc2MetadataSpan(Attributes attributes) {
+    if (attributes.get(AWS_REMOTE_SERVICE) != null
+        && attributes.get(AWS_REMOTE_SERVICE).equals(EC2_METADATA_API_IP)) {
       return true;
     }
 
