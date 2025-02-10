@@ -530,17 +530,14 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         // More context in PR:
         // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
         //
-        // NOTE: The environment variables LAMBDA_APPLICATION_SIGNALS_REMOTE_SERVICE and
-        // LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT were introduced as part of this fix.
-        // They are optional and allow users to override the default values if needed.
+        // NOTE: The environment variables LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT was
+        // introduced as part of this fix.
+        // It is optional and allows users to override the default value if needed.
         if ("Invoke".equals(getRemoteOperation(span, RPC_METHOD))) {
-          String remoteService =
-              Optional.ofNullable(System.getenv("LAMBDA_APPLICATION_SIGNALS_REMOTE_SERVICE"))
-                  .filter(s -> !s.isEmpty())
-                  .orElse(span.getAttributes().get(AWS_LAMBDA_NAME));
-          if (remoteService != null) {
-            builder.put(AWS_REMOTE_SERVICE, remoteService);
-          }
+          Optional<String> remoteService =
+              getLambdaFunctionNameFromArn(
+                  Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
+          builder.put(AWS_REMOTE_SERVICE, remoteService.get());
 
           String remoteEnvironment =
               Optional.ofNullable(System.getenv("LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT"))
