@@ -52,12 +52,15 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
@@ -518,6 +521,37 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
                 Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN))));
         cloudformationPrimaryIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN)));
+      } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
+        // Handling downstream Lambda as a service vs. an AWS resource:
+        // - If the method call is "Invoke", we treat downstream Lambda as a service.
+        // - Otherwise, we treat it as an AWS resource.
+        //
+        // This addresses a Lambda topology issue in Application Signals.
+        // More context in PR:
+        // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
+        //
+        // NOTE: The environment variables LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT was
+        // introduced as part of this fix.
+        // It is optional and allows users to override the default value if needed.
+        if ("Invoke".equals(getRemoteOperation(span, RPC_METHOD))) {
+          Optional<String> remoteService =
+              getLambdaFunctionNameFromArn(
+                  Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
+          builder.put(AWS_REMOTE_SERVICE, remoteService.get());
+
+          String remoteEnvironment =
+              Optional.ofNullable(System.getenv("LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT"))
+                  .filter(s -> !s.isEmpty())
+                  .orElse("default");
+          builder.put(AWS_REMOTE_ENVIRONMENT, "lambda:" + remoteEnvironment);
+        } else {
+          remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
+          remoteResourceIdentifier =
+              getLambdaFunctionNameFromArn(
+                  Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
+          cloudformationPrimaryIdentifier =
+              Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_ARN)));
+        }
       } else if (isKeyPresent(span, AWS_LAMBDA_RESOURCE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
         remoteResourceIdentifier =
@@ -537,6 +571,14 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
       builder.put(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, cloudformationPrimaryIdentifier.get());
     }
+  }
+
+  private static Optional<String> getLambdaFunctionNameFromArn(Optional<String> stringArn) {
+    if (stringArn.isPresent() && stringArn.get().startsWith("arn:aws:lambda:")) {
+      Arn resourceArn = Arn.fromString(stringArn.get());
+      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    }
+    return stringArn;
   }
 
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {
