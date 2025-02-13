@@ -304,7 +304,8 @@ public class AwsApplicationSignalsCustomizerProvider
       }
     }
     // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication
-    else if (isXrayOtlpEndpoint(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))) {
+    else if (spanExporter instanceof OtlpHttpSpanExporter
+        && isXrayOtlpEndpoint(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))) {
       spanExporter =
           new OtlpAwsSpanExporter(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG));
     }
