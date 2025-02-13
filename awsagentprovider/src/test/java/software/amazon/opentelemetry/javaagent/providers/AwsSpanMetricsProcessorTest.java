@@ -25,6 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.SERVICE_METRIC;
 
@@ -378,6 +379,21 @@ class AwsSpanMetricsProcessorTest {
     validateMetricsGeneratedForStatusDataOk(600L, ExpectedStatusMetric.NEITHER);
   }
 
+  @Test
+  public void testOnEndMetricsGenerationFromEc2MetadataApi() {
+    Attributes spanAttributes = Attributes.of(AWS_REMOTE_SERVICE, "169.254.169.254");
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(
+            spanAttributes, SpanKind.CLIENT, SpanContext.getInvalid(), StatusData.unset());
+    Map<String, Attributes> metricAttributesMap = buildEc2MetadataApiMetricAttributes();
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+    verifyNoInteractions(errorHistogramMock);
+    verifyNoInteractions(faultHistogramMock);
+    verifyNoInteractions(latencyHistogramMock);
+  }
+
   private static Attributes buildSpanAttributes(boolean containsAttribute) {
     if (containsAttribute) {
       return Attributes.of(AttributeKey.stringKey("original key"), "original value");
@@ -401,6 +417,14 @@ class AwsSpanMetricsProcessorTest {
         attributesMap.put(MetricAttributeGenerator.DEPENDENCY_METRIC, attributes);
       }
     }
+    return attributesMap;
+  }
+
+  private static Map<String, Attributes> buildEc2MetadataApiMetricAttributes() {
+    Map<String, Attributes> attributesMap = new HashMap<>();
+    Attributes attributes =
+        Attributes.of(AttributeKey.stringKey(AWS_REMOTE_SERVICE.toString()), "169.254.169.254");
+    attributesMap.put(MetricAttributeGenerator.DEPENDENCY_METRIC, attributes);
     return attributesMap;
   }
 
