@@ -37,10 +37,8 @@ import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 
 /**
- *
- *
- * <p>This exporter is NOT meant for generic use since the payload is prefixed with AWS X-Ray
- * specific information.
+ * This exporter is NOT meant for generic use since the payload is prefixed with AWS X-Ray specific
+ * information.
  */
 @Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
@@ -91,8 +89,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
     public Map<String, String> get() {
       try {
         ByteArrayOutputStream encodedSpans = new ByteArrayOutputStream();
-        TraceRequestMarshaler.create(OtlpAwsSpanExporter.this.spanData)
-            .writeBinaryTo(encodedSpans);
+        TraceRequestMarshaler.create(OtlpAwsSpanExporter.this.spanData).writeBinaryTo(encodedSpans);
 
         SdkHttpRequest httpRequest =
             SdkHttpFullRequest.builder()
