@@ -67,8 +67,8 @@ public class OtlpAwsSpanExporterTest {
                   .method(SdkHttpMethod.POST)
                   .uri(URI.create(OTLP_CW_ENDPOINT))
                   .putHeader(AUTHORIZATION_HEADER, EXPECTED_AUTH_HEADER)
-                  .putHeader("X-Amz-Date", EXPECTED_AUTH_X_AMZ_DATE)
-                  .putHeader("X-Amz-Security-Token", EXPECTED_AUTH_SECURITY_TOKEN)
+                  .putHeader(X_AMZ_DATE_HEADER, EXPECTED_AUTH_X_AMZ_DATE)
+                  .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, EXPECTED_AUTH_SECURITY_TOKEN)
                   .build())
           .build();
 
@@ -115,11 +115,10 @@ public class OtlpAwsSpanExporterTest {
   @Test
   void testAwsSpanExporterAddsSigV4Headers() {
 
+    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
     when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenReturn(this.signedRequest);
-
-    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
 
     exporter.export(List.of());
 
@@ -132,6 +131,44 @@ public class OtlpAwsSpanExporterTest {
     assertEquals(EXPECTED_AUTH_HEADER, headers.get(AUTHORIZATION_HEADER));
     assertEquals(EXPECTED_AUTH_X_AMZ_DATE, headers.get(X_AMZ_DATE_HEADER));
     assertEquals(EXPECTED_AUTH_SECURITY_TOKEN, headers.get(X_AMZ_SECURITY_TOKEN_HEADER));
+  }
+
+  @Test
+  void testAwsSpanExporterExportCorrectlyAddsDifferentSigV4Headers() {
+    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
+
+    for (int i = 0; i < 10; i += 1) {
+      String newAuthHeader = EXPECTED_AUTH_HEADER + i;
+      String newXAmzDate = EXPECTED_AUTH_X_AMZ_DATE + i;
+      String newXAmzSecurityToken = EXPECTED_AUTH_SECURITY_TOKEN + i;
+
+      SignedRequest newSignedRequest =
+          SignedRequest.builder()
+              .request(
+                  SdkHttpFullRequest.builder()
+                      .method(SdkHttpMethod.POST)
+                      .uri(URI.create(OTLP_CW_ENDPOINT))
+                      .putHeader(AUTHORIZATION_HEADER, newAuthHeader)
+                      .putHeader(X_AMZ_DATE_HEADER, newXAmzDate)
+                      .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, newXAmzSecurityToken)
+                      .build())
+              .build();
+
+      when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
+      doReturn(newSignedRequest).when(this.signer).sign(any(Consumer.class));
+
+      exporter.export(List.of());
+
+      Map<String, String> headers = this.headersCaptor.getValue().get();
+
+      assertTrue(headers.containsKey(X_AMZ_DATE_HEADER));
+      assertTrue(headers.containsKey(AUTHORIZATION_HEADER));
+      assertTrue(headers.containsKey(X_AMZ_SECURITY_TOKEN_HEADER));
+
+      assertEquals(newAuthHeader, headers.get(AUTHORIZATION_HEADER));
+      assertEquals(newXAmzDate, headers.get(X_AMZ_DATE_HEADER));
+      assertEquals(newXAmzSecurityToken, headers.get(X_AMZ_SECURITY_TOKEN_HEADER));
+    }
   }
 
   @Test

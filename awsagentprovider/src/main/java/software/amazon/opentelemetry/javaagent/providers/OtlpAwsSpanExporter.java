@@ -20,9 +20,14 @@ import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
 import org.slf4j.Logger;
@@ -38,13 +43,12 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 /**
  * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
  * to the XRay OTLP endpoint https://xray.[AWSRegion].amazonaws.com/v1/traces. Utilizes the AWSSDK
- * library to sign and directly inject SigV4 Authentication to the exported request's headers.
- * https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html
+ * library to sign and directly inject SigV4 Authentication to the exported request's headers. <a
+ * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>
  */
 @Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
   private static final Logger logger = LoggerFactory.getLogger(OtlpAwsSpanExporter.class);
-  private static final AwsV4HttpSigner signer = AwsV4HttpSigner.create();
 
   private final OtlpHttpSpanExporter parentExporter;
   private final String awsRegion;
@@ -54,6 +58,18 @@ public class OtlpAwsSpanExporter implements SpanExporter {
   public OtlpAwsSpanExporter(String endpoint) {
     this.parentExporter =
         OtlpHttpSpanExporter.builder()
+            .setEndpoint(endpoint)
+            .setHeaders(new SigV4AuthHeaderSupplier())
+            .build();
+
+    this.awsRegion = endpoint.split("\\.")[1];
+    this.endpoint = endpoint;
+    this.spanData = new ArrayList<>();
+  }
+
+  public OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
+    this.parentExporter =
+        parentExporter.toBuilder()
             .setEndpoint(endpoint)
             .setHeaders(new SigV4AuthHeaderSupplier())
             .build();
@@ -108,14 +124,15 @@ public class OtlpAwsSpanExporter implements SpanExporter {
         AwsCredentials credentials = DefaultCredentialsProvider.create().resolveCredentials();
 
         SignedRequest signedRequest =
-            signer.sign(
-                b ->
-                    b.identity(credentials)
-                        .request(httpRequest)
-                        .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "xray")
-                        .putProperty(
-                            AwsV4HttpSigner.REGION_NAME, OtlpAwsSpanExporter.this.awsRegion)
-                        .payload(() -> new ByteArrayInputStream(encodedSpans.toByteArray())));
+            AwsV4HttpSigner.create()
+                .sign(
+                    b ->
+                        b.identity(credentials)
+                            .request(httpRequest)
+                            .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "xray")
+                            .putProperty(
+                                AwsV4HttpSigner.REGION_NAME, OtlpAwsSpanExporter.this.awsRegion)
+                            .payload(() -> new ByteArrayInputStream(encodedSpans.toByteArray())));
 
         Map<String, String> result = new HashMap<>();
 

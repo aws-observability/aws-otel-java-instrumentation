@@ -72,7 +72,7 @@ public class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
   private static final String XRAY_OTLP_ENDPOINT_PATTERN =
-      "https://xray\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/traces$";
+      "^https://xray\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/traces$";
 
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
@@ -307,7 +307,9 @@ public class AwsApplicationSignalsCustomizerProvider
     else if (spanExporter instanceof OtlpHttpSpanExporter
         && isXrayOtlpEndpoint(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))) {
       spanExporter =
-          new OtlpAwsSpanExporter(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG));
+          new OtlpAwsSpanExporter(
+              (OtlpHttpSpanExporter) spanExporter,
+              System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG));
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
