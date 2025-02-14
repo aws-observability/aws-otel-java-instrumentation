@@ -36,8 +36,10 @@ import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 
 /**
- * This exporter is NOT meant for generic use since the payload is prefixed with AWS X-Ray specific
- * information.
+ * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
+ * to the XRay OTLP endpoint https://xray.[AWSRegion].amazonaws.com/v1/traces. Utilizes the AWSSDK
+ * library to sign and directly inject SigV4 Authentication to the exported request's headers.
+ * https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html
  */
 @Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
@@ -61,6 +63,11 @@ public class OtlpAwsSpanExporter implements SpanExporter {
     this.spanData = new ArrayList<>();
   }
 
+  /**
+   * Overrides the upstream implementation of export. All behaviors are the same except if the
+   * endpoint is an XRay OTLP endpoint, we will sign the request with SigV4 in headers before
+   * sending it to the endpoint. Otherwise, we will skip signing.
+   */
   @Override
   public CompletableResultCode export(Collection<SpanData> spans) {
     this.spanData = spans;
