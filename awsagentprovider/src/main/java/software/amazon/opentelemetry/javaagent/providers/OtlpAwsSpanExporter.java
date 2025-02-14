@@ -25,7 +25,6 @@ import java.net.URI;
 import java.util.*;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -63,7 +62,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
   }
 
   @Override
-  public CompletableResultCode export(@NotNull Collection<SpanData> spans) {
+  public CompletableResultCode export(Collection<SpanData> spans) {
     this.spanData = spans;
     return this.parentExporter.export(spans);
   }
