@@ -48,6 +48,7 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
  */
 @Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
+  private static final String SERVICE_NAME = "xray";
   private static final Logger logger = LoggerFactory.getLogger(OtlpAwsSpanExporter.class);
 
   private final OtlpHttpSpanExporter parentExporter;
@@ -129,7 +130,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
                     b ->
                         b.identity(credentials)
                             .request(httpRequest)
-                            .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "xray")
+                            .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, SERVICE_NAME)
                             .putProperty(
                                 AwsV4HttpSigner.REGION_NAME, OtlpAwsSpanExporter.this.awsRegion)
                             .payload(() -> new ByteArrayInputStream(encodedSpans.toByteArray())));

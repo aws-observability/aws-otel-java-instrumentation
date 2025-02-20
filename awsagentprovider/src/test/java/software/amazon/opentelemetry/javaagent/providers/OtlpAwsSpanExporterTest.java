@@ -49,7 +49,7 @@ import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 
 @ExtendWith(MockitoExtension.class)
 public class OtlpAwsSpanExporterTest {
-  private static final String OTLP_CW_ENDPOINT = "https://xray.us-east-1.amazonaws.com/v1/traces";
+  private static final String XRAY_OTLP_ENDPOINT = "https://xray.us-east-1.amazonaws.com/v1/traces";
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private static final String X_AMZ_DATE_HEADER = "X-Amz-Date";
   private static final String X_AMZ_SECURITY_TOKEN_HEADER = "X-Amz-Security-Token";
@@ -65,7 +65,7 @@ public class OtlpAwsSpanExporterTest {
           .request(
               SdkHttpFullRequest.builder()
                   .method(SdkHttpMethod.POST)
-                  .uri(URI.create(OTLP_CW_ENDPOINT))
+                  .uri(URI.create(XRAY_OTLP_ENDPOINT))
                   .putHeader(AUTHORIZATION_HEADER, EXPECTED_AUTH_HEADER)
                   .putHeader(X_AMZ_DATE_HEADER, EXPECTED_AUTH_X_AMZ_DATE)
                   .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, EXPECTED_AUTH_SECURITY_TOKEN)
@@ -115,7 +115,7 @@ public class OtlpAwsSpanExporterTest {
   @Test
   void testAwsSpanExporterAddsSigV4Headers() {
 
-    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
+    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
     when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenReturn(this.signedRequest);
@@ -135,7 +135,7 @@ public class OtlpAwsSpanExporterTest {
 
   @Test
   void testAwsSpanExporterExportCorrectlyAddsDifferentSigV4Headers() {
-    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
+    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
 
     for (int i = 0; i < 10; i += 1) {
       String newAuthHeader = EXPECTED_AUTH_HEADER + i;
@@ -147,7 +147,7 @@ public class OtlpAwsSpanExporterTest {
               .request(
                   SdkHttpFullRequest.builder()
                       .method(SdkHttpMethod.POST)
-                      .uri(URI.create(OTLP_CW_ENDPOINT))
+                      .uri(URI.create(XRAY_OTLP_ENDPOINT))
                       .putHeader(AUTHORIZATION_HEADER, newAuthHeader)
                       .putHeader(X_AMZ_DATE_HEADER, newXAmzDate)
                       .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, newXAmzSecurityToken)
@@ -177,7 +177,7 @@ public class OtlpAwsSpanExporterTest {
     when(this.credentialsProvider.resolveCredentials())
         .thenThrow(SdkClientException.builder().message("bad credentials").build());
 
-    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
+    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
 
     exporter.export(List.of());
 
@@ -198,7 +198,7 @@ public class OtlpAwsSpanExporterTest {
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenThrow(SdkClientException.builder().message("bad signature").build());
 
-    SpanExporter exporter = new OtlpAwsSpanExporter(OTLP_CW_ENDPOINT);
+    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
 
     exporter.export(List.of());
 
