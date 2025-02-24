@@ -103,7 +103,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
 
   @Override
   public String toString() {
-    return this.parentExporter.toString();
+    return this.parentExporter.toString().replace("OtlpHttpSpanExporter", "OtlpAwsSpanExporter");
   }
 
   private final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
