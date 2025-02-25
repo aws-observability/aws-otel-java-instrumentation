@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 
 # Stage 1: Build the cp-utility binary
-FROM public.ecr.aws/docker/library/rust:1.82 as builder
+FROM public.ecr.aws/docker/library/rust:1.85 as builder
 
 WORKDIR /usr/src/cp-utility
 COPY ./tools/cp-utility .
