@@ -206,6 +206,19 @@ jobs:
       cpu-architecture: 'arm64'
 
   #
+  # UBUNTU COVERAGE
+  # DEFAULT SETTING: Java 11, EC2, AMD64, Ubuntu
+  #
+
+  v11-amd64-ubuntu:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-ubuntu-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+
+  #
   # Other Functional Test Case
   #
 
