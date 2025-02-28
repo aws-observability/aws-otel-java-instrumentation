@@ -171,14 +171,14 @@ jobs:
       - name: generate layer-note
         working-directory: ${{ env.LAYER_NAME }}
         run: |
-          echo "| Region | Layer ARN |" >> layer-note
-          echo "|  ----  | ----  |" >> layer-note
+          echo "| Region | Layer ARN |" >> ../layer-note
+          echo "|  ----  | ----  |" >> ../layer-note
           for file in *
           do
           read arn < $file
-          echo "| " $file " | " $arn " |" >> layer-note
+          echo "| " $file " | " $arn " |" >> ../layer-note
           done
-          cat layer-note
+          cat ../layer-note
       - name: generate tf layer
         working-directory: ${{ env.LAYER_NAME }}
         run: |
@@ -208,7 +208,7 @@ jobs:
           echo "" >> release_notes.md
           echo "See new Lambda Layer ARNs:" >> release_notes.md
           echo "" >> release_notes.md
-          cat ${{ env.LAYER_NAME }}/layer-note >> release_notes.md
+          cat layer-note >> release_notes.md
           echo "" >> release_notes.md
           echo "Notes:" >> release_notes.md
       - name: Create GH release
