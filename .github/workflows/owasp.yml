@@ -61,9 +61,9 @@ jobs:
         if: always()
         run: |
           gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 259A55407DD6C00299E6607EFFDE55BE73A2D1ED
-          VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt)
-          curl -Ls "https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" --output dependency-check.zip
-          curl -Ls "https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip.asc" --output dependency-check.zip.asc
+          VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt | head -n1 | cut -d' ' -f1)
+          curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" --output dependency-check.zip
+          curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip.asc" --output dependency-check.zip.asc
           gpg --verify dependency-check.zip.asc
           unzip dependency-check.zip
           ./dependency-check/bin/dependency-check.sh --failOnCVSS 0 --nvdApiKey ${{ env.NVD_API_KEY_NVD_API_KEY }} -s 'otelagent/build/libs/aws-opentelemetry-agent-*-SNAPSHOT.jar'
