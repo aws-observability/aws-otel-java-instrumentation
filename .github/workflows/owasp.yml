@@ -72,20 +72,36 @@ jobs:
         if: ${{ steps.dep_scan.outcome != 'success' }}
         run: less dependency-check-report.html
 
-      - name: Perform high image scan
+      - name: Perform high image scan on v1
         if: always()
-        id: high_scan
+        id: high_scan_v1
         uses: ./.github/actions/image_scan
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.6"
           severity: 'CRITICAL,HIGH'
 
-      - name: Perform low image scan
+      - name: Perform low image scan on v1
         if: always()
-        id: low_scan
+        id: low_scan_v1
         uses: ./.github/actions/image_scan
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.6"
+          severity: 'MEDIUM,LOW,UNKNOWN'
+
+      - name: Perform high image scan on v2
+        if: always()
+        id: high_scan_v2
+        uses: ./.github/actions/image_scan
+        with:
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.0.0"
+          severity: 'CRITICAL,HIGH'
+
+      - name: Perform low image scan on v2
+        if: always()
+        id: low_scan_v2
+        uses: ./.github/actions/image_scan
+        with:
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.0.0"
           severity: 'MEDIUM,LOW,UNKNOWN'
 
       - name: Configure AWS Credentials for emitting metrics
@@ -95,19 +111,37 @@ jobs:
           role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
           aws-region:  ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Publish high scan status
+      - name: Publish high scan status on v1
         if: always()
         run: |
-          value="${{ steps.high_scan.outcome == 'success' && '1.0' || '0.0' }}"
+          value="${{ steps.high_scan_v1.outcome == 'success' && '1.0' || '0.0' }}"
           aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
             --metric-name Success \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
             --value $value
 
-      - name: Publish low scan status
+      - name: Publish high scan status on v2
         if: always()
         run: |
-          value="${{ steps.low_scan.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
+          value="${{ steps.high_scan_v2.outcome == 'success' && '1.0' || '0.0' }}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Success \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
+            --value $value
+
+      - name: Publish low scan status on v1
+        if: always()
+        run: |
+          value="${{ steps.low_scan_v1.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Success \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
+            --value $value
+      
+      - name: Publish low scan status on v2
+        if: always()
+        run: |
+          value="${{ steps.low_scan_v2.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
           aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
             --metric-name Success \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
