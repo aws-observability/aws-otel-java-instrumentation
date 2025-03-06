@@ -28,6 +28,8 @@ import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 public class UdpExporterTest {
@@ -63,6 +65,30 @@ public class UdpExporterTest {
             })
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid endpoint, must be a valid URL: invalidhost");
+  }
+
+  @Test
+  public void shouldUseExpectedEnvironmentVariablesToConfigureEndpoint() {
+    // Create a test environment map
+    Map<String, String> testEnv = new HashMap<>();
+    testEnv.put("AWS_LAMBDA_FUNCTION_NAME", "testFunctionName");
+    testEnv.put("AWS_XRAY_DAEMON_ADDRESS", "someaddress:1234");
+
+    // Create builder with test environment
+    OtlpUdpSpanExporterBuilder builder =
+        new OtlpUdpSpanExporterBuilder().withEnvironmentVariables(testEnv);
+
+    // Verify that environment variables are set correctly
+    assertThat(builder.getEnvironmentVariables())
+        .containsEntry("AWS_LAMBDA_FUNCTION_NAME", "testFunctionName")
+        .containsEntry("AWS_XRAY_DAEMON_ADDRESS", "someaddress:1234");
+
+    // Build the exporter and verify the configuration
+    OtlpUdpSpanExporter exporter = builder.build();
+    UdpSender sender = exporter.getSender();
+
+    assertThat(sender.getEndpoint().getHostName()).isEqualTo("someaddress");
+    assertThat(sender.getEndpoint().getPort()).isEqualTo(1234);
   }
 
   @Test

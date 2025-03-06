@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "software.opentelemetry.exporters.otlp.udp"
-version = "1.0-SNAPSHOT"
+version = "0.0.1"
 
 repositories {
   mavenLocal()
@@ -63,16 +63,10 @@ sourceSets {
     java {
       srcDirs("src/main/java")
     }
-    resources {
-      srcDirs("src/main/resources")
-    }
   }
   test {
     java {
       srcDirs("src/test/java")
-    }
-    resources {
-      srcDirs("src/test/resources")
     }
   }
 }

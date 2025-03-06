@@ -16,8 +16,8 @@
 package software.opentelemetry.exporters.otlp.udp;
 
 import static java.util.Objects.requireNonNull;
-//import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
-//import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_XRAY_DAEMON_ADDRESS_CONFIG;
+
+import java.util.Map;
 
 public final class OtlpUdpSpanExporterBuilder {
 
@@ -36,6 +36,7 @@ public final class OtlpUdpSpanExporterBuilder {
 
   private UdpSender sender;
   private String tracePayloadPrefix = FORMAT_OTEL_SAMPLED_TRACES_BINARY_PREFIX;
+  private Map<String, String> environmentVariables = System.getenv();
 
   private static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
@@ -61,36 +62,49 @@ public final class OtlpUdpSpanExporterBuilder {
     return this;
   }
 
+  // For testing purposes
+  public OtlpUdpSpanExporterBuilder withEnvironmentVariables(Map<String, String> env) {
+    this.environmentVariables = env;
+    return this;
+  }
+
+  // NEW: Added getter for testing
+  Map<String, String> getEnvironmentVariables() {
+    return environmentVariables;
+  }
+
   public OtlpUdpSpanExporter build() {
     if (sender == null) {
-        String endpoint = null;
-        
-        // If in Lambda environment, try to get X-Ray daemon address
-        if (isLambdaEnvironment()) {
-            endpoint = System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG);
-        }
-        
-        if (endpoint != null) {
-            // Use the endpoint from Lambda environment
-            try {
-                String[] parts = endpoint.split(":");
-                String host = parts[0];
-                int port = Integer.parseInt(parts[1]);
-                this.sender = new UdpSender(host, port);
-            } catch (Exception e) {
-                // Fallback to defaults if parsing fails
-                this.sender = new UdpSender(DEFAULT_HOST, DEFAULT_PORT);
-            }
-        } else {
-            // Use defaults if not in Lambda or if daemon address is not available
+      String endpoint = null;
+
+      // If in Lambda environment, try to get X-Ray daemon address
+      if (isLambdaEnvironment()) {
+        endpoint = environmentVariables.get(AWS_XRAY_DAEMON_ADDRESS_CONFIG);
+        if (endpoint != null && !endpoint.isEmpty()) {
+          try {
+            String[] parts = endpoint.split(":");
+            String host = parts[0];
+            int port = Integer.parseInt(parts[1]);
+            this.sender = new UdpSender(host, port);
+            return new OtlpUdpSpanExporter(
+                this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
+          } catch (Exception e) {
+            // Fallback to defaults if parsing fails
             this.sender = new UdpSender(DEFAULT_HOST, DEFAULT_PORT);
+          }
         }
+      }
+
+      // Use defaults if not in Lambda or if daemon address is invalid/unavailable
+      this.sender = new UdpSender(DEFAULT_HOST, DEFAULT_PORT);
     }
     return new OtlpUdpSpanExporter(
         this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
-}
-  private static boolean isLambdaEnvironment() {
-    return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
+  }
+
+  private boolean isLambdaEnvironment() {
+    String functionName = environmentVariables.get(AWS_LAMBDA_FUNCTION_NAME_CONFIG);
+    return functionName != null && !functionName.isEmpty();
   }
 
   // Only for testing
