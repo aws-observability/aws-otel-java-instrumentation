@@ -22,22 +22,13 @@ plugins {
 group = "software.opentelemetry.exporters.otlp.udp"
 version = "0.0.1"
 
-repositories {
-  mavenLocal()
-  mavenCentral()
-}
-
 dependencies {
   implementation(platform("io.opentelemetry:opentelemetry-bom:1.44.1"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
-  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
   implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
   implementation("io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha")
-  implementation("com.google.code.findbugs:jsr305:3.0.2")
-  implementation("org.apache.logging.log4j:log4j-api:2.24.1")
-  implementation("org.apache.logging.log4j:log4j-core:2.24.1")
-  implementation("org.slf4j:slf4j-simple:2.0.16")
+  compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation(platform("org.junit:junit-bom:5.9.2"))
   testImplementation("org.junit.jupiter:junit-jupiter-api")
   testImplementation("org.junit.jupiter:junit-jupiter-engine")
