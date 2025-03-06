@@ -41,6 +41,7 @@ dependencyResolutionManagement {
 include(":awsagentprovider")
 include(":awspropagator")
 include(":dependencyManagement")
+include(":exporters:aws-otel-otlp-udp-exporter")
 include(":instrumentation:logback-1.0")
 include(":instrumentation:log4j-2.13.2")
 include(":instrumentation:jmx-metrics")
