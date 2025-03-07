@@ -32,9 +32,9 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build package
-        working-directory: exporters/aws-otel-otlp-udp-exporter
-        run: ../../gradlew build
+      - name: Build UDP exporter
+        run: |
+          ./gradlew :exporters:aws-otel-otlp-udp-exporter:build -x test
 
       - name: Download and run X-Ray Daemon
         run: |
@@ -45,10 +45,8 @@ jobs:
           ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
 
       - name: Install UDP Exporter
-        working-directory: exporters/aws-otel-otlp-udp-exporter
         run: |
-          ../../gradlew publishToMavenLocal
-          ls -la ~/.m2/repository/software/opentelemetry/exporters/otlp/udp/  
+          ./gradlew :exporters:aws-otel-otlp-udp-exporter:publishToMavenLocal  
 
       - name: Ensure Unit Tests are passing
         working-directory: exporters/aws-otel-otlp-udp-exporter
@@ -58,10 +56,8 @@ jobs:
       - name: Run Sample App in Background
         working-directory: sample-applications/integ-test-app
         run: |
-          # Build and start validation app
-          ../../gradlew build
+          ../../gradlew :sample-applications:integ-test-app:build
           java -jar build/libs/integ-test-app.jar &
-          # Wait for validation app to initialize
           sleep 5
 
       - name: Call Sample App Endpoint
