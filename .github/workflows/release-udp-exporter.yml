@@ -20,7 +20,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          java-version: '8'  # or your preferred version
+          java-version: '17'  # or your preferred version
           distribution: 'temurin'
           cache: 'gradle'    # Add gradle caching
       
