@@ -28,6 +28,8 @@ patch -p1 < "$SOURCEDIR"/../.github/patches/opentelemetry-java-instrumentation.p
 # This patch is for Lambda related context propagation
 patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
 
+patch -p1 < "$SOURCEDIR"/patches/StreamHandlerInstrumentation.patch
+
 ./gradlew publishToMavenLocal
 popd
 rm -rf opentelemetry-java-instrumentation
