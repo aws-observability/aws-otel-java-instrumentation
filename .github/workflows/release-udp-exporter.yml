@@ -1,0 +1,92 @@
+name: Release ADOT OTLP UDP Exporter
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number for deployment e.g. 0.0.1'
+        required: true
+        type: string
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'  # or your preferred version
+          distribution: 'temurin'
+          cache: 'gradle'    # Add gradle caching
+      
+      # Add this step to set up Maven Local
+      - name: Set up Maven Local
+        run: |
+          mkdir -p ~/.m2/repository
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build package
+        working-directory: exporters/aws-otel-otlp-udp-exporter
+        run: ../../gradlew build
+
+      - name: Download and run X-Ray Daemon
+        run: |
+          mkdir xray-daemon
+          cd xray-daemon
+          wget https://s3.us-west-2.amazonaws.com/aws-xray-assets.us-west-2/xray-daemon/aws-xray-daemon-linux-3.x.zip
+          unzip aws-xray-daemon-linux-3.x.zip
+          ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
+
+      - name: Install UDP Exporter
+        working-directory: exporters/aws-otel-otlp-udp-exporter
+        run: |
+          ../../gradlew publishToMavenLocal
+          ls -la ~/.m2/repository/software/opentelemetry/exporters/otlp/udp/  
+
+      - name: Ensure Unit Tests are passing
+        working-directory: exporters/aws-otel-otlp-udp-exporter
+        run: |
+          ../../gradlew test
+
+      - name: Run Sample App in Background
+        working-directory: sample-applications/integ-test-app
+        run: |
+          # Build and start validation app
+          ../../gradlew build
+          java -jar build/libs/integ-test-app.jar &
+          # Wait for validation app to initialize
+          sleep 5
+
+      - name: Call Sample App Endpoint
+        run: |
+          echo "traceId=$(curl localhost:8080/test)" >> $GITHUB_OUTPUT
+
+      - name: Verify X-Ray daemon received traces
+        run: |
+          sleep 10
+          echo "X-Ray daemon logs:"
+          cat xray-daemon/daemon-logs.log
+
+          # Check if the daemon received and processed some data
+          if grep -q "sending.*batch" xray-daemon/daemon-logs.log; then
+            echo "✅ X-Ray daemon processed trace data (AWS upload errors are expected)"
+            exit 0
+          elif grep -q "processor:.*segment" xray-daemon/daemon-logs.log; then
+            echo "✅ X-Ray daemon processed segment data (AWS upload errors are expected)"
+            exit 0
+          else
+            echo "❌ No evidence of traces being received by X-Ray daemon"
+            exit 1
+          fi
+
+      # TODO: Steps to publish to Maven Central
+      # - name: Publish to Maven Central
+      #   env:
+      #     MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      #     MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+      #   working-directory: exporters/aws-otel-otlp-udp-exporter
+      #   run: ../../gradlew publish
