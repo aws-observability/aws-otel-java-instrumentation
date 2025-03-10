@@ -28,21 +28,24 @@ public class AwsTracerCustomizerProvider implements AutoConfigurationCustomizerP
       }
     }
 
-    // Set default OpenTelemetry environment variables if they are not already set
-    setDefaultSystemProperty("otel.aws.application.signals.enabled", "false"); // Default to false
+    // Set OpenTelemetry environment variables based on env variables first
+    setSystemPropertyFromEnvOrDefault("otel.aws.application.signals.enabled", "false"); // Default to false
     if ("true".equals(System.getProperty("otel.aws.application.signals.enabled"))) {
-      setDefaultSystemProperty("otel.metrics.exporter", "none");
-      setDefaultSystemProperty("otel.logs.export", "none");
-      setDefaultSystemProperty("otel.aws.application.signals.exporter.endpoint", "http://localhost:4316/v1/metrics");
-      setDefaultSystemProperty("otel.exporter.otlp.protocol", "http/protobuf");
-      setDefaultSystemProperty("otel.exporter.otlp.traces.endpoint", "http://localhost:4316/v1/traces");
-      setDefaultSystemProperty("otel.traces.sampler", "xray");
-      setDefaultSystemProperty("otel.traces.sampler.arg", "endpoint=http://localhost:2000");
+      setSystemPropertyFromEnvOrDefault("otel.metrics.exporter", "none");
+      setSystemPropertyFromEnvOrDefault("otel.logs.export", "none");
+      setSystemPropertyFromEnvOrDefault("otel.aws.application.signals.exporter.endpoint", "http://localhost:4316/v1/metrics");
+      setSystemPropertyFromEnvOrDefault("otel.exporter.otlp.protocol", "http/protobuf");
+      setSystemPropertyFromEnvOrDefault("otel.exporter.otlp.traces.endpoint", "http://localhost:4316/v1/traces");
+      setSystemPropertyFromEnvOrDefault("otel.traces.sampler", "xray");
+      setSystemPropertyFromEnvOrDefault("otel.traces.sampler.arg", "endpoint=http://localhost:2000");
     }
   }
 
-  private static void setDefaultSystemProperty(String key, String defaultValue) {
-    if (System.getProperty(key) == null && System.getenv(key.toUpperCase().replace('.', '_')) == null) {
+  private static void setSystemPropertyFromEnvOrDefault(String key, String defaultValue) {
+    String envValue = System.getenv(key.toUpperCase().replace('.', '_'));
+    if (envValue != null) {
+      System.setProperty(key, envValue);
+    } else if (System.getProperty(key) == null) {
       System.setProperty(key, defaultValue);
     }
   }
