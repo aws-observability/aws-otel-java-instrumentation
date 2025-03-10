@@ -224,3 +224,13 @@ jobs:
              layer_arns.tf layer.zip
           echo Removing release_notes.md ...
           rm -f release_notes.md
+      - name: Upload layer.zip and SHA-256 checksum to SDK Release Notes (tagged with latest)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
+          # Generate SHA-256 checksum for layer.zip
+          shasum -a 256 layer.zip > layer.zip.sha256
+          # Upload layer.zip and its checksum to the latest SDK release note
+          gh release upload "$LATEST_SDK_VERSION" layer.zip layer.zip.sha256 --repo "aws-observability/aws-otel-java-instrumentation" --clobber
+          echo "✅ layer.zip successfully uploaded to $LATEST_SDK_VERSION in the upstream repo!"
