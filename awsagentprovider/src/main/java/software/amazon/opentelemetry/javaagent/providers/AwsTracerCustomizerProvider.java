@@ -27,12 +27,28 @@ public class AwsTracerCustomizerProvider implements AutoConfigurationCustomizerP
         System.setProperty("otel.aws.imds.endpointOverride", overrideFromEnv);
       }
     }
+
+    // Set default OpenTelemetry environment variables if they are not already set
+    setDefaultSystemProperty("otel.metrics.exporter", "none");
+    setDefaultSystemProperty("otel.logs.export", "none");
+    setDefaultSystemProperty("otel.aws.application.signals.enabled", "false"); // Default to false
+    setDefaultSystemProperty("otel.aws.application.signals.exporter.endpoint", "http://localhost:4316/v1/metrics");
+    setDefaultSystemProperty("otel.exporter.otlp.protocol", "http/protobuf");
+    setDefaultSystemProperty("otel.exporter.otlp.traces.endpoint", "http://localhost:4316/v1/traces");
+    setDefaultSystemProperty("otel.traces.sampler", "xray");
+    setDefaultSystemProperty("otel.traces.sampler.arg", "endpoint=http://localhost:2000");
+  }
+
+  private static void setDefaultSystemProperty(String key, String defaultValue) {
+    if (System.getProperty(key) == null && System.getenv(key.toUpperCase().replace('.', '_')) == null) {
+      System.setProperty(key, defaultValue);
+    }
   }
 
   @Override
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addTracerProviderCustomizer(
-        (tracerProviderBuilder, configProps) ->
-            tracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance()));
+            (tracerProviderBuilder, configProps) ->
+                    tracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance()));
   }
 }
