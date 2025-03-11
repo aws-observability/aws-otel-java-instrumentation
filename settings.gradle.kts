@@ -52,6 +52,7 @@ include(":smoke-tests:spring-boot")
 include(":sample-apps:springboot")
 include(":sample-apps:spark")
 include(":sample-apps:spark-awssdkv1")
+include(":sample-apps:integ-test-app")
 
 // Used for contract tests
 include("appsignals-tests:images:mock-collector")

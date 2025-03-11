@@ -54,9 +54,9 @@ jobs:
           ../../gradlew test
 
       - name: Run Sample App in Background
-        working-directory: sample-applications/integ-test-app
+        working-directory: sample-apps/integ-test-app
         run: |
-          ../../gradlew :sample-applications:integ-test-app:build
+          ../../gradlew :sample-apps:integ-test-app:build
           java -jar build/libs/integ-test-app.jar &
           sleep 5
 
