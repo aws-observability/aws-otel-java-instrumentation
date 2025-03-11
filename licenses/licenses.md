@@ -1,7 +1,7 @@
 
 # aws-otel-java-instrumentation
 ## Dependency License Report
-_2025-01-09 18:44:58 UTC_
+_2025-03-11 14:37:18 PDT_
 ## Apache 2
 
 **1** **Group:** `joda-time` **Name:** `joda-time` **Version:** `2.8.1` 
@@ -2503,6 +2503,6 @@ _2025-01-09 18:44:58 UTC_
 
 **442** **Group:** `io.opentelemetry` **Name:** `opentelemetry-bom-alpha` **Version:** `1.44.1-alpha` 
 
-**443** **Group:** `io.opentelemetry.instrumentation` **Name:** `opentelemetry-instrumentation-bom` **Version:** `2.10.0-adot1` 
+**443** **Group:** `io.opentelemetry.instrumentation` **Name:** `opentelemetry-instrumentation-bom` **Version:** `2.10.0-adot2` 
 
 
