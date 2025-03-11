@@ -41,6 +41,7 @@ val javaagentLibs by configurations.creating {
   exclude("io.opentelemetry", "opentelemetry-sdk")
   exclude("io.opentelemetry", "opentelemetry-sdk-common")
   exclude("io.opentelemetry.semconv", "opentelemetry-semconv")
+  exclude("io.opentelemetry", "opentelemetry-api-incubator")
 }
 
 val shadowClasspath by configurations.creating {
