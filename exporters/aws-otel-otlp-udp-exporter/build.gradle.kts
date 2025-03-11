@@ -19,7 +19,7 @@ plugins {
   id("maven-publish")
 }
 
-group = "software.opentelemetry.exporters.otlp.udp"
+group = "software.amazon.opentelemetry.exporters.otlp.udp.trace"
 version = "0.0.1"
 
 dependencies {
