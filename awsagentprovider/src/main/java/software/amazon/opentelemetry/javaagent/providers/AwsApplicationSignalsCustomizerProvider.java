@@ -51,6 +51,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * This customizer performs the following customizations:
@@ -70,6 +71,8 @@ import java.util.logging.Logger;
 public class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+  private static final String XRAY_OTLP_ENDPOINT_PATTERN =
+      "^https://xray\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/traces$";
 
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
@@ -95,6 +98,9 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_JMX_TARGET_SYSTEM_CONFIG = "otel.jmx.target.system";
   private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
       "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+  private static final String OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL = "http/protobuf";
+  private static final String OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG =
+      "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
   private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
   private static final String OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG =
@@ -106,6 +112,8 @@ public class AwsApplicationSignalsCustomizerProvider
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
+  private static final boolean isSigV4Enabled =
+      AwsApplicationSignalsCustomizerProvider.isSigV4Enabled();
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -119,6 +127,37 @@ public class AwsApplicationSignalsCustomizerProvider
 
   static boolean isLambdaEnvironment() {
     return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
+  }
+
+  static boolean isSigV4Enabled() {
+    String otlpEndpoint = System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG);
+    boolean isXrayOtlpEndpoint =
+        otlpEndpoint != null
+            && Pattern.compile(XRAY_OTLP_ENDPOINT_PATTERN)
+                .matcher(otlpEndpoint.toLowerCase())
+                .matches();
+
+    if (isXrayOtlpEndpoint) {
+      logger.log(Level.INFO, "Detected using AWS OTLP XRay Endpoint.");
+
+      String otlpTracesProtocol = System.getenv(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG);
+
+      if (otlpTracesProtocol == null
+          || !otlpTracesProtocol.equals(OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL)) {
+        logger.info(
+            String.format(
+                "Improper configuration: Please configure your environment variables and export/set %s=%s",
+                OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG, OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL));
+        return false;
+      }
+
+      logger.info(
+          String.format(
+              "Proper configuration detected: Now exporting trace span data to %s", otlpEndpoint));
+      return true;
+    }
+
+    return false;
   }
 
   private boolean isApplicationSignalsEnabled(ConfigProperties configProps) {
@@ -221,6 +260,10 @@ public class AwsApplicationSignalsCustomizerProvider
         return tracerProviderBuilder;
       }
 
+      if (isSigV4Enabled) {
+        return tracerProviderBuilder;
+      }
+
       // Construct meterProvider
       MetricExporter metricsExporter =
           ApplicationSignalsExporterProvider.INSTANCE.createExporter(configProps);
@@ -285,6 +328,15 @@ public class AwsApplicationSignalsCustomizerProvider
                 .setEndpoint(tracesEndpoint)
                 .build();
       }
+    }
+
+    // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication.
+    if (isSigV4Enabled) {
+      return new OtlpAwsSpanExporter(
+          (OtlpHttpSpanExporter)
+              spanExporter, // can cast here since we've checked that the environment variable is
+          // set to http/protobuf
+          System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG));
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
