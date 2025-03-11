@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.opentelemetry.exporters.otlp.udp;
+package software.amazon.opentelemetry.exporters.otlp.udp.trace;
 
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler;
 import io.opentelemetry.sdk.common.CompletableResultCode;

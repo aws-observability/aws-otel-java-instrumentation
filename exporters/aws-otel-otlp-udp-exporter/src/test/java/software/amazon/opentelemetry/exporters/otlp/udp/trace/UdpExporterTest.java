@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.opentelemetry.exporters.otlp.udp;
+package software.amazon.opentelemetry.exporters.otlp.udp.trace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
