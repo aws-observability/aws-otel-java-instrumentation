@@ -27,12 +27,33 @@ public class AwsTracerCustomizerProvider implements AutoConfigurationCustomizerP
         System.setProperty("otel.aws.imds.endpointOverride", overrideFromEnv);
       }
     }
+
+    // Set OpenTelemetry environment variables based on env variables first
+    setSystemPropertyFromEnvOrDefault("otel.aws.application.signals.enabled", "false"); // Default to false
+    if ("true".equals(System.getProperty("otel.aws.application.signals.enabled"))) {
+      setSystemPropertyFromEnvOrDefault("otel.metrics.exporter", "none");
+      setSystemPropertyFromEnvOrDefault("otel.logs.export", "none");
+      setSystemPropertyFromEnvOrDefault("otel.aws.application.signals.exporter.endpoint", "http://localhost:4316/v1/metrics");
+      setSystemPropertyFromEnvOrDefault("otel.exporter.otlp.protocol", "http/protobuf");
+      setSystemPropertyFromEnvOrDefault("otel.exporter.otlp.traces.endpoint", "http://localhost:4316/v1/traces");
+      setSystemPropertyFromEnvOrDefault("otel.traces.sampler", "xray");
+      setSystemPropertyFromEnvOrDefault("otel.traces.sampler.arg", "endpoint=http://localhost:2000");
+    }
+  }
+
+  private static void setSystemPropertyFromEnvOrDefault(String key, String defaultValue) {
+    String envValue = System.getenv(key.toUpperCase().replace('.', '_'));
+    if (envValue != null) {
+      System.setProperty(key, envValue);
+    } else if (System.getProperty(key) == null) {
+      System.setProperty(key, defaultValue);
+    }
   }
 
   @Override
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addTracerProviderCustomizer(
-        (tracerProviderBuilder, configProps) ->
-            tracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance()));
+            (tracerProviderBuilder, configProps) ->
+                    tracerProviderBuilder.setIdGenerator(AwsXrayIdGenerator.getInstance()));
   }
 }
