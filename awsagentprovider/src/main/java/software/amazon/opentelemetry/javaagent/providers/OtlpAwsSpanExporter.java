@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.trace.data.SpanData;
@@ -24,11 +25,7 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
 import org.slf4j.Logger;
@@ -52,18 +49,32 @@ public class OtlpAwsSpanExporter implements SpanExporter {
   private static final String SERVICE_NAME = "xray";
   private static final Logger logger = LoggerFactory.getLogger(OtlpAwsSpanExporter.class);
 
-  private final SpanExporter parentExporter;
+  private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
+  private final OtlpHttpSpanExporter parentExporter;
   private final String awsRegion;
   private final String endpoint;
   private Collection<SpanData> spanData;
 
+  public OtlpAwsSpanExporter(String endpoint) {
+    this(null, endpoint);
+  }
+
   public OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
-    this.parentExporter =
-        parentExporter.toBuilder()
+    OtlpHttpSpanExporterBuilder defaultExporterBuilder =
+        OtlpHttpSpanExporter.builder()
             .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
             .setEndpoint(endpoint)
-            .setHeaders(new SigV4AuthHeaderSupplier())
-            .build();
+            .setHeaders(new SigV4AuthHeaderSupplier());
+
+    this.parentExporterBuilder =
+        parentExporter == null
+            ? defaultExporterBuilder
+            : parentExporter.toBuilder()
+                .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+                .setEndpoint(endpoint)
+                .setHeaders(new SigV4AuthHeaderSupplier());
+
+    this.parentExporter = this.parentExporterBuilder.build();
 
     this.awsRegion = endpoint.split("\\.")[1];
     this.endpoint = endpoint;
@@ -93,7 +104,10 @@ public class OtlpAwsSpanExporter implements SpanExporter {
 
   @Override
   public String toString() {
-    return this.parentExporter.toString();
+    StringJoiner joiner = new StringJoiner(", ", "OtlpAwsSpanExporter{", "}");
+    joiner.add(this.parentExporterBuilder.toString());
+    joiner.add("memoryMode=" + MemoryMode.IMMUTABLE_DATA);
+    return joiner.toString();
   }
 
   private final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {

@@ -19,6 +19,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.when;
 
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
+import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.net.URI;
 import java.util.List;
@@ -71,9 +74,12 @@ public class OtlpAwsSpanExporterTest {
 
   private MockedStatic<DefaultCredentialsProvider> mockDefaultCredentialsProvider;
   private MockedStatic<AwsV4HttpSigner> mockAwsV4HttpSigner;
+  private MockedStatic<OtlpHttpSpanExporter> otlpSpanExporterMock;
 
   @Mock private DefaultCredentialsProvider credentialsProvider;
   @Mock private AwsV4HttpSigner signer;
+  @Mock private OtlpHttpSpanExporterBuilder mockBuilder;
+  @Mock private OtlpHttpSpanExporter mockExporter;
 
   private ArgumentCaptor<Supplier<Map<String, String>>> headersCaptor;
 
@@ -87,7 +93,16 @@ public class OtlpAwsSpanExporterTest {
     this.mockAwsV4HttpSigner = mockStatic(AwsV4HttpSigner.class);
     this.mockAwsV4HttpSigner.when(AwsV4HttpSigner::create).thenReturn(this.signer);
 
+    this.otlpSpanExporterMock = mockStatic(OtlpHttpSpanExporter.class);
+
     this.headersCaptor = ArgumentCaptor.forClass(Supplier.class);
+
+    when(OtlpHttpSpanExporter.builder()).thenReturn(mockBuilder);
+    when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
+    when(this.mockBuilder.setMemoryMode(any())).thenReturn(mockBuilder);
+    when(this.mockBuilder.setHeaders(headersCaptor.capture())).thenReturn(mockBuilder);
+    when(this.mockBuilder.build()).thenReturn(mockExporter);
+    when(this.mockExporter.export(any())).thenReturn(CompletableResultCode.ofSuccess());
   }
 
   @AfterEach
@@ -95,6 +110,7 @@ public class OtlpAwsSpanExporterTest {
     reset(this.signer, this.credentialsProvider);
     this.mockDefaultCredentialsProvider.close();
     this.mockAwsV4HttpSigner.close();
+    this.otlpSpanExporterMock.close();
   }
 
   @Test

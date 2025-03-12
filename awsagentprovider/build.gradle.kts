@@ -55,6 +55,7 @@ dependencies {
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
   testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")
