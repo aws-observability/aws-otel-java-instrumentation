@@ -24,6 +24,16 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'    # Add gradle caching
 
+      - name: Configure Git
+        run: |
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+
+      - name: Run Local Patch
+        run: |
+          chmod +x ./scripts/local_patch.sh
+          ./scripts/local_patch.sh
+
       # Add this step to set up Maven Local
       - name: Set up Maven Local
         run: |
@@ -45,9 +55,8 @@ jobs:
           ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
 
       - name: Install UDP Exporter
-        working-directory: exporters/aws-otel-otlp-udp-exporter
         run: |
-          gradle publishToMavenLocal 
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter publishToMavenLocal 
 
       - name: Ensure Unit Tests are passing
         working-directory: exporters/aws-otel-otlp-udp-exporter
