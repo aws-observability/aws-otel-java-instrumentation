@@ -46,7 +46,7 @@ jobs:
 
       - name: Install UDP Exporter
         run: |
-          ./gradlew :exporters:aws-otel-otlp-udp-exporter:publishToMavenLocal  
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter publishToMavenLocal  
 
       - name: Ensure Unit Tests are passing
         working-directory: exporters/aws-otel-otlp-udp-exporter

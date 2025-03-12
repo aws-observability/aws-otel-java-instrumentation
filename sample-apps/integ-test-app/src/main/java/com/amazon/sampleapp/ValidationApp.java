@@ -7,8 +7,8 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import software.opentelemetry.exporters.otlp.udp.OtlpUdpSpanExporter;
-import software.opentelemetry.exporters.otlp.udp.OtlpUdpSpanExporterBuilder;
+import software.amazon.opentelemetry.exporters.otlp.udp.trace.OtlpUdpSpanExporter;
+import software.amazon.opentelemetry.exporters.otlp.udp.trace.OtlpUdpSpanExporterBuilder;
 
 @SpringBootApplication
 public class ValidationApp {
