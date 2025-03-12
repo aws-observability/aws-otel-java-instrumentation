@@ -23,13 +23,12 @@ jobs:
           java-version: '17'  # or your preferred version
           distribution: 'temurin'
           cache: 'gradle'    # Add gradle caching
-
-      - name: Clean Gradle Cache
-        if: always()
-        run: |
-          rm -rf ~/.gradle/caches/
-          ./gradlew --stop
       
+      - name: Run Local Patch
+        run: |
+          chmod +x ./scripts/local_patch.sh
+          ./scripts/local_patch.sh
+
       # Add this step to set up Maven Local
       - name: Set up Maven Local
         run: |
@@ -40,11 +39,7 @@ jobs:
 
       - name: Build UDP exporter
         run: |
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter \
-          --refresh-dependencies \
-          -x test \
-          -x :dependencyManagement:build \
-          --stacktrace
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter -x test 
 
       - name: Download and run X-Ray Daemon
         run: |
@@ -54,31 +49,9 @@ jobs:
           unzip aws-xray-daemon-linux-3.x.zip
           ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
 
-      - name: Debug Gradle Dependencies
-        if: always()  # This ensures the debug step runs even if previous step fails
-        run: |
-          echo "Checking dependency tree..."
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter dependencies --debug
-          echo "Checking build scan..."
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter buildEnvironment
-
-      - name: Check Gradle Settings
-        if: always()
-        run: |
-          echo "Content of settings.gradle.kts:"
-          cat settings.gradle.kts || true
-          echo "Content of UDP exporter build.gradle:"
-          cat exporters/aws-otel-otlp-udp-exporter/build.gradle.kts || true
-
       - name: Install UDP Exporter
         run: |
-          echo "Checking repositories and dependencies..."
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter \
-          publishToMavenLocal \
-          -x :dependencyManagement:build \
-          --refresh-dependencies \
-          --stacktrace \
-          --info 
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter publishToMavenLocal 
 
       - name: Ensure Unit Tests are passing
         working-directory: exporters/aws-otel-otlp-udp-exporter
