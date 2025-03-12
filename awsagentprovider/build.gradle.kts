@@ -45,6 +45,10 @@ dependencies {
   // For Udp emitter
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
 
+  // For OtlpAwsSpanExporter SigV4 Authentication
+  implementation("software.amazon.awssdk:auth")
+  implementation("software.amazon.awssdk:http-auth-aws")
+
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
