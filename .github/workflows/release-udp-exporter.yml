@@ -34,7 +34,7 @@ jobs:
 
       - name: Build UDP exporter
         run: |
-          ./gradlew :exporters:aws-otel-otlp-udp-exporter:build -x test
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter  -x test
 
       - name: Download and run X-Ray Daemon
         run: |
