@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
-  implementation("software.opentelemetry.exporters.otlp.udp:aws-otel-otlp-udp-exporter:0.0.1")
+  implementation("software.amazon.opentelemetry.exporters.otlp.udp.trace:aws-otel-otlp-udp-exporter:0.0.1")
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
 }
