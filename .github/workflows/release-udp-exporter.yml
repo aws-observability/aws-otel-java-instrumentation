@@ -34,17 +34,12 @@ jobs:
           chmod +x ./scripts/local_patch.sh
           ./scripts/local_patch.sh
 
-      # Add this step to set up Maven Local
-      - name: Set up Maven Local
-        run: |
-          mkdir -p ~/.m2/repository
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build UDP exporter
         run: |
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter --refresh-dependencies -x test 
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter clean build --refresh-dependencies -x test 
 
       - name: Download and run X-Ray Daemon
         run: |
