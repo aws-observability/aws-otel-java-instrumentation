@@ -93,7 +93,7 @@ jobs:
         id: high_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.0.0"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.0.1"
           severity: 'CRITICAL,HIGH'
 
       - name: Perform low image scan on v2
@@ -101,7 +101,7 @@ jobs:
         id: low_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.0.0"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.0.1"
           severity: 'MEDIUM,LOW,UNKNOWN'
 
       - name: Configure AWS Credentials for emitting metrics
