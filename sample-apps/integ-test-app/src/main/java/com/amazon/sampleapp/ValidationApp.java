@@ -17,7 +17,7 @@ public class ValidationApp {
   public SdkTracerProvider tracerProvider() {
     // Set up UDP exporter
     OtlpUdpSpanExporter exporter =
-        new OtlpUdpSpanExporterBuilder().setEndpoint("*********:2000").build();
+        new OtlpUdpSpanExporterBuilder().setEndpoint("localhost:2000").build();
 
     // Set up and return the tracer provider
     return SdkTracerProvider.builder()
