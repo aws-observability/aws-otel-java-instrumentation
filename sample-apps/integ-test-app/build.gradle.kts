@@ -5,11 +5,6 @@ plugins {
   id("org.springframework.boot") version "2.7.17"
 }
 
-repositories {
-  mavenLocal()
-  mavenCentral()
-}
-
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("software.amazon.opentelemetry.exporters.otlp.udp.trace:aws-otel-otlp-udp-exporter:0.0.1")

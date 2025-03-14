@@ -38,8 +38,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build UDP exporter
+        working-directory: ./exporters/aws-otel-otlp-udp-exporter
         run: |
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter clean build --refresh-dependencies -x test 
+          ../../gradlew clean build -x test 
 
       - name: Download and run X-Ray Daemon
         run: |
@@ -50,8 +51,9 @@ jobs:
           ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
 
       - name: Install UDP Exporter
+        working-directory: ./exporters/aws-otel-otlp-udp-exporter
         run: |
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter publishMavenJavaPublicationToMavenLocal -Psigning.skip=true -x sign --refresh-dependencies
+          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter publishMavenJavaPublicationToMavenLocal -Psigning.skip=true -x sign 
 
       - name: Ensure Unit Tests are passing
         working-directory: exporters/aws-otel-otlp-udp-exporter
@@ -61,7 +63,7 @@ jobs:
       - name: Run Sample App in Background
         working-directory: sample-apps/integ-test-app
         run: |
-          ../../gradlew :sample-apps:integ-test-app:build  --refresh-dependencies
+          ../../gradlew build
           java -jar build/libs/integ-test-app.jar &
           sleep 5
 
