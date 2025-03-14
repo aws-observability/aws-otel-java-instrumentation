@@ -125,6 +125,16 @@ public class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addTracerProviderCustomizer(this::customizeTracerProviderBuilder);
     autoConfiguration.addMeterProviderCustomizer(this::customizeMeterProvider);
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
+
+    // Use addPropertiesCustomizer() to check if application signals are enabled
+    autoConfiguration.addPropertiesCustomizer(
+        configProps -> {
+          if (isApplicationSignalsEnabled(configProps)) {
+            // Only add supplier if application signals are enabled
+            autoConfiguration.addPropertiesSupplier(this::getDefaultProperties);
+          }
+          return Collections.emptyMap();
+        });
   }
 
   static boolean isLambdaEnvironment() {
@@ -150,18 +160,6 @@ public class AwsApplicationSignalsCustomizerProvider
       // Enable AWS Resource Providers
       propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
 
-      if (!isLambdaEnvironment()) {
-        // Set default values for non Lambda environment
-        propsOverride.put(OTEL_METRICS_EXPORTER, "none");
-        propsOverride.put(OTEL_LOGS_EXPORTER, "none");
-        propsOverride.put(
-            OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
-        propsOverride.put(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf");
-        propsOverride.put(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://localhost:4316/v1/traces");
-        propsOverride.put(OTEL_TRACES_SAMPLER, "xray");
-        propsOverride.put(OTEL_TRACES_SAMPLER_ARG, "endpoint=http://localhost:2000");
-      }
-
       if (isApplicationSignalsRuntimeEnabled(configProps)) {
         List<String> list = configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
         if (list.contains("jvm")) {
@@ -176,6 +174,22 @@ public class AwsApplicationSignalsCustomizerProvider
       return propsOverride;
     }
     return Collections.emptyMap();
+  }
+
+  private Map<String, String> getDefaultProperties() {
+    Map<String, String> propsOverride = new HashMap<>();
+    if (!isLambdaEnvironment()) {
+      // Set default values for non Lambda environment when app signals is enabled
+      propsOverride.put(OTEL_METRICS_EXPORTER, "none");
+      propsOverride.put(OTEL_LOGS_EXPORTER, "none");
+      propsOverride.put(
+          OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
+      propsOverride.put(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf");
+      propsOverride.put(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://localhost:4316/v1/traces");
+      propsOverride.put(OTEL_TRACES_SAMPLER, "xray");
+      propsOverride.put(OTEL_TRACES_SAMPLER_ARG, "endpoint=http://localhost:2000");
+    }
+    return propsOverride;
   }
 
   private Map<String, String> customizeLambdaEnvProperties(ConfigProperties configProperties) {
