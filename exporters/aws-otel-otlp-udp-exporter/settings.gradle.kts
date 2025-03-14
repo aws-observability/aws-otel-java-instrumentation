@@ -16,14 +16,12 @@
 rootProject.name = "aws-otel-otlp-udp-exporter"
 
 dependencyResolutionManagement {
-    repositories {
-        mavenCentral()  // For dependencies like opentelemetry-bom, junit, etc.
-        mavenLocal()    // In case you need to use local dependencies
-    }
-}
+  repositories {
+    mavenCentral()
+    mavenLocal()
 
-pluginManagement {
-    repositories {
-        mavenCentral()
+    maven {
+      setUrl("https://oss.sonatype.org/content/repositories/snapshots")
     }
+  }
 }
