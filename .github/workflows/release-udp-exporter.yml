@@ -24,23 +24,11 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'    # Add gradle caching
 
-      - name: Configure Git
+      - name: Build and Publish UDP exporter
+        working-directory: exporters/aws-otel-otlp-udp-exporter
         run: |
-          git config --global user.email "you@example.com"
-          git config --global user.name "Your Name"
-
-      - name: Run Local Patch
-        run: |
-          chmod +x ./scripts/local_patch.sh
-          ./scripts/local_patch.sh
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build UDP exporter
-        working-directory: ./exporters/aws-otel-otlp-udp-exporter
-        run: |
-          ../../gradlew clean build -x test 
+          gradle build
+          gradle publishToMavenLocal
 
       - name: Download and run X-Ray Daemon
         run: |
@@ -50,20 +38,15 @@ jobs:
           unzip aws-xray-daemon-linux-3.x.zip
           ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
 
-      - name: Install UDP Exporter
-        working-directory: ./exporters/aws-otel-otlp-udp-exporter
-        run: |
-          ./gradlew -p ./exporters/aws-otel-otlp-udp-exporter publishMavenJavaPublicationToMavenLocal -Psigning.skip=true -x sign 
-
       - name: Ensure Unit Tests are passing
         working-directory: exporters/aws-otel-otlp-udp-exporter
         run: |
-          ../../gradlew test
+          gradle test
 
       - name: Run Sample App in Background
         working-directory: sample-apps/integ-test-app
         run: |
-          ../../gradlew build
+          gradle build
           java -jar build/libs/integ-test-app.jar &
           sleep 5
 
