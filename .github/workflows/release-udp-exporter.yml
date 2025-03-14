@@ -28,3 +28,41 @@ jobs:
         working-directory: exporters/aws-otel-otlp-udp-exporter
         run: |
           gradle build
+          gradle publishToMavenLocal
+
+      - name: Download and run X-Ray Daemon
+        run: |
+          mkdir xray-daemon
+          cd xray-daemon
+          wget https://s3.us-west-2.amazonaws.com/aws-xray-assets.us-west-2/xray-daemon/aws-xray-daemon-linux-3.x.zip
+          unzip aws-xray-daemon-linux-3.x.zip
+          ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
+
+      - name: Run Sample App in Background
+        working-directory: sample-apps/integ-test-app
+        run: |
+          gradle build
+          java -jar build/libs/integ-test-app.jar &
+          sleep 5
+
+      - name: Call Sample App Endpoint
+        run: |
+          echo "traceId=$(curl localhost:8080/test)" >> $GITHUB_OUTPUT
+
+      - name: Verify X-Ray daemon received traces
+        run: |
+          sleep 10
+          echo "X-Ray daemon logs:"
+          cat xray-daemon/daemon-logs.log
+
+          # Check if the daemon received and processed some data
+          if grep -q "sending.*batch" xray-daemon/daemon-logs.log; then
+            echo "✅ X-Ray daemon processed trace data (AWS upload errors are expected)"
+            exit 0
+          elif grep -q "processor:.*segment" xray-daemon/daemon-logs.log; then
+            echo "✅ X-Ray daemon processed segment data (AWS upload errors are expected)"
+            exit 0
+          else
+            echo "❌ No evidence of traces being received by X-Ray daemon"
+            exit 1
+          fi
