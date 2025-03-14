@@ -24,10 +24,10 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'    # Add gradle caching
 
-      - name: Build and Publish UDP exporter
+      - name: Build, Test and Publish UDP exporter
         working-directory: exporters/aws-otel-otlp-udp-exporter
         run: |
-          gradle build
+          gradle build 
           gradle publishToMavenLocal
 
       - name: Download and run X-Ray Daemon
@@ -37,11 +37,6 @@ jobs:
           wget https://s3.us-west-2.amazonaws.com/aws-xray-assets.us-west-2/xray-daemon/aws-xray-daemon-linux-3.x.zip
           unzip aws-xray-daemon-linux-3.x.zip
           ./xray -o -n us-west-2 -f ./daemon-logs.log --log-level debug &
-
-      - name: Ensure Unit Tests are passing
-        working-directory: exporters/aws-otel-otlp-udp-exporter
-        run: |
-          gradle test
 
       - name: Run Sample App in Background
         working-directory: sample-apps/integ-test-app
