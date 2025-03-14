@@ -195,6 +195,10 @@ public class AwsApplicationSignalsCustomizerProvider
 
   private SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
+    if (isLambdaEnvironment()) {
+      tracerProviderBuilder.addSpanProcessor(new AwsLambdaSpanProcessor());
+    }
+
     if (isApplicationSignalsEnabled(configProps)) {
       logger.info("AWS Application Signals enabled");
       Duration exportInterval =
