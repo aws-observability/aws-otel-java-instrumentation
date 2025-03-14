@@ -8,6 +8,7 @@ plugins {
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("software.amazon.opentelemetry.exporters.otlp.udp.trace:aws-otel-otlp-udp-exporter:0.1.0")
+  implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:2.11.0-alpha"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
 }
