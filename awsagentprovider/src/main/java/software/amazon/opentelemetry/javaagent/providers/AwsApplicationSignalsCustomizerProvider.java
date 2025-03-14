@@ -204,6 +204,10 @@ public class AwsApplicationSignalsCustomizerProvider
       tracerProviderBuilder.addSpanProcessor(
           AttributePropagatingSpanProcessorBuilder.create().build());
 
+      if (isLambdaEnvironment()) {
+        tracerProviderBuilder.addSpanProcessor(new AwsLambdaSpanProcessor());
+      }
+
       // If running on Lambda, we just need to export 100% spans and skip generating any Application
       // Signals metrics.
       if (isLambdaEnvironment()
