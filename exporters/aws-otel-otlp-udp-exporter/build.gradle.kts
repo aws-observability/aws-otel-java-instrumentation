@@ -23,7 +23,7 @@ group = "software.amazon.opentelemetry.exporters.otlp.udp.trace"
 version = "0.0.1"
 
 dependencies {
-  implementation(platform("io.opentelemetry:opentelemetry-bom:1.32.1"))
+  implementation(platform("io.opentelemetry:opentelemetry-bom:1.44.1"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
