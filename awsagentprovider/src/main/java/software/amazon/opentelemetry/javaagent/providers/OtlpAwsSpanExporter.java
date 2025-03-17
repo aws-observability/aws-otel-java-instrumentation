@@ -72,7 +72,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
     if (parentExporter == null) {
       this.parentExporterBuilder =
           OtlpHttpSpanExporter.builder()
-              .setMemoryMode(MemoryMode.REUSABLE_DATA)
+              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
               .setEndpoint(endpoint)
               .setHeaders(new SigV4AuthHeaderSupplier());
       this.parentExporter = this.parentExporterBuilder.build();
@@ -80,7 +80,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
     }
     this.parentExporterBuilder =
         parentExporter.toBuilder()
-            .setMemoryMode(MemoryMode.REUSABLE_DATA)
+            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
             .setEndpoint(endpoint)
             .setHeaders(new SigV4AuthHeaderSupplier());
     this.parentExporter = this.parentExporterBuilder.build();
