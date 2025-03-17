@@ -112,10 +112,10 @@ public class AwsApplicationSignalsCustomizerProvider
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
-  private static final boolean isSigV4Enabled =
-      AwsApplicationSignalsCustomizerProvider.isSigV4Enabled();
+  private static boolean isSigV4Enabled = false;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
+    isSigV4Enabled = AwsApplicationSignalsCustomizerProvider.isSigV4Enabled();
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
     autoConfiguration.addPropertiesCustomizer(this::customizeLambdaEnvProperties);
     autoConfiguration.addResourceCustomizer(this::customizeResource);
@@ -131,30 +131,40 @@ public class AwsApplicationSignalsCustomizerProvider
 
   static boolean isSigV4Enabled() {
     String otlpEndpoint = System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG);
-    boolean isXrayOtlpEndpoint =
-        otlpEndpoint != null
-            && Pattern.compile(XRAY_OTLP_ENDPOINT_PATTERN)
-                .matcher(otlpEndpoint.toLowerCase())
-                .matches();
+    boolean isXrayOtlpEndpoint;
+    try {
+      isXrayOtlpEndpoint =
+          otlpEndpoint != null
+              && Pattern.compile(XRAY_OTLP_ENDPOINT_PATTERN)
+                  .matcher(otlpEndpoint.toLowerCase())
+                  .matches();
 
-    if (isXrayOtlpEndpoint) {
-      logger.log(Level.INFO, "Detected using AWS OTLP XRay Endpoint.");
+      if (isXrayOtlpEndpoint) {
+        logger.log(Level.INFO, "Detected using AWS OTLP XRay Endpoint.");
 
-      String otlpTracesProtocol = System.getenv(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG);
+        String otlpTracesProtocol = System.getenv(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG);
 
-      if (otlpTracesProtocol == null
-          || !otlpTracesProtocol.equals(OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL)) {
+        if (otlpTracesProtocol == null
+            || !otlpTracesProtocol.equals(OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL)) {
+          logger.info(
+              String.format(
+                  "Improper configuration: Please configure your environment variables and export/set %s=%s",
+                  OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG, OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL));
+          return false;
+        }
+
         logger.info(
             String.format(
-                "Improper configuration: Please configure your environment variables and export/set %s=%s",
-                OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG, OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL));
-        return false;
+                "Proper configuration detected: Now exporting trace span data to %s",
+                otlpEndpoint));
+        return true;
       }
-
-      logger.info(
+    } catch (Exception e) {
+      logger.log(
+          Level.WARNING,
           String.format(
-              "Proper configuration detected: Now exporting trace span data to %s", otlpEndpoint));
-      return true;
+              "Caught error while attempting to validate configuration to export traces to XRay OTLP endpoint: %s",
+              e.getMessage()));
     }
 
     return false;

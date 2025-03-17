@@ -25,11 +25,16 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -47,7 +52,7 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 @Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
   private static final String SERVICE_NAME = "xray";
-  private static final Logger logger = LoggerFactory.getLogger(OtlpAwsSpanExporter.class);
+  private static final Logger logger = Logger.getLogger(OtlpAwsSpanExporter.class.getName());
 
   private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final OtlpHttpSpanExporter parentExporter;
@@ -60,25 +65,25 @@ public class OtlpAwsSpanExporter implements SpanExporter {
   }
 
   public OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
-    OtlpHttpSpanExporterBuilder defaultExporterBuilder =
-        OtlpHttpSpanExporter.builder()
-            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-            .setEndpoint(endpoint)
-            .setHeaders(new SigV4AuthHeaderSupplier());
-
-    this.parentExporterBuilder =
-        parentExporter == null
-            ? defaultExporterBuilder
-            : parentExporter.toBuilder()
-                .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-                .setEndpoint(endpoint)
-                .setHeaders(new SigV4AuthHeaderSupplier());
-
-    this.parentExporter = this.parentExporterBuilder.build();
-
     this.awsRegion = endpoint.split("\\.")[1];
     this.endpoint = endpoint;
     this.spanData = new ArrayList<>();
+
+    if (parentExporter == null) {
+      this.parentExporterBuilder =
+          OtlpHttpSpanExporter.builder()
+              .setMemoryMode(MemoryMode.REUSABLE_DATA)
+              .setEndpoint(endpoint)
+              .setHeaders(new SigV4AuthHeaderSupplier());
+      this.parentExporter = this.parentExporterBuilder.build();
+      return;
+    }
+    this.parentExporterBuilder =
+        parentExporter.toBuilder()
+            .setMemoryMode(MemoryMode.REUSABLE_DATA)
+            .setEndpoint(endpoint)
+            .setHeaders(new SigV4AuthHeaderSupplier());
+    this.parentExporter = this.parentExporterBuilder.build();
   }
 
   /**
@@ -152,9 +157,11 @@ public class OtlpAwsSpanExporter implements SpanExporter {
         return result;
 
       } catch (Exception e) {
-        logger.error(
-            "Failed to sign/authenticate the given exported Span request to OTLP CloudWatch endpoint with error: {}",
-            e.getMessage());
+        logger.log(
+            Level.SEVERE,
+            String.format(
+                "Failed to sign/authenticate the given exported Span request to OTLP CloudWatch endpoint with error: %s",
+                e.getMessage()));
 
         return new HashMap<>();
       }
