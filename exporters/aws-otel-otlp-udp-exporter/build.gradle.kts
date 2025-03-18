@@ -24,9 +24,9 @@ version = "0.1.0"
 
 dependencies {
   implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
-  implementation("io.opentelemetry:opentelemetry-api")
-  implementation("io.opentelemetry:opentelemetry-sdk")
-  implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  compileOnly("io.opentelemetry:opentelemetry-api")
+  compileOnly("io.opentelemetry:opentelemetry-sdk")
+  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation(platform("org.junit:junit-bom:5.9.2"))
   testImplementation("org.junit.jupiter:junit-jupiter-api")
