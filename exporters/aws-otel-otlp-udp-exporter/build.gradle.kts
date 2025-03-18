@@ -27,7 +27,6 @@ dependencies {
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
-  implementation("io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation(platform("org.junit:junit-bom:5.9.2"))
   testImplementation("org.junit.jupiter:junit-jupiter-api")
