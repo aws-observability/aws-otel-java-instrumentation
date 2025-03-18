@@ -105,10 +105,10 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
   private static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
   private static final String OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT =
-          "otel.aws.application.signals.exporter.endpoint";
+      "otel.aws.application.signals.exporter.endpoint";
   private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
   private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT =
-          "otel.exporter.otlp.traces.endpoint";
+      "otel.exporter.otlp.traces.endpoint";
   private static final String OTEL_TRACES_SAMPLER = "otel.traces.sampler";
   private static final String OTEL_TRACES_SAMPLER_ARG = "otel.traces.sampler.arg";
 
@@ -159,7 +159,8 @@ public class AwsApplicationSignalsCustomizerProvider
           propsOverride.put(OTEL_LOGS_EXPORTER, "none");
         }
         if (configProps.getString(OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT) == null) {
-          propsOverride.put(OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
+          propsOverride.put(
+              OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
         }
         if (configProps.getString(OTEL_EXPORTER_OTLP_PROTOCOL) == null) {
           propsOverride.put(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf");
