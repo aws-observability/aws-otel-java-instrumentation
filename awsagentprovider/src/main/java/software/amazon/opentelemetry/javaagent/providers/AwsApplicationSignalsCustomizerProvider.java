@@ -342,11 +342,12 @@ public class AwsApplicationSignalsCustomizerProvider
 
     // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication.
     if (isSigV4Enabled) {
-      return new OtlpAwsSpanExporter(
-          (OtlpHttpSpanExporter)
-              spanExporter, // can cast here since we've checked that the environment variable is
-          // set to http/protobuf
-          System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG));
+      // can cast here since we've checked that the environment variable is
+      // set to http/protobuf
+      return OtlpAwsSpanExporterBuilder.create(
+              (OtlpHttpSpanExporter) spanExporter,
+              System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
+          .build();
     }
 
     if (isApplicationSignalsEnabled(configProps)) {

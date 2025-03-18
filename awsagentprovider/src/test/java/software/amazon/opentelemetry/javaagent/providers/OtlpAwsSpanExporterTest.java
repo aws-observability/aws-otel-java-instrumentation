@@ -116,7 +116,7 @@ public class OtlpAwsSpanExporterTest {
   @Test
   void testAwsSpanExporterAddsSigV4Headers() {
 
-    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
+    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
     when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenReturn(this.signedRequest);
@@ -136,7 +136,7 @@ public class OtlpAwsSpanExporterTest {
 
   @Test
   void testAwsSpanExporterExportCorrectlyAddsDifferentSigV4Headers() {
-    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
+    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
 
     for (int i = 0; i < 10; i += 1) {
       String newAuthHeader = EXPECTED_AUTH_HEADER + i;
@@ -178,7 +178,7 @@ public class OtlpAwsSpanExporterTest {
     when(this.credentialsProvider.resolveCredentials())
         .thenThrow(SdkClientException.builder().message("bad credentials").build());
 
-    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
+    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
 
     exporter.export(List.of());
 
@@ -199,7 +199,7 @@ public class OtlpAwsSpanExporterTest {
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenThrow(SdkClientException.builder().message("bad signature").build());
 
-    SpanExporter exporter = new OtlpAwsSpanExporter(XRAY_OTLP_ENDPOINT);
+    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
 
     exporter.export(List.of());
 

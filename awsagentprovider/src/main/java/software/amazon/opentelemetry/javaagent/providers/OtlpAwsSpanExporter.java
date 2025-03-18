@@ -25,16 +25,17 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.concurrent.Immutable;
+import javax.annotation.Nonnull;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -49,25 +50,32 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
  * library to sign and directly inject SigV4 Authentication to the exported request's headers. <a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>
  */
-@Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
   private static final String SERVICE_NAME = "xray";
   private static final Logger logger = Logger.getLogger(OtlpAwsSpanExporter.class.getName());
 
   private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final OtlpHttpSpanExporter parentExporter;
+  private final AtomicReference<Collection<SpanData>> spanData;
   private final String awsRegion;
   private final String endpoint;
-  private Collection<SpanData> spanData;
 
-  public OtlpAwsSpanExporter(String endpoint) {
+  static OtlpAwsSpanExporter getDefault(String endpoint) {
+    return new OtlpAwsSpanExporter(endpoint);
+  }
+
+  static OtlpAwsSpanExporter create(OtlpHttpSpanExporter parent, String endpoint) {
+    return new OtlpAwsSpanExporter(parent, endpoint);
+  }
+
+  private OtlpAwsSpanExporter(String endpoint) {
     this(null, endpoint);
   }
 
-  public OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
+  private OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
     this.awsRegion = endpoint.split("\\.")[1];
     this.endpoint = endpoint;
-    this.spanData = new ArrayList<>();
+    this.spanData = new AtomicReference<>(Collections.emptyList());
 
     if (parentExporter == null) {
       this.parentExporterBuilder =
@@ -92,8 +100,8 @@ public class OtlpAwsSpanExporter implements SpanExporter {
    * sending it to the endpoint. Otherwise, we will skip signing.
    */
   @Override
-  public CompletableResultCode export(Collection<SpanData> spans) {
-    this.spanData = spans;
+  public CompletableResultCode export(@Nonnull Collection<SpanData> spans) {
+    this.spanData.set(spans);
     return this.parentExporter.export(spans);
   }
 
@@ -120,8 +128,9 @@ public class OtlpAwsSpanExporter implements SpanExporter {
     @Override
     public Map<String, String> get() {
       try {
+        Collection<SpanData> spans = OtlpAwsSpanExporter.this.spanData.get();
         ByteArrayOutputStream encodedSpans = new ByteArrayOutputStream();
-        TraceRequestMarshaler.create(OtlpAwsSpanExporter.this.spanData).writeBinaryTo(encodedSpans);
+        TraceRequestMarshaler.create(spans).writeBinaryTo(encodedSpans);
 
         SdkHttpRequest httpRequest =
             SdkHttpFullRequest.builder()
@@ -158,12 +167,12 @@ public class OtlpAwsSpanExporter implements SpanExporter {
 
       } catch (Exception e) {
         logger.log(
-            Level.SEVERE,
+            Level.WARNING,
             String.format(
                 "Failed to sign/authenticate the given exported Span request to OTLP CloudWatch endpoint with error: %s",
                 e.getMessage()));
 
-        return new HashMap<>();
+        return Collections.emptyMap();
       }
     }
   }
