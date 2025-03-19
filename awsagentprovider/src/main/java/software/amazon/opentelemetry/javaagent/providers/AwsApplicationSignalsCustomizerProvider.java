@@ -108,6 +108,16 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
       "otel.bsp.max.export.batch.size";
 
+  private static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
+  private static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
+  private static final String OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT =
+      "otel.aws.application.signals.exporter.endpoint";
+  private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
+  private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT =
+      "otel.exporter.otlp.traces.endpoint";
+  private static final String OTEL_TRACES_SAMPLER = "otel.traces.sampler";
+  private static final String OTEL_TRACES_SAMPLER_ARG = "otel.traces.sampler.arg";
+
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
@@ -188,6 +198,32 @@ public class AwsApplicationSignalsCustomizerProvider
       Map<String, String> propsOverride = new HashMap<>();
       // Enable AWS Resource Providers
       propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
+
+      if (!isLambdaEnvironment()) {
+        // Check if properties exist in `configProps`, and only set if missing
+        if (configProps.getString(OTEL_METRICS_EXPORTER) == null) {
+          propsOverride.put(OTEL_METRICS_EXPORTER, "none");
+        }
+        if (configProps.getString(OTEL_LOGS_EXPORTER) == null) {
+          propsOverride.put(OTEL_LOGS_EXPORTER, "none");
+        }
+        if (configProps.getString(OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT) == null) {
+          propsOverride.put(
+              OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
+        }
+        if (configProps.getString(OTEL_EXPORTER_OTLP_PROTOCOL) == null) {
+          propsOverride.put(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf");
+        }
+        if (configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) == null) {
+          propsOverride.put(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://localhost:4316/v1/traces");
+        }
+        if (configProps.getString(OTEL_TRACES_SAMPLER) == null) {
+          propsOverride.put(OTEL_TRACES_SAMPLER, "xray");
+        }
+        if (configProps.getString(OTEL_TRACES_SAMPLER_ARG) == null) {
+          propsOverride.put(OTEL_TRACES_SAMPLER_ARG, "endpoint=http://localhost:2000");
+        }
+      }
 
       if (isApplicationSignalsRuntimeEnabled(configProps)) {
         List<String> list = configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
