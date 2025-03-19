@@ -11,6 +11,7 @@ dependencies {
   implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:2.11.0-alpha"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 }
 
 tasks.bootJar {
