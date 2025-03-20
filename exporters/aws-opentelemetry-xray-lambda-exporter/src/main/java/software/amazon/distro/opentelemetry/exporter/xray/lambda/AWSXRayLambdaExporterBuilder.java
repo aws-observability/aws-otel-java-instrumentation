@@ -13,13 +13,13 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.exporters.otlp.udp.trace;
+package software.amazon.distro.opentelemetry.exporter.xray.lambda;
 
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
 
-public final class OtlpUdpSpanExporterBuilder {
+public final class AWSXRayLambdaExporterBuilder {
 
   private static final String DEFAULT_HOST = "127.0.0.1";
   private static final int DEFAULT_PORT = 2000;
@@ -41,7 +41,7 @@ public final class OtlpUdpSpanExporterBuilder {
   private static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
 
-  public OtlpUdpSpanExporterBuilder setEndpoint(String endpoint) {
+  public AWSXRayLambdaExporterBuilder setEndpoint(String endpoint) {
     requireNonNull(endpoint, "endpoint must not be null");
     try {
       this.sender = createSenderFromEndpoint(endpoint);
@@ -51,7 +51,7 @@ public final class OtlpUdpSpanExporterBuilder {
     return this;
   }
 
-  public OtlpUdpSpanExporterBuilder setPayloadSampleDecision(TracePayloadSampleDecision decision) {
+  public AWSXRayLambdaExporterBuilder setPayloadSampleDecision(TracePayloadSampleDecision decision) {
     this.tracePayloadPrefix =
         decision == TracePayloadSampleDecision.SAMPLED
             ? FORMAT_OTEL_SAMPLED_TRACES_BINARY_PREFIX
@@ -67,7 +67,7 @@ public final class OtlpUdpSpanExporterBuilder {
     }
 
   // For testing purposes
-  OtlpUdpSpanExporterBuilder withEnvironmentVariables(Map<String, String> env) {
+  AWSXRayLambdaExporterBuilder withEnvironmentVariables(Map<String, String> env) {
     this.environmentVariables = env;
     return this;
   }
@@ -77,7 +77,7 @@ public final class OtlpUdpSpanExporterBuilder {
     return environmentVariables;
   }
 
-  public OtlpUdpSpanExporter build() {
+  public AWSXRayLambdaExporter build() {
     if (sender == null) {
       String endpoint = null;
 
@@ -87,7 +87,7 @@ public final class OtlpUdpSpanExporterBuilder {
         if (endpoint != null && !endpoint.isEmpty()) {
           try {
             this.sender = createSenderFromEndpoint(endpoint);
-            return new OtlpUdpSpanExporter(
+            return new AWSXRayLambdaExporter(
                 this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
           } catch (Exception e) {
             // Fallback to defaults if parsing fails
@@ -99,7 +99,7 @@ public final class OtlpUdpSpanExporterBuilder {
       // Use defaults if not in Lambda or if daemon address is invalid/unavailable
       this.sender = new UdpSender(DEFAULT_HOST, DEFAULT_PORT);
     }
-    return new OtlpUdpSpanExporter(
+    return new AWSXRayLambdaExporter(
         this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
   }
 
@@ -109,7 +109,7 @@ public final class OtlpUdpSpanExporterBuilder {
   }
 
   // Only for testing
-  OtlpUdpSpanExporterBuilder setSender(UdpSender sender) {
+  AWSXRayLambdaExporterBuilder setSender(UdpSender sender) {
     this.sender = sender;
     return this;
   }

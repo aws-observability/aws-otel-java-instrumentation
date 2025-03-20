@@ -3,7 +3,7 @@ name: Release ADOT OTLP UDP Exporter
 on:
   push:
     branches:
-      - "udp-*"
+      - "rename-udp-exporter"
   workflow_dispatch:
     inputs:
       version:
@@ -25,7 +25,7 @@ jobs:
           cache: 'gradle'    # Add gradle caching
 
       - name: Build, Test and Publish UDP exporter
-        working-directory: exporters/aws-otel-otlp-udp-exporter
+        working-directory: exporters/aws-opentelemetry-xray-lambda-exporter
         run: |
           gradle build 
           gradle publishToMavenLocal
@@ -72,5 +72,5 @@ jobs:
       #   env:
       #     MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       #     MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
-      #   working-directory: exporters/aws-otel-otlp-udp-exporter
+      #   working-directory: exporters/aws-opentelemetry-xray-lambda-exporter
       #   run: ../../gradlew publish
