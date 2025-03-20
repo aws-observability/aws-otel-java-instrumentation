@@ -52,7 +52,6 @@ include(":sample-apps:springboot")
 include(":sample-apps:spark")
 include(":sample-apps:spark-awssdkv1")
 
-
 // Used for contract tests
 include("appsignals-tests:images:mock-collector")
 include("appsignals-tests:images:http-servers:spring-mvc")
