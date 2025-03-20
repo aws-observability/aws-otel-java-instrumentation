@@ -44,10 +44,7 @@ public final class OtlpUdpSpanExporterBuilder {
   public OtlpUdpSpanExporterBuilder setEndpoint(String endpoint) {
     requireNonNull(endpoint, "endpoint must not be null");
     try {
-      String[] parts = endpoint.split(":");
-      String host = parts[0];
-      int port = Integer.parseInt(parts[1]);
-      this.sender = new UdpSender(host, port);
+      this.sender = createSenderFromEndpoint(endpoint);
     } catch (Exception e) {
       throw new IllegalArgumentException("Invalid endpoint, must be a valid URL: " + endpoint, e);
     }
@@ -62,8 +59,15 @@ public final class OtlpUdpSpanExporterBuilder {
     return this;
   }
 
+  private UdpSender createSenderFromEndpoint(String endpoint) {
+        String[] parts = endpoint.split(":");
+        String host = parts[0];
+        int port = Integer.parseInt(parts[1]);
+        return new UdpSender(host, port);
+    }
+
   // For testing purposes
-  public OtlpUdpSpanExporterBuilder withEnvironmentVariables(Map<String, String> env) {
+  OtlpUdpSpanExporterBuilder withEnvironmentVariables(Map<String, String> env) {
     this.environmentVariables = env;
     return this;
   }
@@ -82,10 +86,7 @@ public final class OtlpUdpSpanExporterBuilder {
         endpoint = environmentVariables.get(AWS_XRAY_DAEMON_ADDRESS_CONFIG);
         if (endpoint != null && !endpoint.isEmpty()) {
           try {
-            String[] parts = endpoint.split(":");
-            String host = parts[0];
-            int port = Integer.parseInt(parts[1]);
-            this.sender = new UdpSender(host, port);
+            this.sender = createSenderFromEndpoint(endpoint);
             return new OtlpUdpSpanExporter(
                 this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
           } catch (Exception e) {
