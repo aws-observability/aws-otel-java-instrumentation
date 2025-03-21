@@ -1,0 +1,74 @@
+# Reusable Action for executing commands and retrying them if it fails
+name: Command Retry Logic
+
+inputs:
+  # (Optional) Command to run before the retry command. To be used for environment setup, etc
+  pre-command:
+    required: false
+    type: string
+  # (Optional) Number of retries to perform. Default is 3
+  max_retry:
+    required: false
+    type: number
+    default: 3
+  # (Required) Command to execute with the retry mechanism
+  command:
+    required: true
+    type: string
+  # (Required) Command to clean up resources before retrying the main command
+  cleanup:
+    required: false
+    type: string
+  # (Optional) Time to wait between each attempt in seconds. Default is 10 seconds
+  sleep_time:
+    required: false
+    type: number
+    default: 10
+  # (Optional) Follow-up command after the main command is finished.
+  post-command:
+    required: false
+    type: string
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run command
+      shell: bash
+      env:
+        PRE_COMMAND: ${{ inputs.pre-command }}
+        MAX_RETRY: ${{ inputs.max_retry }}
+        COMMAND: ${{ inputs.command }}
+        CLEANUP: ${{ inputs.cleanup }}
+        POST_COMMAND: ${{ inputs.post-command }}
+        SLEEP_TIME: ${{ inputs.sleep_time }}
+      run: |
+        echo "Starting the execute_and_retry action for command $COMMAND"
+        echo "Executing pre-command for the execute_and_retry action"
+        eval "$PRE_COMMAND"
+        
+        retry_counter=0
+        while [ $retry_counter -lt $MAX_RETRY ]; do
+           echo "Attempt Number $retry_counter for execute_and_retry action"
+
+          attempt_failed=0
+          eval "$COMMAND" || attempt_failed=$?
+  
+          if [ $attempt_failed -ne 0 ]; then
+            echo "Command failed for execute_and_retry action, executing cleanup command for another attempt"
+
+            eval "$CLEANUP" || true
+            retry_counter=$(($retry_counter+1))
+            sleep "$SLEEP_TIME"
+          else
+            echo "Command executed successfully for execute_and_retry"
+            break
+          fi
+          if [[ $retry_counter -ge $MAX_RETRY ]]; then
+            echo "Max retry reached, command failed to execute properly. Exiting action"
+            exit 1
+          fi
+        done
+        
+        echo "Executing post-command for the execute_and_retry action"
+        eval "$POST_COMMAND"
+        echo "Exiting execute_and_retry action"
