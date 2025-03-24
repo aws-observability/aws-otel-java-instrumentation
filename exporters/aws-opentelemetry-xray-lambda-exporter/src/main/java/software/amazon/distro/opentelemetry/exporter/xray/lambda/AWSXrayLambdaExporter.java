@@ -37,16 +37,16 @@ import javax.annotation.concurrent.Immutable;
  * specific information.
  */
 @Immutable
-public class AWSXrayLambdaExporter implements SpanExporter {
+public class AwsXrayLambdaExporter implements SpanExporter {
 
-  private static final Logger logger = Logger.getLogger(AWSXrayLambdaExporter.class.getName());
+  private static final Logger logger = Logger.getLogger(AwsXrayLambdaExporter.class.getName());
 
   private final AtomicBoolean isShutdown = new AtomicBoolean();
 
   private final UdpSender sender;
   private final String payloadPrefix;
 
-  AWSXrayLambdaExporter(UdpSender sender, String payloadPrefix) {
+  AwsXrayLambdaExporter(UdpSender sender, String payloadPrefix) {
     this.sender = sender;
     this.payloadPrefix = payloadPrefix;
   }

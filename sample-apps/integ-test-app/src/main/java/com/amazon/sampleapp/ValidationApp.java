@@ -7,8 +7,8 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import software.amazon.distro.opentelemetry.exporter.xray.lambda.AWSXrayLambdaExporterBuilder;
-import software.amazon.distro.opentelemetry.exporter.xray.lambda.AWSXrayLambdaExporter;
+import software.amazon.distro.opentelemetry.exporter.xray.lambda.AwsXrayLambdaExporterBuilder;
+import software.amazon.distro.opentelemetry.exporter.xray.lambda.AwsXrayLambdaExporter;
 
 @SpringBootApplication
 public class ValidationApp {
@@ -16,8 +16,8 @@ public class ValidationApp {
   @Bean
   public SdkTracerProvider tracerProvider() {
     // Set up UDP exporter
-    AWSXrayLambdaExporter exporter =
-        new AWSXrayLambdaExporterBuilder().setEndpoint("localhost:2000").build();
+    AwsXrayLambdaExporter exporter =
+        new AwsXrayLambdaExporterBuilder().setEndpoint("localhost:2000").build();
 
     // Set up and return the tracer provider
     return SdkTracerProvider.builder()
