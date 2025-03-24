@@ -119,3 +119,4 @@ enum TracePayloadSampleDecision {
   SAMPLED,
   UNSAMPLED
 }
+

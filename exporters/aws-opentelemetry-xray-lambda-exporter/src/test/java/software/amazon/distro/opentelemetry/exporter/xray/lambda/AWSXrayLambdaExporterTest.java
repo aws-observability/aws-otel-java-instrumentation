@@ -173,3 +173,4 @@ public class AwsXrayLambdaExporterTest {
     return mockSpanData;
   }
 }
+
