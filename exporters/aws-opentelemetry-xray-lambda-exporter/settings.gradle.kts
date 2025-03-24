@@ -1,4 +1,4 @@
-rootProject.name = "aws-otel-otlp-udp-exporter"
+rootProject.name = "aws-opentelemetry-xray-lambda-exporter"
 
 dependencyResolutionManagement {
   repositories {

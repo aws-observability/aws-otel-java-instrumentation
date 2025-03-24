@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.exporters.otlp.udp.trace;
+package software.amazon.distro.opentelemetry.exporter.xray.lambda;
 
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -37,16 +37,16 @@ import javax.annotation.concurrent.Immutable;
  * specific information.
  */
 @Immutable
-public class OtlpUdpSpanExporter implements SpanExporter {
+public class AWSXrayLambdaExporter implements SpanExporter {
 
-  private static final Logger logger = Logger.getLogger(OtlpUdpSpanExporter.class.getName());
+  private static final Logger logger = Logger.getLogger(AWSXrayLambdaExporter.class.getName());
 
   private final AtomicBoolean isShutdown = new AtomicBoolean();
 
   private final UdpSender sender;
   private final String payloadPrefix;
 
-  OtlpUdpSpanExporter(UdpSender sender, String payloadPrefix) {
+  AWSXrayLambdaExporter(UdpSender sender, String payloadPrefix) {
     this.sender = sender;
     this.payloadPrefix = payloadPrefix;
   }
