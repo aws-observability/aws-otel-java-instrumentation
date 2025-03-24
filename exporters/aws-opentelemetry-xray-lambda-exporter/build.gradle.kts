@@ -19,7 +19,7 @@ plugins {
   id("maven-publish")
 }
 
-group = "software.amazon.opentelemetry.exporters.otlp.udp.trace"
+group = "software.amazon.distro.opentelemetry.exporter.xray.lambda"
 version = "0.1.0"
 
 dependencies {
@@ -94,7 +94,7 @@ publishing {
     create<MavenPublication>("mavenJava") {
       from(components["java"])
       groupId = project.group.toString()
-      artifactId = "aws-otel-otlp-udp-exporter"
+      artifactId = "aws-opentelemetry-xray-lambda-exporter"
       version = project.version.toString()
     }
   }
