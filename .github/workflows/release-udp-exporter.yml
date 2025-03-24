@@ -25,7 +25,7 @@ jobs:
           cache: 'gradle'    # Add gradle caching
 
       - name: Build, Test and Publish UDP exporter
-        working-directory: exporters/aws-otel-otlp-udp-exporter
+        working-directory: exporters/aws-opentelemetry-xray-lambda-exporter
         run: |
           gradle build 
           gradle publishToMavenLocal
