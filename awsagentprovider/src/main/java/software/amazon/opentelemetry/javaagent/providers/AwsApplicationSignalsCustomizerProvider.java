@@ -98,6 +98,9 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_JMX_TARGET_SYSTEM_CONFIG = "otel.jmx.target.system";
   private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
       "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+  private static final String OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL = "http/protobuf";
+  private static final String OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG =
+      "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
   private static final String DEFAULT_UDP_ENDPOINT = "127.0.0.1:2000";
   private static final String OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG =
@@ -105,12 +108,24 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
       "otel.bsp.max.export.batch.size";
 
+  private static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
+  private static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
+  private static final String OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT =
+      "otel.aws.application.signals.exporter.endpoint";
+  private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
+  private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT =
+      "otel.exporter.otlp.traces.endpoint";
+  private static final String OTEL_TRACES_SAMPLER = "otel.traces.sampler";
+  private static final String OTEL_TRACES_SAMPLER_ARG = "otel.traces.sampler.arg";
+
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
+  private static boolean isSigV4Enabled = false;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
+    isSigV4Enabled = AwsApplicationSignalsCustomizerProvider.isSigV4Enabled();
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
     autoConfiguration.addPropertiesCustomizer(this::customizeLambdaEnvProperties);
     autoConfiguration.addResourceCustomizer(this::customizeResource);
@@ -124,14 +139,45 @@ public class AwsApplicationSignalsCustomizerProvider
     return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
   }
 
-  static boolean isXrayOtlpEndpoint(String otlpEndpoint) {
-    if (otlpEndpoint == null) {
-      return false;
+  static boolean isSigV4Enabled() {
+    String otlpEndpoint = System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG);
+    boolean isXrayOtlpEndpoint;
+    try {
+      isXrayOtlpEndpoint =
+          otlpEndpoint != null
+              && Pattern.compile(XRAY_OTLP_ENDPOINT_PATTERN)
+                  .matcher(otlpEndpoint.toLowerCase())
+                  .matches();
+
+      if (isXrayOtlpEndpoint) {
+        logger.log(Level.INFO, "Detected using AWS OTLP XRay Endpoint.");
+
+        String otlpTracesProtocol = System.getenv(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG);
+
+        if (otlpTracesProtocol == null
+            || !otlpTracesProtocol.equals(OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL)) {
+          logger.info(
+              String.format(
+                  "Improper configuration: Please configure your environment variables and export/set %s=%s",
+                  OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_CONFIG, OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL));
+          return false;
+        }
+
+        logger.info(
+            String.format(
+                "Proper configuration detected: Now exporting trace span data to %s",
+                otlpEndpoint));
+        return true;
+      }
+    } catch (Exception e) {
+      logger.log(
+          Level.WARNING,
+          String.format(
+              "Caught error while attempting to validate configuration to export traces to XRay OTLP endpoint: %s",
+              e.getMessage()));
     }
 
-    return Pattern.compile(XRAY_OTLP_ENDPOINT_PATTERN)
-        .matcher(otlpEndpoint.toLowerCase())
-        .matches();
+    return false;
   }
 
   private boolean isApplicationSignalsEnabled(ConfigProperties configProps) {
@@ -152,6 +198,32 @@ public class AwsApplicationSignalsCustomizerProvider
       Map<String, String> propsOverride = new HashMap<>();
       // Enable AWS Resource Providers
       propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
+
+      if (!isLambdaEnvironment()) {
+        // Check if properties exist in `configProps`, and only set if missing
+        if (configProps.getString(OTEL_METRICS_EXPORTER) == null) {
+          propsOverride.put(OTEL_METRICS_EXPORTER, "none");
+        }
+        if (configProps.getString(OTEL_LOGS_EXPORTER) == null) {
+          propsOverride.put(OTEL_LOGS_EXPORTER, "none");
+        }
+        if (configProps.getString(OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT) == null) {
+          propsOverride.put(
+              OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
+        }
+        if (configProps.getString(OTEL_EXPORTER_OTLP_PROTOCOL) == null) {
+          propsOverride.put(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf");
+        }
+        if (configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) == null) {
+          propsOverride.put(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://localhost:4316/v1/traces");
+        }
+        if (configProps.getString(OTEL_TRACES_SAMPLER) == null) {
+          propsOverride.put(OTEL_TRACES_SAMPLER, "xray");
+        }
+        if (configProps.getString(OTEL_TRACES_SAMPLER_ARG) == null) {
+          propsOverride.put(OTEL_TRACES_SAMPLER_ARG, "endpoint=http://localhost:2000");
+        }
+      }
 
       if (isApplicationSignalsRuntimeEnabled(configProps)) {
         List<String> list = configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
@@ -234,7 +306,7 @@ public class AwsApplicationSignalsCustomizerProvider
         return tracerProviderBuilder;
       }
 
-      if (isXrayOtlpEndpoint(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))) {
+      if (isSigV4Enabled) {
         return tracerProviderBuilder;
       }
 
@@ -303,13 +375,15 @@ public class AwsApplicationSignalsCustomizerProvider
                 .build();
       }
     }
-    // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication
-    else if (spanExporter instanceof OtlpHttpSpanExporter
-        && isXrayOtlpEndpoint(System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))) {
-      spanExporter =
-          new OtlpAwsSpanExporter(
+
+    // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication.
+    if (isSigV4Enabled) {
+      // can cast here since we've checked that the environment variable is
+      // set to http/protobuf
+      return OtlpAwsSpanExporterBuilder.create(
               (OtlpHttpSpanExporter) spanExporter,
-              System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG));
+              System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
+          .build();
     }
 
     if (isApplicationSignalsEnabled(configProps)) {

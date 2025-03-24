@@ -41,12 +41,13 @@ dependencies {
   // Import AWS SDK v1 core for ARN parsing utilities
   implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
   // Export configuration
-  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
   // For Udp emitter
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
-  // For HTTP SigV4 emitter
-  implementation("software.amazon.awssdk:auth:2.30.14")
-  implementation("software.amazon.awssdk:http-auth-aws:2.30.14")
+
+  // For OtlpAwsSpanExporter SigV4 Authentication
+  implementation("software.amazon.awssdk:auth")
+  implementation("software.amazon.awssdk:http-auth-aws")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
@@ -54,6 +55,7 @@ dependencies {
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
   testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")

@@ -17,21 +17,25 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import javax.annotation.concurrent.Immutable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -46,38 +50,48 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
  * library to sign and directly inject SigV4 Authentication to the exported request's headers. <a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>
  */
-@Immutable
 public class OtlpAwsSpanExporter implements SpanExporter {
   private static final String SERVICE_NAME = "xray";
-  private static final Logger logger = LoggerFactory.getLogger(OtlpAwsSpanExporter.class);
+  private static final Logger logger = Logger.getLogger(OtlpAwsSpanExporter.class.getName());
 
+  private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final OtlpHttpSpanExporter parentExporter;
+  private final AtomicReference<Collection<SpanData>> spanData;
   private final String awsRegion;
   private final String endpoint;
-  private Collection<SpanData> spanData;
 
-  public OtlpAwsSpanExporter(String endpoint) {
-    this.parentExporter =
-        OtlpHttpSpanExporter.builder()
-            .setEndpoint(endpoint)
-            .setHeaders(new SigV4AuthHeaderSupplier())
-            .build();
-
-    this.awsRegion = endpoint.split("\\.")[1];
-    this.endpoint = endpoint;
-    this.spanData = new ArrayList<>();
+  static OtlpAwsSpanExporter getDefault(String endpoint) {
+    return new OtlpAwsSpanExporter(endpoint);
   }
 
-  public OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
-    this.parentExporter =
-        parentExporter.toBuilder()
-            .setEndpoint(endpoint)
-            .setHeaders(new SigV4AuthHeaderSupplier())
-            .build();
+  static OtlpAwsSpanExporter create(OtlpHttpSpanExporter parent, String endpoint) {
+    return new OtlpAwsSpanExporter(parent, endpoint);
+  }
 
+  private OtlpAwsSpanExporter(String endpoint) {
+    this(null, endpoint);
+  }
+
+  private OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
     this.awsRegion = endpoint.split("\\.")[1];
     this.endpoint = endpoint;
-    this.spanData = new ArrayList<>();
+    this.spanData = new AtomicReference<>(Collections.emptyList());
+
+    if (parentExporter == null) {
+      this.parentExporterBuilder =
+          OtlpHttpSpanExporter.builder()
+              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+              .setEndpoint(endpoint)
+              .setHeaders(new SigV4AuthHeaderSupplier());
+      this.parentExporter = this.parentExporterBuilder.build();
+      return;
+    }
+    this.parentExporterBuilder =
+        parentExporter.toBuilder()
+            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+            .setEndpoint(endpoint)
+            .setHeaders(new SigV4AuthHeaderSupplier());
+    this.parentExporter = this.parentExporterBuilder.build();
   }
 
   /**
@@ -86,8 +100,8 @@ public class OtlpAwsSpanExporter implements SpanExporter {
    * sending it to the endpoint. Otherwise, we will skip signing.
    */
   @Override
-  public CompletableResultCode export(Collection<SpanData> spans) {
-    this.spanData = spans;
+  public CompletableResultCode export(@Nonnull Collection<SpanData> spans) {
+    this.spanData.set(spans);
     return this.parentExporter.export(spans);
   }
 
@@ -103,7 +117,10 @@ public class OtlpAwsSpanExporter implements SpanExporter {
 
   @Override
   public String toString() {
-    return this.parentExporter.toString();
+    StringJoiner joiner = new StringJoiner(", ", "OtlpAwsSpanExporter{", "}");
+    joiner.add(this.parentExporterBuilder.toString());
+    joiner.add("memoryMode=" + MemoryMode.IMMUTABLE_DATA);
+    return joiner.toString();
   }
 
   private final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
@@ -111,8 +128,9 @@ public class OtlpAwsSpanExporter implements SpanExporter {
     @Override
     public Map<String, String> get() {
       try {
+        Collection<SpanData> spans = OtlpAwsSpanExporter.this.spanData.get();
         ByteArrayOutputStream encodedSpans = new ByteArrayOutputStream();
-        TraceRequestMarshaler.create(OtlpAwsSpanExporter.this.spanData).writeBinaryTo(encodedSpans);
+        TraceRequestMarshaler.create(spans).writeBinaryTo(encodedSpans);
 
         SdkHttpRequest httpRequest =
             SdkHttpFullRequest.builder()
@@ -148,11 +166,13 @@ public class OtlpAwsSpanExporter implements SpanExporter {
         return result;
 
       } catch (Exception e) {
-        logger.error(
-            "Failed to sign/authenticate the given exported Span request to OTLP CloudWatch endpoint with error: {}",
-            e.getMessage());
+        logger.log(
+            Level.WARNING,
+            String.format(
+                "Failed to sign/authenticate the given exported Span request to OTLP CloudWatch endpoint with error: %s",
+                e.getMessage()));
 
-        return new HashMap<>();
+        return Collections.emptyMap();
       }
     }
   }
