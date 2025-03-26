@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import software.amazon.opentelemetry.javaagent.providers.exporter.OtlpAwsSpanExporterBuilder;
 
 /**
  * This customizer performs the following customizations:
@@ -194,16 +195,18 @@ public class AwsApplicationSignalsCustomizerProvider
   }
 
   private Map<String, String> customizeProperties(ConfigProperties configProps) {
-    boolean isLambdaEnvironment = isLambdaEnvironment();
     Map<String, String> propsOverride = new HashMap<>();
+    boolean isLambdaEnvironment = isLambdaEnvironment();
 
     // Enable AWS Resource Providers
     propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
+
     if (!isLambdaEnvironment) {
-      this.disableAwsResourceProvider(
-          propsOverride,
-          configProps,
-          List.of("io.opentelemetry.contrib.aws.resource.LambdaResourceProvider"));
+      propsOverride.put(
+          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG,
+          this.disableResourceProvider(
+              configProps,
+              List.of("io.opentelemetry.contrib.aws.resource.LambdaResourceProvider")));
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
@@ -261,7 +264,9 @@ public class AwsApplicationSignalsCustomizerProvider
               "io.opentelemetry.contrib.aws.resource.EcsResourceProvider",
               "io.opentelemetry.contrib.aws.resource.EksResourceProvider");
 
-      this.disableAwsResourceProvider(propsOverride, configProperties, disabledResourceProviders);
+      propsOverride.put(
+          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG,
+          this.disableResourceProvider(configProperties, disabledResourceProviders));
 
       // Set the max export batch size for BatchSpanProcessors
       propsOverride.put(
@@ -272,14 +277,12 @@ public class AwsApplicationSignalsCustomizerProvider
     return Collections.emptyMap();
   }
 
-  private void disableAwsResourceProvider(
-      Map<String, String> newProps, ConfigProperties oldProps, List<String> resourceProviders) {
-
+  private String disableResourceProvider(
+      ConfigProperties oldProps, List<String> resourceProviders) {
     List<String> list = oldProps.getList(OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG);
-    List<String> disabledResourceProviders = new ArrayList<>(list);
+    Set<String> disabledResourceProviders = new HashSet<>(list);
     disabledResourceProviders.addAll(resourceProviders);
-    newProps.put(
-        OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG, String.join(",", disabledResourceProviders));
+    return String.join(",", disabledResourceProviders);
   }
 
   private Resource customizeResource(Resource resource, ConfigProperties configProps) {
