@@ -194,12 +194,22 @@ public class AwsApplicationSignalsCustomizerProvider
   }
 
   private Map<String, String> customizeProperties(ConfigProperties configProps) {
-    if (isApplicationSignalsEnabled(configProps)) {
-      Map<String, String> propsOverride = new HashMap<>();
-      // Enable AWS Resource Providers
-      propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
+    Map<String, String> propsOverride = new HashMap<>();
+    boolean isLambdaEnvironment = isLambdaEnvironment();
 
-      if (!isLambdaEnvironment()) {
+    // Enable AWS Resource Providers
+    propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
+
+    if (!isLambdaEnvironment) {
+      propsOverride.put(
+          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG,
+          this.disableResourceProvider(
+              configProps,
+              List.of("io.opentelemetry.contrib.aws.resource.LambdaResourceProvider")));
+    }
+
+    if (isApplicationSignalsEnabled(configProps)) {
+      if (!isLambdaEnvironment) {
         // Check if properties exist in `configProps`, and only set if missing
         if (configProps.getString(OTEL_METRICS_EXPORTER) == null) {
           propsOverride.put(OTEL_METRICS_EXPORTER, "none");
@@ -236,9 +246,9 @@ public class AwsApplicationSignalsCustomizerProvider
           propsOverride.put(OTEL_JMX_TARGET_SYSTEM_CONFIG, String.join(",", jmxTargets));
         }
       }
-      return propsOverride;
     }
-    return Collections.emptyMap();
+
+    return propsOverride;
   }
 
   private Map<String, String> customizeLambdaEnvProperties(ConfigProperties configProperties) {
@@ -246,15 +256,16 @@ public class AwsApplicationSignalsCustomizerProvider
       Map<String, String> propsOverride = new HashMap<>(2);
 
       // Disable other AWS Resource Providers
-      List<String> list = configProperties.getList(OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG);
-      List<String> disabledResourceProviders = new ArrayList<>(list);
-      disabledResourceProviders.add(
-          "io.opentelemetry.contrib.aws.resource.BeanstalkResourceProvider");
-      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.Ec2ResourceProvider");
-      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.EcsResourceProvider");
-      disabledResourceProviders.add("io.opentelemetry.contrib.aws.resource.EksResourceProvider");
+      List<String> disabledResourceProviders =
+          List.of(
+              "io.opentelemetry.contrib.aws.resource.BeanstalkResourceProvider",
+              "io.opentelemetry.contrib.aws.resource.Ec2ResourceProvider",
+              "io.opentelemetry.contrib.aws.resource.EcsResourceProvider",
+              "io.opentelemetry.contrib.aws.resource.EksResourceProvider");
+
       propsOverride.put(
-          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG, String.join(",", disabledResourceProviders));
+          OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG,
+          this.disableResourceProvider(configProperties, disabledResourceProviders));
 
       // Set the max export batch size for BatchSpanProcessors
       propsOverride.put(
@@ -263,6 +274,14 @@ public class AwsApplicationSignalsCustomizerProvider
       return propsOverride;
     }
     return Collections.emptyMap();
+  }
+
+  private String disableResourceProvider(
+      ConfigProperties oldProps, List<String> resourceProviders) {
+    List<String> list = oldProps.getList(OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG);
+    Set<String> disabledResourceProviders = new HashSet<>(list);
+    disabledResourceProviders.addAll(resourceProviders);
+    return String.join(",", disabledResourceProviders);
   }
 
   private Resource customizeResource(Resource resource, ConfigProperties configProps) {
