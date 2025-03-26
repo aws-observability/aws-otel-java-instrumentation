@@ -99,8 +99,6 @@ jobs:
     secrets: inherit
     with:
       caller-workflow-name: 'main-build'
-      staging_distro_name: ${{ inputs.ec2-windows-image-name }}
-
   #
   # DOCKER DISTRIBUTION LANGUAGE VERSION COVERAGE
   # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
