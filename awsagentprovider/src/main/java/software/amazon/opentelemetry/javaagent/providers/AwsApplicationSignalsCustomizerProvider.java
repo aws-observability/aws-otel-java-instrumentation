@@ -279,7 +279,7 @@ public class AwsApplicationSignalsCustomizerProvider
   private String disableResourceProvider(
       ConfigProperties oldProps, List<String> resourceProviders) {
     List<String> list = oldProps.getList(OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG);
-    List<String> disabledResourceProviders = new ArrayList<>(list);
+    Set<String> disabledResourceProviders = new HashSet<>(list);
     disabledResourceProviders.addAll(resourceProviders);
     return String.join(",", disabledResourceProviders);
   }
