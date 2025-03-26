@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.distro.opentelemetry.exporter.xray.lambda;
+package software.amazon.distro.opentelemetry.exporter.xray.udp.trace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,11 +32,11 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class AwsXrayLambdaExporterTest {
+public class AwsXrayUdpSpanExporterTest {
 
   @Test
   public void testUdpExporterWithDefaults() {
-    AwsXrayLambdaExporter exporter = new AwsXrayLambdaExporterBuilder().build();
+    AwsXrayUdpSpanExporter exporter = new AwsXrayUdpSpanExporterBuilder().build();
     UdpSender sender = exporter.getSender();
     assertThat(sender.getEndpoint().getHostName())
         .isEqualTo("localhost"); // getHostName implicitly converts 127.0.0.1 to localhost
@@ -46,8 +46,8 @@ public class AwsXrayLambdaExporterTest {
 
   @Test
   public void testUdpExporterWithCustomEndpointAndSample() {
-    AwsXrayLambdaExporter exporter =
-        new AwsXrayLambdaExporterBuilder()
+    AwsXrayUdpSpanExporter exporter =
+        new AwsXrayUdpSpanExporterBuilder()
             .setEndpoint("somehost:1000")
             .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
             .build();
@@ -61,7 +61,7 @@ public class AwsXrayLambdaExporterTest {
   public void testUdpExporterWithInvalidEndpoint() {
     assertThatThrownBy(
             () -> {
-              new AwsXrayLambdaExporterBuilder().setEndpoint("invalidhost");
+              new AwsXrayUdpSpanExporterBuilder().setEndpoint("invalidhost");
             })
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid endpoint, must be a valid URL: invalidhost");
@@ -75,8 +75,8 @@ public class AwsXrayLambdaExporterTest {
     testEnv.put("AWS_XRAY_DAEMON_ADDRESS", "someaddress:1234");
 
     // Create builder with test environment
-    AwsXrayLambdaExporterBuilder builder =
-        new AwsXrayLambdaExporterBuilder().withEnvironmentVariables(testEnv);
+    AwsXrayUdpSpanExporterBuilder builder =
+        new AwsXrayUdpSpanExporterBuilder().withEnvironmentVariables(testEnv);
 
     // Verify that environment variables are set correctly
     assertThat(builder.getEnvironmentVariables())
@@ -84,7 +84,7 @@ public class AwsXrayLambdaExporterTest {
         .containsEntry("AWS_XRAY_DAEMON_ADDRESS", "someaddress:1234");
 
     // Build the exporter and verify the configuration
-    AwsXrayLambdaExporter exporter = builder.build();
+    AwsXrayUdpSpanExporter exporter = builder.build();
     UdpSender sender = exporter.getSender();
 
     assertThat(sender.getEndpoint().getHostName()).isEqualTo("someaddress");
@@ -98,7 +98,7 @@ public class AwsXrayLambdaExporterTest {
     // mock SpanData
     SpanData spanData = buildSpanDataMock();
 
-    AwsXrayLambdaExporter exporter = new AwsXrayLambdaExporterBuilder().setSender(senderMock).build();
+    AwsXrayUdpSpanExporter exporter = new AwsXrayUdpSpanExporterBuilder().setSender(senderMock).build();
     exporter.export(Collections.singletonList(spanData));
 
     // assert that the senderMock.send is called once
@@ -122,8 +122,8 @@ public class AwsXrayLambdaExporterTest {
     // mock SpanData
     SpanData spanData = buildSpanDataMock();
 
-    AwsXrayLambdaExporter exporter =
-        new AwsXrayLambdaExporterBuilder()
+    AwsXrayUdpSpanExporter exporter =
+        new AwsXrayUdpSpanExporterBuilder()
             .setSender(senderMock)
             .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
             .build();
@@ -173,4 +173,3 @@ public class AwsXrayLambdaExporterTest {
     return mockSpanData;
   }
 }
-

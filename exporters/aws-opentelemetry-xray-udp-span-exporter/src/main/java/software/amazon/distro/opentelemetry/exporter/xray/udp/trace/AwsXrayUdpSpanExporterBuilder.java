@@ -13,13 +13,13 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.distro.opentelemetry.exporter.xray.lambda;
+package software.amazon.distro.opentelemetry.exporter.xray.udp.trace;
 
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
 
-public final class AwsXrayLambdaExporterBuilder {
+public final class AwsXrayUdpSpanExporterBuilder {
 
   private static final String DEFAULT_HOST = "127.0.0.1";
   private static final int DEFAULT_PORT = 2000;
@@ -41,7 +41,7 @@ public final class AwsXrayLambdaExporterBuilder {
   private static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
 
-  public AwsXrayLambdaExporterBuilder setEndpoint(String endpoint) {
+  public AwsXrayUdpSpanExporterBuilder setEndpoint(String endpoint) {
     requireNonNull(endpoint, "endpoint must not be null");
     try {
       this.sender = createSenderFromEndpoint(endpoint);
@@ -51,7 +51,7 @@ public final class AwsXrayLambdaExporterBuilder {
     return this;
   }
 
-  public AwsXrayLambdaExporterBuilder setPayloadSampleDecision(TracePayloadSampleDecision decision) {
+  public AwsXrayUdpSpanExporterBuilder setPayloadSampleDecision(TracePayloadSampleDecision decision) {
     this.tracePayloadPrefix =
         decision == TracePayloadSampleDecision.SAMPLED
             ? FORMAT_OTEL_SAMPLED_TRACES_BINARY_PREFIX
@@ -67,7 +67,7 @@ public final class AwsXrayLambdaExporterBuilder {
     }
 
   // For testing purposes
-  AwsXrayLambdaExporterBuilder withEnvironmentVariables(Map<String, String> env) {
+  AwsXrayUdpSpanExporterBuilder withEnvironmentVariables(Map<String, String> env) {
     this.environmentVariables = env;
     return this;
   }
@@ -77,7 +77,7 @@ public final class AwsXrayLambdaExporterBuilder {
     return environmentVariables;
   }
 
-  public AwsXrayLambdaExporter build() {
+  public AwsXrayUdpSpanExporter build() {
     if (sender == null) {
       String endpoint = null;
 
@@ -87,7 +87,7 @@ public final class AwsXrayLambdaExporterBuilder {
         if (endpoint != null && !endpoint.isEmpty()) {
           try {
             this.sender = createSenderFromEndpoint(endpoint);
-            return new AwsXrayLambdaExporter(
+            return new AwsXrayUdpSpanExporter(
                 this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
           } catch (Exception e) {
             // Fallback to defaults if parsing fails
@@ -99,7 +99,7 @@ public final class AwsXrayLambdaExporterBuilder {
       // Use defaults if not in Lambda or if daemon address is invalid/unavailable
       this.sender = new UdpSender(DEFAULT_HOST, DEFAULT_PORT);
     }
-    return new AwsXrayLambdaExporter(
+    return new AwsXrayUdpSpanExporter(
         this.sender, PROTOCOL_HEADER + PROTOCOL_DELIMITER + tracePayloadPrefix);
   }
 
@@ -109,7 +109,7 @@ public final class AwsXrayLambdaExporterBuilder {
   }
 
   // Only for testing
-  AwsXrayLambdaExporterBuilder setSender(UdpSender sender) {
+  AwsXrayUdpSpanExporterBuilder setSender(UdpSender sender) {
     this.sender = sender;
     return this;
   }
@@ -119,4 +119,3 @@ enum TracePayloadSampleDecision {
   SAMPLED,
   UNSAMPLED
 }
-
