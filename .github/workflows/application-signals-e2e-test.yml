@@ -93,6 +93,14 @@ jobs:
       java-version: '22'
       cpu-architecture: 'x86_64'
 
+  java-ec2-adot-sigv4-test:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-sigv4-test.yml@main
+    secrets: inherit
+    with:
+      caller-workflow-name: 'main-build'
+      staging_distro_name: ${{ inputs.ec2-windows-image-name }}
+
   #
   # DOCKER DISTRIBUTION LANGUAGE VERSION COVERAGE
   # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
