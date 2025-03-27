@@ -41,14 +41,7 @@ import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -205,7 +198,8 @@ public class AwsApplicationSignalsCustomizerProvider
           OTEL_DISABLED_RESOURCE_PROVIDERS_CONFIG,
           this.disableResourceProvider(
               configProps,
-              List.of("io.opentelemetry.contrib.aws.resource.LambdaResourceProvider")));
+              Collections.singletonList(
+                  "io.opentelemetry.contrib.aws.resource.LambdaResourceProvider")));
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
@@ -257,7 +251,7 @@ public class AwsApplicationSignalsCustomizerProvider
 
       // Disable other AWS Resource Providers
       List<String> disabledResourceProviders =
-          List.of(
+          Arrays.asList(
               "io.opentelemetry.contrib.aws.resource.BeanstalkResourceProvider",
               "io.opentelemetry.contrib.aws.resource.Ec2ResourceProvider",
               "io.opentelemetry.contrib.aws.resource.EcsResourceProvider",
