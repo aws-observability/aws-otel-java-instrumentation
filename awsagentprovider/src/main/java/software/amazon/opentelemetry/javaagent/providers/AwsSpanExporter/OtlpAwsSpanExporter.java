@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.exporter;
+package software.amazon.opentelemetry.javaagent.providers.AwsSpanExporter;
 
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;

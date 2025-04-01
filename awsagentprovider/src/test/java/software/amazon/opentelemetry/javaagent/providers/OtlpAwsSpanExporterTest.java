@@ -46,7 +46,7 @@ import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignRequest.Builder;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
-import software.amazon.opentelemetry.javaagent.providers.exporter.OtlpAwsSpanExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.AwsSpanExporter.OtlpAwsSpanExporterBuilder;
 
 @ExtendWith(MockitoExtension.class)
 public class OtlpAwsSpanExporterTest {

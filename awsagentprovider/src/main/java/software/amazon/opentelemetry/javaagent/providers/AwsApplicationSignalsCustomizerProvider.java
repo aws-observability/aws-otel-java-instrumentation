@@ -52,7 +52,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import software.amazon.opentelemetry.javaagent.providers.exporter.OtlpAwsSpanExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.AwsSpanExporter.OtlpAwsSpanExporterBuilder;
 
 /**
  * This customizer performs the following customizations:
