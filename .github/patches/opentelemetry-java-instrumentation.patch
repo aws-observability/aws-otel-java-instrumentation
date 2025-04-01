@@ -3522,14 +3522,14 @@ index 2533a0202d..a275e7e2f7 100644
    // spans because of https://github.com/aws/aws-sdk-java-v2/issues/1741. We should at least tweak
    // the instrumentation to add Events for retries instead.
 diff --git a/version.gradle.kts b/version.gradle.kts
-index 7900c9a4d9..57b4d36c0a 100644
+index 7900c9a4d9..0dc0460cbc 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
 -val stableVersion = "2.10.0"
 -val alphaVersion = "2.10.0-alpha"
-+val stableVersion = "2.10.0-adot1"
-+val alphaVersion = "2.10.0-adot1-alpha"
++val stableVersion = "2.10.0-adot2"
++val alphaVersion = "2.10.0-adot2-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {
