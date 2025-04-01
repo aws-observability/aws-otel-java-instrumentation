@@ -2,7 +2,8 @@
 
 This guide explains how to automatically configure ADOT environment variables for exporting traces to [AWS X-Ray OTLP endpoint](https://docs.aws.amazon.com/xray/latest/devguide/xray-opentelemetry.html)
 
-## Pre-requisites:
+## Prerequisites
+
 1. Transaction Search must be enabled in order to send spans to the Xray OTLP endpoint. See [this doc](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Transaction-Search-getting-started.html) on how to enable Transaction Search.
 
 2. Ensure the AWS IAM role used for credentials in your application environment has [AWSXRayWriteOnlyAccess](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSXrayWriteOnlyAccess.html) managed policy attached to it.
