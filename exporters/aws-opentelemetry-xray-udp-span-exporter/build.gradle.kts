@@ -19,7 +19,7 @@ plugins {
   id("maven-publish")
 }
 
-group = "software.amazon.distro.opentelemetry.exporter.xray.lambda"
+group = "software.amazon.distro.opentelemetry.exporter.xray.udp.trace"
 version = "0.1.0"
 
 dependencies {
@@ -94,7 +94,7 @@ publishing {
     create<MavenPublication>("mavenJava") {
       from(components["java"])
       groupId = project.group.toString()
-      artifactId = "aws-opentelemetry-xray-lambda-exporter"
+      artifactId = "aws-opentelemetry-xray-udp-span-exporter"
       version = project.version.toString()
     }
   }

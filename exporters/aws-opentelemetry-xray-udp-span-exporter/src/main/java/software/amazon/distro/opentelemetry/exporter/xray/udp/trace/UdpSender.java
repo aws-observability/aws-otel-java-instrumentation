@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.distro.opentelemetry.exporter.xray.lambda;
+package software.amazon.distro.opentelemetry.exporter.xray.udp.trace;
 
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import java.io.IOException;
