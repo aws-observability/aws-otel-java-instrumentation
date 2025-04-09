@@ -395,10 +395,11 @@ public class AwsApplicationSignalsCustomizerProvider
     if (isSigV4Enabled()) {
       // can cast here since we've checked that the environment variable is
       // set to http/protobuf
-      return OtlpAwsSpanExporterBuilder.create(
-              (OtlpHttpSpanExporter) spanExporter,
-              System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
-          .build();
+      spanExporter =
+          OtlpAwsSpanExporterBuilder.create(
+                  (OtlpHttpSpanExporter) spanExporter,
+                  System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
+              .build();
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
