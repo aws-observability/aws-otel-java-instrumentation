@@ -60,6 +60,6 @@ public class ValidationAppController {
   private String formatTraceId(String traceId) {
     // Format trace ID to match X-Ray format
     return String.format(
-        "{\"traceId\": \"1-%s-%s\"}", traceId.substring(0, 8), traceId.substring(8));
+        "1-%s-%s", traceId.substring(0, 8), traceId.substring(8));
   }
 }

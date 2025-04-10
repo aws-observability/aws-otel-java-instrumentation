@@ -5,13 +5,17 @@ plugins {
   id("org.springframework.boot") version "2.7.17"
 }
 
+var xrayUdpSpanExporterVersion = ""
+ext {
+  xrayUdpSpanExporterVersion = System.getenv("XRAY_UDP_SPAN_EXPORTER_VERSION") ?: ""
+}
+
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
-  implementation("software.amazon.distro.opentelemetry.exporter.xray.udp.trace:aws-opentelemetry-xray-udp-span-exporter:0.1.0")
+  implementation("software.amazon.distro.opentelemetry.exporter.xray.udp.trace:aws-opentelemetry-xray-udp-span-exporter:${xrayUdpSpanExporterVersion}")
   implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
-  implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 }
 
 tasks.bootJar {

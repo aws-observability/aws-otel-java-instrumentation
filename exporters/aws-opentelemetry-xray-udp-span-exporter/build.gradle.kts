@@ -24,9 +24,8 @@ version = "0.1.0"
 
 dependencies {
   implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
-  compileOnly("io.opentelemetry:opentelemetry-api")
-  compileOnly("io.opentelemetry:opentelemetry-sdk")
-  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  implementation("io.opentelemetry:opentelemetry-sdk")
+  implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("io.opentelemetry:opentelemetry-api")
   testImplementation("io.opentelemetry:opentelemetry-sdk")
@@ -87,6 +86,12 @@ tasks.named<Jar>("javadocJar") {
 
 tasks.named<Jar>("sourcesJar") {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.create("printVersion") {
+  doLast {
+    println(project.version.toString())
+  }
 }
 
 publishing {
