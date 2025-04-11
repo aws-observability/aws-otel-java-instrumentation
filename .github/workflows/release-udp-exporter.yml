@@ -33,8 +33,7 @@ jobs:
           cache: 'gradle'
 
       - name: Build and Test UDP exporter
-        working-directory: exporters/aws-opentelemetry-xray-udp-span-exporter
         run: |
-          gradle build 
+          ./gradlew build -p exporters/aws-opentelemetry-xray-udp-span-exporter
 
       # TODO: Steps to publish to Maven Central
