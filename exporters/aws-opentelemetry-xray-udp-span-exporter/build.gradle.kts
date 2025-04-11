@@ -27,7 +27,6 @@ dependencies {
   implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
-  testImplementation("io.opentelemetry:opentelemetry-api")
   testImplementation("io.opentelemetry:opentelemetry-sdk")
   testImplementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
   testImplementation(platform("org.junit:junit-bom:5.9.2"))
