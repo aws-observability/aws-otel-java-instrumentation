@@ -88,6 +88,10 @@ jobs:
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
+      - name: Build and Test UDP exporter
+        run: |
+          ./gradlew build -p exporters/aws-opentelemetry-xray-udp-span-exporter
+
       - name: Set up Java version for tests
         uses: actions/setup-java@v4
         with:
