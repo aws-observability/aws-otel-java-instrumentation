@@ -123,10 +123,8 @@ public class AwsApplicationSignalsCustomizerProvider
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
-  private static boolean isSigV4Enabled = false;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
-    isSigV4Enabled = AwsApplicationSignalsCustomizerProvider.isSigV4Enabled();
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
     autoConfiguration.addPropertiesCustomizer(this::customizeLambdaEnvProperties);
     autoConfiguration.addResourceCustomizer(this::customizeResource);
@@ -327,10 +325,6 @@ public class AwsApplicationSignalsCustomizerProvider
         return tracerProviderBuilder;
       }
 
-      if (isSigV4Enabled) {
-        return tracerProviderBuilder;
-      }
-
       // Construct meterProvider
       MetricExporter metricsExporter =
           ApplicationSignalsExporterProvider.INSTANCE.createExporter(configProps);
@@ -398,13 +392,14 @@ public class AwsApplicationSignalsCustomizerProvider
     }
 
     // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication.
-    if (isSigV4Enabled) {
+    if (isSigV4Enabled()) {
       // can cast here since we've checked that the environment variable is
       // set to http/protobuf
-      return OtlpAwsSpanExporterBuilder.create(
-              (OtlpHttpSpanExporter) spanExporter,
-              System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
-          .build();
+      spanExporter =
+          OtlpAwsSpanExporterBuilder.create(
+                  (OtlpHttpSpanExporter) spanExporter,
+                  System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
+              .build();
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
