@@ -1,0 +1,39 @@
+name: Release ADOT X-Ray UDP Exporter
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to tag the release with, e.g., 1.2.0
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+
+jobs:
+  validate-udp-exporter-e2e-test:
+    name: "Validate X-Ray UDP Exporter E2E Test Succeeds"
+    uses: ./.github/workflows/udp-exporter-e2e-test.yml
+    secrets: inherit
+    permissions:
+      id-token: write
+
+  release-udp-exporter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build and Test UDP exporter
+        run: |
+          ./gradlew build -p exporters/aws-opentelemetry-xray-udp-span-exporter
+
+      # TODO: Steps to publish to Maven Central
