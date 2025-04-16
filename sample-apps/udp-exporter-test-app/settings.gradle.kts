@@ -1,4 +1,4 @@
-rootProject.name = "integ-test-app"
+rootProject.name = "udp-exporter-test-app"
 
 dependencyResolutionManagement {
   repositories {
