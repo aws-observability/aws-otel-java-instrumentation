@@ -23,7 +23,7 @@ plugins {
 }
 
 group = "software.amazon.distro.opentelemetry"
-version = "0.0.1"
+version = "0.0.2-SNAPSHOT"
 
 dependencies {
   implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
