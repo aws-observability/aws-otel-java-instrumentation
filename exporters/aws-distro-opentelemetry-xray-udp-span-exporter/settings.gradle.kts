@@ -1,4 +1,4 @@
-rootProject.name = "aws-opentelemetry-xray-udp-span-exporter"
+rootProject.name = "aws-distro-opentelemetry-xray-udp-span-exporter"
 
 dependencyResolutionManagement {
   repositories {

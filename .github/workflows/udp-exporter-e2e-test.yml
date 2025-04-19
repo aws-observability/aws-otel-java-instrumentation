@@ -39,9 +39,9 @@ jobs:
       - name: Publish UDP exporter to Maven Local
         id: build-udp-exporter
         run: |
-          ./gradlew build -p exporters/aws-opentelemetry-xray-udp-span-exporter
-          ./gradlew publishToMavenLocal -p exporters/aws-opentelemetry-xray-udp-span-exporter
-          echo "xrayUdpSpanExporterVersion=$(./gradlew -q printVersion -p exporters/aws-opentelemetry-xray-udp-span-exporter)" >> $GITHUB_OUTPUT
+          ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
+          ./gradlew publishToMavenLocal -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
+          echo "xrayUdpSpanExporterVersion=$(./gradlew -q printVersion -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter)" >> $GITHUB_OUTPUT
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

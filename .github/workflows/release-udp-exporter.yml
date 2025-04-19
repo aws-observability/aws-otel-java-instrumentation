@@ -36,18 +36,18 @@ jobs:
 
       - name: Build and Test UDP exporter
         run: |
-          ./gradlew build -p exporters/aws-opentelemetry-xray-udp-span-exporter
+          ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
 
       - name: Validate project version matches workflow input
         run: |
-          xrayUdpSpanExporterVersion=$(./gradlew -q printVersion -p exporters/aws-opentelemetry-xray-udp-span-exporter)
+          xrayUdpSpanExporterVersion=$(./gradlew -q printVersion -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter)
           if [[ ! "$xrayUdpSpanExporterVersion" == "${{ inputs.udp-exporter-version }}" ]]; then
             echo "Input version '${{ inputs.udp-exporter-version }}' does not match with the UDP Exporter project version '$xrayUdpSpanExporterVersion'"
             exit 1
           fi
 
       - name: Build and publish to sonatype
-        run: ./gradlew -p exporters/aws-opentelemetry-xray-udp-span-exporter publishToSonatype closeAndReleaseSonatypeStagingRepository --stacktrace
+        run: ./gradlew -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter publishToSonatype closeAndReleaseSonatypeStagingRepository --stacktrace
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -63,6 +63,6 @@ jobs:
         run: |
           gh release create --target "$GITHUB_REF_NAME" \
             --title "Release aws-distro-opentelemetry-xray-udp-span-exporter v${{ inputs.udp-exporter-version }}" \
-            --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/exporters/aws-opentelemetry-xray-udp-span-exporter/CHANGELOG.md) for more details" \
+            --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/exporters/aws-distro-opentelemetry-xray-udp-span-exporter/CHANGELOG.md) for more details" \
             --draft \
             "v${{ inputs.udp-exporter-version }}"

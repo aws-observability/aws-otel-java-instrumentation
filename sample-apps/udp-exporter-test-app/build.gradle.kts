@@ -12,7 +12,7 @@ ext {
 
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
-  implementation("software.amazon.distro.opentelemetry:aws-opentelemetry-xray-udp-span-exporter:${xrayUdpSpanExporterVersion}")
+  implementation("software.amazon.distro.opentelemetry:aws-distro-opentelemetry-xray-udp-span-exporter:${xrayUdpSpanExporterVersion}")
   implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
