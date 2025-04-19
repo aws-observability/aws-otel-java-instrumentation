@@ -61,8 +61,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
-          gh release create --target "$GITHUB_REF_NAME" \
-            --title "Release aws-distro-opentelemetry-xray-udp-span-exporter v${{ inputs.udp-exporter-version }}" \
-            --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/exporters/aws-distro-opentelemetry-xray-udp-span-exporter/CHANGELOG.md) for more details" \
-            --draft \
-            "v${{ inputs.udp-exporter-version }}"
+          # gh release create --target "$GITHUB_REF_NAME" \
+          #   --title "Release aws-distro-opentelemetry-xray-udp-span-exporter v${{ inputs.udp-exporter-version }}" \
+          #   --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/exporters/aws-distro-opentelemetry-xray-udp-span-exporter/CHANGELOG.md) for more details" \
+          #   --draft \
+          #   "v${{ inputs.udp-exporter-version }}"
+          echo "Completed"
