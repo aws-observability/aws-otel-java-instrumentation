@@ -30,8 +30,6 @@ patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
 
 patch -p1 < "$SOURCEDIR"/patches/StreamHandlerInstrumentation.patch
 
-git add -A
-git commit -m "Create patch version"
 ./gradlew publishToMavenLocal
 popd
 rm -rf opentelemetry-java-instrumentation

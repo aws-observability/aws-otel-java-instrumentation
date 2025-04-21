@@ -132,7 +132,7 @@ index 0000000000..1c4ef1ac07
 +        functionInstrumenter().end(functionContext, input, null, throwable);
 +      }
 +
-+      OpenTelemetrySdkAccess.forceFlush((long) 1, TimeUnit.SECONDS);
++      OpenTelemetrySdkAccess.forceFlush((long)1, TimeUnit.SECONDS);
 +    }
 +  }
 +}
@@ -388,7 +388,7 @@ index 0000000000..f21a4a5526
 +            .end(functionContext, input, null, throwable);
 +      }
 +
-+      OpenTelemetrySdkAccess.forceFlush((long) 1, TimeUnit.SECONDS);
++      OpenTelemetrySdkAccess.forceFlush((long)1, TimeUnit.SECONDS);
 +    }
 +  }
 +}
