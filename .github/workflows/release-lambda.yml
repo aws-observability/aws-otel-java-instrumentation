@@ -109,7 +109,7 @@ jobs:
             aws lambda publish-layer-version \
               --layer-name ${{ env.LAYER_NAME }} \
               --content S3Bucket=${{ env.BUCKET_NAME }},S3Key=aws-opentelemetry-java-layer.zip \
-              --compatible-runtimes java11 java17 java21 \
+              --compatible-runtimes java17 java21 \
               --compatible-architectures "arm64" "x86_64" \
               --license-info "Apache-2.0" \
               --description "AWS Distro of OpenTelemetry Lambda Layer for Java Runtime" \
@@ -140,7 +140,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.LAYER_NAME }}-${{ matrix.aws_region }}
+          name: ${{ env.LAYER_NAME }}
           path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
 
       - name: clean s3
@@ -154,16 +154,13 @@ jobs:
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
         uses: actions/checkout@v4
-
       - uses: hashicorp/setup-terraform@v2
-
       - name: download layerARNs
         uses: actions/download-artifact@v4
         with:
           pattern: ${{ env.LAYER_NAME }}-*
           path: ${{ env.LAYER_NAME }}
           merge-multiple: true
-
       - name: show layerARNs
         run: |
           for file in ${{ env.LAYER_NAME }}/*
@@ -171,7 +168,6 @@ jobs:
           echo $file
           cat $file
           done
-
       - name: generate layer-note
         working-directory: ${{ env.LAYER_NAME }}
         run: |
@@ -182,38 +178,69 @@ jobs:
           read arn < $file
           echo "| " $file " | " $arn " |" >> ../layer-note
           done
-          cd ..
-          cat layer-note
-
+          cat ../layer-note
       - name: generate tf layer
         working-directory: ${{ env.LAYER_NAME }}
         run: |
-          echo "locals {" >> ../layer.tf
-          echo "  sdk_layer_arns = {" >> ../layer.tf
+          echo "locals {" >> ../layer_arns.tf
+          echo "  sdk_layer_arns = {" >> ../layer_arns.tf
           for file in *
           do
           read arn < $file
-          echo "    \""$file"\" = \""$arn"\"" >> ../layer.tf
+          echo "    \""$file"\" = \""$arn"\"" >> ../layer_arns.tf
           done
           cd ..
-          echo "  }" >> layer.tf
-          echo "}" >> layer.tf
-          terraform fmt layer.tf
-          cat layer.tf
-
-      - name: upload layer tf file
-        uses: actions/upload-artifact@v4
+          echo "  }" >> layer_arns.tf
+          echo "}" >> layer_arns.tf
+          terraform fmt layer_arns.tf
+          cat layer_arns.tf
+      - name: generate layer ARN constants for CDK
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "{" > ../layer_cdk
+          for file in *; do
+            read arn < "$file"
+            echo "    \"$file\": \"$arn\"," >> ../layer_cdk
+          done
+          echo "}" >> ../layer_cdk
+          cat ../layer_cdk
+      - name: download layer.zip
+        uses: actions/download-artifact@v4
         with:
-          name: layer.tf
-          path: layer.tf
-
+          name: layer.zip
+      - name: Get commit hash
+        id: commit
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Create Release Notes
+        run: |
+          echo "AWS OpenTelemetry Lambda Layer for Java version ${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}" > release_notes.md
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "See new Lambda Layer ARNs:" >> release_notes.md
+          echo "" >> release_notes.md
+          cat layer-note >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Notes:" >> release_notes.md
       - name: Create GH release
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
           gh release create --target "$GITHUB_REF_NAME" \
-             --title "Release lambda-v${{ github.event.inputs.version }}" \
+             --title "Release lambda-v${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}" \
+             --notes-file release_notes.md  \
              --draft \
-             "lambda-v${{ github.event.inputs.version }}" \
-             layer.tf
+             "lambda-v${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}" \
+             layer_arns.tf layer.zip
+          echo Removing release_notes.md ...
+          rm -f release_notes.md
+      - name: Upload layer.zip and SHA-256 checksum to SDK Release Notes (tagged with latest)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
+          # Generate SHA-256 checksum for layer.zip
+          shasum -a 256 layer.zip > layer.zip.sha256
+          # Upload layer.zip and its checksum to the latest SDK release note
+          gh release upload "$LATEST_SDK_VERSION" layer.zip layer.zip.sha256 --repo "aws-observability/aws-otel-java-instrumentation" --clobber
+          echo "✅ layer.zip successfully uploaded to $LATEST_SDK_VERSION in the upstream repo!"
