@@ -71,13 +71,19 @@ public final class AwsApplicationSignalsConfigValidator {
     String logGroupHeader = "x-aws-log-group";
     String logStreamHeader = "x-aws-log-stream";
 
-    Set<String> headers =
-        Arrays.stream(logsHeaders.split(";"))
-            .filter(pair -> pair.contains("="))
-            .map(pair -> pair.split("=", 2)[0])
+    Set<String> filteredLogHeaders =
+        Arrays.stream(logsHeaders.split(","))
+            .filter(
+                pair -> {
+                  if (pair.contains("=")) {
+                    String key = pair.split("=", 2)[0];
+                    return key.equals(logGroupHeader) || key.equals(logStreamHeader);
+                  }
+                  return false;
+                })
             .collect(Collectors.toSet());
 
-    if (!headers.contains(logGroupHeader) || !headers.contains(logStreamHeader)) {
+    if (filteredLogHeaders.size() != 2) {
       logger.warning(
           "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for x-aws-log-group and x-aws-log-stream");
       return false;
