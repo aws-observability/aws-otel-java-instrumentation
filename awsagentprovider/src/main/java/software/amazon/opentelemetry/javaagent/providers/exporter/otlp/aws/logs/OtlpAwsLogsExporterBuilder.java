@@ -22,34 +22,22 @@ import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 public class OtlpAwsLogsExporterBuilder {
   private final OtlpHttpLogRecordExporter parentExporter;
   private final String endpoint;
-  private final String logGroup;
-  private final String logStream;
 
   public static OtlpAwsLogsExporterBuilder create(
-      OtlpHttpLogRecordExporter parentExporter,
-      String endpoint,
-      String logGroup,
-      String logStream) {
-    return new OtlpAwsLogsExporterBuilder(parentExporter, endpoint, logGroup, logStream);
+      OtlpHttpLogRecordExporter parentExporter, String endpoint) {
+    return new OtlpAwsLogsExporterBuilder(parentExporter, endpoint);
   }
 
-  public static OtlpAwsLogsExporter getDefault(String endpoint, String logGroup, String logStream) {
-    return OtlpAwsLogsExporter.getDefault(endpoint, logGroup, logStream);
+  public static OtlpAwsLogsExporter getDefault(String endpoint) {
+    return OtlpAwsLogsExporter.getDefault(endpoint);
   }
 
   public OtlpAwsLogsExporter build() {
-    return OtlpAwsLogsExporter.create(
-        this.parentExporter, this.endpoint, this.logGroup, this.logStream);
+    return OtlpAwsLogsExporter.create(this.parentExporter, this.endpoint);
   }
 
-  private OtlpAwsLogsExporterBuilder(
-      OtlpHttpLogRecordExporter parentExporter,
-      String endpoint,
-      String logGroup,
-      String logStream) {
+  private OtlpAwsLogsExporterBuilder(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
     this.parentExporter = requireNonNull(parentExporter, "Must set a parentExporter");
     this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
-    this.logGroup = requireNonNull(logGroup, "Must set a logGroup");
-    this.logStream = requireNonNull(logStream, "Must set a logStream");
   }
 }

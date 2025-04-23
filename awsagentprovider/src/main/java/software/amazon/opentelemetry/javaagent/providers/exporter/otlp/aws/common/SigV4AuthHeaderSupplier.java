@@ -79,8 +79,8 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
       logger.log(
           Level.WARNING,
           String.format(
-              "Failed to sign/authenticate the given exported Span request to OTLP CloudWatch endpoint with error: %s",
-              e.getMessage()));
+              "Failed to sign/authenticate export request to %s with error: %s",
+              exporter.endpoint, e.getMessage()));
 
       return Collections.emptyMap();
     }

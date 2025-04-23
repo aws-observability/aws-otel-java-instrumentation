@@ -25,9 +25,7 @@ import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Map;
 import java.util.StringJoiner;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 
@@ -41,41 +39,29 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.commo
 public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements LogRecordExporter {
   private final OtlpHttpLogRecordExporterBuilder parentExporterBuilder;
   private final OtlpHttpLogRecordExporter parentExporter;
-  private final String logGroup;
-  private final String logStream;
 
-  static OtlpAwsLogsExporter getDefault(String endpoint, String logGroup, String logStream) {
-    return new OtlpAwsLogsExporter(endpoint, logGroup, logStream);
+  static OtlpAwsLogsExporter getDefault(String endpoint) {
+    return new OtlpAwsLogsExporter(endpoint);
   }
 
-  static OtlpAwsLogsExporter create(
-      OtlpHttpLogRecordExporter parent, String endpoint, String logGroup, String logStream) {
-    return new OtlpAwsLogsExporter(parent, endpoint, logGroup, logStream);
+  static OtlpAwsLogsExporter create(OtlpHttpLogRecordExporter parent, String endpoint) {
+    return new OtlpAwsLogsExporter(parent, endpoint);
   }
 
-  private OtlpAwsLogsExporter(String endpoint, String logGroup, String logStream) {
-    this(null, endpoint, logGroup, logStream);
+  private OtlpAwsLogsExporter(String endpoint) {
+    this(null, endpoint);
   }
 
-  private OtlpAwsLogsExporter(
-      OtlpHttpLogRecordExporter parentExporter,
-      String endpoint,
-      String logGroup,
-      String logStream) {
+  private OtlpAwsLogsExporter(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
 
     super(endpoint);
-
-    this.logGroup = logGroup;
-    this.logStream = logStream;
-
-    Supplier<Map<String, String>> logsHeader = new LogsHeaderSupplier();
 
     if (parentExporter == null) {
       this.parentExporterBuilder =
           OtlpHttpLogRecordExporter.builder()
               .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
               .setEndpoint(endpoint)
-              .setHeaders(logsHeader);
+              .setHeaders(this.authSupplier);
       this.parentExporter = this.parentExporterBuilder.build();
       return;
     }
@@ -84,7 +70,7 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
         parentExporter.toBuilder()
             .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
             .setEndpoint(endpoint)
-            .setHeaders(logsHeader);
+            .setHeaders(this.authSupplier);
 
     this.parentExporter = this.parentExporterBuilder.build();
   }
@@ -127,19 +113,5 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
   @Override
   public String serviceName() {
     return "logs";
-  }
-
-  private final class LogsHeaderSupplier implements Supplier<Map<String, String>> {
-    private static final String LOG_GROUP_HEADER = "x-aws-log-group";
-    private static final String LOG_STREAM_HEADER = "x-aws-log-stream";
-
-    @Override
-    public Map<String, String> get() {
-      Map<String, String> headers = OtlpAwsLogsExporter.this.authSupplier.get();
-      headers.put(LOG_GROUP_HEADER, OtlpAwsLogsExporter.this.logGroup);
-      headers.put(LOG_STREAM_HEADER, OtlpAwsLogsExporter.this.logStream);
-
-      return headers;
-    }
   }
 }

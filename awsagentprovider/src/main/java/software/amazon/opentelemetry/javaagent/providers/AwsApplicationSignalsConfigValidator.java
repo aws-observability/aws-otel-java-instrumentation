@@ -18,9 +18,12 @@ package software.amazon.opentelemetry.javaagent.providers;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.*;
 
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /** Utilities class to validate ADOT environment variable configuration. */
 public final class AwsApplicationSignalsConfigValidator {
@@ -46,8 +49,7 @@ public final class AwsApplicationSignalsConfigValidator {
     String logsEndpoint = config.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT);
     String logsExporter = config.getString(OTEL_LOGS_EXPORTER);
     String logsProtocol = config.getString(OTEL_EXPORTER_OTLP_LOGS_PROTOCOL);
-    String logGroup = config.getString(OTEL_AWS_LOG_GROUP);
-    String logStream = config.getString(OTEL_AWS_LOG_STREAM);
+    String logsHeaders = config.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS);
 
     if (!isValidConfig(
         logsEndpoint,
@@ -59,19 +61,25 @@ public final class AwsApplicationSignalsConfigValidator {
       return false;
     }
 
-    if (logGroup == null) {
+    if (logsHeaders == null || logsHeaders.isEmpty()) {
       logger.warning(
-          String.format(
-              "Improper configuration: Please configure your environment variables and export/set %s",
-              OTEL_AWS_LOG_GROUP));
+          "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to include x-aws-log-group and x-aws-log-stream");
+
       return false;
     }
 
-    if (logStream == null) {
+    String logGroupHeader = "x-aws-log-group";
+    String logStreamHeader = "x-aws-log-stream";
+
+    Set<String> headers =
+        Arrays.stream(logsHeaders.split(";"))
+            .filter(pair -> pair.contains("="))
+            .map(pair -> pair.split("=", 2)[0])
+            .collect(Collectors.toSet());
+
+    if (!headers.contains(logGroupHeader) || !headers.contains(logStreamHeader)) {
       logger.warning(
-          String.format(
-              "Improper configuration: Please configure your environment variables and export/set %s",
-              OTEL_AWS_LOG_STREAM));
+          "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for x-aws-log-group and x-aws-log-stream");
       return false;
     }
 

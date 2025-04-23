@@ -127,8 +127,7 @@ public class AwsApplicationSignalsCustomizerProvider
   static final String OTEL_EXPORTER_OTLP_LOGS_ENDPOINT = "otel.exporter.otlp.logs.endpoint";
   private static final String OTEL_TRACES_SAMPLER = "otel.traces.sampler";
   private static final String OTEL_TRACES_SAMPLER_ARG = "otel.traces.sampler.arg";
-  static final String OTEL_AWS_LOG_GROUP = "otel.aws.log.group";
-  static final String OTEL_AWS_LOG_STREAM = "otel.aws.log.stream";
+  static final String OTEL_EXPORTER_OTLP_LOGS_HEADERS = "otel.exporter.otlp.logs.headers";
 
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
@@ -392,9 +391,7 @@ public class AwsApplicationSignalsCustomizerProvider
     if (AwsApplicationSignalsConfigValidator.isSigV4EnabledLogs(configProps)) {
       return OtlpAwsLogsExporterBuilder.create(
               (OtlpHttpLogRecordExporter) logsExporter,
-              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT),
-              configProps.getString(OTEL_AWS_LOG_GROUP),
-              configProps.getString(OTEL_AWS_LOG_STREAM))
+              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
           .build();
     }
 
