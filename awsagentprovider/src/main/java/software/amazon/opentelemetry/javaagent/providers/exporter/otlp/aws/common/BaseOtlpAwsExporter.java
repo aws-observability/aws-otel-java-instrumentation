@@ -13,33 +13,29 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common;
 
-import io.opentelemetry.sdk.common.CompletableResultCode;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-public abstract class AbstractOtlpAwsExporter<SignalDataType> {
+/**
+ * Abstract base class providing shared functionality for AWS (OTLP) exporters authenticated with
+ * Sigv4.
+ */
+public abstract class BaseOtlpAwsExporter {
 
   protected final String awsRegion;
   protected final String endpoint;
   protected final AtomicReference<byte[]> data;
   protected final Supplier<Map<String, String>> authSupplier;
 
-  AbstractOtlpAwsExporter(String endpoint) {
+  protected BaseOtlpAwsExporter(String endpoint) {
     this.endpoint = endpoint;
     this.awsRegion = endpoint.split("\\.")[1];
     this.data = new AtomicReference<>();
-    this.authSupplier = new SigV4AuthHeaderSupplier<>(this);
+    this.authSupplier = new SigV4AuthHeaderSupplier(this);
   }
 
-  abstract CompletableResultCode export(Collection<SignalDataType> signalData);
-
-  abstract CompletableResultCode flush();
-
-  abstract CompletableResultCode shutdown();
-
-  abstract String serviceName();
+  public abstract String serviceName();
 }

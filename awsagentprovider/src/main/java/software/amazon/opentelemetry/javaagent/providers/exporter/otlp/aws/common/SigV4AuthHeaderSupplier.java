@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -29,11 +29,11 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 
-final class SigV4AuthHeaderSupplier<SignalDataType> implements Supplier<Map<String, String>> {
-  AbstractOtlpAwsExporter<SignalDataType> exporter;
+final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
+  BaseOtlpAwsExporter exporter;
   Logger logger;
 
-  public SigV4AuthHeaderSupplier(AbstractOtlpAwsExporter<SignalDataType> exporter) {
+  public SigV4AuthHeaderSupplier(BaseOtlpAwsExporter exporter) {
     this.exporter = exporter;
     this.logger = Logger.getLogger(exporter.getClass().getName());
   }

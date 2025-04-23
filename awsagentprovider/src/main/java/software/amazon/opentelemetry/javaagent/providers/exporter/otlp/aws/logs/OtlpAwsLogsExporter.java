@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs;
 
 import io.opentelemetry.exporter.internal.otlp.logs.LogsRequestMarshaler;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
@@ -26,13 +26,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 
-public class OtlpAwsLogsExporter extends AbstractOtlpAwsExporter<LogRecordData>
-    implements LogRecordExporter {
-  private static final String SERVICE_NAME = "logs";
-
+/**
+ * This exporter extends the functionality of the OtlpAwsLogsExporter to allow logs to be exported
+ * to the CloudWatch Logs OTLP endpoint https://logs.[AWSRegion].amazonaws.com/v1/logs. Utilizes the
+ * AWSSDK library to sign and directly inject SigV4 Authentication to the exported request's
+ * headers. Also injects x-aws-log-group and x-aws-log-stream headers as per documentation: "<a
+ * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>">
+ */
+public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements LogRecordExporter {
   private final OtlpHttpLogRecordExporterBuilder parentExporterBuilder;
   private final OtlpHttpLogRecordExporter parentExporter;
   private final String logGroup;
@@ -47,25 +53,22 @@ public class OtlpAwsLogsExporter extends AbstractOtlpAwsExporter<LogRecordData>
     return new OtlpAwsLogsExporter(parent, endpoint, logGroup, logStream);
   }
 
-  OtlpAwsLogsExporter(String endpoint, String logGroup, String logStream) {
+  private OtlpAwsLogsExporter(String endpoint, String logGroup, String logStream) {
     this(null, endpoint, logGroup, logStream);
   }
 
-  OtlpAwsLogsExporter(
+  private OtlpAwsLogsExporter(
       OtlpHttpLogRecordExporter parentExporter,
       String endpoint,
       String logGroup,
       String logStream) {
+
     super(endpoint);
-
-    if (logGroup == null || logStream == null) {
-      throw new IllegalArgumentException("logGroup and logStream must not be null");
-    }
-
-    Supplier<Map<String, String>> logsHeader = new LogsHeaderSupplier();
 
     this.logGroup = logGroup;
     this.logStream = logStream;
+
+    Supplier<Map<String, String>> logsHeader = new LogsHeaderSupplier();
 
     if (parentExporter == null) {
       this.parentExporterBuilder =
@@ -86,6 +89,11 @@ public class OtlpAwsLogsExporter extends AbstractOtlpAwsExporter<LogRecordData>
     this.parentExporter = this.parentExporterBuilder.build();
   }
 
+  /**
+   * Overrides the upstream implementation of export. All behaviors are the same except if the
+   * endpoint is an CloudWatch Logs OTLP endpoint, we will sign the request with SigV4 in headers
+   * before sending it to the endpoint. Otherwise, we will skip signing.
+   */
   @Override
   public CompletableResultCode export(@Nonnull Collection<LogRecordData> logs) {
     try {
@@ -109,8 +117,16 @@ public class OtlpAwsLogsExporter extends AbstractOtlpAwsExporter<LogRecordData>
   }
 
   @Override
-  String serviceName() {
-    return SERVICE_NAME;
+  public String toString() {
+    StringJoiner joiner = new StringJoiner(", ", "OtlpAwsLogsExporter{", "}");
+    joiner.add(this.parentExporterBuilder.toString());
+    joiner.add("memoryMode=" + MemoryMode.IMMUTABLE_DATA);
+    return joiner.toString();
+  }
+
+  @Override
+  public String serviceName() {
+    return "logs";
   }
 
   private final class LogsHeaderSupplier implements Supplier<Map<String, String>> {

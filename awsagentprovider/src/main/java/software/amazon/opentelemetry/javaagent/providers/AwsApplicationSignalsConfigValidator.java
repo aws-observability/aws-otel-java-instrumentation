@@ -22,51 +22,75 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-public final class ConfigValidator {
+/** Utilities class to validate ADOT environment variable configuration. */
+public final class AwsApplicationSignalsConfigValidator {
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
 
+  /**
+   * Is the given configuration correct to enable SigV4 for Logs?
+   *
+   * <ul>
+   *   <li><code>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</code>
+   *       =https://logs.[AWS-REGION].amazonaws.com/v1/logs
+   *   <li><code>OTEL_AWS_LOG_GROUP</code>=[CW-LOG-GROUP-NAME]
+   *   <li><code>OTEL_AWS_LOG_STREAM</code>=[CW-LOG-STREAM-NAME]
+   *   <li><code>OTEL_EXPORTER_OTLP_LOGS_PROTOCOL</code>=http/protobuf
+   *   <li><code>OTEL_LOGS_EXPORTER</code>=otlp
+   * </ul>
+   *
+   * <p>NOTE: ** indicates that the environment variable must exactly match this value or must not
+   * be set at all.
+   */
   public static boolean isSigV4EnabledLogs(ConfigProperties config) {
     String logsEndpoint = config.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT);
     String logsExporter = config.getString(OTEL_LOGS_EXPORTER);
     String logsProtocol = config.getString(OTEL_EXPORTER_OTLP_LOGS_PROTOCOL);
-    String logGroup = config.getString(OTEL_AWS_SIGV4_LOG_GROUP);
-    String logStream = config.getString(OTEL_AWS_SIGV4_LOG_STREAM);
+    String logGroup = config.getString(OTEL_AWS_LOG_GROUP);
+    String logStream = config.getString(OTEL_AWS_LOG_STREAM);
 
-    boolean isValidConfig =
-        isValidConfig(
-            logsEndpoint,
-            AWS_OTLP_LOGS_ENDPOINT_PATTERN,
-            OTEL_LOGS_EXPORTER,
-            logsExporter,
-            OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
-            logsProtocol);
-
-    if (isValidConfig) {
-      if (logGroup == null) {
-        logger.log(
-            Level.INFO,
-            String.format(
-                "Improper configuration: Please configure your environment variables and export/set %s",
-                OTEL_AWS_SIGV4_LOG_GROUP));
-        return false;
-      }
-
-      if (logStream == null) {
-        logger.log(
-            Level.INFO,
-            String.format(
-                "Improper configuration: Please configure your environment variables and export/set %s",
-                OTEL_AWS_SIGV4_LOG_STREAM));
-        return false;
-      }
-
-      return true;
+    if (!isValidConfig(
+        logsEndpoint,
+        AWS_OTLP_LOGS_ENDPOINT_PATTERN,
+        OTEL_LOGS_EXPORTER,
+        logsExporter,
+        OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+        logsProtocol)) {
+      return false;
     }
 
-    return false;
+    if (logGroup == null) {
+      logger.warning(
+          String.format(
+              "Improper configuration: Please configure your environment variables and export/set %s",
+              OTEL_AWS_LOG_GROUP));
+      return false;
+    }
+
+    if (logStream == null) {
+      logger.warning(
+          String.format(
+              "Improper configuration: Please configure your environment variables and export/set %s",
+              OTEL_AWS_LOG_STREAM));
+      return false;
+    }
+
+    return true;
   }
 
+  /**
+   * Is the given configuration correct to enable SigV4 for Traces?
+   *
+   * <ul>
+   *   <li><code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>
+   *       =https://xray.[AWS-REGION].amazonaws.com/v1/traces
+   *   <li><code>OTEL_EXPORTER_OTLP_TRACES_PROTOCOL</code>=http/protobuf **
+   *   <li><code>OTEL_TRACES_EXPORTER</code>=otlp **
+   * </ul>
+   *
+   * <p>NOTE: ** indicates that the environment variable must exactly match this value or must not
+   * be set at all.
+   */
   public static boolean isSigV4EnabledTraces(ConfigProperties config) {
     String tracesEndpoint = config.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT);
     String tracesExporter = config.getString(OTEL_TRACES_EXPORTER);
@@ -81,6 +105,16 @@ public final class ConfigValidator {
         tracesProtocol);
   }
 
+  /**
+   * Determines if the required configurations for the signal type is correct. These environment
+   * variables must exactly match this value or must not be set at all.
+   *
+   * <ul>
+   *   <li><code>OTEL_EXPORTER_OTLP_{SIGNAL}_ENDPOINT</code>=[AWS OTLP LOGS or TRACES endpoint]
+   *   <li><code>OTEL_EXPORTER_OTLP_{SIGNAL}_PROTOCOL</code>=http/protobuf
+   *   <li><code>OTEL_{SIGNAL}_EXPORTER</code>=otlp
+   * </ul>
+   */
   private static boolean isValidConfig(
       String endpoint,
       String endpointPattern,
@@ -95,11 +129,10 @@ public final class ConfigValidator {
               && Pattern.compile(endpointPattern).matcher(endpoint.toLowerCase()).matches();
 
       if (isValidOtlpEndpoint) {
-        logger.log(Level.INFO, "Detected using AWS OTLP Endpoint.");
+        logger.log(Level.INFO, String.format("Detected using AWS OTLP Endpoint: %s.", endpoint));
 
         if (exporter != null && !exporter.equals("otlp")) {
-          logger.log(
-              Level.INFO,
+          logger.warning(
               String.format(
                   "Improper configuration: Please configure your environment variables and export/set %s=otlp",
                   exporterType));
@@ -107,7 +140,7 @@ public final class ConfigValidator {
         }
 
         if (protocol != null && !protocol.equals(OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL)) {
-          logger.info(
+          logger.warning(
               String.format(
                   "Improper configuration: Please configure your environment variables and export/set %s=%s",
                   protocolConfig, OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL));
@@ -117,11 +150,10 @@ public final class ConfigValidator {
         return true;
       }
     } catch (Exception e) {
-      logger.log(
-          Level.WARNING,
+      logger.warning(
           String.format(
-              "Caught error while attempting to validate configuration to export to OTLP endpoint: %s",
-              e.getMessage()));
+              "Caught error while attempting to validate configuration to export to %s: %s",
+              endpoint, e.getMessage()));
     }
 
     return false;

@@ -13,7 +13,9 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces;
+
+import static java.util.Objects.requireNonNull;
 
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 
@@ -31,8 +33,8 @@ public class OtlpAwsSpanExporterBuilder {
   }
 
   private OtlpAwsSpanExporterBuilder(OtlpHttpSpanExporter parentExporter, String endpoint) {
-    this.parentExporter = parentExporter;
-    this.endpoint = endpoint;
+    this.parentExporter = requireNonNull(parentExporter, "Must set a parentExporter");
+    this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
   }
 
   public OtlpAwsSpanExporter build() {

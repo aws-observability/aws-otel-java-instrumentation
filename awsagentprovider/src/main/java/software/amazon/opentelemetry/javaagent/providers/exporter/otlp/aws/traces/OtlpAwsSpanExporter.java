@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces;
 
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 
 /**
  * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
@@ -34,9 +35,7 @@ import javax.annotation.Nonnull;
  * library to sign and directly inject SigV4 Authentication to the exported request's headers. <a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>
  */
-public class OtlpAwsSpanExporter extends AbstractOtlpAwsExporter<SpanData> implements SpanExporter {
-  private static final String SERVICE_NAME = "xray";
-
+public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements SpanExporter {
   private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final OtlpHttpSpanExporter parentExporter;
 
@@ -100,8 +99,8 @@ public class OtlpAwsSpanExporter extends AbstractOtlpAwsExporter<SpanData> imple
   }
 
   @Override
-  String serviceName() {
-    return SERVICE_NAME;
+  public String serviceName() {
+    return "xray";
   }
 
   @Override

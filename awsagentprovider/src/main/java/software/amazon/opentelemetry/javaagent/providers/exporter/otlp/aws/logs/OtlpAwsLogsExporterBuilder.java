@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,12 +25,12 @@ public class OtlpAwsLogsExporterBuilder {
   private final String logGroup;
   private final String logStream;
 
-  public static OtlpAwsLogsExporter create(
+  public static OtlpAwsLogsExporterBuilder create(
       OtlpHttpLogRecordExporter parentExporter,
       String endpoint,
       String logGroup,
       String logStream) {
-    return new OtlpAwsLogsExporter(parentExporter, endpoint, logGroup, logStream);
+    return new OtlpAwsLogsExporterBuilder(parentExporter, endpoint, logGroup, logStream);
   }
 
   public static OtlpAwsLogsExporter getDefault(String endpoint, String logGroup, String logStream) {

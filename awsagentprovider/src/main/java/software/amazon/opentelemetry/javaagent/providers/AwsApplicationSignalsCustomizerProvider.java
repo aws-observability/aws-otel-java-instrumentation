@@ -54,8 +54,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter.OtlpAwsLogsExporterBuilder;
-import software.amazon.opentelemetry.javaagent.providers.OtlpAwsExporter.OtlpAwsSpanExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
 /**
  * This customizer performs the following customizations:
@@ -104,7 +104,7 @@ public class AwsApplicationSignalsCustomizerProvider
       "otel.aws.application.signals.exporter.endpoint";
 
   private static final String OTEL_JMX_TARGET_SYSTEM_CONFIG = "otel.jmx.target.system";
-  static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
+  private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
       "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
   static final String OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL = "http/protobuf";
 
@@ -118,8 +118,8 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
   static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
   static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
-  static final String OTEL_EXPORTER_OTLP_TRACES_PROTOCOL = "otel.exporter.traces.protocol";
-  static final String OTEL_EXPORTER_OTLP_LOGS_PROTOCOL = "otel.exporter.logs.protocol";
+  static final String OTEL_EXPORTER_OTLP_TRACES_PROTOCOL = "otel.exporter.otlp.traces.protocol";
+  static final String OTEL_EXPORTER_OTLP_LOGS_PROTOCOL = "otel.exporter.otlp.logs.protocol";
   private static final String OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT =
       "otel.aws.application.signals.exporter.endpoint";
   private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
@@ -127,10 +127,8 @@ public class AwsApplicationSignalsCustomizerProvider
   static final String OTEL_EXPORTER_OTLP_LOGS_ENDPOINT = "otel.exporter.otlp.logs.endpoint";
   private static final String OTEL_TRACES_SAMPLER = "otel.traces.sampler";
   private static final String OTEL_TRACES_SAMPLER_ARG = "otel.traces.sampler.arg";
-
-  static final String OTEL_AWS_SIGV4_LOG_GROUP = "otel.aws.sigv4.log.group";
-
-  static final String OTEL_AWS_SIGV4_LOG_STREAM = "otel.aws.sigv4.log.stream";
+  static final String OTEL_AWS_LOG_GROUP = "otel.aws.log.group";
+  static final String OTEL_AWS_LOG_STREAM = "otel.aws.log.stream";
 
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
@@ -365,13 +363,13 @@ public class AwsApplicationSignalsCustomizerProvider
     }
 
     // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication.
-    if (ConfigValidator.isSigV4EnabledTraces(configProps)) {
+    if (AwsApplicationSignalsConfigValidator.isSigV4EnabledTraces(configProps)) {
       // can cast here since we've checked that the environment variable is
       // set to http/protobuf
       spanExporter =
           OtlpAwsSpanExporterBuilder.create(
                   (OtlpHttpSpanExporter) spanExporter,
-                  System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
+                  configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
               .build();
     }
 
@@ -391,12 +389,13 @@ public class AwsApplicationSignalsCustomizerProvider
 
   private LogRecordExporter customizeLogsExporter(
       LogRecordExporter logsExporter, ConfigProperties configProps) {
-    if (ConfigValidator.isSigV4EnabledLogs(configProps)) {
+    if (AwsApplicationSignalsConfigValidator.isSigV4EnabledLogs(configProps)) {
       return OtlpAwsLogsExporterBuilder.create(
-          (OtlpHttpLogRecordExporter) logsExporter,
-          configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT),
-          configProps.getString(OTEL_AWS_SIGV4_LOG_GROUP),
-          configProps.getString(OTEL_AWS_SIGV4_LOG_STREAM));
+              (OtlpHttpLogRecordExporter) logsExporter,
+              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT),
+              configProps.getString(OTEL_AWS_LOG_GROUP),
+              configProps.getString(OTEL_AWS_LOG_STREAM))
+          .build();
     }
 
     return logsExporter;
