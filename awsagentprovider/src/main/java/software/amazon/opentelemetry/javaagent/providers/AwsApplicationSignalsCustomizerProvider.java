@@ -273,7 +273,7 @@ public final class AwsApplicationSignalsCustomizerProvider
     return sampler;
   }
 
-  SdkTracerProviderBuilder customizeTracerProviderBuilder(
+  private SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
     if (isApplicationSignalsEnabled(configProps)) {
       logger.info("AWS Application Signals enabled");
