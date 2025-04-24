@@ -31,8 +31,8 @@ public abstract class BaseOtlpAwsExporter {
   protected final Supplier<Map<String, String>> authSupplier;
 
   protected BaseOtlpAwsExporter(String endpoint) {
-    this.endpoint = endpoint;
-    this.awsRegion = endpoint.split("\\.")[1];
+    this.endpoint = endpoint.toLowerCase();
+    this.awsRegion = this.endpoint.split("\\.")[1];
     this.data = new AtomicReference<>();
     this.authSupplier = new SigV4AuthHeaderSupplier(this);
   }

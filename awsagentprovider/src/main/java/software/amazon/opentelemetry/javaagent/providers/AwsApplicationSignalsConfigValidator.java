@@ -45,13 +45,13 @@ public final class AwsApplicationSignalsConfigValidator {
    * <p>NOTE: ** indicates that the environment variable must exactly match this value or must not
    * be set at all.
    */
-  public static boolean isSigV4EnabledLogs(ConfigProperties config) {
+  static boolean isSigV4EnabledLogs(ConfigProperties config) {
     String logsEndpoint = config.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT);
     String logsExporter = config.getString(OTEL_LOGS_EXPORTER);
     String logsProtocol = config.getString(OTEL_EXPORTER_OTLP_LOGS_PROTOCOL);
     String logsHeaders = config.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS);
 
-    if (!isValidConfig(
+    if (!isSigv4ValidConfig(
         logsEndpoint,
         AWS_OTLP_LOGS_ENDPOINT_PATTERN,
         OTEL_LOGS_EXPORTER,
@@ -105,12 +105,12 @@ public final class AwsApplicationSignalsConfigValidator {
    * <p>NOTE: ** indicates that the environment variable must exactly match this value or must not
    * be set at all.
    */
-  public static boolean isSigV4EnabledTraces(ConfigProperties config) {
+  static boolean isSigV4EnabledTraces(ConfigProperties config) {
     String tracesEndpoint = config.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT);
     String tracesExporter = config.getString(OTEL_TRACES_EXPORTER);
     String tracesProtocol = config.getString(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL);
 
-    return isValidConfig(
+    return isSigv4ValidConfig(
         tracesEndpoint,
         AWS_OTLP_TRACES_ENDPOINT_PATTERN,
         OTEL_TRACES_EXPORTER,
@@ -129,7 +129,7 @@ public final class AwsApplicationSignalsConfigValidator {
    *   <li><code>OTEL_{SIGNAL}_EXPORTER</code>=otlp
    * </ul>
    */
-  private static boolean isValidConfig(
+  private static boolean isSigv4ValidConfig(
       String endpoint,
       String endpointPattern,
       String exporterType,

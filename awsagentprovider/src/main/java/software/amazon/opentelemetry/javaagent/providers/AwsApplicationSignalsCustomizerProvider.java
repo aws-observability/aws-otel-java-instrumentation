@@ -72,7 +72,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trace
  * otel.aws.application.signals.enabled or the environment variable
  * OTEL_AWS_APPLICATION_SIGNALS_ENABLED. This flag is disabled by default.
  */
-public class AwsApplicationSignalsCustomizerProvider
+public final class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
 
@@ -89,8 +89,7 @@ public class AwsApplicationSignalsCustomizerProvider
   private static final String DEPRECATED_SMP_ENABLED_CONFIG = "otel.smp.enabled";
   private static final String DEPRECATED_APP_SIGNALS_ENABLED_CONFIG =
       "otel.aws.app.signals.enabled";
-  private static final String APPLICATION_SIGNALS_ENABLED_CONFIG =
-      "otel.aws.application.signals.enabled";
+  static final String APPLICATION_SIGNALS_ENABLED_CONFIG = "otel.aws.application.signals.enabled";
 
   private static final String OTEL_RESOURCE_PROVIDERS_AWS_ENABLED =
       "otel.resource.providers.aws.enabled";
@@ -274,7 +273,7 @@ public class AwsApplicationSignalsCustomizerProvider
     return sampler;
   }
 
-  private SdkTracerProviderBuilder customizeTracerProviderBuilder(
+  SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
     if (isApplicationSignalsEnabled(configProps)) {
       logger.info("AWS Application Signals enabled");
@@ -344,8 +343,7 @@ public class AwsApplicationSignalsCustomizerProvider
     return sdkMeterProviderBuilder;
   }
 
-  private SpanExporter customizeSpanExporter(
-      SpanExporter spanExporter, ConfigProperties configProps) {
+  SpanExporter customizeSpanExporter(SpanExporter spanExporter, ConfigProperties configProps) {
     // When running in Lambda, override the default OTLP exporter with UDP exporter
     if (isLambdaEnvironment()) {
       if (isOtlpSpanExporter(spanExporter)
@@ -361,10 +359,10 @@ public class AwsApplicationSignalsCustomizerProvider
       }
     }
 
-    // When running OTLP endpoint for X-Ray backend, use custom exporter for SigV4 authentication.
     if (AwsApplicationSignalsConfigValidator.isSigV4EnabledTraces(configProps)) {
-      // can cast here since we've checked that the environment variable is
-      // set to http/protobuf
+      // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
+      // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
+      // so the given spanExporter will be an instance of OtlpHttpSpanExporter
       spanExporter =
           OtlpAwsSpanExporterBuilder.create(
                   (OtlpHttpSpanExporter) spanExporter,
@@ -386,9 +384,12 @@ public class AwsApplicationSignalsCustomizerProvider
         || spanExporter instanceof OtlpHttpSpanExporter;
   }
 
-  private LogRecordExporter customizeLogsExporter(
+  LogRecordExporter customizeLogsExporter(
       LogRecordExporter logsExporter, ConfigProperties configProps) {
     if (AwsApplicationSignalsConfigValidator.isSigV4EnabledLogs(configProps)) {
+      // can cast here since we've checked that the configuration for OTEL_LOGS_EXPORTER is otlp and
+      // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
+      // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
       return OtlpAwsLogsExporterBuilder.create(
               (OtlpHttpLogRecordExporter) logsExporter,
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
