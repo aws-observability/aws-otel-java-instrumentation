@@ -19,11 +19,9 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSi
 
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import java.util.Arrays;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /** Utilities class to validate ADOT environment variable configuration. */
 public final class AwsApplicationSignalsConfigValidator {
@@ -71,7 +69,7 @@ public final class AwsApplicationSignalsConfigValidator {
     String logGroupHeader = "x-aws-log-group";
     String logStreamHeader = "x-aws-log-stream";
 
-    Set<String> filteredLogHeaders =
+    long filteredLogHeaders =
         Arrays.stream(logsHeaders.split(","))
             .filter(
                 pair -> {
@@ -81,9 +79,9 @@ public final class AwsApplicationSignalsConfigValidator {
                   }
                   return false;
                 })
-            .collect(Collectors.toSet());
+            .count();
 
-    if (filteredLogHeaders.size() != 2) {
+    if (filteredLogHeaders != 2) {
       logger.warning(
           "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for x-aws-log-group and x-aws-log-stream");
       return false;
