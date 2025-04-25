@@ -32,7 +32,7 @@ public abstract class BaseOtlpAwsExporter {
 
   protected BaseOtlpAwsExporter(String endpoint) {
     this.endpoint = endpoint.toLowerCase();
-    this.awsRegion = this.endpoint.split("\\.")[1];
+    this.awsRegion = endpoint.split("\\.")[1];
     this.data = new AtomicReference<>();
     this.authSupplier = new SigV4AuthHeaderSupplier(this);
   }
