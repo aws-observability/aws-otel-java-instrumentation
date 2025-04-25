@@ -205,7 +205,7 @@ abstract class AbstractOtlpAwsExporterTest {
     assertFalse(headers.containsKey(X_AMZ_SECURITY_TOKEN_HEADER));
   }
 
-  static class AbstractOtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest {
+  static class OtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest {
     private static final String XRAY_OTLP_ENDPOINT =
         "https://xray.us-east-1.amazonaws.com/v1/traces";
 
@@ -232,7 +232,7 @@ abstract class AbstractOtlpAwsExporterTest {
       private MockOtlpAwsSpanExporterWrapper(OtlpHttpSpanExporter mockExporter) {
         this.exporter =
             OtlpAwsSpanExporterBuilder.create(
-                    mockExporter, AbstractOtlpAwsSpanExporterTest.XRAY_OTLP_ENDPOINT)
+                    mockExporter, OtlpAwsSpanExporterTest.XRAY_OTLP_ENDPOINT)
                 .build();
       }
 
@@ -243,7 +243,7 @@ abstract class AbstractOtlpAwsExporterTest {
     }
   }
 
-  static class AbstractOtlpAwsLogsExporterTest extends AbstractOtlpAwsExporterTest {
+  static class OtlpAwsLogsExporterTest extends AbstractOtlpAwsExporterTest {
     private static final String LOGS_OTLP_ENDPOINT = "https://logs.us-east-1.amazonaws.com/v1/logs";
 
     @Mock private OtlpHttpLogRecordExporterBuilder mockBuilder;
@@ -269,7 +269,7 @@ abstract class AbstractOtlpAwsExporterTest {
       private MockOtlpAwsLogsExporterWrapper(OtlpHttpLogRecordExporter mockExporter) {
         this.exporter =
             OtlpAwsLogsExporterBuilder.create(
-                    mockExporter, AbstractOtlpAwsLogsExporterTest.LOGS_OTLP_ENDPOINT)
+                    mockExporter, OtlpAwsLogsExporterTest.LOGS_OTLP_ENDPOINT)
                 .build();
       }
 
