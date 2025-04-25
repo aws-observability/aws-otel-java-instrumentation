@@ -238,3 +238,10 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '11'
+
+  java-lambda-test:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-lambda-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
