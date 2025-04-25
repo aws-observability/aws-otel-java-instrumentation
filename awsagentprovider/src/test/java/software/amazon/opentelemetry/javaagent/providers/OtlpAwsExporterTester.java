@@ -16,12 +16,15 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.when;
 
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporterBuilder;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.net.URI;
 import java.util.List;
@@ -43,14 +46,19 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
+import software.amazon.awssdk.http.auth.spi.signer.SignRequest;
 import software.amazon.awssdk.http.auth.spi.signer.SignRequest.Builder;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
+interface OtlpAwsExporterTester {
+  void export();
+}
+
 @ExtendWith(MockitoExtension.class)
-public class OtlpAwsSpanExporterTest {
-  private static final String XRAY_OTLP_ENDPOINT = "https://xray.us-east-1.amazonaws.com/v1/traces";
+abstract class AbstractOtlpAwsExporterTest {
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private static final String X_AMZ_DATE_HEADER = "X-Amz-Date";
   private static final String X_AMZ_SECURITY_TOKEN_HEADER = "X-Amz-Security-Token";
@@ -60,32 +68,38 @@ public class OtlpAwsSpanExporterTest {
   private static final String EXPECTED_AUTH_X_AMZ_DATE = "some_date";
   private static final String EXPECTED_AUTH_SECURITY_TOKEN = "test_token";
 
-  AwsCredentials credentials = AwsBasicCredentials.create("test_access_key", "test_secret_key");
-  SignedRequest signedRequest =
-      SignedRequest.builder()
-          .request(
-              SdkHttpFullRequest.builder()
-                  .method(SdkHttpMethod.POST)
-                  .uri(URI.create(XRAY_OTLP_ENDPOINT))
-                  .putHeader(AUTHORIZATION_HEADER, EXPECTED_AUTH_HEADER)
-                  .putHeader(X_AMZ_DATE_HEADER, EXPECTED_AUTH_X_AMZ_DATE)
-                  .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, EXPECTED_AUTH_SECURITY_TOKEN)
-                  .build())
-          .build();
+  private AwsCredentials credentials;
+  private SignedRequest signedRequest;
+  private String endpoint;
+  private OtlpAwsExporterTester builder;
 
+  ArgumentCaptor<Supplier<Map<String, String>>> headersCaptor =
+      ArgumentCaptor.forClass(Supplier.class);
   private MockedStatic<DefaultCredentialsProvider> mockDefaultCredentialsProvider;
   private MockedStatic<AwsV4HttpSigner> mockAwsV4HttpSigner;
-  private MockedStatic<OtlpHttpSpanExporter> otlpSpanExporterMock;
 
   @Mock private DefaultCredentialsProvider credentialsProvider;
   @Mock private AwsV4HttpSigner signer;
-  @Mock private OtlpHttpSpanExporterBuilder mockBuilder;
-  @Mock private OtlpHttpSpanExporter mockExporter;
 
-  private ArgumentCaptor<Supplier<Map<String, String>>> headersCaptor;
+  protected void init(String endpoint, OtlpAwsExporterTester builder) {
+    this.endpoint = endpoint;
+    this.builder = builder;
+  }
 
   @BeforeEach
   void setup() {
+    this.credentials = AwsBasicCredentials.create("test_access_key", "test_secret_key");
+    this.signedRequest =
+        SignedRequest.builder()
+            .request(
+                SdkHttpFullRequest.builder()
+                    .method(SdkHttpMethod.POST)
+                    .uri(URI.create(this.endpoint))
+                    .putHeader(AUTHORIZATION_HEADER, EXPECTED_AUTH_HEADER)
+                    .putHeader(X_AMZ_DATE_HEADER, EXPECTED_AUTH_X_AMZ_DATE)
+                    .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, EXPECTED_AUTH_SECURITY_TOKEN)
+                    .build())
+            .build();
     this.mockDefaultCredentialsProvider = mockStatic(DefaultCredentialsProvider.class);
     this.mockDefaultCredentialsProvider
         .when(DefaultCredentialsProvider::create)
@@ -93,17 +107,6 @@ public class OtlpAwsSpanExporterTest {
 
     this.mockAwsV4HttpSigner = mockStatic(AwsV4HttpSigner.class);
     this.mockAwsV4HttpSigner.when(AwsV4HttpSigner::create).thenReturn(this.signer);
-
-    this.otlpSpanExporterMock = mockStatic(OtlpHttpSpanExporter.class);
-
-    this.headersCaptor = ArgumentCaptor.forClass(Supplier.class);
-
-    when(OtlpHttpSpanExporter.builder()).thenReturn(mockBuilder);
-    when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
-    when(this.mockBuilder.setMemoryMode(any())).thenReturn(mockBuilder);
-    when(this.mockBuilder.setHeaders(headersCaptor.capture())).thenReturn(mockBuilder);
-    when(this.mockBuilder.build()).thenReturn(mockExporter);
-    when(this.mockExporter.export(any())).thenReturn(CompletableResultCode.ofSuccess());
   }
 
   @AfterEach
@@ -111,18 +114,15 @@ public class OtlpAwsSpanExporterTest {
     reset(this.signer, this.credentialsProvider);
     this.mockDefaultCredentialsProvider.close();
     this.mockAwsV4HttpSigner.close();
-    this.otlpSpanExporterMock.close();
   }
 
   @Test
-  void testAwsSpanExporterAddsSigV4Headers() {
-
-    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
+  void testAwsExporterAddsSigV4Headers() {
     when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
-    when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
+    when(this.signer.sign((Consumer<SignRequest.Builder<AwsCredentialsIdentity>>) any()))
         .thenReturn(this.signedRequest);
 
-    exporter.export(List.of());
+    this.builder.export();
 
     Map<String, String> headers = this.headersCaptor.getValue().get();
 
@@ -136,9 +136,7 @@ public class OtlpAwsSpanExporterTest {
   }
 
   @Test
-  void testAwsSpanExporterExportCorrectlyAddsDifferentSigV4Headers() {
-    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
-
+  void testAwsExporterExportCorrectlyAddsDifferentSigV4Headers() {
     for (int i = 0; i < 10; i += 1) {
       String newAuthHeader = EXPECTED_AUTH_HEADER + i;
       String newXAmzDate = EXPECTED_AUTH_X_AMZ_DATE + i;
@@ -149,7 +147,7 @@ public class OtlpAwsSpanExporterTest {
               .request(
                   SdkHttpFullRequest.builder()
                       .method(SdkHttpMethod.POST)
-                      .uri(URI.create(XRAY_OTLP_ENDPOINT))
+                      .uri(URI.create(this.endpoint))
                       .putHeader(AUTHORIZATION_HEADER, newAuthHeader)
                       .putHeader(X_AMZ_DATE_HEADER, newXAmzDate)
                       .putHeader(X_AMZ_SECURITY_TOKEN_HEADER, newXAmzSecurityToken)
@@ -159,7 +157,7 @@ public class OtlpAwsSpanExporterTest {
       when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
       doReturn(newSignedRequest).when(this.signer).sign(any(Consumer.class));
 
-      exporter.export(List.of());
+      this.builder.export();
 
       Map<String, String> headers = this.headersCaptor.getValue().get();
 
@@ -174,14 +172,12 @@ public class OtlpAwsSpanExporterTest {
   }
 
   @Test
-  void testAwsSpanExporterDoesNotAddSigV4HeadersIfFailureToRetrieveCredentials() {
+  void testAwsExporterDoesNotAddSigV4HeadersIfFailureToRetrieveCredentials() {
 
     when(this.credentialsProvider.resolveCredentials())
         .thenThrow(SdkClientException.builder().message("bad credentials").build());
 
-    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
-
-    exporter.export(List.of());
+    this.builder.export();
 
     Supplier<Map<String, String>> headersSupplier = headersCaptor.getValue();
     Map<String, String> headers = headersSupplier.get();
@@ -200,14 +196,87 @@ public class OtlpAwsSpanExporterTest {
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenThrow(SdkClientException.builder().message("bad signature").build());
 
-    SpanExporter exporter = OtlpAwsSpanExporterBuilder.getDefault(XRAY_OTLP_ENDPOINT);
-
-    exporter.export(List.of());
+    builder.export();
 
     Map<String, String> headers = this.headersCaptor.getValue().get();
 
     assertFalse(headers.containsKey(X_AMZ_DATE_HEADER));
     assertFalse(headers.containsKey(AUTHORIZATION_HEADER));
     assertFalse(headers.containsKey(X_AMZ_SECURITY_TOKEN_HEADER));
+  }
+
+  static class AbstractOtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest {
+    private static final String XRAY_OTLP_ENDPOINT =
+        "https://xray.us-east-1.amazonaws.com/v1/traces";
+
+    @Mock private OtlpHttpSpanExporterBuilder mockBuilder;
+    @Mock private OtlpHttpSpanExporter mockExporter;
+
+    @BeforeEach
+    @Override
+    void setup() {
+      when(this.mockExporter.toBuilder()).thenReturn(mockBuilder);
+      when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
+      when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
+      when(this.mockBuilder.setHeaders(this.headersCaptor.capture())).thenReturn(mockBuilder);
+      when(this.mockBuilder.build()).thenReturn(this.mockExporter);
+      OtlpAwsExporterTester tester = new MockOtlpAwsSpanExporterWrapper(this.mockExporter);
+      this.init(XRAY_OTLP_ENDPOINT, tester);
+      super.setup();
+      when(this.mockExporter.export(any())).thenReturn(CompletableResultCode.ofSuccess());
+    }
+
+    private static final class MockOtlpAwsSpanExporterWrapper implements OtlpAwsExporterTester {
+      private final SpanExporter exporter;
+
+      private MockOtlpAwsSpanExporterWrapper(OtlpHttpSpanExporter mockExporter) {
+        this.exporter =
+            OtlpAwsSpanExporterBuilder.create(
+                    mockExporter, AbstractOtlpAwsSpanExporterTest.XRAY_OTLP_ENDPOINT)
+                .build();
+      }
+
+      @Override
+      public void export() {
+        this.exporter.export(List.of());
+      }
+    }
+  }
+
+  static class AbstractOtlpAwsLogsExporterTest extends AbstractOtlpAwsExporterTest {
+    private static final String LOGS_OTLP_ENDPOINT = "https://logs.us-east-1.amazonaws.com/v1/logs";
+
+    @Mock private OtlpHttpLogRecordExporterBuilder mockBuilder;
+    @Mock private OtlpHttpLogRecordExporter mockExporter;
+
+    @BeforeEach
+    @Override
+    void setup() {
+      when(this.mockExporter.toBuilder()).thenReturn(mockBuilder);
+      when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
+      when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
+      when(this.mockBuilder.setHeaders(this.headersCaptor.capture())).thenReturn(mockBuilder);
+      when(this.mockBuilder.build()).thenReturn(this.mockExporter);
+      OtlpAwsExporterTester mocker = new MockOtlpAwsLogsExporterWrapper(this.mockExporter);
+      this.init(LOGS_OTLP_ENDPOINT, mocker);
+      super.setup();
+      when(this.mockExporter.export(any())).thenReturn(CompletableResultCode.ofSuccess());
+    }
+
+    private static final class MockOtlpAwsLogsExporterWrapper implements OtlpAwsExporterTester {
+      private final LogRecordExporter exporter;
+
+      private MockOtlpAwsLogsExporterWrapper(OtlpHttpLogRecordExporter mockExporter) {
+        this.exporter =
+            OtlpAwsLogsExporterBuilder.create(
+                    mockExporter, AbstractOtlpAwsLogsExporterTest.LOGS_OTLP_ENDPOINT)
+                .build();
+      }
+
+      @Override
+      public void export() {
+        this.exporter.export(List.of());
+      }
+    }
   }
 }
