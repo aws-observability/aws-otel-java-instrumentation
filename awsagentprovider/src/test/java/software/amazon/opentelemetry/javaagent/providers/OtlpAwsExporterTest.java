@@ -53,7 +53,7 @@ import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
-interface OtlpAwsExporterTester {
+interface OtlpAwsExporterTest {
   void export();
 }
 
@@ -71,7 +71,7 @@ abstract class AbstractOtlpAwsExporterTest {
   private AwsCredentials credentials;
   private SignedRequest signedRequest;
   private String endpoint;
-  private OtlpAwsExporterTester tester;
+  private OtlpAwsExporterTest tester;
 
   ArgumentCaptor<Supplier<Map<String, String>>> headersCaptor =
       ArgumentCaptor.forClass(Supplier.class);
@@ -81,7 +81,7 @@ abstract class AbstractOtlpAwsExporterTest {
   @Mock private DefaultCredentialsProvider credentialsProvider;
   @Mock private AwsV4HttpSigner signer;
 
-  protected void init(String endpoint, OtlpAwsExporterTester tester) {
+  protected void init(String endpoint, OtlpAwsExporterTest tester) {
     this.endpoint = endpoint;
     this.tester = tester;
   }
@@ -220,13 +220,13 @@ abstract class AbstractOtlpAwsExporterTest {
       when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
       when(this.mockBuilder.setHeaders(this.headersCaptor.capture())).thenReturn(mockBuilder);
       when(this.mockBuilder.build()).thenReturn(this.mockExporter);
-      OtlpAwsExporterTester tester = new MockOtlpAwsSpanExporterWrapper(this.mockExporter);
+      OtlpAwsExporterTest tester = new MockOtlpAwsSpanExporterWrapper(this.mockExporter);
       this.init(XRAY_OTLP_ENDPOINT, tester);
       super.setup();
       when(this.mockExporter.export(any())).thenReturn(CompletableResultCode.ofSuccess());
     }
 
-    private static final class MockOtlpAwsSpanExporterWrapper implements OtlpAwsExporterTester {
+    private static final class MockOtlpAwsSpanExporterWrapper implements OtlpAwsExporterTest {
       private final SpanExporter exporter;
 
       private MockOtlpAwsSpanExporterWrapper(OtlpHttpSpanExporter mockExporter) {
@@ -257,13 +257,13 @@ abstract class AbstractOtlpAwsExporterTest {
       when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
       when(this.mockBuilder.setHeaders(this.headersCaptor.capture())).thenReturn(mockBuilder);
       when(this.mockBuilder.build()).thenReturn(this.mockExporter);
-      OtlpAwsExporterTester mocker = new MockOtlpAwsLogsExporterWrapper(this.mockExporter);
+      OtlpAwsExporterTest mocker = new MockOtlpAwsLogsExporterWrapper(this.mockExporter);
       this.init(LOGS_OTLP_ENDPOINT, mocker);
       super.setup();
       when(this.mockExporter.export(any())).thenReturn(CompletableResultCode.ofSuccess());
     }
 
-    private static final class MockOtlpAwsLogsExporterWrapper implements OtlpAwsExporterTester {
+    private static final class MockOtlpAwsLogsExporterWrapper implements OtlpAwsExporterTest {
       private final LogRecordExporter exporter;
 
       private MockOtlpAwsLogsExporterWrapper(OtlpHttpLogRecordExporter mockExporter) {

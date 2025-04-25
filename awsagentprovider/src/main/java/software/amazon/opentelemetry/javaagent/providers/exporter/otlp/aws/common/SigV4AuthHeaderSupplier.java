@@ -48,7 +48,6 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
               .uri(URI.create(exporter.endpoint))
               .method(SdkHttpMethod.POST)
               .putHeader("Content-Type", "application/x-protobuf")
-              .contentStreamProvider(() -> new ByteArrayInputStream(data))
               .build();
 
       AwsCredentials credentials = DefaultCredentialsProvider.create().resolveCredentials();
