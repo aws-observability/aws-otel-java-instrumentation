@@ -71,7 +71,7 @@ abstract class AbstractOtlpAwsExporterTest {
   private AwsCredentials credentials;
   private SignedRequest signedRequest;
   private String endpoint;
-  private OtlpAwsExporterTester builder;
+  private OtlpAwsExporterTester tester;
 
   ArgumentCaptor<Supplier<Map<String, String>>> headersCaptor =
       ArgumentCaptor.forClass(Supplier.class);
@@ -83,7 +83,7 @@ abstract class AbstractOtlpAwsExporterTest {
 
   protected void init(String endpoint, OtlpAwsExporterTester builder) {
     this.endpoint = endpoint;
-    this.builder = builder;
+    this.tester = builder;
   }
 
   @BeforeEach
@@ -122,7 +122,7 @@ abstract class AbstractOtlpAwsExporterTest {
     when(this.signer.sign((Consumer<SignRequest.Builder<AwsCredentialsIdentity>>) any()))
         .thenReturn(this.signedRequest);
 
-    this.builder.export();
+    this.tester.export();
 
     Map<String, String> headers = this.headersCaptor.getValue().get();
 
@@ -157,7 +157,7 @@ abstract class AbstractOtlpAwsExporterTest {
       when(this.credentialsProvider.resolveCredentials()).thenReturn(this.credentials);
       doReturn(newSignedRequest).when(this.signer).sign(any(Consumer.class));
 
-      this.builder.export();
+      this.tester.export();
 
       Map<String, String> headers = this.headersCaptor.getValue().get();
 
@@ -177,7 +177,7 @@ abstract class AbstractOtlpAwsExporterTest {
     when(this.credentialsProvider.resolveCredentials())
         .thenThrow(SdkClientException.builder().message("bad credentials").build());
 
-    this.builder.export();
+    this.tester.export();
 
     Supplier<Map<String, String>> headersSupplier = headersCaptor.getValue();
     Map<String, String> headers = headersSupplier.get();
@@ -196,7 +196,7 @@ abstract class AbstractOtlpAwsExporterTest {
     when(this.signer.sign((Consumer<Builder<AwsCredentialsIdentity>>) any()))
         .thenThrow(SdkClientException.builder().message("bad signature").build());
 
-    builder.export();
+    tester.export();
 
     Map<String, String> headers = this.headersCaptor.getValue().get();
 
