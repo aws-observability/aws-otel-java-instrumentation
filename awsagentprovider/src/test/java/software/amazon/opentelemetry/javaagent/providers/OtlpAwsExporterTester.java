@@ -81,9 +81,9 @@ abstract class AbstractOtlpAwsExporterTest {
   @Mock private DefaultCredentialsProvider credentialsProvider;
   @Mock private AwsV4HttpSigner signer;
 
-  protected void init(String endpoint, OtlpAwsExporterTester builder) {
+  protected void init(String endpoint, OtlpAwsExporterTester tester) {
     this.endpoint = endpoint;
-    this.tester = builder;
+    this.tester = tester;
   }
 
   @BeforeEach
