@@ -86,6 +86,10 @@ public final class AwsApplicationSignalsCustomizerProvider
   static final String AWS_OTLP_LOGS_ENDPOINT_PATTERN =
       "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/logs$";
 
+  // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html#CloudWatch-LogsEndpoint
+  static final String AWS_OTLP_LOGS_GROUP_HEADER = "x-aws-log-group";
+  static final String AWS_OTLP_LOGS_STREAM_HEADER = "x-aws-log-stream";
+
   private static final String DEPRECATED_SMP_ENABLED_CONFIG = "otel.smp.enabled";
   private static final String DEPRECATED_APP_SIGNALS_ENABLED_CONFIG =
       "otel.aws.app.signals.enabled";
@@ -390,6 +394,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       // can cast here since we've checked that the configuration for OTEL_LOGS_EXPORTER is otlp and
       // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
       // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
+
       return OtlpAwsLogsExporterBuilder.create(
               (OtlpHttpLogRecordExporter) logsExporter,
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))

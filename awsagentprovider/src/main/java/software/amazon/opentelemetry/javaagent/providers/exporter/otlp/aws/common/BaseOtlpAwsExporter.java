@@ -28,13 +28,13 @@ public abstract class BaseOtlpAwsExporter {
   protected final String awsRegion;
   protected final String endpoint;
   protected final AtomicReference<byte[]> data;
-  protected final Supplier<Map<String, String>> authSupplier;
+  protected final Supplier<Map<String, String>> headerSupplier;
 
   protected BaseOtlpAwsExporter(String endpoint) {
     this.endpoint = endpoint.toLowerCase();
     this.awsRegion = endpoint.split("\\.")[1];
     this.data = new AtomicReference<>();
-    this.authSupplier = new SigV4AuthHeaderSupplier(this);
+    this.headerSupplier = new SigV4AuthHeaderSupplier(this);
   }
 
   public abstract String serviceName();

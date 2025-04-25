@@ -66,16 +66,14 @@ public final class AwsApplicationSignalsConfigValidator {
       return false;
     }
 
-    String logGroupHeader = "x-aws-log-group";
-    String logStreamHeader = "x-aws-log-stream";
-
     long filteredLogHeaders =
         Arrays.stream(logsHeaders.split(","))
             .filter(
                 pair -> {
                   if (pair.contains("=")) {
                     String key = pair.split("=", 2)[0];
-                    return key.equals(logGroupHeader) || key.equals(logStreamHeader);
+                    return key.equals(AWS_OTLP_LOGS_GROUP_HEADER)
+                        || key.equals(AWS_OTLP_LOGS_STREAM_HEADER);
                   }
                   return false;
                 })

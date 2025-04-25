@@ -59,15 +59,14 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
           OtlpHttpSpanExporter.builder()
               .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
               .setEndpoint(endpoint)
-              .setHeaders(this.authSupplier);
-      this.parentExporter = this.parentExporterBuilder.build();
-      return;
+              .setHeaders(this.headerSupplier);
+    } else {
+      this.parentExporterBuilder =
+          parentExporter.toBuilder()
+              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+              .setEndpoint(endpoint)
+              .setHeaders(this.headerSupplier);
     }
-    this.parentExporterBuilder =
-        parentExporter.toBuilder()
-            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-            .setEndpoint(endpoint)
-            .setHeaders(this.authSupplier);
     this.parentExporter = this.parentExporterBuilder.build();
   }
 
