@@ -16,6 +16,9 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.*;
 
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
@@ -28,6 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +41,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
@@ -74,6 +80,26 @@ public class AwsApplicationSignalsCustomizerTest {
         OtlpHttpLogRecordExporter.class);
   }
 
+  @Test
+  void testShouldNotUseSigv4LogsExporterIfValidatorThrows() {
+    try (MockedStatic<Pattern> ignored = mockStatic(Pattern.class)) {
+      when(Pattern.compile(any())).thenThrow(PatternSyntaxException.class);
+      customizeExporterTest(
+          Map.of(
+              OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+              "https://logs.us-east-1.amazonaws.com/v1/logs",
+              OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+              "x-aws-log-group=test1,x-aws-log-stream=test2",
+              OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+              "http/protobuf",
+              OTEL_LOGS_EXPORTER,
+              "otlp"),
+          defaultHttpSpanExporter,
+          this.provider::customizeSpanExporter,
+          OtlpHttpSpanExporter.class);
+    }
+  }
+
   @ParameterizedTest
   @MethodSource("validSigv4TracesConfigProvider")
   void testShouldEnableSigV4SpanExporterIfConfigIsCorrect(Map<String, String> validSigv4Config) {
@@ -92,6 +118,24 @@ public class AwsApplicationSignalsCustomizerTest {
         defaultHttpSpanExporter,
         this.provider::customizeSpanExporter,
         OtlpHttpSpanExporter.class);
+  }
+
+  @Test
+  void testShouldNotUseSigv4SpanExporterIfValidatorThrows() {
+    try (MockedStatic<Pattern> ignored = mockStatic(Pattern.class)) {
+      when(Pattern.compile(any())).thenThrow(PatternSyntaxException.class);
+      customizeExporterTest(
+          Map.of(
+              OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+              "http://xray.us-east-1.amazonaws.com/v1/traces",
+              OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+              "http/protobuf",
+              OTEL_TRACES_EXPORTER,
+              "otlp"),
+          defaultHttpSpanExporter,
+          this.provider::customizeSpanExporter,
+          OtlpHttpSpanExporter.class);
+    }
   }
 
   @Test
