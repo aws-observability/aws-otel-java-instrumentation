@@ -30,10 +30,11 @@ import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 
 /**
- * This exporter extends the functionality of the OtlpHttpLogsRecordExporter to allow logs to be exported
- * to the CloudWatch Logs OTLP endpoint https://logs.[AWSRegion].amazonaws.com/v1/logs. Utilizes the
- * AWSSDK library to sign and directly inject SigV4 Authentication to the exported request's
- * headers. Also injects x-aws-log-group and x-aws-log-stream headers as per documentation: "<a
+ * This exporter extends the functionality of the OtlpHttpLogsRecordExporter to allow logs to be
+ * exported to the CloudWatch Logs OTLP endpoint https://logs.[AWSRegion].amazonaws.com/v1/logs.
+ * Utilizes the AWSSDK library to sign and directly inject SigV4 Authentication to the exported
+ * request's headers. Also injects x-aws-log-group and x-aws-log-stream headers as per
+ * documentation: "<a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>">
  */
 public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements LogRecordExporter {
