@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 
 /**
- * This exporter extends the functionality of the OtlpAwsLogsExporter to allow logs to be exported
+ * This exporter extends the functionality of the OtlpHttpLogsRecordExporter to allow logs to be exported
  * to the CloudWatch Logs OTLP endpoint https://logs.[AWSRegion].amazonaws.com/v1/logs. Utilizes the
  * AWSSDK library to sign and directly inject SigV4 Authentication to the exported request's
  * headers. Also injects x-aws-log-group and x-aws-log-stream headers as per documentation: "<a
@@ -49,26 +49,17 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
   }
 
   private OtlpAwsLogsExporter(String endpoint) {
-    this(null, endpoint);
+    this(OtlpHttpLogRecordExporter.getDefault(), endpoint);
   }
 
   private OtlpAwsLogsExporter(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
-
     super(endpoint);
 
-    if (parentExporter == null) {
-      this.parentExporterBuilder =
-          OtlpHttpLogRecordExporter.builder()
-              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-              .setEndpoint(endpoint)
-              .setHeaders(this.headerSupplier);
-    } else {
-      this.parentExporterBuilder =
-          parentExporter.toBuilder()
-              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-              .setEndpoint(endpoint)
-              .setHeaders(this.headerSupplier);
-    }
+    this.parentExporterBuilder =
+        parentExporter.toBuilder()
+            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+            .setEndpoint(endpoint)
+            .setHeaders(this.headerSupplier);
 
     this.parentExporter = this.parentExporterBuilder.build();
   }

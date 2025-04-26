@@ -48,25 +48,18 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
   }
 
   private OtlpAwsSpanExporter(String endpoint) {
-    this(null, endpoint);
+    this(OtlpHttpSpanExporter.getDefault(), endpoint);
   }
 
   private OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
     super(endpoint);
 
-    if (parentExporter == null) {
-      this.parentExporterBuilder =
-          OtlpHttpSpanExporter.builder()
-              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-              .setEndpoint(endpoint)
-              .setHeaders(this.headerSupplier);
-    } else {
-      this.parentExporterBuilder =
-          parentExporter.toBuilder()
-              .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
-              .setEndpoint(endpoint)
-              .setHeaders(this.headerSupplier);
-    }
+    this.parentExporterBuilder =
+        parentExporter.toBuilder()
+            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+            .setEndpoint(endpoint)
+            .setHeaders(this.headerSupplier);
+
     this.parentExporter = this.parentExporterBuilder.build();
   }
 
