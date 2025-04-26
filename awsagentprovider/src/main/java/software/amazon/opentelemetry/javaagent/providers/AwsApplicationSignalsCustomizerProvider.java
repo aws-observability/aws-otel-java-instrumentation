@@ -54,6 +54,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.concurrent.Immutable;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
@@ -72,6 +73,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trace
  * otel.aws.application.signals.enabled or the environment variable
  * OTEL_AWS_APPLICATION_SIGNALS_ENABLED. This flag is disabled by default.
  */
+@Immutable
 public final class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
