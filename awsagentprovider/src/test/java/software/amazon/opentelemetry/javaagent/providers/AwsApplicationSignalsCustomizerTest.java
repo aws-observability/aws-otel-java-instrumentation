@@ -23,6 +23,8 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSi
 
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
@@ -136,6 +138,46 @@ public class AwsApplicationSignalsCustomizerTest {
           this.provider::customizeSpanExporter,
           OtlpHttpSpanExporter.class);
     }
+  }
+
+  // This technically should never happen as the validator checks for the correct env variables. But just to be safe.
+  @Test
+  void testShouldThrowIllegalStateExceptionIfIncorrectSpanExporter() {
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            customizeExporterTest(
+                Map.of(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "https://xray.us-east-1.amazonaws.com/v1/traces",
+                    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+                    "http/protobuf",
+                    OTEL_TRACES_EXPORTER,
+                    "otlp"),
+                OtlpGrpcSpanExporter.getDefault(),
+                this.provider::customizeSpanExporter,
+                OtlpHttpSpanExporter.class));
+  }
+
+  // This technically should never happen as the validator checks for the correct env variables
+  @Test
+  void testShouldThrowIllegalStateExceptionIfIncorrectLogsExporter() {
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            customizeExporterTest(
+                Map.of(
+                    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+                    "https://logs.us-east-1.amazonaws.com/v1/logs",
+                    OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+                    "x-aws-log-group=test1,x-aws-log-stream=test2",
+                    OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+                    "http/protobuf",
+                    OTEL_LOGS_EXPORTER,
+                    "otlp"),
+                OtlpGrpcLogRecordExporter.getDefault(),
+                this.provider::customizeLogsExporter,
+                OtlpHttpLogRecordExporter.class));
   }
 
   @Test

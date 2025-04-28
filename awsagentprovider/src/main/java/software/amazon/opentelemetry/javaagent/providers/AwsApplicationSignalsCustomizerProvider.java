@@ -369,11 +369,20 @@ public final class AwsApplicationSignalsCustomizerProvider
       // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
       // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
       // so the given spanExporter will be an instance of OtlpHttpSpanExporter
-      spanExporter =
-          OtlpAwsSpanExporterBuilder.create(
-                  (OtlpHttpSpanExporter) spanExporter,
-                  configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
-              .build();
+
+      try {
+        spanExporter =
+            OtlpAwsSpanExporterBuilder.create(
+                    (OtlpHttpSpanExporter) spanExporter,
+                    configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
+                .build();
+      } catch (Exception e) {
+        // This technically should never happen as the validator checks for the correct env
+        // variables
+        throw new IllegalStateException(
+            "Given SpanExporter is not an instance of OtlpHttpSpanExporter, please check that you have the correct environment variables: ",
+            e);
+      }
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
@@ -397,10 +406,18 @@ public final class AwsApplicationSignalsCustomizerProvider
       // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
       // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
 
-      return OtlpAwsLogsExporterBuilder.create(
-              (OtlpHttpLogRecordExporter) logsExporter,
-              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
-          .build();
+      try {
+        return OtlpAwsLogsExporterBuilder.create(
+                (OtlpHttpLogRecordExporter) logsExporter,
+                configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
+            .build();
+      } catch (Exception e) {
+        // This technically should never happen as the validator checks for the correct env
+        // variables
+        throw new IllegalStateException(
+            "Given LogsExporter is not an instance of OtlpHttpLogRecordExporter, please check that you have the correct environment variables: ",
+            e);
+      }
     }
 
     return logsExporter;
