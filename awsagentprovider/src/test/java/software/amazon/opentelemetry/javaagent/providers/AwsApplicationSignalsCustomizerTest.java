@@ -140,7 +140,8 @@ public class AwsApplicationSignalsCustomizerTest {
     }
   }
 
-  // This technically should never happen as the validator checks for the correct env variables. But just to be safe.
+  // This technically should never happen as the validator checks for the correct env variables. But
+  // just to be safe.
   @Test
   void testShouldThrowIllegalStateExceptionIfIncorrectSpanExporter() {
     assertThrows(
