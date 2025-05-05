@@ -38,14 +38,16 @@ jobs:
 
       - name: Publish UDP exporter to Maven Local
         id: build-udp-exporter
-        working-directory: exporters/aws-opentelemetry-xray-udp-span-exporter
         run: |
-          gradle build 
-          gradle publishToMavenLocal
-          echo "xrayUdpSpanExporterVersion=$(gradle -q printVersion)" >> $GITHUB_OUTPUT
+          ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
+          ./gradlew publishToMavenLocal -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
+          echo "xrayUdpSpanExporterVersion=$(./gradlew -q printVersion -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter)" >> $GITHUB_OUTPUT
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Setup and Run Sample App in Background
-        working-directory: sample-apps/integ-test-app
+        working-directory: sample-apps/udp-exporter-test-app
         run: |
           export XRAY_UDP_SPAN_EXPORTER_VERSION=${{ steps.build-udp-exporter.outputs.xrayUdpSpanExporterVersion }}
           echo "Running Sample App against X-Ray UDP Span Exporter version: $XRAY_UDP_SPAN_EXPORTER_VERSION"
