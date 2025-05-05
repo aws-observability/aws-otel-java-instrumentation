@@ -16,7 +16,7 @@
 pluginManagement {
   plugins {
     id("com.diffplug.spotless") version "6.25.0"
-    id("com.github.ben-manes.versions") version "0.50.0"
+    id("com.github.ben-manes.versions") version "0.52.0"
     id("com.github.jk1.dependency-license-report") version "2.5"
     id("com.gradleup.shadow") version "8.3.5"
     id("com.google.cloud.tools.jib") version "3.4.4"
