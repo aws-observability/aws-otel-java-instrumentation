@@ -63,7 +63,10 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCESS_KEY;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
@@ -71,13 +74,17 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
@@ -100,6 +107,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -132,6 +140,16 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final String NORMALIZED_SNS_SERVICE_NAME = "AWS::SNS";
   private static final String NORMALIZED_SECRETSMANAGER_SERVICE_NAME = "AWS::SecretsManager";
   private static final String NORMALIZED_LAMBDA_SERVICE_NAME = "AWS::Lambda";
+  private static final List<AttributeKey<String>> ARN_ATTRIBUTES =
+      List.of(
+          AWS_TABLE_ARN,
+          AWS_STREAM_ARN,
+          AWS_SNS_TOPIC_ARN,
+          AWS_SECRET_ARN,
+          AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
+          AWS_STATE_MACHINE_ARN,
+          AWS_GUARDRAIL_ARN,
+          AWS_LAMBDA_ARN);
 
   // Constants for Lambda operations
   private static final String LAMBDA_INVOKE_OPERATION = "Invoke";
@@ -176,6 +194,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setRemoteServiceAndOperation(span, builder);
     setRemoteEnvironment(span, builder);
     setRemoteResourceTypeAndIdentifier(span, builder);
+    setRemoteResourceAccessKeyAndRegion(span, builder);
+    setRemoteResourceAccountIdAndRegion(
+        span, builder); // Overwrite remote region from STS with one from resource ARN
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
     setRemoteDbUser(span, builder);
@@ -608,6 +629,61 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       return Optional.of(resourceArn.getResource().toString().split(":")[1]);
     }
     return stringArn;
+  }
+
+  private static void setRemoteResourceAccessKeyAndRegion(
+      SpanData span, AttributesBuilder builder) {
+    if (isKeyPresent(span, AWS_REMOTE_RESOURCE_ACCESS_KEY)) {
+      String remoteAccessKey = span.getAttributes().get(AWS_REMOTE_RESOURCE_ACCESS_KEY);
+      builder.put(AWS_REMOTE_RESOURCE_ACCESS_KEY, remoteAccessKey);
+    }
+
+    if (isKeyPresent(span, AWS_REMOTE_RESOURCE_REGION)) {
+      String remoteRegion = span.getAttributes().get(AWS_REMOTE_RESOURCE_REGION);
+      builder.put(AWS_REMOTE_RESOURCE_REGION, remoteRegion);
+    }
+  }
+
+  private static void setRemoteResourceAccountIdAndRegion(
+      SpanData span, AttributesBuilder builder) {
+    String remoteAccountId = UNKNOWN_REMOTE_ACCOUNT_ID;
+    String remoteRegion = UNKNOWN_REMOTE_REGION;
+
+    if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      try {
+        // queue url format: https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}
+        String queueUrl = span.getAttributes().get(AWS_QUEUE_URL);
+        queueUrl = queueUrl.replace("https://", "");
+
+        String[] parts = queueUrl.split("/");
+        remoteAccountId = parts[1];
+
+        String domain = parts[0];
+        String[] domainParts = domain.split("\\.");
+        remoteRegion = domainParts[1];
+      } catch (Exception e) {
+        logger.log(
+            Level.WARNING,
+            "Remote resource account id and region cannot be populated due to invalid url",
+            e);
+      }
+    } else {
+      for (AttributeKey<String> attributeKey : ARN_ATTRIBUTES) {
+        if (isKeyPresent(span, attributeKey)) {
+          String arn = span.getAttributes().get(attributeKey);
+          remoteAccountId = arn.split(":")[4];
+          remoteRegion = arn.split(":")[3];
+          break;
+        }
+      }
+    }
+
+    if (!remoteAccountId.equals(UNKNOWN_REMOTE_ACCOUNT_ID)
+        && !remoteRegion.equals(UNKNOWN_REMOTE_REGION)) {
+      builder.put(AWS_REMOTE_RESOURCE_ACCOUNT_ID, remoteAccountId);
+      builder.put(AWS_REMOTE_RESOURCE_REGION, remoteRegion);
+      builder.remove(AWS_REMOTE_RESOURCE_ACCESS_KEY);
+    }
   }
 
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {
