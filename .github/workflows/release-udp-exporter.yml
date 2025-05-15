@@ -65,4 +65,4 @@ jobs:
             --title "Release aws-distro-opentelemetry-xray-udp-span-exporter v${{ inputs.udp-exporter-version }}" \
             --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/exporters/aws-distro-opentelemetry-xray-udp-span-exporter/CHANGELOG.md) for more details" \
             --draft \
-            "v${{ inputs.udp-exporter-version }}"
+            "aws-distro-opentelemetry-xray-udp-span-exporter/v${{ inputs.udp-exporter-version }}"
