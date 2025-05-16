@@ -47,7 +47,6 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.URL_FULL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
@@ -63,7 +62,10 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCESS_KEY;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
@@ -185,10 +187,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setService(resource, span, builder);
     setEgressOperation(span, builder);
     setRemoteServiceAndOperation(span, builder);
-    setRemoteResourceTypeAndIdentifier(span, builder);
-    boolean isAccountIdAndRegionPresent = setAuthAccountIdAndRegion(span, builder);
-    if (!isAccountIdAndRegionPresent) {
-      setAuthAccessKeyAndRegion(span, builder);
+    boolean isRemoteResourceIdentifierPresent = setRemoteResourceTypeAndIdentifier(span, builder);
+    if (isRemoteResourceIdentifierPresent) {
+      boolean isAccountIdAndRegionPresent = setAuthAccountIdAndRegion(span, builder);
+      if (!isAccountIdAndRegionPresent) {
+        setAuthAccessKeyAndRegion(span, builder);
+      }
     }
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
@@ -461,7 +465,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
    * Cloud Control resource format</a>.
    */
-  private static void setRemoteResourceTypeAndIdentifier(SpanData span, AttributesBuilder builder) {
+  private static boolean setRemoteResourceTypeAndIdentifier(
+      SpanData span, AttributesBuilder builder) {
     Optional<String> remoteResourceType = Optional.empty();
     Optional<String> remoteResourceIdentifier = Optional.empty();
     Optional<String> cloudformationPrimaryIdentifier = Optional.empty();
@@ -558,18 +563,20 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       builder.put(AWS_REMOTE_RESOURCE_TYPE, remoteResourceType.get());
       builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
       builder.put(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, cloudformationPrimaryIdentifier.get());
+      return true;
     }
+    return false;
   }
 
   private static void setAuthAccessKeyAndRegion(SpanData span, AttributesBuilder builder) {
     if (isKeyPresent(span, AWS_AUTH_ACCESS_KEY)) {
       String authAccessKey = span.getAttributes().get(AWS_AUTH_ACCESS_KEY);
-      builder.put(AWS_AUTH_ACCESS_KEY, authAccessKey);
+      builder.put(AWS_REMOTE_RESOURCE_ACCESS_KEY, authAccessKey);
     }
 
     if (isKeyPresent(span, AWS_AUTH_REGION)) {
       String authRegion = span.getAttributes().get(AWS_AUTH_REGION);
-      builder.put(AWS_AUTH_REGION, authRegion);
+      builder.put(AWS_REMOTE_RESOURCE_REGION, authRegion);
     }
   }
 
@@ -629,8 +636,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         return false;
       }
 
-      builder.put(AWS_AUTH_ACCOUNT_ID, authAccountId);
-      builder.put(AWS_AUTH_REGION, authRegion);
+      builder.put(AWS_REMOTE_RESOURCE_ACCOUNT_ID, authAccountId);
+      builder.put(AWS_REMOTE_RESOURCE_REGION, authRegion);
       return true;
     }
     return false;

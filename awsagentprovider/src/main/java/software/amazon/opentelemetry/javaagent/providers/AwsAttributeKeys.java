@@ -22,9 +22,6 @@ final class AwsAttributeKeys {
 
   private AwsAttributeKeys() {}
 
-  static final AttributeKey<String> AWS_AUTH_ACCOUNT_ID =
-      AttributeKey.stringKey("aws.auth.account.id");
-
   static final AttributeKey<String> AWS_AUTH_ACCESS_KEY =
       AttributeKey.stringKey("aws.auth.account.access_key");
 
@@ -42,6 +39,15 @@ final class AwsAttributeKeys {
 
   static final AttributeKey<String> AWS_REMOTE_OPERATION =
       AttributeKey.stringKey("aws.remote.operation");
+
+  static final AttributeKey<String> AWS_REMOTE_RESOURCE_ACCESS_KEY =
+      AttributeKey.stringKey("aws.remote.resource.account.access_key");
+
+  static final AttributeKey<String> AWS_REMOTE_RESOURCE_ACCOUNT_ID =
+      AttributeKey.stringKey("aws.remote.resource.account.id");
+
+  static final AttributeKey<String> AWS_REMOTE_RESOURCE_REGION =
+      AttributeKey.stringKey("aws.remote.resource.region");
 
   static final AttributeKey<String> AWS_REMOTE_RESOURCE_IDENTIFIER =
       AttributeKey.stringKey("aws.remote.resource.identifier");

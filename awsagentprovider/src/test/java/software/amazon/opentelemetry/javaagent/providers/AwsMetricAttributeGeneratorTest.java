@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
@@ -38,7 +37,10 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCESS_KEY;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
@@ -67,6 +69,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -893,41 +896,53 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
-  public void testAuthAccountIdAndRegionExtractionFromResourceArn() {
+  public void testRemoteResourceAccountIdAndRegionExtractionFromResourceArn() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
     // Validate behaviour of AWS_QUEUE_URL, then remove it.
     String queueUrl =
         String.format("https://sqs.%s.amazonaws.com/%s/Queue", MOCK_REGION, MOCK_ACCOUNT_ID);
     mockAttribute(AWS_QUEUE_URL, queueUrl);
-    validateRemoteResourceAccountIdAndRegion(MOCK_ACCOUNT_ID, MOCK_REGION);
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
+    validateRemoteResourceAccountIdAndRegion(
+        Optional.ofNullable(MOCK_ACCOUNT_ID), Optional.empty(), MOCK_REGION);
+    mockAttribute(AWS_QUEUE_NAME, null);
     mockAttribute(AWS_QUEUE_URL, null);
 
     // Invalid queue url without queue name
     String queueUrlWithoutName =
         String.format("https://sqs.%s.amazonaws.com/%s", MOCK_REGION, MOCK_ACCOUNT_ID);
     mockAttribute(AWS_QUEUE_URL, queueUrlWithoutName);
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCOUNT_ID)).isNull();
-    assertThat(actualAttributes.get(AWS_AUTH_REGION)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
     mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_QUEUE_NAME, null);
 
     // Invalid queue url with invalid domain
     String queueUrlWithInvalidDomain =
         String.format("https://%s.amazonaws.com/%s", MOCK_REGION, MOCK_ACCOUNT_ID);
     mockAttribute(AWS_QUEUE_URL, queueUrlWithInvalidDomain);
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCOUNT_ID)).isNull();
-    assertThat(actualAttributes.get(AWS_AUTH_REGION)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
     mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_QUEUE_NAME, null);
 
     // AWS_TABLE_ARN
+    mockAttribute(AWS_TABLE_NAME, "test_table");
     validateArnAttributeAndCleanup(AWS_TABLE_ARN, "dynamodb", "table", "tableName");
+    mockAttribute(AWS_TABLE_NAME, null);
 
     // AWS_STREAM_ARN
+    mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
     validateArnAttributeAndCleanup(AWS_STREAM_ARN, "kinesis", "stream", "streamName");
+    mockAttribute(AWS_STREAM_NAME, null);
 
     // AWS_SNS_TOPIC_ARN
     validateArnAttributeAndCleanup(AWS_SNS_TOPIC_ARN, "sns", "topic", "topicName");
@@ -942,19 +957,24 @@ class AwsMetricAttributeGeneratorTest {
         AWS_STATE_MACHINE_ARN, "states", "stateMachine", "stateMachineName");
 
     // Bedrock Guardrail ARN
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_^id");
     validateArnAttributeAndCleanup(AWS_GUARDRAIL_ARN, "bedrock", "guardrail", "guardrailName");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
 
     // Lambda ARN
+    mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
     validateArnAttributeAndCleanup(AWS_LAMBDA_ARN, "lambda", "function", "functionName");
+    mockAttribute(AWS_LAMBDA_RESOURCE_ID, null);
 
     // Invalid ARN with fewer fields
+    mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
     String invalidLambdaArn = String.format("arn:aws:lambda:%s:%s", MOCK_REGION, MOCK_ACCOUNT_ID);
     mockAttribute(AWS_LAMBDA_ARN, invalidLambdaArn);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCOUNT_ID)).isNull();
-    assertThat(actualAttributes.get(AWS_AUTH_REGION)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
 
     // Arn with invalid account id
     String invalidAccountId = "invalid-account-id";
@@ -964,29 +984,39 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCOUNT_ID)).isNull();
-    assertThat(actualAttributes.get(AWS_AUTH_REGION)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
+    mockAttribute(AWS_LAMBDA_ARN, null);
+    mockAttribute(AWS_LAMBDA_RESOURCE_ID, null);
+
+    // No remote resource identifier
+    mockAttribute(AWS_TABLE_ARN, "arn:aws:dynamodb:us-east-1:123456789012:table:test_table");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
+    mockAttribute(AWS_TABLE_ARN, null);
   }
 
   @Test
-  public void testAuthAccessKeyAndRegionExtractionFromSts() {
+  public void testRemoteResourceAccessKeyAndRegionExtractionFromSts() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
     String accessKey = "accessKey";
     String region = "region";
+    mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
     mockAttribute(AWS_AUTH_ACCESS_KEY, accessKey);
     mockAttribute(AWS_AUTH_REGION, region);
-
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
-    Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCESS_KEY)).isEqualTo(accessKey);
-    assertThat(actualAttributes.get(AWS_AUTH_REGION)).isEqualTo(region);
-
+    validateRemoteResourceAccountIdAndRegion(
+        Optional.empty(), Optional.ofNullable(accessKey), region);
     mockAttribute(AWS_AUTH_ACCESS_KEY, null);
     mockAttribute(AWS_AUTH_REGION, null);
+    mockAttribute(AWS_BUCKET_NAME, null);
   }
 
   @Test
-  public void testAuthAccountIdAndRegionExtractionFromResourceArnAndSts() {
+  public void testRemoteResourceAccountIdAndRegionExtractionFromResourceArnAndSts() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
     String accessKey = "accessKey";
     String region = "region";
     mockAttribute(AWS_AUTH_ACCESS_KEY, accessKey);
@@ -994,14 +1024,26 @@ class AwsMetricAttributeGeneratorTest {
     String queueUrl =
         String.format("https://sqs.%s.amazonaws.com/%s/Queue", MOCK_REGION, MOCK_ACCOUNT_ID);
     mockAttribute(AWS_QUEUE_URL, queueUrl);
+    mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
 
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
-    Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCESS_KEY)).isNull();
-    assertThat(actualAttributes.get(AWS_AUTH_ACCOUNT_ID)).isEqualTo(MOCK_ACCOUNT_ID);
-    assertThat(actualAttributes.get(AWS_AUTH_REGION))
-        .isEqualTo(MOCK_REGION); // Use region from resource ARN instead of STS
+    SpanKind[] spanKinds = {SpanKind.CLIENT, SpanKind.PRODUCER, SpanKind.CONSUMER};
+    for (SpanKind spanKind : spanKinds) {
+      when(spanDataMock.getKind()).thenReturn(spanKind);
+      Attributes actualAttributes =
+          GENERATOR
+              .generateMetricAttributeMapFromSpan(spanDataMock, resource)
+              .get(DEPENDENCY_METRIC);
+
+      assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCESS_KEY)).isNull();
+      assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isEqualTo(MOCK_ACCOUNT_ID);
+      assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION))
+          .isEqualTo(MOCK_REGION); // Use region from resource ARN instead of STS
+    }
+
+    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
+    mockAttribute(AWS_AUTH_REGION, null);
+    mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_QUEUE_NAME, null);
   }
 
   @Test
@@ -1280,16 +1322,37 @@ class AwsMetricAttributeGeneratorTest {
             serviceType, MOCK_REGION, MOCK_ACCOUNT_ID, resourceType, resourceName);
 
     mockAttribute(attributeKey, arn);
-    validateRemoteResourceAccountIdAndRegion(MOCK_ACCOUNT_ID, MOCK_REGION);
+    validateRemoteResourceAccountIdAndRegion(
+        Optional.ofNullable(MOCK_ACCOUNT_ID), Optional.empty(), MOCK_REGION);
     mockAttribute(attributeKey, null);
   }
 
-  private void validateRemoteResourceAccountIdAndRegion(String accountId, String region) {
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+  private void validateRemoteResourceAccountIdAndRegion(
+      Optional<String> accountId, Optional<String> accessKey, String region) {
+    SpanKind[] spanKinds = {SpanKind.CLIENT, SpanKind.PRODUCER, SpanKind.CONSUMER};
+
+    for (SpanKind spanKind : spanKinds) {
+      when(spanDataMock.getKind()).thenReturn(spanKind);
+      Attributes actualAttributes =
+          GENERATOR
+              .generateMetricAttributeMapFromSpan(spanDataMock, resource)
+              .get(DEPENDENCY_METRIC);
+      if (accountId.isPresent()) {
+        assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isEqualTo(accountId.get());
+      }
+      if (accessKey.isPresent()) {
+        assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCESS_KEY)).isEqualTo(accessKey.get());
+      }
+      assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isEqualTo(region);
+    }
+
+    // Server span should not generate remote resource attributes
+    when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_AUTH_ACCOUNT_ID)).isEqualTo(accountId);
-    assertThat(actualAttributes.get(AWS_AUTH_REGION)).isEqualTo(region);
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCESS_KEY)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
   }
 
   private void validateRemoteResourceAttributes(String type, String identifier) {
