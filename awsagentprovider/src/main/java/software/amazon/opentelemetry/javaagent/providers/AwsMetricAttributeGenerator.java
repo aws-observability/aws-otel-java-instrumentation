@@ -46,6 +46,9 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.URL_FULL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCOUNT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
@@ -60,10 +63,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCESS_KEY;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
@@ -79,13 +79,12 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isValidAccountId;
 
 import com.amazonaws.arn.Arn;
 import io.opentelemetry.api.common.AttributeKey;
@@ -187,9 +186,10 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setEgressOperation(span, builder);
     setRemoteServiceAndOperation(span, builder);
     setRemoteResourceTypeAndIdentifier(span, builder);
-    setRemoteResourceAccessKeyAndRegion(span, builder);
-    setRemoteResourceAccountIdAndRegion(
-        span, builder); // Overwrite remote region from STS with one from resource ARN
+    boolean isAccountIdAndRegionPresent = setAuthAccountIdAndRegion(span, builder);
+    if (!isAccountIdAndRegionPresent) {
+      setAuthAccessKeyAndRegion(span, builder);
+    }
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
     setRemoteDbUser(span, builder);
@@ -561,59 +561,79 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     }
   }
 
-  private static void setRemoteResourceAccessKeyAndRegion(
-      SpanData span, AttributesBuilder builder) {
-    if (isKeyPresent(span, AWS_REMOTE_RESOURCE_ACCESS_KEY)) {
-      String remoteAccessKey = span.getAttributes().get(AWS_REMOTE_RESOURCE_ACCESS_KEY);
-      builder.put(AWS_REMOTE_RESOURCE_ACCESS_KEY, remoteAccessKey);
+  private static void setAuthAccessKeyAndRegion(SpanData span, AttributesBuilder builder) {
+    if (isKeyPresent(span, AWS_AUTH_ACCESS_KEY)) {
+      String authAccessKey = span.getAttributes().get(AWS_AUTH_ACCESS_KEY);
+      builder.put(AWS_AUTH_ACCESS_KEY, authAccessKey);
     }
 
-    if (isKeyPresent(span, AWS_REMOTE_RESOURCE_REGION)) {
-      String remoteRegion = span.getAttributes().get(AWS_REMOTE_RESOURCE_REGION);
-      builder.put(AWS_REMOTE_RESOURCE_REGION, remoteRegion);
+    if (isKeyPresent(span, AWS_AUTH_REGION)) {
+      String authRegion = span.getAttributes().get(AWS_AUTH_REGION);
+      builder.put(AWS_AUTH_REGION, authRegion);
     }
   }
 
-  private static void setRemoteResourceAccountIdAndRegion(
-      SpanData span, AttributesBuilder builder) {
-    String remoteAccountId = UNKNOWN_REMOTE_ACCOUNT_ID;
-    String remoteRegion = UNKNOWN_REMOTE_REGION;
+  private static boolean setAuthAccountIdAndRegion(SpanData span, AttributesBuilder builder) {
+    String authAccountId = "";
+    String authRegion = "";
 
     if (isKeyPresent(span, AWS_QUEUE_URL)) {
       try {
         // queue url format: https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}
         String queueUrl = span.getAttributes().get(AWS_QUEUE_URL);
         queueUrl = queueUrl.replace("https://", "");
-
         String[] parts = queueUrl.split("/");
-        remoteAccountId = parts[1];
+        if (parts.length != 3) {
+          logger.log(
+              Level.FINEST, "%s is not valid for auth account id extraction.", AWS_QUEUE_URL);
+          return false;
+        }
 
+        authAccountId = parts[1];
         String domain = parts[0];
         String[] domainParts = domain.split("\\.");
-        remoteRegion = domainParts[1];
+        if (domainParts.length != 4) {
+          logger.log(Level.FINEST, "%s is not valid for auth region extraction.", AWS_QUEUE_URL);
+          return false;
+        }
+        authRegion = domainParts[1];
       } catch (Exception e) {
         logger.log(
-            Level.WARNING,
-            "Remote resource account id and region cannot be populated due to invalid url",
-            e);
+            Level.FINEST, "Auth account id and region cannot be populated due to invalid url", e);
+        return false;
       }
     } else {
       for (AttributeKey<String> attributeKey : ARN_ATTRIBUTES) {
         if (isKeyPresent(span, attributeKey)) {
+          // Arn pattern: arn:partition:service:region:account-id:resource
           String arn = span.getAttributes().get(attributeKey);
-          remoteAccountId = arn.split(":")[4];
-          remoteRegion = arn.split(":")[3];
+          String[] arnParts = arn.split(":");
+          if (arnParts.length != 6) {
+            logger.log(
+                Level.FINEST,
+                "%s is not valid for auth account id and region extraction.",
+                attributeKey);
+            continue;
+          }
+
+          authAccountId = arnParts[4];
+          authRegion = arnParts[3];
           break;
         }
       }
     }
 
-    if (!remoteAccountId.equals(UNKNOWN_REMOTE_ACCOUNT_ID)
-        && !remoteRegion.equals(UNKNOWN_REMOTE_REGION)) {
-      builder.put(AWS_REMOTE_RESOURCE_ACCOUNT_ID, remoteAccountId);
-      builder.put(AWS_REMOTE_RESOURCE_REGION, remoteRegion);
-      builder.remove(AWS_REMOTE_RESOURCE_ACCESS_KEY);
+    if (!authAccountId.isEmpty() && !authRegion.isEmpty()) {
+      if (!isValidAccountId(authAccountId)) {
+        logger.log(Level.FINEST, "Account ID must contain only numbers, got: %s", authAccountId);
+        return false;
+      }
+
+      builder.put(AWS_AUTH_ACCOUNT_ID, authAccountId);
+      builder.put(AWS_AUTH_REGION, authRegion);
+      return true;
     }
+    return false;
   }
 
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {
