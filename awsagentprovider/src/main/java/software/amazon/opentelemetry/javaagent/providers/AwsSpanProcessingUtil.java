@@ -248,4 +248,9 @@ final class AwsSpanProcessingUtil {
         || isKeyPresent(span, DB_OPERATION)
         || isKeyPresent(span, DB_STATEMENT);
   }
+
+  // Checks if accountId contains only digits
+  static boolean isValidAccountId(String accountId) {
+    return accountId.matches("\\d+");
+  }
 }
