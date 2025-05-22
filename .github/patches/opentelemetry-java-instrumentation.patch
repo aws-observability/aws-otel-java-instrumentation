@@ -1,39 +1,39 @@
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
-index 5c96ee4e2d..9eaed9b327 100644
+index 93437ef1e0..3f564d25bc 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
 @@ -1,2 +1,2 @@
--Comparing source compatibility of opentelemetry-instrumentation-annotations-2.10.0.jar against opentelemetry-instrumentation-annotations-2.9.0.jar
-+Comparing source compatibility of opentelemetry-instrumentation-annotations-2.10.0-adot1.jar against opentelemetry-instrumentation-annotations-2.10.0.jar
- No changes.
+ Comparing source compatibility of opentelemetry-instrumentation-annotations-2.11.0.jar against opentelemetry-instrumentation-annotations-2.10.0.jar
+-No changes.
 \ No newline at end of file
++No changes.
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
-index 577079fb0a..d00e7dbaff 100644
+index d759eed30a..385bd90663 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
 @@ -1,2 +1,2 @@
--Comparing source compatibility of opentelemetry-instrumentation-api-2.10.0.jar against opentelemetry-instrumentation-api-2.9.0.jar
-+Comparing source compatibility of opentelemetry-instrumentation-api-2.10.0-adot1.jar against opentelemetry-instrumentation-api-2.10.0.jar
- No changes.
+ Comparing source compatibility of opentelemetry-instrumentation-api-2.11.0.jar against opentelemetry-instrumentation-api-2.10.0.jar
+-No changes.
 \ No newline at end of file
++No changes.
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt
-index af4a53135b..e4035e9b69 100644
+index f657f219ae..2b4a59db8f 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt
 @@ -1,2 +1,2 @@
--Comparing source compatibility of opentelemetry-spring-boot-autoconfigure-2.10.0.jar against opentelemetry-spring-boot-autoconfigure-2.9.0.jar
-+Comparing source compatibility of opentelemetry-spring-boot-autoconfigure-2.10.0-adot1.jar against opentelemetry-spring-boot-autoconfigure-2.10.0.jar
- No changes.
+ Comparing source compatibility of opentelemetry-spring-boot-autoconfigure-2.11.0.jar against opentelemetry-spring-boot-autoconfigure-2.10.0.jar
+-No changes.
 \ No newline at end of file
++No changes.
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt
-index f49204917b..4611341aec 100644
+index 02f520fd45..99505334b7 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt
 @@ -1,2 +1,2 @@
--Comparing source compatibility of opentelemetry-spring-boot-starter-2.10.0.jar against opentelemetry-spring-boot-starter-2.9.0.jar
-+Comparing source compatibility of opentelemetry-spring-boot-starter-2.10.0-adot1.jar against opentelemetry-spring-boot-starter-2.10.0.jar
- No changes.
+ Comparing source compatibility of opentelemetry-spring-boot-starter-2.11.0.jar against opentelemetry-spring-boot-starter-2.10.0.jar
+-No changes.
 \ No newline at end of file
++No changes.
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
 index f357a19f88..fa90530579 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
@@ -53,62 +53,6 @@ index f357a19f88..fa90530579 100644
  
    testImplementation(project(":instrumentation:aws-sdk:aws-sdk-1.11:testing"))
  
-diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy
-index 8ba084ba02..a33d4c3bf4 100644
---- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy
-+++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/S3TracingTest.groovy
-@@ -417,6 +417,7 @@ class S3TracingTest extends AgentInstrumentationSpecification {
-             "$ServerAttributes.SERVER_ADDRESS" String
-             "$NetworkAttributes.NETWORK_PROTOCOL_VERSION" "1.1"
-             "$ServerAttributes.SERVER_PORT" { it == null || Number }
-+            "aws.sns.topic.arn" "$topicArn"
-           }
-         }
-       }
-@@ -439,6 +440,7 @@ class S3TracingTest extends AgentInstrumentationSpecification {
-             "$NetworkAttributes.NETWORK_PROTOCOL_VERSION" "1.1"
-             "$ServerAttributes.SERVER_PORT" { it == null || Number }
-             "$MessagingIncubatingAttributes.MESSAGING_DESTINATION_NAME" topicArn
-+            "aws.sns.topic.arn" "$topicArn"
-           }
-         }
-       }
-@@ -483,6 +485,7 @@ class S3TracingTest extends AgentInstrumentationSpecification {
-             "$NetworkAttributes.NETWORK_PROTOCOL_VERSION" "1.1"
-             "$ServerAttributes.SERVER_PORT" { it == null || Number }
-             "$MessagingIncubatingAttributes.MESSAGING_DESTINATION_NAME" topicArn
-+            "aws.sns.topic.arn" "$topicArn"
-           }
-         }
-       }
-diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy
-index 0a22758122..f46ac90610 100644
---- a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy
-+++ b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/test/groovy/SnsTracingTest.groovy
-@@ -132,6 +132,7 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
-             "$ServerAttributes.SERVER_ADDRESS" String
-             "$NetworkAttributes.NETWORK_PROTOCOL_VERSION" "1.1"
-             "$ServerAttributes.SERVER_PORT" { it == null || Number }
-+            "aws.sns.topic.arn" "$topicArn"
-           }
-         }
-       }
-@@ -155,6 +156,7 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
-             "$NetworkAttributes.NETWORK_PROTOCOL_VERSION" "1.1"
-             "$ServerAttributes.SERVER_PORT" { it == null || Number }
-             "$MessagingIncubatingAttributes.MESSAGING_DESTINATION_NAME" topicArn
-+            "aws.sns.topic.arn" "$topicArn"
-           }
-         }
-       }
-@@ -177,6 +179,7 @@ class SnsTracingTest extends AgentInstrumentationSpecification {
-             "$NetworkAttributes.NETWORK_PROTOCOL_VERSION" "1.1"
-             "$ServerAttributes.SERVER_PORT" { it == null || Number }
-             "$MessagingIncubatingAttributes.MESSAGING_DESTINATION_NAME" topicArn
-+            "aws.sns.topic.arn" "$topicArn"
-           }
-         }
-         span(1) {
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
 index 6cf49a21c4..3705634153 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library-autoconfigure/build.gradle.kts
@@ -1467,10 +1411,10 @@ index 545f5dffce..227a205ebd 100644
    implementation("org.elasticmq:elasticmq-rest-sqs_2.13")
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockAgentClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockAgentClientTest.java
 new file mode 100644
-index 0000000000..d107f250bb
+index 0000000000..a5e5a63b09
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockAgentClientTest.java
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,95 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1478,16 +1422,18 @@ index 0000000000..d107f250bb
 +
 +package io.opentelemetry.instrumentation.awssdk.v1_11;
 +
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
++import static java.util.Collections.singletonList;
++
 +import com.amazonaws.services.bedrockagent.AWSBedrockAgent;
 +import com.amazonaws.services.bedrockagent.AWSBedrockAgentClientBuilder;
 +import com.amazonaws.services.bedrockagent.model.GetAgentRequest;
 +import com.amazonaws.services.bedrockagent.model.GetDataSourceRequest;
 +import com.amazonaws.services.bedrockagent.model.GetKnowledgeBaseRequest;
-+import com.google.common.collect.ImmutableMap;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
-+import java.util.Map;
 +import org.junit.jupiter.api.Test;
 +
 +public abstract class AbstractBedrockAgentClientTest extends AbstractBaseAwsClientTest {
@@ -1513,7 +1459,7 @@ index 0000000000..d107f250bb
 +        "AWSBedrockAgent",
 +        "GetAgent",
 +        "GET",
-+        ImmutableMap.of("aws.bedrock.agent.id", "agentId"));
++        singletonList(equalTo(stringKey("aws.bedrock.agent.id"), "agentId")));
 +  }
 +
 +  @Test
@@ -1532,7 +1478,7 @@ index 0000000000..d107f250bb
 +        "AWSBedrockAgent",
 +        "GetKnowledgeBase",
 +        "GET",
-+        ImmutableMap.of("aws.bedrock.knowledge_base.id", "knowledgeBaseId"));
++        singletonList(equalTo(stringKey("aws.bedrock.knowledge_base.id"), "knowledgeBaseId")));
 +  }
 +
 +  @Test
@@ -1547,11 +1493,13 @@ index 0000000000..d107f250bb
 +                .withDataSourceId("datasourceId")
 +                .withKnowledgeBaseId("knowledgeBaseId"));
 +
-+    Map<String, String> additionalAttributes =
-+        ImmutableMap.of("aws.bedrock.data_source.id", "datasourceId");
-+
 +    assertRequestWithMockedResponse(
-+        response, client, "AWSBedrockAgent", "GetDataSource", "GET", additionalAttributes);
++        response,
++        client,
++        "AWSBedrockAgent",
++        "GetDataSource",
++        "GET",
++        singletonList(equalTo(stringKey("aws.bedrock.data_source.id"), "datasourceId")));
 +  }
 +
 +  private AWSBedrockAgent createClient() {
@@ -1564,10 +1512,10 @@ index 0000000000..d107f250bb
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockClientTest.java
 new file mode 100644
-index 0000000000..498fbc2433
+index 0000000000..a97b893055
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockClientTest.java
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,79 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1575,10 +1523,13 @@ index 0000000000..498fbc2433
 +
 +package io.opentelemetry.instrumentation.awssdk.v1_11;
 +
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
++import static java.util.Collections.singletonList;
++
 +import com.amazonaws.services.bedrock.AmazonBedrock;
 +import com.amazonaws.services.bedrock.AmazonBedrockClientBuilder;
 +import com.amazonaws.services.bedrock.model.GetGuardrailRequest;
-+import com.google.common.collect.ImmutableMap;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
@@ -1641,15 +1592,15 @@ index 0000000000..498fbc2433
 +        "Bedrock",
 +        "GetGuardrail",
 +        "GET",
-+        ImmutableMap.of("aws.bedrock.guardrail.id", "guardrailId"));
++        singletonList(equalTo(stringKey("aws.bedrock.guardrail.id"), "guardrailId")));
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockRuntimeClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockRuntimeClientTest.java
 new file mode 100644
-index 0000000000..a2a27f6ab2
+index 0000000000..98a5873614
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractBedrockRuntimeClientTest.java
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,135 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1657,15 +1608,19 @@ index 0000000000..a2a27f6ab2
 +
 +package io.opentelemetry.instrumentation.awssdk.v1_11;
 +
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
++import static java.util.Arrays.asList;
++
 +import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntime;
 +import com.amazonaws.services.bedrockruntime.AmazonBedrockRuntimeClientBuilder;
 +import com.amazonaws.services.bedrockruntime.model.InvokeModelRequest;
-+import com.google.common.collect.ImmutableMap;
++import io.opentelemetry.sdk.testing.assertj.AttributeAssertion;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
 +import java.nio.charset.StandardCharsets;
-+import java.util.Map;
++import java.util.List;
 +import java.util.stream.Stream;
 +import org.junit.jupiter.params.ParameterizedTest;
 +import org.junit.jupiter.params.provider.MethodSource;
@@ -1675,13 +1630,18 @@ index 0000000000..a2a27f6ab2
 +  public abstract AmazonBedrockRuntimeClientBuilder configureClient(
 +      AmazonBedrockRuntimeClientBuilder client);
 +
++  @Override
++  protected boolean hasRequestId() {
++    return true;
++  }
++
 +  @ParameterizedTest
 +  @MethodSource("testData")
 +  public void sendRequestWithMockedResponse(
 +      String modelId,
 +      String requestBody,
 +      String expectedResponse,
-+      Map<String, String> expectedAttributes)
++      List<AttributeAssertion> expectedAttributes)
 +      throws Exception {
 +    AmazonBedrockRuntimeClientBuilder clientBuilder = AmazonBedrockRuntimeClientBuilder.standard();
 +    AmazonBedrockRuntime client =
@@ -1707,80 +1667,81 @@ index 0000000000..a2a27f6ab2
 +          "ai21.jamba-1-5-mini-v1:0",
 +          "{\"messages\":[{\"role\":\"user\",\"message\":\"Which LLM are you?\"}],\"max_tokens\":1000,\"top_p\":0.8,\"temperature\":0.7}",
 +          "{\"choices\":[{\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":42}}",
-+          ImmutableMap.of(
-+              "gen_ai.request.model", "ai21.jamba-1-5-mini-v1:0",
-+              "gen_ai.system", "aws.bedrock",
-+              "gen_ai.request.max_tokens", "1000",
-+              "gen_ai.request.temperature", "0.7",
-+              "gen_ai.request.top_p", "0.8",
-+              "gen_ai.response.finish_reasons", "[stop]",
-+              "gen_ai.usage.input_tokens", "5",
-+              "gen_ai.usage.output_tokens", "42")
++          asList(
++              equalTo(stringKey("gen_ai.request.model"), "ai21.jamba-1-5-mini-v1:0"),
++              equalTo(stringKey("gen_ai.system"), "aws.bedrock"),
++              equalTo(stringKey("gen_ai.request.max_tokens"), "1000"),
++              equalTo(stringKey("gen_ai.request.temperature"), "0.7"),
++              equalTo(stringKey("gen_ai.request.top_p"), "0.8"),
++              equalTo(stringKey("gen_ai.response.finish_reasons"), "[stop]"),
++              equalTo(stringKey("gen_ai.usage.input_tokens"), "5"),
++              equalTo(stringKey("gen_ai.usage.output_tokens"), "42"))
 +        },
 +        new Object[] {
 +          "amazon.titan-text-premier-v1:0",
 +          "{\"inputText\":\"Hello, world!\",\"textGenerationConfig\":{\"temperature\":0.7,\"topP\":0.9,\"maxTokenCount\":100,\"stopSequences\":[\"END\"]}}",
 +          "{\"inputTextTokenCount\":5,\"results\":[{\"tokenCount\":42,\"outputText\":\"Hi! I'm Titan, an AI assistant.\",\"completionReason\":\"stop\"}]}",
-+          ImmutableMap.of(
-+              "gen_ai.request.model", "amazon.titan-text-premier-v1:0",
-+              "gen_ai.system", "aws.bedrock",
-+              "gen_ai.request.max_tokens", "100",
-+              "gen_ai.request.temperature", "0.7",
-+              "gen_ai.request.top_p", "0.9",
-+              "gen_ai.response.finish_reasons", "[stop]",
-+              "gen_ai.usage.input_tokens", "5",
-+              "gen_ai.usage.output_tokens", "42")
++          asList(
++              equalTo(stringKey("gen_ai.request.model"), "amazon.titan-text-premier-v1:0"),
++              equalTo(stringKey("gen_ai.system"), "aws.bedrock"),
++              equalTo(stringKey("gen_ai.request.max_tokens"), "100"),
++              equalTo(stringKey("gen_ai.request.temperature"), "0.7"),
++              equalTo(stringKey("gen_ai.request.top_p"), "0.9"),
++              equalTo(stringKey("gen_ai.response.finish_reasons"), "[stop]"),
++              equalTo(stringKey("gen_ai.usage.input_tokens"), "5"),
++              equalTo(stringKey("gen_ai.usage.output_tokens"), "42"))
 +        },
 +        new Object[] {
 +          "anthropic.claude-3-5-sonnet-20241022-v2:0",
 +          "{\"anthropic_version\":\"bedrock-2023-05-31\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello, world\"}],\"max_tokens\":100,\"temperature\":0.7,\"top_p\":0.9}",
 +          "{\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":2095,\"output_tokens\":503}}",
-+          ImmutableMap.of(
-+              "gen_ai.request.model", "anthropic.claude-3-5-sonnet-20241022-v2:0",
-+              "gen_ai.system", "aws.bedrock",
-+              "gen_ai.request.max_tokens", "100",
-+              "gen_ai.request.temperature", "0.7",
-+              "gen_ai.request.top_p", "0.9",
-+              "gen_ai.response.finish_reasons", "[end_turn]",
-+              "gen_ai.usage.input_tokens", "2095",
-+              "gen_ai.usage.output_tokens", "503")
++          asList(
++              equalTo(
++                  stringKey("gen_ai.request.model"), "anthropic.claude-3-5-sonnet-20241022-v2:0"),
++              equalTo(stringKey("gen_ai.system"), "aws.bedrock"),
++              equalTo(stringKey("gen_ai.request.max_tokens"), "100"),
++              equalTo(stringKey("gen_ai.request.temperature"), "0.7"),
++              equalTo(stringKey("gen_ai.request.top_p"), "0.9"),
++              equalTo(stringKey("gen_ai.response.finish_reasons"), "[end_turn]"),
++              equalTo(stringKey("gen_ai.usage.input_tokens"), "2095"),
++              equalTo(stringKey("gen_ai.usage.output_tokens"), "503"))
 +        },
 +        new Object[] {
 +          "meta.llama3-70b-instruct-v1:0",
 +          "{\"prompt\":\"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\\\\nDescribe the purpose of a 'hello world' program in one line. <|eot_id|>\\\\n<|start_header_id|>assistant<|end_header_id|>\\\\n\",\"max_gen_len\":128,\"temperature\":0.1,\"top_p\":0.9}",
 +          "{\"prompt_token_count\":2095,\"generation_token_count\":503,\"stop_reason\":\"stop\"}",
-+          ImmutableMap.of(
-+              "gen_ai.request.model", "meta.llama3-70b-instruct-v1:0",
-+              "gen_ai.system", "aws.bedrock",
-+              "gen_ai.request.max_tokens", "128",
-+              "gen_ai.request.temperature", "0.1",
-+              "gen_ai.request.top_p", "0.9",
-+              "gen_ai.response.finish_reasons", "[stop]",
-+              "gen_ai.usage.input_tokens", "2095",
-+              "gen_ai.usage.output_tokens", "503")
++          asList(
++              equalTo(stringKey("gen_ai.request.model"), "meta.llama3-70b-instruct-v1:0"),
++              equalTo(stringKey("gen_ai.system"), "aws.bedrock"),
++              equalTo(stringKey("gen_ai.request.max_tokens"), "128"),
++              equalTo(stringKey("gen_ai.request.temperature"), "0.1"),
++              equalTo(stringKey("gen_ai.request.top_p"), "0.9"),
++              equalTo(stringKey("gen_ai.response.finish_reasons"), "[stop]"),
++              equalTo(stringKey("gen_ai.usage.input_tokens"), "2095"),
++              equalTo(stringKey("gen_ai.usage.output_tokens"), "503"))
 +        },
 +        new Object[] {
 +          "cohere.command-r-v1:0",
 +          "{\"message\":\"Convince me to write a LISP interpreter in one line.\",\"temperature\":0.8,\"max_tokens\":4096,\"p\":0.45}",
 +          "{\"text\":\"test-output\",\"finish_reason\":\"COMPLETE\"}",
-+          ImmutableMap.of(
-+              "gen_ai.request.model", "cohere.command-r-v1:0",
-+              "gen_ai.system", "aws.bedrock",
-+              "gen_ai.request.max_tokens", "4096",
-+              "gen_ai.request.temperature", "0.8",
-+              "gen_ai.request.top_p", "0.45",
-+              "gen_ai.response.finish_reasons", "[COMPLETE]",
-+              "gen_ai.usage.input_tokens", "9",
-+              "gen_ai.usage.output_tokens", "2")
++          asList(
++              equalTo(stringKey("gen_ai.request.model"), "cohere.command-r-v1:0"),
++              equalTo(stringKey("gen_ai.system"), "aws.bedrock"),
++              equalTo(stringKey("gen_ai.request.max_tokens"), "4096"),
++              equalTo(stringKey("gen_ai.request.temperature"), "0.8"),
++              equalTo(stringKey("gen_ai.request.top_p"), "0.45"),
++              equalTo(stringKey("gen_ai.response.finish_reasons"), "[COMPLETE]"),
++              equalTo(stringKey("gen_ai.usage.input_tokens"), "9"),
++              equalTo(stringKey("gen_ai.usage.output_tokens"), "2"))
 +        });
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractLambdaClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractLambdaClientTest.java
 new file mode 100644
-index 0000000000..f6ab4363bf
+index 0000000000..9f5a245ee7
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractLambdaClientTest.java
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,72 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1788,15 +1749,19 @@ index 0000000000..f6ab4363bf
 +
 +package io.opentelemetry.instrumentation.awssdk.v1_11;
 +
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
++import static java.util.Collections.singletonList;
++
 +import com.amazonaws.services.lambda.AWSLambda;
 +import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 +import com.amazonaws.services.lambda.model.GetEventSourceMappingRequest;
 +import com.amazonaws.services.lambda.model.GetFunctionRequest;
-+import com.google.common.collect.ImmutableMap;
++import io.opentelemetry.sdk.testing.assertj.AttributeAssertion;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
-+import java.util.Map;
++import java.util.List;
 +import java.util.function.Function;
 +import java.util.stream.Stream;
 +import org.junit.jupiter.params.ParameterizedTest;
@@ -1815,7 +1780,9 @@ index 0000000000..f6ab4363bf
 +  @ParameterizedTest
 +  @MethodSource("provideArguments")
 +  public void testSendRequestWithMockedResponse(
-+      String operation, Map<String, String> additionalAttributes, Function<AWSLambda, Object> call)
++      String operation,
++      List<AttributeAssertion> additionalAttributes,
++      Function<AWSLambda, Object> call)
 +      throws Exception {
 +
 +    AWSLambdaClientBuilder clientBuilder = AWSLambdaClientBuilder.standard();
@@ -1837,22 +1804,22 @@ index 0000000000..f6ab4363bf
 +    return Stream.of(
 +        Arguments.of(
 +            "GetEventSourceMapping",
-+            ImmutableMap.of("aws.lambda.resource_mapping.id", "uuid"),
++            singletonList(equalTo(stringKey("aws.lambda.resource_mapping.id"), "uuid")),
 +            (Function<AWSLambda, Object>)
 +                c -> c.getEventSourceMapping(new GetEventSourceMappingRequest().withUUID("uuid"))),
 +        Arguments.of(
 +            "GetFunction",
-+            ImmutableMap.of("aws.lambda.function.name", "functionName"),
++            singletonList(equalTo(stringKey("aws.lambda.function.name"), "functionName")),
 +            (Function<AWSLambda, Object>)
 +                c -> c.getFunction(new GetFunctionRequest().withFunctionName("functionName"))));
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSecretsManagerClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSecretsManagerClientTest.java
 new file mode 100644
-index 0000000000..f3fa5ad08c
+index 0000000000..03de6fce3f
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSecretsManagerClientTest.java
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,62 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -1860,10 +1827,13 @@ index 0000000000..f3fa5ad08c
 +
 +package io.opentelemetry.instrumentation.awssdk.v1_11;
 +
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
++import static java.util.Collections.singletonList;
++
 +import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 +import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 +import com.amazonaws.services.secretsmanager.model.CreateSecretRequest;
-+import com.google.common.collect.ImmutableMap;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
@@ -1906,19 +1876,31 @@ index 0000000000..f3fa5ad08c
 +        "AWSSecretsManager",
 +        "CreateSecret",
 +        "POST",
-+        ImmutableMap.of(
-+            "aws.secretsmanager.secret.arn",
-+            "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3"));
++        singletonList(
++            equalTo(
++                stringKey("aws.secretsmanager.secret.arn"),
++                "arn:aws:secretsmanager:us-west-2:123456789012:secret:MyTestDatabaseSecret-a1b2c3")));
 +  }
 +}
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSnsClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSnsClientTest.java
-index 4a728f645c..4499e550e0 100644
+index 3f272ba477..bea20f3d86 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSnsClientTest.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSnsClientTest.java
-@@ -15,11 +15,7 @@ import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
+@@ -5,8 +5,10 @@
+ 
+ package io.opentelemetry.instrumentation.awssdk.v1_11;
+ 
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
+ import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+ import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_DESTINATION_NAME;
++import static java.util.Arrays.asList;
+ import static java.util.Collections.singletonList;
+ 
+ import com.amazonaws.services.sns.AmazonSNS;
+@@ -17,11 +19,7 @@ import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
  import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
  import io.opentelemetry.testing.internal.armeria.common.MediaType;
- import java.util.Map;
+ import java.util.List;
 -import java.util.function.Function;
 -import java.util.stream.Stream;
 -import org.junit.jupiter.params.ParameterizedTest;
@@ -1928,7 +1910,7 @@ index 4a728f645c..4499e550e0 100644
  
  public abstract class AbstractSnsClientTest extends AbstractBaseAwsClientTest {
  
-@@ -30,9 +26,8 @@ public abstract class AbstractSnsClientTest extends AbstractBaseAwsClientTest {
+@@ -32,9 +30,8 @@ public abstract class AbstractSnsClientTest extends AbstractBaseAwsClientTest {
      return true;
    }
  
@@ -1940,13 +1922,14 @@ index 4a728f645c..4499e550e0 100644
      AmazonSNSClientBuilder clientBuilder = AmazonSNSClientBuilder.standard();
      AmazonSNS client =
          configureClient(clientBuilder)
-@@ -53,24 +48,43 @@ public abstract class AbstractSnsClientTest extends AbstractBaseAwsClientTest {
+@@ -55,24 +52,44 @@ public abstract class AbstractSnsClientTest extends AbstractBaseAwsClientTest {
      server.enqueue(HttpResponse.of(HttpStatus.OK, MediaType.PLAIN_TEXT_UTF_8, body));
  
-     Map<String, String> additionalAttributes =
--        ImmutableMap.of(MESSAGING_DESTINATION_NAME.toString(), "somearn");
-+        ImmutableMap.of(
-+            MESSAGING_DESTINATION_NAME.toString(), "somearn", "aws.sns.topic.arn", "somearn");
+     List<AttributeAssertion> additionalAttributes =
+-        singletonList(equalTo(MESSAGING_DESTINATION_NAME, "somearn"));
++        asList(
++            equalTo(stringKey(MESSAGING_DESTINATION_NAME.getKey()), "somearn"),
++            equalTo(stringKey("aws.sns.topic.arn"), "somearn"));
 +
 +    Object response =
 +        client.publish(new PublishRequest().withMessage("somemessage").withTopicArn("somearn"));
@@ -1989,8 +1972,8 @@ index 4a728f645c..4499e550e0 100644
 +
 +    server.enqueue(HttpResponse.of(HttpStatus.OK, MediaType.PLAIN_TEXT_UTF_8, body));
 +
-+    Map<String, String> additionalAttributes =
-+        ImmutableMap.of(MESSAGING_DESTINATION_NAME.toString(), "somearn");
++    List<AttributeAssertion> additionalAttributes =
++        singletonList(equalTo(stringKey(MESSAGING_DESTINATION_NAME.getKey()), "somearn"));
 +
 +    Object response =
 +        client.publish(new PublishRequest().withMessage("somemessage").withTargetArn("somearn"));
@@ -2000,10 +1983,10 @@ index 4a728f645c..4499e550e0 100644
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java
 new file mode 100644
-index 0000000000..24a1f148ee
+index 0000000000..fc58ec3c9b
 --- /dev/null
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,78 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -2011,15 +1994,19 @@ index 0000000000..24a1f148ee
 +
 +package io.opentelemetry.instrumentation.awssdk.v1_11;
 +
++import static io.opentelemetry.api.common.AttributeKey.stringKey;
++import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
++import static java.util.Collections.singletonList;
++
 +import com.amazonaws.services.stepfunctions.AWSStepFunctions;
 +import com.amazonaws.services.stepfunctions.AWSStepFunctionsClientBuilder;
 +import com.amazonaws.services.stepfunctions.model.DescribeActivityRequest;
 +import com.amazonaws.services.stepfunctions.model.DescribeStateMachineRequest;
-+import com.google.common.collect.ImmutableMap;
++import io.opentelemetry.sdk.testing.assertj.AttributeAssertion;
 +import io.opentelemetry.testing.internal.armeria.common.HttpResponse;
 +import io.opentelemetry.testing.internal.armeria.common.HttpStatus;
 +import io.opentelemetry.testing.internal.armeria.common.MediaType;
-+import java.util.Map;
++import java.util.List;
 +import java.util.function.Function;
 +import java.util.stream.Stream;
 +import org.junit.jupiter.params.ParameterizedTest;
@@ -2040,7 +2027,7 @@ index 0000000000..24a1f148ee
 +  @MethodSource("provideArguments")
 +  public void testSendRequestWithMockedResponse(
 +      String operation,
-+      Map<String, String> additionalAttributes,
++      List<AttributeAssertion> additionalAttributes,
 +      Function<AWSStepFunctions, Object> call)
 +      throws Exception {
 +
@@ -2063,14 +2050,15 @@ index 0000000000..24a1f148ee
 +    return Stream.of(
 +        Arguments.of(
 +            "DescribeStateMachine",
-+            ImmutableMap.of("aws.stepfunctions.state_machine.arn", "stateMachineArn"),
++            singletonList(
++                equalTo(stringKey("aws.stepfunctions.state_machine.arn"), "stateMachineArn")),
 +            (Function<AWSStepFunctions, Object>)
 +                c ->
 +                    c.describeStateMachine(
 +                        new DescribeStateMachineRequest().withStateMachineArn("stateMachineArn"))),
 +        Arguments.of(
 +            "DescribeActivity",
-+            ImmutableMap.of("aws.stepfunctions.activity.arn", "activityArn"),
++            singletonList(equalTo(stringKey("aws.stepfunctions.activity.arn"), "activityArn")),
 +            (Function<AWSStepFunctions, Object>)
 +                c ->
 +                    c.describeActivity(
@@ -3076,7 +3064,7 @@ index 08b000a05c..de0fe82638 100644
    // needed for SQS - using emq directly as localstack references emq v0.15.7 ie WITHOUT AWS trace header propagation
    implementation("org.elasticmq:elasticmq-rest-sqs_2.13")
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
-index 2533a0202d..a275e7e2f7 100644
+index c571c0aa9c..1a4a00d95e 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/groovy/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2ClientTest.groovy
 @@ -37,10 +37,19 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -3518,18 +3506,18 @@ index 2533a0202d..a275e7e2f7 100644
 +//      """
 +//  }
 +
-   // TODO(anuraaga): Without AOP instrumentation of the HTTP client, we cannot model retries as
+   // TODO: Without AOP instrumentation of the HTTP client, we cannot model retries as
    // spans because of https://github.com/aws/aws-sdk-java-v2/issues/1741. We should at least tweak
    // the instrumentation to add Events for retries instead.
 diff --git a/version.gradle.kts b/version.gradle.kts
-index 7900c9a4d9..0dc0460cbc 100644
+index a1cae43b4b..c1520e9947 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.10.0"
--val alphaVersion = "2.10.0-alpha"
-+val stableVersion = "2.10.0-adot2"
-+val alphaVersion = "2.10.0-adot2-alpha"
+-val stableVersion = "2.11.0"
+-val alphaVersion = "2.11.0-alpha"
++val stableVersion = "2.11.0-adot1"
++val alphaVersion = "2.11.0-adot1-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {
