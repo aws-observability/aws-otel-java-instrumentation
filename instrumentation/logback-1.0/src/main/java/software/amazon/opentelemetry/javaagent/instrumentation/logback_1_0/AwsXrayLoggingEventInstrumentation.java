@@ -92,8 +92,9 @@ public class AwsXrayLoggingEventInstrumentation implements TypeInstrumentation {
       if (contextData == null) {
         contextData = spanContextData;
       } else {
-        Map<String, String> mergedData = new HashMap<>(contextData);
-        mergedData.putAll(spanContextData);
+        // Merge maps with UnionMap semantics: contextData values take precedence
+        Map<String, String> mergedData = new HashMap<>(spanContextData);
+        mergedData.putAll(contextData);
         contextData = mergedData;
       }
     }

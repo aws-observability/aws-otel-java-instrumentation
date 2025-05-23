@@ -1,7 +1,7 @@
 
 # aws-otel-java-instrumentation
 ## Dependency License Report
-_2025-05-23 03:09:22 UTC_
+_2025-05-23 19:59:23 UTC_
 ## Apache 2
 
 **1** **Group:** `joda-time` **Name:** `joda-time` **Version:** `2.8.1` 

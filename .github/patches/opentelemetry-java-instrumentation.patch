@@ -1,38 +1,42 @@
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
-index 93437ef1e0..3f564d25bc 100644
+index 93437ef1e0..4e9248fd01 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-annotations.txt
 @@ -1,2 +1,2 @@
- Comparing source compatibility of opentelemetry-instrumentation-annotations-2.11.0.jar against opentelemetry-instrumentation-annotations-2.10.0.jar
+-Comparing source compatibility of opentelemetry-instrumentation-annotations-2.11.0.jar against opentelemetry-instrumentation-annotations-2.10.0.jar
 -No changes.
 \ No newline at end of file
++Comparing source compatibility of opentelemetry-instrumentation-annotations-2.11.0-adot1.jar against opentelemetry-instrumentation-annotations-2.11.0.jar
 +No changes.
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
-index d759eed30a..385bd90663 100644
+index d759eed30a..1c725a0a25 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
 @@ -1,2 +1,2 @@
- Comparing source compatibility of opentelemetry-instrumentation-api-2.11.0.jar against opentelemetry-instrumentation-api-2.10.0.jar
+-Comparing source compatibility of opentelemetry-instrumentation-api-2.11.0.jar against opentelemetry-instrumentation-api-2.10.0.jar
 -No changes.
 \ No newline at end of file
++Comparing source compatibility of opentelemetry-instrumentation-api-2.11.0-adot1.jar against opentelemetry-instrumentation-api-2.11.0.jar
 +No changes.
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt
-index f657f219ae..2b4a59db8f 100644
+index f657f219ae..a6ec574fe5 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-autoconfigure.txt
 @@ -1,2 +1,2 @@
- Comparing source compatibility of opentelemetry-spring-boot-autoconfigure-2.11.0.jar against opentelemetry-spring-boot-autoconfigure-2.10.0.jar
+-Comparing source compatibility of opentelemetry-spring-boot-autoconfigure-2.11.0.jar against opentelemetry-spring-boot-autoconfigure-2.10.0.jar
 -No changes.
 \ No newline at end of file
++Comparing source compatibility of opentelemetry-spring-boot-autoconfigure-2.11.0-adot1.jar against opentelemetry-spring-boot-autoconfigure-2.11.0.jar
 +No changes.
 diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt
-index 02f520fd45..99505334b7 100644
+index 02f520fd45..2109c5a927 100644
 --- a/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt
 +++ b/docs/apidiffs/current_vs_latest/opentelemetry-spring-boot-starter.txt
 @@ -1,2 +1,2 @@
- Comparing source compatibility of opentelemetry-spring-boot-starter-2.11.0.jar against opentelemetry-spring-boot-starter-2.10.0.jar
+-Comparing source compatibility of opentelemetry-spring-boot-starter-2.11.0.jar against opentelemetry-spring-boot-starter-2.10.0.jar
 -No changes.
 \ No newline at end of file
++Comparing source compatibility of opentelemetry-spring-boot-starter-2.11.0-adot1.jar against opentelemetry-spring-boot-starter-2.11.0.jar
 +No changes.
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts b/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/build.gradle.kts
 index f357a19f88..fa90530579 100644
