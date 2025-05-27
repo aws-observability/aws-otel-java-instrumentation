@@ -2,9 +2,9 @@ plugins {
   `kotlin-dsl`
 }
 repositories {
+  mavenLocal()
   mavenCentral()
   gradlePluginPortal()
-  mavenLocal()
 }
 
 dependencies {

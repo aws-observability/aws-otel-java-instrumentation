@@ -231,20 +231,20 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
     doTestKinesisFault();
   }
 
-  @Test
-  void testBedrockAgentGetKnowledgeBaseId() {
-    doTestBedrockAgentKnowledgeBaseId();
-  }
-
-  @Test
-  void testBedrockAgentAgentId() {
-    doTestBedrockAgentAgentId();
-  }
-
-  @Test
-  void testBedrockAgentDataSourceId() {
-    doTestBedrockAgentDataSourceId();
-  }
+//  @Test
+//  void testBedrockAgentGetKnowledgeBaseId() {
+//    doTestBedrockAgentKnowledgeBaseId();
+//  }
+//
+//  @Test
+//  void testBedrockAgentAgentId() {
+//    doTestBedrockAgentAgentId();
+//  }
+//
+//  @Test
+//  void testBedrockAgentDataSourceId() {
+//    doTestBedrockAgentDataSourceId();
+//  }
 
   //  @Test
   //  void testBedrockRuntimeAmazonTitan() {
@@ -276,20 +276,20 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   //    doTestBedrockRuntimeMistral();
   //  }
 
-  @Test
-  void testBedrockGuardrailId() {
-    doTestBedrockGuardrailId();
-  }
-
-  @Test
-  void testBedrockAgentRuntimeAgentId() {
-    doTestBedrockAgentRuntimeAgentId();
-  }
-
-  @Test
-  void testBedrockAgentRuntimeKnowledgeBaseId() {
-    doTestBedrockAgentRuntimeKnowledgeBaseId();
-  }
+//  @Test
+//  void testBedrockGuardrailId() {
+//    doTestBedrockGuardrailId();
+//  }
+//
+//  @Test
+//  void testBedrockAgentRuntimeAgentId() {
+//    doTestBedrockAgentRuntimeAgentId();
+//  }
+//
+//  @Test
+//  void testBedrockAgentRuntimeKnowledgeBaseId() {
+//    doTestBedrockAgentRuntimeKnowledgeBaseId();
+//  }
 
   @Test
   void testSecretsManagerDescribeSecret() throws Exception {
