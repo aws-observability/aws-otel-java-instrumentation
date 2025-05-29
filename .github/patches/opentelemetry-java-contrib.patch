@@ -1,0 +1,29 @@
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
+index 6387aa0..c6cbd7c 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
+@@ -19,6 +19,9 @@ import io.opentelemetry.sdk.trace.data.LinkData;
+ import io.opentelemetry.sdk.trace.samplers.Sampler;
+ import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
+ import io.opentelemetry.sdk.trace.samplers.SamplingResult;
++import io.opentelemetry.semconv.HttpAttributes;
++import io.opentelemetry.semconv.UrlAttributes;
++
+ import java.time.Duration;
+ import java.util.Collections;
+ import java.util.Date;
+@@ -181,11 +184,11 @@ final class SamplingRuleApplier {
+     String host = null;
+ 
+     for (Map.Entry<AttributeKey<?>, Object> entry : attributes.asMap().entrySet()) {
+-      if (entry.getKey().equals(HTTP_TARGET)) {
++      if (entry.getKey().equals(HTTP_TARGET) || entry.getKey().equals(UrlAttributes.URL_PATH)) {
+         httpTarget = (String) entry.getValue();
+-      } else if (entry.getKey().equals(HTTP_URL)) {
++      } else if (entry.getKey().equals(HTTP_URL) || entry.getKey().equals(UrlAttributes.URL_FULL)) {
+         httpUrl = (String) entry.getValue();
+-      } else if (entry.getKey().equals(HTTP_METHOD)) {
++      } else if (entry.getKey().equals(HTTP_METHOD) || entry.getKey().equals(HttpAttributes.HTTP_REQUEST_METHOD)) {
+         httpMethod = (String) entry.getValue();
+       } else if (entry.getKey().equals(NET_HOST_NAME)) {
+         host = (String) entry.getValue();
