@@ -1,7 +1,21 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
 import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
-import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
@@ -9,69 +23,92 @@ import io.opentelemetry.javaagent.extension.instrumentation.HelperResourceBuilde
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
-
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumentationModule.class) //register this class as a service provider
+@AutoService(InstrumentationModule.class)
 public class AwsSdkInstrumentationModule extends InstrumentationModule {
+  private static final Logger logger =
+      Logger.getLogger(AwsSdkInstrumentationModule.class.getName());
 
-    public AwsSdkInstrumentationModule() {
-        super("aws-sdk", "aws-sdk-2.2"); //name of this instrumentation and service
-    }
+  public AwsSdkInstrumentationModule() {
+    super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core");
+    logger.info("ADOT !! Initializing AWS SDK Instrumentation Module");
+  }
 
-    @Override // Need: sets priority of this instrumentation
-    public int order() {
-        return 1;
-    }
+  @Override
+  public int order() {
+    // Ensure this runs after OTel
+    return 1;
+  }
 
-    @Override
-    public boolean isIndyModule() {
-        return false;
-    }
+  @Override // Need
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    System.out.println("HERE classLoaderMatcher!!!!!!!!!!!!!: ");
+    // We don't actually transform it but want to make sure we only apply the instrumentation when
+    // our key dependency is present.
+    return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
+  }
 
-    @Override
-    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-        // Checks if AWS SDK v2 is present before applying instrumentation
-        return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
-    }
-
-    @Override
-    public List<String> getAdditionalHelperClassNames() {
-        return Arrays.asList(
-                // classes needed for instrumentation
-                "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsTracingExecutionInterceptor", // main interceptor
-                "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest", // Request wrapper
-                "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkInstrumenterFactory" // Creates instrumenters
+  @Override
+  public List<String> getAdditionalHelperClassNames() {
+    return Arrays.asList(
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor",
+        // Add other helper classes as needed
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor$RequestSpanFinisher",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkInstrumenterFactory",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping", // !!!
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type", // !!!
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesExtractor",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory$1",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.Serializer",
+        //
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType$AttributeKeys", // !!!
+        // "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsJsonProtocolFactoryAccess",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser", // !!!
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.Response" // !!!
         );
+  }
+
+  @Override
+  public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
+    String resourcePath = "software/amazon/awssdk/global/handlers/execution.interceptors";
+    helperResourceBuilder.register(resourcePath);
+  }
+
+  @Override
+  public List<TypeInstrumentation> typeInstrumentations() {
+    return Collections.singletonList(new AwsSdkClientInstrumentation());
+  }
+
+  // Defines what to instrument
+  public static class AwsSdkClientInstrumentation implements TypeInstrumentation {
+    @Override
+    public ElementMatcher<TypeDescription> typeMatcher() {
+      // Matches AWS SDK client interface
+      return named("software.amazon.awssdk.core.SdkClient");
     }
 
     @Override
-    public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
-        helperResourceBuilder.register(
-                // registers the interceptor configuration file
-                "software/amazon/awssdk/global/handlers/execution.interceptors"
-        );
+    public void transform(TypeTransformer transformer) {
+      // Empty as we use ExecutionInterceptor
     }
-
-    @Override
-    public List<TypeInstrumentation> typeInstrumentations() {
-        return singletonList(new AwsSdkClientInstrumentation());
-    }
-
-    // Defines what to instrument
-    public static class AwsSdkClientInstrumentation implements TypeInstrumentation {
-        @Override
-        public ElementMatcher<TypeDescription> typeMatcher() {
-            // Matches AWS SDK client interface
-            return named("software.amazon.awssdk.core.SdkClient");
-        }
-
-        @Override
-        public void transform(TypeTransformer transformer) {
-            // Empty as we use ExecutionInterceptor
-        }
-    }
+  }
 }

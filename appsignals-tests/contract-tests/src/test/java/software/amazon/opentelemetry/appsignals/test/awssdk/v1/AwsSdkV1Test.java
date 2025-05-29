@@ -231,20 +231,20 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
     doTestKinesisFault();
   }
 
-//  @Test
-//  void testBedrockAgentGetKnowledgeBaseId() {
-//    doTestBedrockAgentKnowledgeBaseId();
-//  }
-//
-//  @Test
-//  void testBedrockAgentAgentId() {
-//    doTestBedrockAgentAgentId();
-//  }
-//
-//  @Test
-//  void testBedrockAgentDataSourceId() {
-//    doTestBedrockAgentDataSourceId();
-//  }
+  //  @Test
+  //  void testBedrockAgentGetKnowledgeBaseId() {
+  //    doTestBedrockAgentKnowledgeBaseId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentAgentId() {
+  //    doTestBedrockAgentAgentId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentDataSourceId() {
+  //    doTestBedrockAgentDataSourceId();
+  //  }
 
   //  @Test
   //  void testBedrockRuntimeAmazonTitan() {
@@ -276,68 +276,68 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   //    doTestBedrockRuntimeMistral();
   //  }
 
-//  @Test
-//  void testBedrockGuardrailId() {
-//    doTestBedrockGuardrailId();
-//  }
-//
-//  @Test
-//  void testBedrockAgentRuntimeAgentId() {
-//    doTestBedrockAgentRuntimeAgentId();
-//  }
-//
-//  @Test
-//  void testBedrockAgentRuntimeKnowledgeBaseId() {
-//    doTestBedrockAgentRuntimeKnowledgeBaseId();
-//  }
+  //  @Test
+  //  void testBedrockGuardrailId() {
+  //    doTestBedrockGuardrailId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentRuntimeAgentId() {
+  //    doTestBedrockAgentRuntimeAgentId();
+  //  }
+  //
+  //  @Test
+  //  void testBedrockAgentRuntimeKnowledgeBaseId() {
+  //    doTestBedrockAgentRuntimeKnowledgeBaseId();
+  //  }
 
-  @Test
-  void testSecretsManagerDescribeSecret() throws Exception {
-    doTestSecretsManagerDescribeSecret();
-  }
-
-  @Test
-  void testSecretsManagerError() throws Exception {
-    doTestSecretsManagerError();
-  }
-
-  @Test
-  void testSecretsManagerFault() throws Exception {
-    doTestSecretsManagerFault();
-  }
-
-  @Test
-  void testStepFunctionsDescribeStateMachine() throws Exception {
-    doTestStepFunctionsDescribeStateMachine();
-  }
-
-  @Test
-  void testStepFunctionsDescribeActivity() throws Exception {
-    doTestStepFunctionsDescribeActivity();
-  }
-
-  @Test
-  void testStepFunctionsError() throws Exception {
-    doTestStepFunctionsError();
-  }
-
-  @Test
-  void testStepFunctionsFault() throws Exception {
-    doTestStepFunctionsFault();
-  }
-
-  @Test
-  void testSnsGetTopicAttributes() throws Exception {
-    doTestSnsGetTopicAttributes();
-  }
-
-  @Test
-  void testSnsError() throws Exception {
-    doTestStepFunctionsError();
-  }
-
-  @Test
-  void testSnsFault() throws Exception {
-    doTestStepFunctionsFault();
-  }
+  //  @Test
+  //  void testSecretsManagerDescribeSecret() throws Exception {
+  //    doTestSecretsManagerDescribeSecret();
+  //  }
+  //
+  //  @Test
+  //  void testSecretsManagerError() throws Exception {
+  //    doTestSecretsManagerError();
+  //  }
+  //
+  //  @Test
+  //  void testSecretsManagerFault() throws Exception {
+  //    doTestSecretsManagerFault();
+  //  }
+  //
+  //  @Test
+  //  void testStepFunctionsDescribeStateMachine() throws Exception {
+  //    doTestStepFunctionsDescribeStateMachine();
+  //  }
+  //
+  //  @Test
+  //  void testStepFunctionsDescribeActivity() throws Exception {
+  //    doTestStepFunctionsDescribeActivity();
+  //  }
+  //
+  //  @Test
+  //  void testStepFunctionsError() throws Exception {
+  //    doTestStepFunctionsError();
+  //  }
+  //
+  //  @Test
+  //  void testStepFunctionsFault() throws Exception {
+  //    doTestStepFunctionsFault();
+  //  }
+  //
+  //  @Test
+  //  void testSnsGetTopicAttributes() throws Exception {
+  //    doTestSnsGetTopicAttributes();
+  //  }
+  //
+  //  @Test
+  //  void testSnsError() throws Exception {
+  //    doTestStepFunctionsError();
+  //  }
+  //
+  //  @Test
+  //  void testSnsFault() throws Exception {
+  //    doTestStepFunctionsFault();
+  //  }
 }

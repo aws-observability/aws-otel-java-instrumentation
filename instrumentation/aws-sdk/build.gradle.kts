@@ -25,17 +25,14 @@ configurations {
   We create a separate gradle configuration to grab a published Otel instrumentation agent.
   We don't need the agent during development of this extension module.
   This agent is used only during integration test.
-  */
+   */
   create("otel") // Explicitly create the 'otel' configuration
 }
-
 
 val awsSdkVersion = "2.2.0"
 val otelVersion = "2.10.0-adot2"
 
 dependencies {
-
-  implementation("io.opentelemetry.contrib:opentelemetry-aws-xray-propagator")
 
   compileOnly("software.amazon.awssdk:json-utils:2.17.0")
 
@@ -44,15 +41,11 @@ dependencies {
 
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:$otelVersion-alpha")
   compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:$otelVersion")
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-tooling:$otelVersion")
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-bootstrap:${otelVersion}")
-  compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi:${otelVersion}")
-  compileOnly("io.opentelemetry.semconv:opentelemetry-semconv:${otelVersion}")
 
   compileOnly("software.amazon.awssdk:aws-core:$awsSdkVersion")
   compileOnly("software.amazon.awssdk:sns:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:sqs:${awsSdkVersion}")
-  compileOnly("software.amazon.awssdk:lambda:${awsSdkVersion}")
+  compileOnly("software.amazon.awssdk:sqs:$awsSdkVersion")
+  compileOnly("software.amazon.awssdk:lambda:$awsSdkVersion")
   compileOnly("software.amazon.awssdk:aws-json-protocol:$awsSdkVersion")
 
   compileOnly("org.slf4j:slf4j-api:2.0.0")
