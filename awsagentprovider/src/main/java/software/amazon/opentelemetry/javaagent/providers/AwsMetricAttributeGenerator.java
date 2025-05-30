@@ -132,6 +132,14 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final String NORMALIZED_SECRETSMANAGER_SERVICE_NAME = "AWS::SecretsManager";
   private static final String NORMALIZED_LAMBDA_SERVICE_NAME = "AWS::Lambda";
 
+  // Constants for Lambda operations
+  private static final String LAMBDA_INVOKE_OPERATION = "Invoke";
+
+  // Environment variable to specify remote environment for Lambda services in Application Signals
+  // topology
+  private static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
+      "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
+
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
 
@@ -260,29 +268,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteService = normalizeRemoteServiceName(span, getRemoteService(span, RPC_SERVICE));
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
 
-      // Handling downstream Lambda as a service vs. an AWS resource:
-      // - If the method call is "Invoke", we treat downstream Lambda as a service.
-      // - Otherwise, we treat it as an AWS resource.
-      //
-      // This addresses a Lambda topology issue in Application Signals.
-      // More context in PR:
-      // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
-      //
-      // NOTE: The environment variable LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT was
-      // introduced as part of this fix.
-      // It is optional and allows users to override the default value if needed.
-      if (isAwsSDKSpan(span)
-          && isKeyPresent(span, AWS_LAMBDA_NAME)
-          && "Invoke".equals(remoteOperation)) {
-        // When invoking Lambda, treat it as a service rather than a resource
-        Optional<String> lambdaFunctionName =
-            getLambdaFunctionNameFromArn(
-                Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
-        if (lambdaFunctionName.isPresent()) {
-          remoteService = lambdaFunctionName.get();
-        }
-      }
-
     } else if (isDBSpan(span)) {
       remoteService = getRemoteService(span, DB_SYSTEM);
       if (isKeyPresent(span, DB_OPERATION)) {
@@ -318,24 +303,17 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     builder.put(AWS_REMOTE_OPERATION, remoteOperation);
   }
 
-  /**
-   * Sets the remote environment attribute for special service cases. Currently handles Lambda
-   * invoke operations where the downstream Lambda is treated as a service.
-   *
-   * @param span Span data
-   * @param builder Span attributes builder
-   */
   private static void setRemoteEnvironment(SpanData span, AttributesBuilder builder) {
-    // Check if this is a Lambda Invoke operation
-    if (isAwsSDKSpan(span)
-        && isKeyPresent(span, AWS_LAMBDA_NAME)
-        && "Invoke".equals(span.getAttributes().get(RPC_METHOD))) {
-      // Get the remote environment configuration value
+    // We want to treat downstream Lambdas as a service rather than a resource because
+    // Application Signals topology map gets disconnected due to conflicting Lambda Entity
+    // definitions
+    // Additional context can be found in
+    // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
+    if (isLambdaInvokeOperation(span)) {
       // TODO: This should be passed via ConfigProperties from
       // AwsApplicationSignalsCustomizerProvider
-      // For now, using System.getenv as a temporary solution
       String remoteEnvironment =
-          Optional.ofNullable(System.getenv("LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT"))
+          Optional.ofNullable(System.getenv(LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT))
               .filter(s -> !s.isEmpty())
               .orElse("default");
       builder.put(AWS_REMOTE_ENVIRONMENT, "lambda:" + remoteEnvironment);
@@ -424,6 +402,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     return remoteService;
   }
 
+  private static boolean isLambdaInvokeOperation(SpanData span) {
+    String rpcService = getRemoteService(span, RPC_SERVICE);
+    return ("AWSLambda".equals(rpcService) || "Lambda".equals(rpcService))
+        && LAMBDA_INVOKE_OPERATION.equals(span.getAttributes().get(RPC_METHOD));
+  }
+
   /**
    * If the span is an AWS SDK span, normalize the name to align with <a
    * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
@@ -471,7 +455,17 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
           return NORMALIZED_SECRETSMANAGER_SERVICE_NAME;
         case "AWSLambda": // AWS SDK v1
         case "Lambda": // AWS SDK v2
-          return NORMALIZED_LAMBDA_SERVICE_NAME;
+          if (isLambdaInvokeOperation(span)) {
+            // AWS_LAMBDA_NAME can contain either a function name or function ARN since Lambda AWS
+            // SDK calls accept both formats
+            Optional<String> lambdaFunctionName =
+                getLambdaFunctionNameFromArn(
+                    Optional.ofNullable(
+                        escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
+            return lambdaFunctionName.get();
+          } else {
+            return NORMALIZED_LAMBDA_SERVICE_NAME;
+          }
         default:
           return "AWS::" + serviceName;
       }
@@ -570,10 +564,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         cloudformationPrimaryIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN)));
       } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
-        // For non-Invoke Lambda operations, treat as a resource
-        // Invoke operations are handled in setRemoteServiceAndOperation
-        if (!"Invoke".equals(span.getAttributes().get(RPC_METHOD))) {
+        // For non-Invoke Lambda operations, treat Lambda as a resource,
+        // see normalizeRemoteServiceName for more information.
+        if (!LAMBDA_INVOKE_OPERATION.equals(span.getAttributes().get(RPC_METHOD))) {
           remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
+          // AWS_LAMBDA_NAME can contain either a function name or function ARN since Lambda AWS SDK
+          // calls accept both formats
           remoteResourceIdentifier =
               getLambdaFunctionNameFromArn(
                   Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
