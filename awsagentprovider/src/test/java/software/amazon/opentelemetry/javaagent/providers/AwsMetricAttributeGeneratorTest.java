@@ -23,15 +23,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
@@ -483,6 +488,31 @@ class AwsMetricAttributeGeneratorTest {
     // Validate behaviour of various combinations of RPC attributes, then remove them.
     validateAndRemoveRemoteAttributes(RPC_SERVICE, "RPC service", RPC_METHOD, "RPC method");
 
+    // Validate behaviour of Lambda non-Invoke operations (treated as normalized service)
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "GetFunction");
+    validateExpectedRemoteAttributes("AWS::Lambda", "GetFunction");
+    mockAttribute(RPC_SYSTEM, null);
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+
+    // Validate behaviour of Lambda Invoke operations (treated as service with function name)
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "testFunction");
+    validateExpectedRemoteAttributes("testFunction", "Invoke");
+    // Also validate AWS_REMOTE_ENVIRONMENT is set for Lambda Invoke
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
+    mockAttribute(RPC_SYSTEM, null);
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+
     // Validate behaviour of various combinations of DB attributes, then remove them.
     validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, "DB operation");
 
@@ -839,6 +869,17 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_^^id");
     mockAttribute(AWS_GUARDRAIL_ID, null);
 
+    // Validate behaviour of AWS_GUARDRAIL_ARN attribute with AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER
+    mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
+    mockAttribute(
+        AWS_GUARDRAIL_ARN, "arn:aws:bedrock:us-east-1:123456789012:guardrail/test_guardrail_id");
+    validateRemoteResourceAttributes(
+        "AWS::Bedrock::Guardrail",
+        "test_guardrail_id",
+        "arn:aws:bedrock:us-east-1:123456789012:guardrail/test_guardrail_id");
+    mockAttribute(AWS_GUARDRAIL_ID, null);
+    mockAttribute(AWS_GUARDRAIL_ARN, null);
+
     // Validate behaviour of GEN_AI_REQUEST_MODEL attribute, then remove it.
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_id");
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_id");
@@ -854,26 +895,82 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(
         AWS_STATE_MACHINE_ARN,
         "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
-    validateRemoteResourceAttributes("AWS::StepFunctions::StateMachine", "test_state_machine");
+    validateRemoteResourceAttributes(
+        "AWS::StepFunctions::StateMachine",
+        "test_state_machine",
+        "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
     mockAttribute(AWS_STATE_MACHINE_ARN, null);
 
     // Validate behaviour of AWS_STEPFUNCTIONS_ACTIVITY_ARN, then remove it.
     mockAttribute(
         AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
         "arn:aws:states:us-east-1:007003123456789012:activity:testActivity");
-    validateRemoteResourceAttributes("AWS::StepFunctions::Activity", "testActivity");
+    validateRemoteResourceAttributes(
+        "AWS::StepFunctions::Activity",
+        "testActivity",
+        "arn:aws:states:us-east-1:007003123456789012:activity:testActivity");
     mockAttribute(AWS_STEP_FUNCTIONS_ACTIVITY_ARN, null);
 
     // Validate behaviour of AWS_SNS_TOPIC_ARN, then remove it.
     mockAttribute(AWS_SNS_TOPIC_ARN, "arn:aws:sns:us-west-2:012345678901:testTopic");
-    validateRemoteResourceAttributes("AWS::SNS::Topic", "testTopic");
+    validateRemoteResourceAttributes(
+        "AWS::SNS::Topic", "testTopic", "arn:aws:sns:us-west-2:012345678901:testTopic");
     mockAttribute(AWS_SNS_TOPIC_ARN, null);
 
     // Validate behaviour of AWS_SECRET_ARN, then remove it.
     mockAttribute(
         AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
-    validateRemoteResourceAttributes("AWS::SecretsManager::Secret", "secretName");
+    validateRemoteResourceAttributes(
+        "AWS::SecretsManager::Secret",
+        "secretName",
+        "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
     mockAttribute(AWS_SECRET_ARN, null);
+
+    // Validate behaviour of AWS_LAMBDA_NAME for non-Invoke operations (treated as resource)
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "GetFunction");
+    mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
+    mockAttribute(AWS_LAMBDA_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    validateRemoteResourceAttributes(
+        "AWS::Lambda::Function",
+        "testLambdaName",
+        "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+    mockAttribute(AWS_LAMBDA_ARN, null);
+
+    // Validate behaviour of AWS_LAMBDA_NAME containing ARN for non-Invoke operations
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "ListFunctions");
+    mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(AWS_LAMBDA_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    validateRemoteResourceAttributes(
+        "AWS::Lambda::Function",
+        "testLambdaName",
+        "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+    mockAttribute(AWS_LAMBDA_ARN, null);
+
+    // Validate that Lambda Invoke with function name treats Lambda as a service, not a resource
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
+    validateRemoteResourceAttributes(null, null);
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+
+    // Validate that Lambda Invoke with ARN in AWS_LAMBDA_NAME extracts function name correctly
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    validateRemoteResourceAttributes(null, null);
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
 
     // Validate behaviour of AWS_LAMBDA_RESOURCE_ID
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
@@ -1149,24 +1246,35 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   private void validateRemoteResourceAttributes(String type, String identifier) {
+    validateRemoteResourceAttributes(type, identifier, identifier);
+  }
+
+  private void validateRemoteResourceAttributes(
+      String type, String identifier, String cloudformationPrimaryIdentifier) {
     // Client, Producer and Consumer spans should generate the expected remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
+    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
+        .isEqualTo(cloudformationPrimaryIdentifier);
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.PRODUCER);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
+    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
+        .isEqualTo(cloudformationPrimaryIdentifier);
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
+    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
+        .isEqualTo(cloudformationPrimaryIdentifier);
 
     // Server span should not generate remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
@@ -1174,6 +1282,7 @@ class AwsMetricAttributeGeneratorTest {
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(null);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(null);
+    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER)).isEqualTo(null);
   }
 
   private void validateHttpStatusWithThrowable(Throwable throwable, Long expectedStatusCode) {
