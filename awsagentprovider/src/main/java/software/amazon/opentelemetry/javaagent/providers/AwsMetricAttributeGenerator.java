@@ -170,6 +170,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setService(resource, span, builder);
     setEgressOperation(span, builder);
     setRemoteServiceAndOperation(span, builder);
+    setRemoteEnvironment(span, builder);
     setRemoteResourceTypeAndIdentifier(span, builder);
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
@@ -259,6 +260,29 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteService = normalizeRemoteServiceName(span, getRemoteService(span, RPC_SERVICE));
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
 
+      // Handling downstream Lambda as a service vs. an AWS resource:
+      // - If the method call is "Invoke", we treat downstream Lambda as a service.
+      // - Otherwise, we treat it as an AWS resource.
+      //
+      // This addresses a Lambda topology issue in Application Signals.
+      // More context in PR:
+      // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
+      //
+      // NOTE: The environment variable LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT was
+      // introduced as part of this fix.
+      // It is optional and allows users to override the default value if needed.
+      if (isAwsSDKSpan(span)
+          && isKeyPresent(span, AWS_LAMBDA_NAME)
+          && "Invoke".equals(remoteOperation)) {
+        // When invoking Lambda, treat it as a service rather than a resource
+        Optional<String> lambdaFunctionName =
+            getLambdaFunctionNameFromArn(
+                Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
+        if (lambdaFunctionName.isPresent()) {
+          remoteService = lambdaFunctionName.get();
+        }
+      }
+
     } else if (isDBSpan(span)) {
       remoteService = getRemoteService(span, DB_SYSTEM);
       if (isKeyPresent(span, DB_OPERATION)) {
@@ -292,6 +316,30 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
     builder.put(AWS_REMOTE_SERVICE, remoteService);
     builder.put(AWS_REMOTE_OPERATION, remoteOperation);
+  }
+
+  /**
+   * Sets the remote environment attribute for special service cases. Currently handles Lambda
+   * invoke operations where the downstream Lambda is treated as a service.
+   *
+   * @param span Span data
+   * @param builder Span attributes builder
+   */
+  private static void setRemoteEnvironment(SpanData span, AttributesBuilder builder) {
+    // Check if this is a Lambda Invoke operation
+    if (isAwsSDKSpan(span)
+        && isKeyPresent(span, AWS_LAMBDA_NAME)
+        && "Invoke".equals(span.getAttributes().get(RPC_METHOD))) {
+      // Get the remote environment configuration value
+      // TODO: This should be passed via ConfigProperties from
+      // AwsApplicationSignalsCustomizerProvider
+      // For now, using System.getenv as a temporary solution
+      String remoteEnvironment =
+          Optional.ofNullable(System.getenv("LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT"))
+              .filter(s -> !s.isEmpty())
+              .orElse("default");
+      builder.put(AWS_REMOTE_ENVIRONMENT, "lambda:" + remoteEnvironment);
+    }
   }
 
   /**
@@ -522,29 +570,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         cloudformationPrimaryIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN)));
       } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
-        // Handling downstream Lambda as a service vs. an AWS resource:
-        // - If the method call is "Invoke", we treat downstream Lambda as a service.
-        // - Otherwise, we treat it as an AWS resource.
-        //
-        // This addresses a Lambda topology issue in Application Signals.
-        // More context in PR:
-        // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
-        //
-        // NOTE: The environment variables LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT was
-        // introduced as part of this fix.
-        // It is optional and allows users to override the default value if needed.
-        if ("Invoke".equals(getRemoteOperation(span, RPC_METHOD))) {
-          Optional<String> remoteService =
-              getLambdaFunctionNameFromArn(
-                  Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
-          builder.put(AWS_REMOTE_SERVICE, remoteService.get());
-
-          String remoteEnvironment =
-              Optional.ofNullable(System.getenv("LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT"))
-                  .filter(s -> !s.isEmpty())
-                  .orElse("default");
-          builder.put(AWS_REMOTE_ENVIRONMENT, "lambda:" + remoteEnvironment);
-        } else {
+        // For non-Invoke Lambda operations, treat as a resource
+        // Invoke operations are handled in setRemoteServiceAndOperation
+        if (!"Invoke".equals(span.getAttributes().get(RPC_METHOD))) {
           remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
           remoteResourceIdentifier =
               getLambdaFunctionNameFromArn(

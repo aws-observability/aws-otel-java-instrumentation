@@ -23,9 +23,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
@@ -33,6 +35,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
@@ -752,6 +755,86 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
+  public void testLambdaInvokeSpanWithRemoteServiceAttributes() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "myLambdaFunction");
+
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+
+    // When RPC_METHOD is "Invoke", Lambda should be treated as a service
+    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("myLambdaFunction");
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
+    // Should not set resource attributes when treated as a service
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+  }
+
+  @Test
+  public void testLambdaInvokeSpanWithLambdaArnInsteadOfName() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(
+        AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:myLambdaFunction");
+
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+
+    // Should extract function name from ARN
+    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("myLambdaFunction");
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
+
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+  }
+
+  @Test
+  public void testLambdaNonInvokeSpanWithRemoteResourceAttributes() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_METHOD, "GetFunction");
+    mockAttribute(AWS_LAMBDA_NAME, "myLambdaFunction");
+    mockAttribute(
+        AWS_LAMBDA_ARN, "arn:aws:lambda:us-east-1:123456789012:function:myLambdaFunction");
+
+    // When RPC_METHOD is not "Invoke", Lambda should be treated as a resource
+    validateRemoteResourceAttributes("AWS::Lambda::Function", "myLambdaFunction");
+
+    // Also verify cloudformation primary identifier is set to ARN
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
+        .isEqualTo("arn:aws:lambda:us-east-1:123456789012:function:myLambdaFunction");
+
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+    mockAttribute(AWS_LAMBDA_ARN, null);
+  }
+
+  @Test
+  public void testLambdaNonInvokeSpanWithLambdaArnInsteadOfName() {
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_METHOD, "ListFunctions");
+    mockAttribute(
+        AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:myLambdaFunction");
+    mockAttribute(
+        AWS_LAMBDA_ARN, "arn:aws:lambda:us-east-1:123456789012:function:myLambdaFunction");
+
+    // Should extract function name from ARN
+    validateRemoteResourceAttributes("AWS::Lambda::Function", "myLambdaFunction");
+
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+    mockAttribute(AWS_LAMBDA_ARN, null);
+  }
+
+  @Test
   public void testSdkClientSpanWithRemoteResourceAttributes() {
     mockAttribute(RPC_SYSTEM, "aws-api");
     // Validate behaviour of aws bucket name attribute, then remove it.
@@ -879,6 +962,20 @@ class AwsMetricAttributeGeneratorTest {
     // Validate behaviour of AWS_LAMBDA_NAME, then remove it.
     mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
     validateRemoteResourceAttributes("AWS::Lambda::Function", "testLambdaName");
+    mockAttribute(AWS_LAMBDA_NAME, null);
+
+    // Validate that Lambda Invoke does NOT set resource attributes
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    // Lambda Invoke should be treated as a service, not a resource
+    assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("testLambdaName");
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER)).isNull();
+    mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
 
     // Validate behaviour of AWS_LAMBDA_RESOURCE_ID
