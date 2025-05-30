@@ -53,8 +53,6 @@ final class AwsSpanProcessingUtil {
   static final String UNKNOWN_OPERATION = "UnknownOperation";
   static final String UNKNOWN_REMOTE_SERVICE = "UnknownRemoteService";
   static final String UNKNOWN_REMOTE_OPERATION = "UnknownRemoteOperation";
-  static final String UNKNOWN_REMOTE_ACCOUNT_ID = "UnknownRemoteAccountId";
-  static final String UNKNOWN_REMOTE_REGION = "UnknownRemoteRegion";
   static final String INTERNAL_OPERATION = "InternalOperation";
   static final String LOCAL_ROOT = "LOCAL_ROOT";
   static final String SQS_RECEIVE_MESSAGE_SPAN_NAME = "Sqs.ReceiveMessage";

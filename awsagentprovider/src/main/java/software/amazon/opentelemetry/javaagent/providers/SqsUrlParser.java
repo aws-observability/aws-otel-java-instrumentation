@@ -40,6 +40,42 @@ public class SqsUrlParser {
     return Optional.empty();
   }
 
+  public static Optional<String> getAccountId(String url) {
+    if (url == null) {
+      return Optional.empty();
+    }
+    url = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
+    if (isValidSqsUrl(url)) {
+      String[] splitUrl = url.split("/");
+      return Optional.of(splitUrl[1]);
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<String> getRegion(String url) {
+    if (url == null) {
+      return Optional.empty();
+    }
+    url = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
+    if (isValidSqsUrl(url)) {
+      String[] splitUrl = url.split("/");
+      String domain = splitUrl[0];
+      String[] domainParts = domain.split("\\.");
+      if (domainParts.length == 4) {
+        return Optional.of(domainParts[1]);
+      }
+    }
+    return Optional.empty();
+  }
+
+  private static boolean isValidSqsUrl(String url) {
+    String[] splitUrl = url.split("/");
+    return splitUrl.length == 3
+        && splitUrl[0].startsWith("sqs")
+        && isAccountId(splitUrl[1])
+        && isValidQueueName(splitUrl[2]);
+  }
+
   private static boolean isAccountId(String input) {
     if (input == null || input.length() != 12) {
       return false;
