@@ -208,6 +208,21 @@ index 6bb6e82..55dabbd 100644
      @Test
      void attributeMatches() {
        Attributes attributes =
+diff --git a/disk-buffering/build.gradle.kts b/disk-buffering/build.gradle.kts
+index 041d2e9..e3d60f4 100644
+--- a/disk-buffering/build.gradle.kts
++++ b/disk-buffering/build.gradle.kts
+@@ -70,6 +70,10 @@ tasks.named<ShadowJar>("shadowJar") {
+   mustRunAfter("jar")
+ }
+ 
++tasks.withType<Test>().configureEach {
++  dependsOn("shadowJar")
++}
++
+ // The javadoc from wire's generated classes has errors that make the task that generates the "javadoc" artifact to fail. This
+ // makes the javadoc task to ignore those generated classes.
+ tasks.withType(Javadoc::class.java) {
 diff --git a/version.gradle.kts b/version.gradle.kts
 index acefcee..329b524 100644
 --- a/version.gradle.kts
