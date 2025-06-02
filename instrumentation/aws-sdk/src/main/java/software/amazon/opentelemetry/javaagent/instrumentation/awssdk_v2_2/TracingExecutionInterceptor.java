@@ -36,22 +36,6 @@ import software.amazon.awssdk.http.SdkHttpResponse;
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
 
-  //  @Override
-  //  public SdkRequest modifyRequest(
-  //      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-  //    System.out.println(
-  //        "ADOT !! HERE AwsSdkPatchInstrumentationModule.modifyRequest!!!!!!!!!!!!!: ");
-  //    Span span = Span.current();
-  //
-  //    if (span != null) {
-  //      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(context.request());
-  //      if (awsSdkRequest != null && awsSdkRequest.type() == BEDROCKRUNTIME) {
-  //        span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
-  //      }
-  //    }
-  //    return context.request();
-  //  }
-
   private static final ExecutionAttribute<io.opentelemetry.context.Context> CONTEXT_ATTRIBUTE =
       new ExecutionAttribute<>(TracingExecutionInterceptor.class.getName() + ".Context");
 
@@ -109,7 +93,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     RequestSpanFinisher requestFinisher = instrumenter::end;
     io.opentelemetry.context.Context otelContext =
         instrumenter.start(parentOtelContext, executionAttributes);
-    ;
+
     Instant requestStart = Instant.now();
 
     Span span = Span.fromContext(otelContext);
@@ -120,7 +104,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     try {
       AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(context.request());
       if (awsSdkRequest != null) {
-        // executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
+        executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
+        System.out.println("ADOT !! HERE populateRequestAttributes!!!!!!!!!!!!!: ");
         populateRequestAttributes(span, awsSdkRequest, context.request(), executionAttributes);
       }
     } catch (Throwable throwable) {
@@ -141,8 +126,13 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
     fieldMapper.mapToAttributes(sdkRequest, awsSdkRequest, span);
 
+    System.out.println(awsSdkRequest.type());
+    //    span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+    //    System.out.println(span);
+
     if (awsSdkRequest.type() == BEDROCKRUNTIME) {
       span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+      System.out.println(span);
     }
   }
 
@@ -197,3 +187,19 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         Throwable exception);
   }
 }
+
+//  @Override
+//  public SdkRequest modifyRequest(
+//      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+//    System.out.println(
+//        "ADOT !! HERE AwsSdkPatchInstrumentationModule.modifyRequest!!!!!!!!!!!!!: ");
+//    Span span = Span.current();
+//
+//    if (span != null) {
+//      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(context.request());
+//      if (awsSdkRequest != null && awsSdkRequest.type() == BEDROCKRUNTIME) {
+//        span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+//      }
+//    }
+//    return context.request();
+//  }

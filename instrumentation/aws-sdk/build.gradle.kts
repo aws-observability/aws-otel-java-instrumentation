@@ -15,6 +15,7 @@
 
 plugins {
   java
+  id("groovy")
   id("com.gradleup.shadow")
 }
 
@@ -47,11 +48,52 @@ dependencies {
   compileOnly("software.amazon.awssdk:sqs:$awsSdkVersion")
   compileOnly("software.amazon.awssdk:lambda:$awsSdkVersion")
   compileOnly("software.amazon.awssdk:aws-json-protocol:$awsSdkVersion")
+  compileOnly("software.amazon.awssdk:sfn:$awsSdkVersion")
+  compileOnly("software.amazon.awssdk:lambda:$awsSdkVersion")
+  compileOnly("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
 
   compileOnly("org.slf4j:slf4j-api:2.0.0")
   compileOnly("org.slf4j:slf4j-simple:2.0.0")
 
   add("otel", "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelVersion")
+
+  // Test dependencies
+  testImplementation("org.codehaus.groovy:groovy-all:3.0.9")
+  testImplementation("org.spockframework:spock-core:2.0-groovy-3.0")
+  testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
+  testImplementation("org.mockito:mockito-core:3.12.4")
+  testImplementation("org.assertj:assertj-core:3.24.2")
+  testImplementation("org.mockito:mockito-junit-jupiter:3.12.4")
+
+  // AWS SDK test dependencies
+  testImplementation("software.amazon.awssdk:dynamodb:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:ec2:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:kinesis:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:s3:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:ses:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:sfn:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:lambda:$awsSdkVersion")
+
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:$otelVersion-alpha")
+  testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:$otelVersion")
+}
+
+sourceSets {
+  main {
+    java {
+      srcDirs("aws-sdk/src/main/java")
+    }
+    resources {
+      srcDirs("aws-sdk/src/main/resources")
+    }
+  }
+  test {
+    groovy {
+      srcDirs("aws-sdk/src/test/groovy")
+    }
+  }
 }
 
 tasks.register<Jar>("extendedAgent") {
