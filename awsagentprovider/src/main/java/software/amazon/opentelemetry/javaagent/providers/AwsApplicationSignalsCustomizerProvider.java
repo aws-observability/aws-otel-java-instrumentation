@@ -17,7 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
-import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
@@ -139,6 +139,9 @@ public final class AwsApplicationSignalsCustomizerProvider
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
 
+  // TODO: @majanjua - Rename and leave comment
+  private Sampler sampler;
+
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
     autoConfiguration.addPropertiesCustomizer(this::customizeLambdaEnvProperties);
@@ -207,6 +210,11 @@ public final class AwsApplicationSignalsCustomizerProvider
         }
         if (configProps.getString(OTEL_TRACES_SAMPLER_ARG) == null) {
           propsOverride.put(OTEL_TRACES_SAMPLER_ARG, "endpoint=http://localhost:2000");
+        } else {
+          logger.log(
+              Level.SEVERE,
+              "Sampler was already set to: {0}",
+              configProps.getString(OTEL_TRACES_SAMPLER_ARG));
         }
       }
 
@@ -273,6 +281,9 @@ public final class AwsApplicationSignalsCustomizerProvider
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
+    if (sampler instanceof AwsXrayRemoteSampler) {
+      this.sampler = sampler;
+    }
     if (isApplicationSignalsEnabled(configProps)) {
       return AlwaysRecordSampler.create(sampler);
     }
@@ -314,10 +325,13 @@ public final class AwsApplicationSignalsCustomizerProvider
               .build();
 
       // Construct and set application signals metrics processor
-      SpanProcessor spanMetricsProcessor =
+      AwsSpanMetricsProcessorBuilder awsSpanMetricsProcessorBuilder =
           AwsSpanMetricsProcessorBuilder.create(
-                  meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush)
-              .build();
+              meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush);
+      if (this.sampler != null) {
+        awsSpanMetricsProcessorBuilder.setSampler(this.sampler);
+      }
+      SpanProcessor spanMetricsProcessor = awsSpanMetricsProcessorBuilder.build();
       tracerProviderBuilder.addSpanProcessor(spanMetricsProcessor);
     }
     return tracerProviderBuilder;
@@ -386,11 +400,14 @@ public final class AwsApplicationSignalsCustomizerProvider
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
-      return AwsMetricAttributesSpanExporterBuilder.create(
-              spanExporter, ResourceHolder.getResource())
-          .build();
+      spanExporter =
+          AwsMetricAttributesSpanExporterBuilder.create(spanExporter, ResourceHolder.getResource())
+              .build();
     }
 
+    if (this.sampler instanceof AwsXrayRemoteSampler) {
+      ((AwsXrayRemoteSampler) this.sampler).setSpanExporter(spanExporter);
+    }
     return spanExporter;
   }
 

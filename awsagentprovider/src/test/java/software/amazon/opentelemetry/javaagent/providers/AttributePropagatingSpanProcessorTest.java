@@ -51,7 +51,7 @@ class AttributePropagatingSpanProcessorTest {
         SdkTracerProvider.builder()
             .addSpanProcessor(
                 AttributePropagatingSpanProcessor.create(
-                    spanNameExtractor, spanNameKey, Arrays.asList(testKey1, testKey2)))
+                    spanNameExtractor, spanNameKey, Arrays.asList(testKey1, testKey2), null))
             .build()
             .get("awsxray");
   }
