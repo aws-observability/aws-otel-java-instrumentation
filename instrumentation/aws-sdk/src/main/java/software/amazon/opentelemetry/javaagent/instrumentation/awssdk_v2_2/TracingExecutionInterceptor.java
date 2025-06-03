@@ -57,15 +57,15 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   public TracingExecutionInterceptor() {
     // for instantiation
-    System.out.println("Creating TracingExecutionInterceptor");
+    // System.out.println("Creating TracingExecutionInterceptor");
     this.instrumenterFactory = new AwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
   }
 
   @Override
   public SdkRequest modifyRequest(
       Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    System.out.println(
-        "ADOT !! HERE AwsSdkPatchInstrumentationModule.modifyRequest!!!!!!!!!!!!!: ");
+    // System.out.println(
+    //    "ADOT !! HERE AwsSdkPatchInstrumentationModule.modifyRequest!!!!!!!!!!!!!: ");
 
     // This is the latest point where we can start the span, since we might need to inject
     // it into the request payload. This means that HTTP attributes need to be captured later.
@@ -81,7 +81,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       return request;
     }
 
-    // executionAttributes.putAttribute(SDK_REQUEST_ATTRIBUTE, request);
     Instrumenter<ExecutionAttributes, Response> instrumenter =
         instrumenterFactory.requestInstrumenter();
 
@@ -98,20 +97,20 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
     Span span = Span.fromContext(otelContext);
 
-    System.out.println("ADOT !! HERE Span span = Span.fromContext(otelContext)!!!!!!!!!!!!!: ");
-    System.out.println(span);
+    // System.out.println("ADOT !! HERE Span span = Span.fromContext(otelContext)!!!!!!!!!!!!!: ");
+    // System.out.println(span);
 
     try {
       AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(context.request());
       if (awsSdkRequest != null) {
-        executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
-        System.out.println("ADOT !! HERE populateRequestAttributes!!!!!!!!!!!!!: ");
+        // executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
+        // System.out.println("ADOT !! HERE populateRequestAttributes!!!!!!!!!!!!!: ");
         populateRequestAttributes(span, awsSdkRequest, context.request(), executionAttributes);
       }
     } catch (Throwable throwable) {
       requestFinisher.finish(otelContext, executionAttributes, null, throwable);
       clearAttributes(executionAttributes);
-      System.out.println("ADOT !! HERE returning the request successfully!!!!!!!!!!!!!: ");
+      // System.out.println("ADOT !! HERE returning the request successfully!!!!!!!!!!!!!: ");
       throw throwable;
     }
 
@@ -126,13 +125,13 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
     fieldMapper.mapToAttributes(sdkRequest, awsSdkRequest, span);
 
-    System.out.println(awsSdkRequest.type());
+    // System.out.println(awsSdkRequest.type());
     //    span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
     //    System.out.println(span);
 
     if (awsSdkRequest.type() == BEDROCKRUNTIME) {
       span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
-      System.out.println(span);
+      // System.out.println(span);
     }
   }
 
@@ -152,7 +151,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       finisher.finish(
           otelContext, executionAttributes, new Response(httpResponse, context.response()), null);
     }
-    System.out.println("ADOT !! HERE afterExecution- otelContext!!!!!!!!!!!!!: ");
+    // System.out.println("ADOT !! HERE afterExecution- otelContext!!!!!!!!!!!!!: ");
     clearAttributes(executionAttributes);
   }
 
@@ -187,19 +186,3 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         Throwable exception);
   }
 }
-
-//  @Override
-//  public SdkRequest modifyRequest(
-//      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-//    System.out.println(
-//        "ADOT !! HERE AwsSdkPatchInstrumentationModule.modifyRequest!!!!!!!!!!!!!: ");
-//    Span span = Span.current();
-//
-//    if (span != null) {
-//      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(context.request());
-//      if (awsSdkRequest != null && awsSdkRequest.type() == BEDROCKRUNTIME) {
-//        span.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
-//      }
-//    }
-//    return context.request();
-//  }
