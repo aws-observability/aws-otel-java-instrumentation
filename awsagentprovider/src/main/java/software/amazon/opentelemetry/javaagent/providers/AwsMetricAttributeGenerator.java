@@ -567,7 +567,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
         // For non-Invoke Lambda operations, treat Lambda as a resource,
         // see normalizeRemoteServiceName for more information.
-        if (!LAMBDA_INVOKE_OPERATION.equals(span.getAttributes().get(RPC_METHOD))) {
+        if (!isLambdaInvokeOperation(span)) {
           remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
           // AWS_LAMBDA_NAME can contain either a function name or function ARN since Lambda AWS SDK
           // calls accept both formats
