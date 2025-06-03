@@ -45,6 +45,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.URL_FULL;
+import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
@@ -134,11 +135,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   // Constants for Lambda operations
   private static final String LAMBDA_INVOKE_OPERATION = "Invoke";
-
-  // Environment variable to specify remote environment for Lambda services in Application Signals
-  // topology
-  private static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
-      "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
 
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
@@ -403,6 +399,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   }
 
   private static boolean isLambdaInvokeOperation(SpanData span) {
+    if (!isAwsSDKSpan(span)) {
+      return false;
+    }
     String rpcService = getRemoteService(span, RPC_SERVICE);
     return ("AWSLambda".equals(rpcService) || "Lambda".equals(rpcService))
         && LAMBDA_INVOKE_OPERATION.equals(span.getAttributes().get(RPC_METHOD));
@@ -460,9 +459,11 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
             // SDK calls accept both formats
             Optional<String> lambdaFunctionName =
                 getLambdaFunctionNameFromArn(
-                    Optional.ofNullable(
-                        escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
-            return lambdaFunctionName.get();
+                    Optional.ofNullable(span.getAttributes().get(AWS_LAMBDA_NAME)));
+            // If Lambda name is not present, use UnknownRemoteService
+            // This is intentional - we want to clearly indicate when the Lambda function name
+            // is missing rather than falling back to a generic service name
+            return lambdaFunctionName.orElse(UNKNOWN_REMOTE_SERVICE);
           } else {
             return NORMALIZED_LAMBDA_SERVICE_NAME;
           }
