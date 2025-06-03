@@ -971,81 +971,50 @@ class AwsMetricAttributeGeneratorTest {
 
     // Test case 1: S3 Bucket (no ARN available, should use bucket name for both)
     mockAttribute(AWS_BUCKET_NAME, "my-test-bucket");
-    Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::S3::Bucket");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo("my-test-bucket");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my-test-bucket");
+    validateRemoteResourceAttributes("AWS::S3::Bucket", "my-test-bucket");
 
     // Test S3 bucket with special characters
     mockAttribute(AWS_BUCKET_NAME, "my-test|bucket^name");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::S3::Bucket");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER))
-        .isEqualTo("my-test^|bucket^^name");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my-test^|bucket^^name");
+    validateRemoteResourceAttributes("AWS::S3::Bucket", "my-test^|bucket^^name");
     mockAttribute(AWS_BUCKET_NAME, null);
 
     // Test case 2: SQS Queue by name (no ARN, should use queue name for both)
     mockAttribute(AWS_QUEUE_NAME, "my-test-queue");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::SQS::Queue");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo("my-test-queue");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my-test-queue");
+    validateRemoteResourceAttributes("AWS::SQS::Queue", "my-test-queue");
 
     // Test SQS queue with special characters
     mockAttribute(AWS_QUEUE_NAME, "my^queue|name");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::SQS::Queue");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo("my^^queue^|name");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my^^queue^|name");
+    validateRemoteResourceAttributes("AWS::SQS::Queue", "my^^queue^|name");
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Test case 3: DynamoDB Table (no ARN, should use table name for both)
     mockAttribute(AWS_TABLE_NAME, "my-test-table");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::DynamoDB::Table");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo("my-test-table");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my-test-table");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "my-test-table");
 
     // Test DynamoDB table with special characters
     mockAttribute(AWS_TABLE_NAME, "my|test^table");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::DynamoDB::Table");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo("my^|test^^table");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my^|test^^table");
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "my^|test^^table");
     mockAttribute(AWS_TABLE_NAME, null);
 
     // Test case 4: Kinesis Stream
     mockAttribute(AWS_STREAM_NAME, "my-test-stream");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::Kinesis::Stream");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo("my-test-stream");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my-test-stream");
+    validateRemoteResourceAttributes("AWS::Kinesis::Stream", "my-test-stream");
 
     // Test Kinesis stream with special characters
     mockAttribute(AWS_STREAM_NAME, "my-stream^with|chars");
-    actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo("AWS::Kinesis::Stream");
-    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER))
-        .isEqualTo("my-stream^^with^|chars");
-    assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
-        .isEqualTo("my-stream^^with^|chars");
+    validateRemoteResourceAttributes("AWS::Kinesis::Stream", "my-stream^^with^|chars");
     mockAttribute(AWS_STREAM_NAME, null);
+
+    // Test case 5: Lambda Function (non-invoke operation, no ARN)
+    mockAttribute(RPC_METHOD, "GetFunction"); // Non-invoke operation
+    mockAttribute(AWS_LAMBDA_NAME, "my-test-function");
+    validateRemoteResourceAttributes("AWS::Lambda::Function", "my-test-function");
+
+    // Test Lambda function with special characters
+    mockAttribute(AWS_LAMBDA_NAME, "my-function|with^chars");
+    validateRemoteResourceAttributes("AWS::Lambda::Function", "my-function^|with^^chars");
+    mockAttribute(AWS_LAMBDA_NAME, null);
+    mockAttribute(RPC_METHOD, null);
 
     mockAttribute(RPC_SYSTEM, null);
   }
