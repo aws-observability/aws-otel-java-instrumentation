@@ -31,7 +31,7 @@ configurations {
 }
 
 val awsSdkVersion = "2.2.0"
-val otelVersion = "2.10.0-adot2"
+val otelVersion = "2.11.0-adot1"
 
 dependencies {
 
