@@ -944,7 +944,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
 
-    // Validate that Lambda Invoke with ARN in AWS_LAMBDA_NAME extracts function name correctly
+    // Validate behaviour of AWS_LAMBDA_NAME containing ARN for Invoke operations
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
