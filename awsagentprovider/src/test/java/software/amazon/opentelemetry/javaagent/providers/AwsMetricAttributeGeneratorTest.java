@@ -488,31 +488,6 @@ class AwsMetricAttributeGeneratorTest {
     // Validate behaviour of various combinations of RPC attributes, then remove them.
     validateAndRemoveRemoteAttributes(RPC_SERVICE, "RPC service", RPC_METHOD, "RPC method");
 
-    // Validate behaviour of Lambda non-Invoke operations (treated as normalized service)
-    mockAttribute(RPC_SYSTEM, "aws-api");
-    mockAttribute(RPC_SERVICE, "Lambda");
-    mockAttribute(RPC_METHOD, "GetFunction");
-    validateExpectedRemoteAttributes("AWS::Lambda", "GetFunction");
-    mockAttribute(RPC_SYSTEM, null);
-    mockAttribute(RPC_SERVICE, null);
-    mockAttribute(RPC_METHOD, null);
-
-    // Validate behaviour of Lambda Invoke operations (treated as service with function name)
-    mockAttribute(RPC_SYSTEM, "aws-api");
-    mockAttribute(RPC_SERVICE, "Lambda");
-    mockAttribute(RPC_METHOD, "Invoke");
-    mockAttribute(AWS_LAMBDA_NAME, "testFunction");
-    validateExpectedRemoteAttributes("testFunction", "Invoke");
-    // Also validate AWS_REMOTE_ENVIRONMENT is set for Lambda Invoke
-    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
-    Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
-    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
-    mockAttribute(RPC_SYSTEM, null);
-    mockAttribute(RPC_SERVICE, null);
-    mockAttribute(RPC_METHOD, null);
-    mockAttribute(AWS_LAMBDA_NAME, null);
-
     // Validate behaviour of various combinations of DB attributes, then remove them.
     validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, "DB operation");
 
@@ -1396,6 +1371,21 @@ class AwsMetricAttributeGeneratorTest {
     testAwsSdkServiceNormalization("AmazonBedrockRuntime", "AWS::BedrockRuntime");
     testAwsSdkServiceNormalization("AWSStepFunctions", "AWS::StepFunctions");
 
+    // AWS SDK V1 Lambda tests
+    testAwsSdkServiceNormalization("Lambda", "AWS::Lambda");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "testFunction");
+    testAwsSdkServiceNormalization("Lambda", "testFunction");
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+
+    testAwsSdkServiceNormalization("AWSLambda", "AWS::Lambda");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "testFunction");
+    testAwsSdkServiceNormalization("AWSLambda", "testFunction");
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
+
     // AWS SDK V2
     testAwsSdkServiceNormalization("DynamoDb", "AWS::DynamoDB");
     testAwsSdkServiceNormalization("Kinesis", "AWS::Kinesis");
@@ -1415,6 +1405,61 @@ class AwsMetricAttributeGeneratorTest {
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo(expectedRemoteService);
+  }
+
+  @Test
+  public void testSetRemoteEnvironment() {
+    // Test 1: Setting remote environment when all relevant attributes are present
+    mockAttribute(RPC_SYSTEM, "aws-api");
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "Invoke");
+    mockAttribute(AWS_LAMBDA_NAME, "testFunction");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
+
+    Attributes actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
+
+    // Test 2: NOT setting it when RPC_SYSTEM is missing
+    mockAttribute(RPC_SYSTEM, null);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
+    mockAttribute(RPC_SYSTEM, "aws-api");
+
+    // Test 3: NOT setting it when RPC_METHOD is missing
+    mockAttribute(RPC_METHOD, null);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
+    mockAttribute(RPC_METHOD, "Invoke");
+
+    // Test 4: Still setting it to lambda:default when AWS_LAMBDA_NAME is missing
+    mockAttribute(AWS_LAMBDA_NAME, null);
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
+    mockAttribute(AWS_LAMBDA_NAME, "testFunction");
+
+    // Test 5: NOT setting it for non-Lambda services
+    mockAttribute(RPC_SERVICE, "S3");
+    mockAttribute(RPC_METHOD, "GetObject");
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
+
+    // Test 6: NOT setting it for Lambda non-Invoke operations
+    mockAttribute(RPC_SERVICE, "Lambda");
+    mockAttribute(RPC_METHOD, "GetFunction");
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
+
+    // Clean up
+    mockAttribute(RPC_SYSTEM, null);
+    mockAttribute(RPC_SERVICE, null);
+    mockAttribute(RPC_METHOD, null);
+    mockAttribute(AWS_LAMBDA_NAME, null);
   }
 
   @Test
