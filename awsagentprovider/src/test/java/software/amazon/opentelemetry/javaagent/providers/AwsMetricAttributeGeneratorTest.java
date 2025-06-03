@@ -1522,12 +1522,6 @@ class AwsMetricAttributeGeneratorTest {
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
-
-    // Clean up
-    mockAttribute(RPC_SYSTEM, null);
-    mockAttribute(RPC_SERVICE, null);
-    mockAttribute(RPC_METHOD, null);
-    mockAttribute(AWS_LAMBDA_NAME, null);
   }
 
   @Test
