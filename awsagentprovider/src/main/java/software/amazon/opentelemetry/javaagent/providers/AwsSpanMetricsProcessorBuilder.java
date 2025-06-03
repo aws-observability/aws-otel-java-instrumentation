@@ -24,6 +24,7 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.function.Supplier;
 
 /** A builder for {@link AwsSpanMetricsProcessor} */
@@ -51,6 +52,7 @@ public final class AwsSpanMetricsProcessorBuilder {
 
   // Optional builder elements
   private MetricAttributeGenerator generator = DEFAULT_GENERATOR;
+  private Sampler sampler;
   private String scopeName = DEFAULT_SCOPE_NAME;
 
   public static AwsSpanMetricsProcessorBuilder create(
@@ -81,6 +83,17 @@ public final class AwsSpanMetricsProcessorBuilder {
   }
 
   /**
+   * Sets the sampler used to determine if the spans should be sampled This will be used to increase
+   * sampling rate in the case of errors
+   */
+  @CanIgnoreReturnValue
+  public AwsSpanMetricsProcessorBuilder setSampler(Sampler sampler) {
+    requireNonNull(sampler, "sampler");
+    this.sampler = sampler;
+    return this;
+  }
+
+  /**
    * Sets the scope name used in the creation of metrics by the span metrics processor. If unset,
    * defaults to {@link #DEFAULT_SCOPE_NAME}. Must not be null.
    */
@@ -99,6 +112,12 @@ public final class AwsSpanMetricsProcessorBuilder {
         meter.histogramBuilder(LATENCY).setUnit(LATENCY_UNITS).build();
 
     return AwsSpanMetricsProcessor.create(
-        errorHistogram, faultHistogram, latencyHistogram, generator, resource, forceFlushAction);
+        errorHistogram,
+        faultHistogram,
+        latencyHistogram,
+        generator,
+        resource,
+        sampler,
+        forceFlushAction);
   }
 }

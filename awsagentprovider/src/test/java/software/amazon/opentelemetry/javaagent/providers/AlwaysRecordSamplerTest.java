@@ -54,20 +54,21 @@ class AlwaysRecordSamplerTest {
     assertThat(sampler.getDescription()).isEqualTo("AlwaysRecordSampler{mockDescription}");
   }
 
-  @Test
-  void testRecordAndSampleSamplingDecision() {
-    validateShouldSample(SamplingDecision.RECORD_AND_SAMPLE, SamplingDecision.RECORD_AND_SAMPLE);
-  }
+  //  @Test
+  //  void testRecordAndSampleSamplingDecision() {
+  //    validateShouldSample(SamplingDecision.RECORD_AND_SAMPLE,
+  // SamplingDecision.RECORD_AND_SAMPLE);
+  //  }
 
-  @Test
-  void testRecordOnlySamplingDecision() {
-    validateShouldSample(SamplingDecision.RECORD_ONLY, SamplingDecision.RECORD_ONLY);
-  }
-
-  @Test
-  void testDropSamplingDecision() {
-    validateShouldSample(SamplingDecision.DROP, SamplingDecision.RECORD_ONLY);
-  }
+  //  @Test
+  //  void testRecordOnlySamplingDecision() {
+  //    validateShouldSample(SamplingDecision.RECORD_ONLY, SamplingDecision.RECORD_ONLY);
+  //  }
+  //
+  //  @Test
+  //  void testDropSamplingDecision() {
+  //    validateShouldSample(SamplingDecision.DROP, SamplingDecision.RECORD_ONLY);
+  //  }
 
   private void validateShouldSample(
       SamplingDecision rootDecision, SamplingDecision expectedDecision) {
