@@ -1471,15 +1471,19 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "testFunction");
     testAwsSdkServiceNormalization("Lambda", "testFunction");
-    mockAttribute(RPC_METHOD, null);
+    // Test Lambda Invoke without AWS_LAMBDA_NAME - should fall back to UnknownRemoteService
     mockAttribute(AWS_LAMBDA_NAME, null);
+    testAwsSdkServiceNormalization("Lambda", "UnknownRemoteService");
+    mockAttribute(RPC_METHOD, null);
 
     testAwsSdkServiceNormalization("AWSLambda", "AWS::Lambda");
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "testFunction");
     testAwsSdkServiceNormalization("AWSLambda", "testFunction");
-    mockAttribute(RPC_METHOD, null);
+    // Test Lambda Invoke without AWS_LAMBDA_NAME - should fall back to UnknownRemoteService
     mockAttribute(AWS_LAMBDA_NAME, null);
+    testAwsSdkServiceNormalization("AWSLambda", "UnknownRemoteService");
+    mockAttribute(RPC_METHOD, null);
 
     // AWS SDK V2
     testAwsSdkServiceNormalization("DynamoDb", "AWS::DynamoDB");
