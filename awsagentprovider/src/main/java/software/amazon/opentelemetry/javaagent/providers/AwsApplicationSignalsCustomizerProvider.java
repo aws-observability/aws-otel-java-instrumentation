@@ -77,6 +77,8 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trace
 public final class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+  static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
+      "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
 
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
   private static final Logger logger =
