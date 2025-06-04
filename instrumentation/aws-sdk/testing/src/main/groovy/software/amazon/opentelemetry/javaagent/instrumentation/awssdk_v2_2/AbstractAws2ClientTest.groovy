@@ -8,7 +8,7 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2
 import io.opentelemetry.semconv.HttpAttributes
 import io.opentelemetry.semconv.ServerAttributes
 import io.opentelemetry.semconv.UrlAttributes
-import io.opentelemetry.javaagent.shaded.io.opentelemetry.semconv.incubating.AwsIncubatingAttributes
+import io.opentelemetry.semconv.incubating.AwsIncubatingAttributes
 import io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes
 import io.opentelemetry.semconv.incubating.RpcIncubatingAttributes
 import io.opentelemetry.testing.internal.armeria.common.*

@@ -24,6 +24,11 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest
+import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndex
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput
+import software.amazon.awssdk.services.ec2.model.AttributeValue
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -243,14 +248,14 @@ abstract class AbstractAws2ClientCoreTest extends InstrumentationSpecification {
     return CreateTableRequest.builder()
       .tableName("sometable")
       .globalSecondaryIndexes(Arrays.asList(
-        GlobalSecondaryIndex.builder()
+              GlobalSecondaryIndex.builder()
           .indexName("globalIndex")
           .keySchema(
-            KeySchemaElement.builder()
+                  KeySchemaElement.builder()
               .attributeName("attribute")
               .build())
           .provisionedThroughput(
-            ProvisionedThroughput.builder()
+                  ProvisionedThroughput.builder()
               .readCapacityUnits(10)
               .writeCapacityUnits(12)
               .build()

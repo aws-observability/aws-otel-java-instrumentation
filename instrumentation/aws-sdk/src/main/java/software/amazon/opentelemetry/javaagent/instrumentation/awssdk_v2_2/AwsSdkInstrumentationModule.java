@@ -26,18 +26,14 @@ import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Logger;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumentationModule.class)
 public class AwsSdkInstrumentationModule extends InstrumentationModule {
-  private static final Logger logger =
-      Logger.getLogger(AwsSdkInstrumentationModule.class.getName());
 
   public AwsSdkInstrumentationModule() {
     super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core");
-    logger.info("ADOT !! Initializing AWS SDK Instrumentation Module");
   }
 
   @Override
@@ -48,7 +44,6 @@ public class AwsSdkInstrumentationModule extends InstrumentationModule {
 
   @Override // Need
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // System.out.println("HERE classLoaderMatcher!!!!!!!!!!!!!: ");
     // We don't actually transform it but want to make sure we only apply the instrumentation when
     // our key dependency is present.
     return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
