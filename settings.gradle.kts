@@ -33,7 +33,7 @@ dependencyResolutionManagement {
     mavenLocal()
 
     maven {
-      setUrl("https://oss.sonatype.org/content/repositories/snapshots")
+      setUrl("https://central.sonatype.com/repository/maven-snapshots/")
     }
   }
 }

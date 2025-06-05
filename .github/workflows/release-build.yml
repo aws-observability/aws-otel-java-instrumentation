@@ -13,7 +13,7 @@ env:
   PUBLIC_REPOSITORY: public.ecr.aws/aws-observability/adot-autoinstrumentation-java
   PRIVATE_REPOSITORY: 020628701572.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java
   PRIVATE_REGISTRY: 020628701572.dkr.ecr.us-west-2.amazonaws.com
-  ARTIFACT_NAME: aws-opentelemetry-agent.jar 
+  ARTIFACT_NAME: aws-opentelemetry-agent.jar
 
 permissions:
   id-token: write
