@@ -1,8 +1,8 @@
-name: Release Build
+name: Migrate sonatype test
 on:
-  push:
-    branches:
-      - migrate-sonatype-test
+#  push:
+#    branches:
+#      - migrate-sonatype-test
 
 permissions:
   id-token: write
