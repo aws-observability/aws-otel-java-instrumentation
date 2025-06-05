@@ -193,13 +193,13 @@ allprojects {
   plugins.withId("maven-publish") {
     plugins.apply("signing")
 
-//    afterEvaluate {
-//      val publishTask = tasks.named("publishToSonatype")
-//
-//      postReleaseTask.configure {
-//        dependsOn(publishTask)
-//      }
-//    }
+    afterEvaluate {
+      val publishTask = tasks.named("publishToSonatype")
+
+      postReleaseTask.configure {
+        dependsOn(publishTask)
+      }
+    }
 
     configure<PublishingExtension> {
       publications {
@@ -307,5 +307,5 @@ tasks {
 
 nebulaRelease {
   // It is only possible to release from a release branch.
-  releaseBranchPatterns = setOf("""release\/v\d+\.\d+\.x""")
+  releaseBranchPatterns = setOf("""release\/v\d+\.\d+\.x""", "migrate-sonatype-test")
 }
