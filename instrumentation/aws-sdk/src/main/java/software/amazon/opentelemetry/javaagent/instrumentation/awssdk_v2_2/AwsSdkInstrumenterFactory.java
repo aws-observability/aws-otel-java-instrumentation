@@ -32,7 +32,7 @@ import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
  * any time.
  */
 public final class AwsSdkInstrumenterFactory {
-  private static final String INSTRUMENTATION_NAME = "io.opentelemetry.aws-sdk-2.2";
+  private static final String INSTRUMENTATION_NAME = "javaagent.instrumentation.aws-sdk-2.2";
 
   private static final AwsSdkExperimentalAttributesExtractor experimentalAttributesExtractor =
       new AwsSdkExperimentalAttributesExtractor();

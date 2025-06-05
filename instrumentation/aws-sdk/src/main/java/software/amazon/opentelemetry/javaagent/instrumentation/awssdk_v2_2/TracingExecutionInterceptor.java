@@ -22,7 +22,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
-import java.time.Instant;
 import java.util.logging.Logger;
 import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
 import software.amazon.awssdk.core.SdkRequest;
@@ -85,20 +84,27 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     }
 
     RequestSpanFinisher requestFinisher = instrumenter::end;
-    io.opentelemetry.context.Context otelContext =
-        instrumenter.start(parentOtelContext, executionAttributes);
 
-    Instant requestStart = Instant.now();
+    // Get the current span instead of creating a new one
+    Span currentSpan = Span.current();
 
-    Span span = Span.fromContext(otelContext);
+    // If there's no active span, return the original request
+    if (!currentSpan.isRecording()) {
+      return request;
+    }
+
+    // Let the instrumenter process the context (for patched changes)
+    instrumenter.start(parentOtelContext, executionAttributes);
 
     try {
-      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(context.request());
+      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
       if (awsSdkRequest != null) {
-        populateRequestAttributes(span, awsSdkRequest, context.request(), executionAttributes);
+        // Modify the existing span with AWS SDK attributes
+        populateRequestAttributes(currentSpan, awsSdkRequest, request, executionAttributes);
       }
     } catch (Throwable throwable) {
-      requestFinisher.finish(otelContext, executionAttributes, null, throwable);
+      // Handle error case
+      requestFinisher.finish(parentOtelContext, executionAttributes, null, throwable);
       clearAttributes(executionAttributes);
       throw throwable;
     }

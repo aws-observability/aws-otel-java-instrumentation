@@ -44,7 +44,6 @@ dependencies {
   implementation("software.amazon.awssdk:sfn:$awsSdkVersion")
   implementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
 
-  // Other dependencies remain the same
   implementation("com.google.guava:guava")
   implementation("org.apache.groovy:groovy")
   implementation("io.opentelemetry:opentelemetry-api")
