@@ -47,7 +47,6 @@ configurations {
   create("otel") // Explicitly create the 'otel' configuration
 }
 
-val awsSdkVersion = "2.2.0"
 val otelVersion = "2.11.0-adot1"
 
 dependencies {
@@ -57,17 +56,17 @@ dependencies {
   compileOnly("com.google.auto.service:auto-service:1.1.1")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:$otelVersion-alpha")
-  compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:$otelVersion")
+  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
 
-  compileOnly("software.amazon.awssdk:aws-core:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:sns:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:sqs:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:lambda:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:aws-json-protocol:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:sfn:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:lambda:$awsSdkVersion")
-  compileOnly("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
+  compileOnly("software.amazon.awssdk:aws-core:2.2.0")
+  compileOnly("software.amazon.awssdk:sns:2.2.0")
+  compileOnly("software.amazon.awssdk:sqs:2.2.0")
+  compileOnly("software.amazon.awssdk:lambda:2.2.0")
+  compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
+  compileOnly("software.amazon.awssdk:sfn:2.2.0")
+  compileOnly("software.amazon.awssdk:lambda:2.2.0")
+  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
 
   compileOnly("org.slf4j:slf4j-api:2.0.0")
   compileOnly("org.slf4j:slf4j-simple:2.0.0")
@@ -83,18 +82,18 @@ dependencies {
   testImplementation("org.mockito:mockito-junit-jupiter:3.12.4")
 
   // AWS SDK test dependencies
-  testImplementation("software.amazon.awssdk:dynamodb:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:ec2:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:kinesis:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:s3:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:ses:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:sfn:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
-  testImplementation("software.amazon.awssdk:lambda:$awsSdkVersion")
+  testImplementation("software.amazon.awssdk:dynamodb:2.2.0")
+  testImplementation("software.amazon.awssdk:ec2:2.2.0")
+  testImplementation("software.amazon.awssdk:kinesis:2.2.0")
+  testImplementation("software.amazon.awssdk:rds:2.2.0")
+  testImplementation("software.amazon.awssdk:s3:2.2.0")
+  testImplementation("software.amazon.awssdk:ses:2.2.0")
+  testImplementation("software.amazon.awssdk:sfn:2.2.0")
+  testImplementation("software.amazon.awssdk:secretsmanager:2.2.0")
+  testImplementation("software.amazon.awssdk:lambda:2.2.0")
 
-  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api:$otelVersion-alpha")
-  testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:$otelVersion")
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
 }
 
 sourceSets {

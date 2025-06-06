@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.utils.StringUtils;
 
 class FieldMapper {
@@ -33,23 +32,10 @@ class FieldMapper {
     methodHandleFactory = new MethodHandleFactory();
   }
 
-  FieldMapper(Serializer serializer, MethodHandleFactory methodHandleFactory) {
-    this.methodHandleFactory = methodHandleFactory;
-    this.serializer = serializer;
-  }
-
   void mapToAttributes(SdkRequest sdkRequest, AwsSdkRequest request, Span span) {
     mapToAttributes(
         field -> sdkRequest.getValueForField(field, Object.class).orElse(null),
         FieldMapping.Type.REQUEST,
-        request,
-        span);
-  }
-
-  void mapToAttributes(SdkResponse sdkResponse, AwsSdkRequest request, Span span) {
-    mapToAttributes(
-        field -> sdkResponse.getValueForField(field, Object.class).orElse(null),
-        FieldMapping.Type.RESPONSE,
         request,
         span);
   }
@@ -79,11 +65,9 @@ class FieldMapper {
     if (target != null) {
       if (AwsExperimentalAttributes.isGenAiAttribute(fieldMapping.getAttribute())) {
         value = serializer.serialize(fieldMapping.getAttribute(), target);
-      } else {
-        value = serializer.serialize(target);
-      }
-      if (!StringUtils.isEmpty(value)) {
-        span.setAttribute(fieldMapping.getAttribute(), value);
+        if (!StringUtils.isEmpty(value)) {
+          span.setAttribute(fieldMapping.getAttribute(), value);
+        }
       }
     }
   }

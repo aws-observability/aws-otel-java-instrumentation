@@ -21,16 +21,10 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKDATASOURCEOPERATION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKKNOWLEDGEBASEOPERATION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.DYNAMODB;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.KINESIS;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.LAMBDA;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.S3;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.SECRETSMANAGER;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.SNS;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.SQS;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.STEPFUNCTION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping.request;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping.response;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,13 +41,6 @@ import software.amazon.awssdk.core.SdkRequest;
 // autogeneration.
 @SuppressWarnings("MemberName")
 enum AwsSdkRequest {
-  // generic requests
-  DynamoDbRequest(DYNAMODB, "DynamoDbRequest"),
-  S3Request(S3, "S3Request"),
-  SnsRequest(SNS, "SnsRequest"),
-  SqsRequest(SQS, "SqsRequest"),
-  KinesisRequest(KINESIS, "KinesisRequest"),
-
   BedrockRequest(BEDROCK, "BedrockRequest"),
   BedrockAgentRuntimeRequest(BEDROCKAGENTRUNTIMEOPERATION, "BedrockAgentRuntimeRequest"),
   BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),
@@ -98,93 +85,7 @@ enum AwsSdkRequest {
 
   SecretsManagerRequest(SECRETSMANAGER, "SecretsManagerRequest"),
 
-  LambdaRequest(LAMBDA, "LambdaRequest"),
-  // specific requests
-  BatchGetItem(
-      DYNAMODB,
-      "BatchGetItemRequest",
-      request("aws.dynamodb.table_names", "RequestItems"),
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity")),
-  BatchWriteItem(
-      DYNAMODB,
-      "BatchWriteItemRequest",
-      request("aws.dynamodb.table_names", "RequestItems"),
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity"),
-      response("aws.dynamodb.item_collection_metrics", "ItemCollectionMetrics")),
-  CreateTable(
-      DYNAMODB,
-      "CreateTableRequest",
-      request("aws.dynamodb.global_secondary_indexes", "GlobalSecondaryIndexes"),
-      request("aws.dynamodb.local_secondary_indexes", "LocalSecondaryIndexes"),
-      request(
-          "aws.dynamodb.provisioned_throughput.read_capacity_units",
-          "ProvisionedThroughput.ReadCapacityUnits"),
-      request(
-          "aws.dynamodb.provisioned_throughput.write_capacity_units",
-          "ProvisionedThroughput.WriteCapacityUnits")),
-  DeleteItem(
-      DYNAMODB,
-      "DeleteItemRequest",
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity"),
-      response("aws.dynamodb.item_collection_metrics", "ItemCollectionMetrics")),
-  GetItem(
-      DYNAMODB,
-      "GetItemRequest",
-      request("aws.dynamodb.projection_expression", "ProjectionExpression"),
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity"),
-      request("aws.dynamodb.consistent_read", "ConsistentRead")),
-  ListTables(
-      DYNAMODB,
-      "ListTablesRequest",
-      request("aws.dynamodb.exclusive_start_table_name", "ExclusiveStartTableName"),
-      response("aws.dynamodb.table_count", "TableNames"),
-      request("aws.dynamodb.limit", "Limit")),
-  PutItem(
-      DYNAMODB,
-      "PutItemRequest",
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity"),
-      response("aws.dynamodb.item_collection_metrics", "ItemCollectionMetrics")),
-  Query(
-      DYNAMODB,
-      "QueryRequest",
-      request("aws.dynamodb.attributes_to_get", "AttributesToGet"),
-      request("aws.dynamodb.consistent_read", "ConsistentRead"),
-      request("aws.dynamodb.index_name", "IndexName"),
-      request("aws.dynamodb.limit", "Limit"),
-      request("aws.dynamodb.projection_expression", "ProjectionExpression"),
-      request("aws.dynamodb.scan_index_forward", "ScanIndexForward"),
-      request("aws.dynamodb.select", "Select"),
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity")),
-  Scan(
-      DYNAMODB,
-      "ScanRequest",
-      request("aws.dynamodb.attributes_to_get", "AttributesToGet"),
-      request("aws.dynamodb.consistent_read", "ConsistentRead"),
-      request("aws.dynamodb.index_name", "IndexName"),
-      request("aws.dynamodb.limit", "Limit"),
-      request("aws.dynamodb.projection_expression", "ProjectionExpression"),
-      request("aws.dynamodb.segment", "Segment"),
-      request("aws.dynamodb.select", "Select"),
-      request("aws.dynamodb.total_segments", "TotalSegments"),
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity"),
-      response("aws.dynamodb.count", "Count"),
-      response("aws.dynamodb.scanned_count", "ScannedCount")),
-  UpdateItem(
-      DYNAMODB,
-      "UpdateItemRequest",
-      response("aws.dynamodb.consumed_capacity", "ConsumedCapacity"),
-      response("aws.dynamodb.item_collection_metrics", "ItemCollectionMetrics")),
-  UpdateTable(
-      DYNAMODB,
-      "UpdateTableRequest",
-      request("aws.dynamodb.attribute_definitions", "AttributeDefinitions"),
-      request("aws.dynamodb.global_secondary_index_updates", "GlobalSecondaryIndexUpdates"),
-      request(
-          "aws.dynamodb.provisioned_throughput.read_capacity_units",
-          "ProvisionedThroughput.ReadCapacityUnits"),
-      request(
-          "aws.dynamodb.provisioned_throughput.write_capacity_units",
-          "ProvisionedThroughput.WriteCapacityUnits"));
+  LambdaRequest(LAMBDA, "LambdaRequest");
 
   private final AwsSdkRequestType type;
   private final String requestClass;
