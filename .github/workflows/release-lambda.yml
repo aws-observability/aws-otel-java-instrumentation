@@ -21,6 +21,7 @@ permissions:
 
 jobs:
   build-layer:
+    environment: Release
     runs-on: ubuntu-latest
     outputs:
       aws_regions_json: ${{ steps.set-matrix.outputs.aws_regions_json }}
