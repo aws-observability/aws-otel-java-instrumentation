@@ -21,8 +21,13 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKDATASOURCEOPERATION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKKNOWLEDGEBASEOPERATION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.DYNAMODB;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.KINESIS;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.LAMBDA;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.S3;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.SECRETSMANAGER;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.SNS;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.SQS;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.STEPFUNCTION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping.request;
 
@@ -41,6 +46,13 @@ import software.amazon.awssdk.core.SdkRequest;
 // autogeneration.
 @SuppressWarnings("MemberName")
 enum AwsSdkRequest {
+  // generic requests
+  DynamoDbRequest(DYNAMODB, "DynamoDbRequest"),
+  S3Request(S3, "S3Request"),
+  SnsRequest(SNS, "SnsRequest"),
+  SqsRequest(SQS, "SqsRequest"),
+  KinesisRequest(KINESIS, "KinesisRequest"),
+
   BedrockRequest(BEDROCK, "BedrockRequest"),
   BedrockAgentRuntimeRequest(BEDROCKAGENTRUNTIMEOPERATION, "BedrockAgentRuntimeRequest"),
   BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),

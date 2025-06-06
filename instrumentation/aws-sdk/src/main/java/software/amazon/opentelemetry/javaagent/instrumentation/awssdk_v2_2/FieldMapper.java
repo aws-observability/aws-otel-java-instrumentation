@@ -65,9 +65,11 @@ class FieldMapper {
     if (target != null) {
       if (AwsExperimentalAttributes.isGenAiAttribute(fieldMapping.getAttribute())) {
         value = serializer.serialize(fieldMapping.getAttribute(), target);
-        if (!StringUtils.isEmpty(value)) {
-          span.setAttribute(fieldMapping.getAttribute(), value);
-        }
+      } else {
+        value = serializer.serialize(target);
+      }
+      if (!StringUtils.isEmpty(value)) {
+        span.setAttribute(fieldMapping.getAttribute(), value);
       }
     }
   }
