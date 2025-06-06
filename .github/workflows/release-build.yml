@@ -31,116 +31,116 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/wrapper-validation-action@v1
 
-      # - name: Publish patched dependencies to maven local
-      #   uses: ./.github/actions/patch-dependencies
-      #   with:
-      #     gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-      #     gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
-      # - name: Configure AWS Credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-      #     aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
-      # - name: Log in to AWS ECR
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
 
-      # - name: Build release with Gradle
-      #   uses: gradle/gradle-build-action@v3
-      #   with:
-      #     arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+      - name: Build release with Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
-      # - name: Configure AWS Credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
-      #     aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
+          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
-      # - name: Log in to AWS ECR
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: public.ecr.aws
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
 
-      # - name: Configure AWS Credentials for Private ECR
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
-      #     aws-region: ${{ env.AWS_PRIVATE_ECR_REGION }}
+      - name: Configure AWS Credentials for Private ECR
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
+          aws-region: ${{ env.AWS_PRIVATE_ECR_REGION }}
 
-      # - name: Log in to AWS private ECR
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: ${{ env.PRIVATE_REGISTRY }}
+      - name: Log in to AWS private ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.PRIVATE_REGISTRY }}
 
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
-      #   with:
-      #     driver-opts: image=moby/buildkit:v0.15.1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.15.1
 
-      # - name: Build image for testing
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     push: false
-      #     build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
-      #     context: .
-      #     platforms: linux/amd64
-      #     tags: ${{ env.TEST_TAG }}
-      #     load: true
+      - name: Build image for testing
+        uses: docker/build-push-action@v5
+        with:
+          push: false
+          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          context: .
+          platforms: linux/amd64
+          tags: ${{ env.TEST_TAG }}
+          load: true
 
-      # - name: Test docker image
-      #   shell: bash
-      #   run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
+      - name: Test docker image
+        shell: bash
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
 
-      # - name: Build and push image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     push: true
-      #     build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
-      #     context: .
-      #     platforms: linux/amd64,linux/arm64
-      #     tags: |
-      #       ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }}
-      #       ${{ env.PRIVATE_REPOSITORY }}:v${{ github.event.inputs.version }}
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }}
+            ${{ env.PRIVATE_REPOSITORY }}:v${{ github.event.inputs.version }}
 
-      # - name: Build and Publish release with Gradle
-      #   uses: gradle/gradle-build-action@v3
-      #   with:
-      #     arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
-      #   env:
-      #     PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
-      #     PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
-      #     GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
-      #     GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      #     GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Build and Publish release with Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
 
-      # - name: Get SHA256 checksum of release artifact
-      #   id: get_sha256
-      #   run: |
-      #     cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
-      #     shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
+      - name: Get SHA256 checksum of release artifact
+        id: get_sha256
+        run: |
+          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
+          shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
 
-      # - name: Create release
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-      #   run: |
-      #     # Download layer.zip from existing latest tagged SDK release note
-      #     LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
-      #     mkdir -p layer_artifact
-      #     gh release download "$LATEST_SDK_VERSION" --repo "aws-observability/aws-otel-java-instrumentation" --pattern "layer.zip" --dir layer_artifact
-      #     shasum -a 256 layer_artifact/layer.zip > layer_artifact/layer.zip.sha256
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        run: |
+          # Download layer.zip from existing latest tagged SDK release note
+          LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
+          mkdir -p layer_artifact
+          gh release download "$LATEST_SDK_VERSION" --repo "aws-observability/aws-otel-java-instrumentation" --pattern "layer.zip" --dir layer_artifact
+          shasum -a 256 layer_artifact/layer.zip > layer_artifact/layer.zip.sha256
 
-      #     gh release create --target "$GITHUB_REF_NAME" \
-      #        --title "Release v${{ github.event.inputs.version }}" \
-      #        --draft \
-      #        "v${{ github.event.inputs.version }}" \
-      #        ${{ env.ARTIFACT_NAME }} \
-      #        ${{ env.ARTIFACT_NAME }}.sha256 \
-      #        layer_artifact/layer.zip \
-      #        layer_artifact/layer.zip.sha256
+          gh release create --target "$GITHUB_REF_NAME" \
+             --title "Release v${{ github.event.inputs.version }}" \
+             --draft \
+             "v${{ github.event.inputs.version }}" \
+             ${{ env.ARTIFACT_NAME }} \
+             ${{ env.ARTIFACT_NAME }}.sha256 \
+             layer_artifact/layer.zip \
+             layer_artifact/layer.zip.sha256
