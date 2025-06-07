@@ -77,7 +77,7 @@ tasks {
 
   // Disable the test task from the java plugin
   named("test") {
-    enabled = true
+    enabled = false
   }
 
   register<Test>("contractTests") {
