@@ -77,7 +77,7 @@ tasks {
 
   // Disable the test task from the java plugin
   named("test") {
-    enabled = false
+    enabled = true
   }
 
   register<Test>("contractTests") {
@@ -98,7 +98,7 @@ tasks {
     dependsOn(":appsignals-tests:images:http-clients:spring-mvc-client:jibDockerBuild")
     dependsOn(":appsignals-tests:images:http-clients:apache-http-client:jibDockerBuild")
     dependsOn(":appsignals-tests:images:http-clients:netty-http-client:jibDockerBuild")
-    dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v1:jibDockerBuild")
+//    dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v1:jibDockerBuild")
     dependsOn(":appsignals-tests:images:aws-sdk:aws-sdk-v2:jibDockerBuild")
     dependsOn(":appsignals-tests:images:grpc:grpc-client:jibDockerBuild")
     dependsOn(":appsignals-tests:images:grpc:grpc-server:jibDockerBuild")

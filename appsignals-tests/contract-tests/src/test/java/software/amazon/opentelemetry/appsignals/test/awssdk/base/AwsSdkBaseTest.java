@@ -368,34 +368,34 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         extraAssertions);
   }
 
-  private void assertSpanConsumerAttributes(
-      List<ResourceScopeSpan> spans,
-      String spanName,
-      String rpcService,
-      String operation,
-      String localService,
-      String method,
-      String address,
-      int port,
-      String url,
-      int statusCode,
-      List<ThrowingConsumer<KeyValue>> extraAssertions) {
-
-    assertThat(spans)
-        .satisfiesOnlyOnce(
-            rss -> {
-              var span = rss.getSpan();
-              var spanAttributes = span.getAttributesList();
-              assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
-              assertThat(span.getName()).isEqualTo(spanName);
-              assertSemanticConventionsSqsConsumerAttributes(
-                  spanAttributes, rpcService, method, address, port, url);
-              assertSqsConsumerAwsAttributes(span.getAttributesList(), operation);
-              for (var assertion : extraAssertions) {
-                assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
-              }
-            });
-  }
+  //  private void assertSpanConsumerAttributes(
+  //      List<ResourceScopeSpan> spans,
+  //      String spanName,
+  //      String rpcService,
+  //      String operation,
+  //      String localService,
+  //      String method,
+  //      String address,
+  //      int port,
+  //      String url,
+  //      int statusCode,
+  //      List<ThrowingConsumer<KeyValue>> extraAssertions) {
+  //
+  //    assertThat(spans)
+  //        .satisfiesOnlyOnce(
+  //            rss -> {
+  //              var span = rss.getSpan();
+  //              var spanAttributes = span.getAttributesList();
+  //              assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
+  //              assertThat(span.getName()).isEqualTo(spanName);
+  //              assertSemanticConventionsSqsConsumerAttributes(
+  //                  spanAttributes, rpcService, method, address, port, url);
+  //              assertSqsConsumerAwsAttributes(span.getAttributesList(), operation);
+  //              for (var assertion : extraAssertions) {
+  //                assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
+  //              }
+  //            });
+  //  }
 
   private void assertSpanAttributes(
       List<ResourceScopeSpan> spans,
