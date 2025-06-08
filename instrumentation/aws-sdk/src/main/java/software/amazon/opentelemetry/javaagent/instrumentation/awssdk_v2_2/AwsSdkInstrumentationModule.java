@@ -34,11 +34,11 @@ public class AwsSdkInstrumentationModule extends InstrumentationModule {
     super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core");
   }
 
-  @Override
-  public int order() {
-    // Ensure this runs after OTel
-    return 1;
-  }
+  //  @Override
+  //  public int order() {
+  //    // Ensure this runs after OTel
+  //    return 1;
+  //  }
 
   @Override // Need
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {

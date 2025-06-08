@@ -31,8 +31,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   private final FieldMapper fieldMapper = new FieldMapper();
 
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public void afterMarshalling(
+      Context.AfterMarshalling context, ExecutionAttributes executionAttributes) {
     // This is the latest point where we can start the span, since we might need to inject
     // it into the request payload. This means that HTTP attributes need to be captured later.
 
@@ -44,14 +44,14 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     // here would never be ended and scope closed.
     if (executionAttributes.getAttribute(AwsSignerExecutionAttribute.PRESIGNER_EXPIRATION)
         != null) {
-      return request;
+      return;
     }
 
     // Get the current span instead of creating a new one
     Span currentSpan = Span.current();
     System.out.println(currentSpan);
 
-    if (currentSpan != null) {
+    if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
       AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
       if (awsSdkRequest != null) {
         // Apply field mappings with patched logic
@@ -64,7 +64,5 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       }
     }
     System.out.println(currentSpan);
-
-    return request;
   }
 }
