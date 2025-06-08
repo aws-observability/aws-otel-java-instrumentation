@@ -36,6 +36,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     // This is the latest point where we can start the span, since we might need to inject
     // it into the request payload. This means that HTTP attributes need to be captured later.
 
+    System.out.println("ADOT in TracingExection Modify Request !!!!!!!");
     SdkRequest request = context.request();
 
     // Ignore presign request. These requests don't run all interceptor methods and the span

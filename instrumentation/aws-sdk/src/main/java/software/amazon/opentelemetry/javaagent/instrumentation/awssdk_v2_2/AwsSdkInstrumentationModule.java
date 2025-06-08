@@ -44,6 +44,9 @@ public class AwsSdkInstrumentationModule extends InstrumentationModule {
 
   @Override // Need
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+
+    System.out.println("ADOT in Instrumentaiton Module Request !!!!!!!");
+
     // We don't actually transform it but want to make sure we only apply the instrumentation when
     // our key dependency is present.
     return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
