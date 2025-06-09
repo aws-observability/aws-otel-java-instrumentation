@@ -22,7 +22,7 @@ plugins {
   id("nebula.release")
 }
 
-group = "software.amazon.distro.opentelemetry"
+group = "com.sonatype.central.testing.amazon"
 version = "1.0.0"
 
 dependencies {
