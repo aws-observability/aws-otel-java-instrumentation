@@ -388,6 +388,10 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             rss -> {
               var span = rss.getSpan();
               var spanAttributes = span.getAttributesList();
+
+              System.out.println("Expected span attribute !!!!!");
+              System.out.println(spanAttributes);
+
               assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsSqsConsumerAttributes(

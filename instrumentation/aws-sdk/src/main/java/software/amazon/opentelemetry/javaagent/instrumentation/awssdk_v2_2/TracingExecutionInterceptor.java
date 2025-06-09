@@ -21,18 +21,27 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import io.opentelemetry.api.trace.Span;
 import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.interceptor.Context;
-import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
-import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.core.interceptor.*;
 
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
   private final FieldMapper fieldMapper = new FieldMapper();
 
+  private static final ExecutionAttribute<io.opentelemetry.context.Context> OtelContextAttribute =
+      new ExecutionAttribute<>("otel-context");
+
+  // to capture context early
   @Override
-  public void afterMarshalling(
-      Context.AfterMarshalling context, ExecutionAttributes executionAttributes) {
+  public void beforeExecution(
+      Context.BeforeExecution context, ExecutionAttributes executionAttributes) {
+    executionAttributes.putAttribute(
+        OtelContextAttribute, io.opentelemetry.context.Context.current());
+  }
+
+  @Override
+  public SdkRequest modifyRequest(
+      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
     // This is the latest point where we can start the span, since we might need to inject
     // it into the request payload. This means that HTTP attributes need to be captured later.
 
@@ -44,12 +53,17 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     // here would never be ended and scope closed.
     if (executionAttributes.getAttribute(AwsSignerExecutionAttribute.PRESIGNER_EXPIRATION)
         != null) {
-      return;
+      return request;
     }
 
-    // Get the current span instead of creating a new one
-    Span currentSpan = Span.current();
-    System.out.println(currentSpan);
+    io.opentelemetry.context.Context otelContext =
+        executionAttributes.getAttribute(OtelContextAttribute);
+
+    if (otelContext == null) {
+      return request;
+    }
+
+    Span currentSpan = Span.fromContext(otelContext);
 
     if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
       AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
@@ -63,6 +77,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     }
+
     System.out.println(currentSpan);
+    return request;
   }
 }
