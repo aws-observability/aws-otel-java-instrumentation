@@ -19,7 +19,6 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
 
 import io.opentelemetry.api.trace.Span;
-import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.*;
 
@@ -28,44 +27,14 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
   private final FieldMapper fieldMapper = new FieldMapper();
 
-  private static final ExecutionAttribute<io.opentelemetry.context.Context> OtelContextAttribute =
-      new ExecutionAttribute<>("otel-context");
-
-  // to capture context early
   @Override
   public void beforeExecution(
       Context.BeforeExecution context, ExecutionAttributes executionAttributes) {
-    executionAttributes.putAttribute(
-        OtelContextAttribute, io.opentelemetry.context.Context.current());
-  }
+    System.out.println("beforeExecution !!!!!");
 
-  @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    // This is the latest point where we can start the span, since we might need to inject
-    // it into the request payload. This means that HTTP attributes need to be captured later.
-
-    System.out.println("ADOT in TracingExection Modify Request !!!!!!!");
-    SdkRequest request = context.request();
-
-    // Ignore presign request. These requests don't run all interceptor methods and the span
-    // created
-    // here would never be ended and scope closed.
-    if (executionAttributes.getAttribute(AwsSignerExecutionAttribute.PRESIGNER_EXPIRATION)
-        != null) {
-      return request;
-    }
-
-    io.opentelemetry.context.Context otelContext =
-        executionAttributes.getAttribute(OtelContextAttribute);
-
-    if (otelContext == null) {
-      return request;
-    }
-
-    Span currentSpan = Span.fromContext(otelContext);
-
+    Span currentSpan = Span.current();
     if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
+      SdkRequest request = context.request();
       AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
       if (awsSdkRequest != null) {
         // Apply field mappings with patched logic
@@ -77,8 +46,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     }
-
-    System.out.println(currentSpan);
-    return request;
+    currentSpan.setAttribute(
+        "aws.operation", executionAttributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME));
   }
 }
