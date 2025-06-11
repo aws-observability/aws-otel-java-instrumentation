@@ -22,16 +22,20 @@ import io.opentelemetry.javaagent.extension.instrumentation.HelperResourceBuilde
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import io.opentelemetry.javaagent.extension.instrumentation.internal.ExperimentalInstrumentationModule;
+import io.opentelemetry.javaagent.extension.instrumentation.internal.injection.ClassInjector;
+import io.opentelemetry.javaagent.extension.instrumentation.internal.injection.InjectionMode;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class AwsSdkAdotInstrumentationModule extends InstrumentationModule {
+public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
+    implements ExperimentalInstrumentationModule {
 
-  public AwsSdkAdotInstrumentationModule() {
-    super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core", "adot");
+  public AdotAwsSdkInstrumentationModule() {
+    super("aws-sdk-adot", "aws-sdk-2.2-adot");
   }
 
   @Override
@@ -40,23 +44,13 @@ public class AwsSdkAdotInstrumentationModule extends InstrumentationModule {
     return 1;
   }
 
-  @Override // Need
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-
-    System.out.println("ADOT in Instrumentaiton Module Request !!!!!!!");
-
-    // We don't actually transform it but want to make sure we only apply the instrumentation when
-    // our key dependency is present.
-    return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
-  }
-
   @Override
   public List<String> getAdditionalHelperClassNames() {
     return Arrays.asList(
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor",
         // other helper classes as needed
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor$RequestSpanFinisher",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotAwsSdkInstrumenterFactory",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type",
@@ -77,17 +71,31 @@ public class AwsSdkAdotInstrumentationModule extends InstrumentationModule {
 
   @Override
   public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
-    String resourcePath = "software/amazon/awssdk/global/handlers/execution.interceptors";
-    helperResourceBuilder.register(resourcePath);
+    helperResourceBuilder.register(
+        "software/amazon/awssdk/global/handlers/execution.interceptors",
+        "software/amazon/awssdk/global/handlers/execution.interceptors.adot");
+  }
+
+  @Override // Need
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
+  }
+
+  @Override
+  public void injectClasses(final ClassInjector injector) {
+    injector
+        .proxyBuilder(
+            "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor")
+        .inject(InjectionMode.CLASS_ONLY);
   }
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
-    return Collections.singletonList(new AwsSdkClientInstrumentation());
+    return Collections.singletonList(new ResourceInjectingTypeInstrumentation());
   }
 
   // Defines what to instrument
-  public static class AwsSdkClientInstrumentation implements TypeInstrumentation {
+  public static class ResourceInjectingTypeInstrumentation implements TypeInstrumentation {
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {
       // Matches AWS SDK client interface

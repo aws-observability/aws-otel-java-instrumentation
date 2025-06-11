@@ -19,42 +19,66 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
 
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.*;
 
-public class TracingExecutionInterceptor implements ExecutionInterceptor {
+public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
-  private static final ExecutionAttribute<io.opentelemetry.context.Context> CONTEXT_ATTRIBUTE =
-      new ExecutionAttribute<>("otel-context");
+  private final AdotAwsSdkInstrumenterFactory instrumenterFactory;
+  private final FieldMapper fieldMapper = new FieldMapper();
+  private static final ExecutionAttribute<Scope> SCOPE_ATTRIBUTE =
+      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".Scope");
+
+  public AdotTracingExecutionInterceptor() {
+    // for instantiation
+    this.instrumenterFactory = new AdotAwsSdkInstrumenterFactory();
+  }
 
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public void beforeTransmission(
+      Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
     System.out.println("modifyRequest !!!!!");
 
     io.opentelemetry.context.Context parentOtelContext = io.opentelemetry.context.Context.current();
     SdkRequest request = context.request();
-    Span currentSpan = Span.current();
-    System.out.println(currentSpan);
 
-    //    io.opentelemetry.context.Context otelContext =
-    //        executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
-    //    Span span = Span.fromContext(otelContext);
-    //    System.out.println(span);
+    Instrumenter<ExecutionAttributes, Response> instrumenter =
+        instrumenterFactory.requestInstrumenter();
+
+    if (!instrumenter.shouldStart(parentOtelContext, executionAttributes)) {
+      // NB: We also skip injection in case we don't start.
+      return;
+    }
+
+    io.opentelemetry.context.Context otelContext =
+        instrumenter.start(parentOtelContext, executionAttributes);
+    final Span currentSpan = Span.current();
+
+    System.out.println(currentSpan);
 
     try {
       if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
         AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
         if (awsSdkRequest != null) {
-          // fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
+          fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
           if (awsSdkRequest.type() == BEDROCKRUNTIME) {
             currentSpan.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
           }
         }
       }
     } catch (Throwable throwable) {
+      //            instrumenter.end(otelContext, executionAttributes, null, throwable);
+      //            clearAttributes(executionAttributes);
     }
-    return request;
+  }
+
+  private static void clearAttributes(ExecutionAttributes executionAttributes) {
+    Scope scope = executionAttributes.getAttribute(SCOPE_ATTRIBUTE);
+    if (scope != null) {
+      scope.close();
+    }
   }
 }
