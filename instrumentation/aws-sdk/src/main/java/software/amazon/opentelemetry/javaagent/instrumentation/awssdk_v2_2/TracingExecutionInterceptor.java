@@ -25,28 +25,36 @@ import software.amazon.awssdk.core.interceptor.*;
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
-  private final FieldMapper fieldMapper = new FieldMapper();
+  private static final ExecutionAttribute<io.opentelemetry.context.Context> CONTEXT_ATTRIBUTE =
+      new ExecutionAttribute<>("otel-context");
 
   @Override
-  public void beforeExecution(
-      Context.BeforeExecution context, ExecutionAttributes executionAttributes) {
-    System.out.println("beforeExecution !!!!!");
+  public SdkRequest modifyRequest(
+      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+    System.out.println("modifyRequest !!!!!");
 
+    io.opentelemetry.context.Context parentOtelContext = io.opentelemetry.context.Context.current();
+    SdkRequest request = context.request();
     Span currentSpan = Span.current();
-    if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
-      SdkRequest request = context.request();
-      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
-      if (awsSdkRequest != null) {
-        // Apply field mappings with patched logic
-        fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
+    System.out.println(currentSpan);
 
-        // Add Bedrock-specific attributes
-        if (awsSdkRequest.type() == BEDROCKRUNTIME) {
-          currentSpan.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+    //    io.opentelemetry.context.Context otelContext =
+    //        executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+    //    Span span = Span.fromContext(otelContext);
+    //    System.out.println(span);
+
+    try {
+      if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
+        AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
+        if (awsSdkRequest != null) {
+          // fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
+          if (awsSdkRequest.type() == BEDROCKRUNTIME) {
+            currentSpan.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+          }
         }
       }
+    } catch (Throwable throwable) {
     }
-    currentSpan.setAttribute(
-        "aws.operation", executionAttributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME));
+    return request;
   }
 }

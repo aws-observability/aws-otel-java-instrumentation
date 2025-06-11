@@ -41,6 +41,8 @@ dependencies {
 
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
+  compileOnly("io.opentelemetry:opentelemetry-sdk")
+  compileOnly("io.opentelemetry:opentelemetry-api")
 
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
   compileOnly("software.amazon.awssdk:sns:2.2.0")
@@ -79,21 +81,21 @@ dependencies {
   testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
 }
 
-sourceSets {
-  main {
-    java {
-      srcDirs("aws-sdk/src/main/java")
-    }
-    resources {
-      srcDirs("aws-sdk/src/main/resources")
-    }
-  }
-  test {
-    groovy {
-      srcDirs("aws-sdk/src/test/groovy")
-    }
-  }
-}
+// sourceSets {
+//  main {
+//    java {
+//      srcDirs("aws-sdk/src/main/java")
+//    }
+//    resources {
+//      srcDirs("aws-sdk/src/main/resources")
+//    }
+//  }
+//  test {
+//    groovy {
+//      srcDirs("aws-sdk/src/test/groovy")
+//    }
+//  }
+// }
 
 // //Produces a copy of upstream javaagent with this extension jar included inside it
 // //The location of extension directory inside agent jar is hard-coded in the agent source code

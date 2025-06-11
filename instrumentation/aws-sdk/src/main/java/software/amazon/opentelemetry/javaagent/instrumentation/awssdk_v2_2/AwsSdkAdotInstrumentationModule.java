@@ -28,10 +28,10 @@ import java.util.List;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class AwsSdkInstrumentationModule extends InstrumentationModule {
+public class AwsSdkAdotInstrumentationModule extends InstrumentationModule {
 
-  public AwsSdkInstrumentationModule() {
-    super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core");
+  public AwsSdkAdotInstrumentationModule() {
+    super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core", "adot");
   }
 
   @Override
@@ -57,7 +57,6 @@ public class AwsSdkInstrumentationModule extends InstrumentationModule {
         // other helper classes as needed
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor$RequestSpanFinisher",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkInstrumenterFactory",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type",

@@ -1,1 +1,1 @@
-software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkInstrumentationModule
+software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkAdotInstrumentationModule
