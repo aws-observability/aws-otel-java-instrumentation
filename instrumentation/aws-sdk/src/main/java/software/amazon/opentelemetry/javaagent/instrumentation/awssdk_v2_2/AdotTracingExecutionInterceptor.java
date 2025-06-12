@@ -91,19 +91,19 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   public void afterUnmarshalling(
       Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {
 
-    io.opentelemetry.context.Context otelContext = getContext(executionAttributes);
-    if (otelContext != null) {
+//    io.opentelemetry.context.Context otelContext = getContext(executionAttributes);
+//    if (otelContext != null) {
 
       Span currentSpan = Span.current();
       onSdkResponse(currentSpan, context.response(), executionAttributes);
 
       SdkHttpResponse httpResponse = context.httpResponse();
 
-      RequestSpanFinisher finisher = executionAttributes.getAttribute(REQUEST_FINISHER_ATTRIBUTE);
-      finisher.finish(
-          otelContext, executionAttributes, new Response(httpResponse, context.response()), null);
-    }
-    clearAttributes(executionAttributes);
+//      RequestSpanFinisher finisher = executionAttributes.getAttribute(REQUEST_FINISHER_ATTRIBUTE);
+//      finisher.finish(
+//          otelContext, executionAttributes, new Response(httpResponse, context.response()), null);
+//    }
+//    clearAttributes(executionAttributes);
   }
 
   private void onSdkResponse(
