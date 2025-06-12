@@ -101,10 +101,10 @@ tasks.create("printVersion") {
 nexusPublishing {
   repositories {
     sonatype {
-      nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
-      snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
-      username.set(System.getenv("PUBLISH_TOKEN_USERNAME_TEST"))
-      password.set(System.getenv("PUBLISH_TOKEN_PASSWORD_TEST"))
+      nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/"))
+      snapshotRepositoryUrl.set(uri("https://aws.oss.sonatype.org/content/repositories/snapshots/"))
+      username.set(System.getenv("PUBLISH_TOKEN_USERNAME"))
+      password.set(System.getenv("PUBLISH_TOKEN_PASSWORD"))
     }
   }
 }
