@@ -33,6 +33,11 @@ class FieldMapper {
     methodHandleFactory = new MethodHandleFactory();
   }
 
+  FieldMapper(Serializer serializer, MethodHandleFactory methodHandleFactory) {
+    this.methodHandleFactory = methodHandleFactory;
+    this.serializer = serializer;
+  }
+
   void mapToAttributes(SdkRequest sdkRequest, AwsSdkRequest request, Span span) {
     mapToAttributes(
         field -> sdkRequest.getValueForField(field, Object.class).orElse(null),

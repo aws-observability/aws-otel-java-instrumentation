@@ -70,4 +70,12 @@ public class AdotAwsSdkInstrumenterFactory {
     String awsOperation = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     return awsServiceName + "." + awsOperation;
   }
+
+  private interface RequestSpanFinisher {
+    void finish(
+        io.opentelemetry.context.Context otelContext,
+        ExecutionAttributes executionAttributes,
+        Response response,
+        Throwable exception);
+  }
 }

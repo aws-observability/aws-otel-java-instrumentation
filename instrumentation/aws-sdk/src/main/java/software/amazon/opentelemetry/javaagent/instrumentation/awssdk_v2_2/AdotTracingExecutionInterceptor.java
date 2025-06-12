@@ -58,7 +58,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
     io.opentelemetry.context.Context parentOtelContext = io.opentelemetry.context.Context.current();
     SdkRequest request = context.request();
-    Span currentSpan = Span.current();
+
     Instrumenter<ExecutionAttributes, Response> instrumenter =
         instrumenterFactory.requestInstrumenter();
 
@@ -67,9 +67,11 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
       return;
     }
 
+    RequestSpanFinisher requestFinisher = instrumenter::end;
     io.opentelemetry.context.Context otelContext =
         instrumenter.start(parentOtelContext, executionAttributes);
 
+    Span currentSpan = Span.current();
     System.out.println(currentSpan);
 
     try {
@@ -84,7 +86,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     } catch (Throwable throwable) {
-      instrumenter.end(otelContext, executionAttributes, null, throwable);
+      requestFinisher.finish(otelContext, executionAttributes, null, throwable);
       clearAttributes(executionAttributes);
     }
   }
