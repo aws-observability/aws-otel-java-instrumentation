@@ -85,6 +85,10 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
           }
         }
       }
+      executionAttributes.putAttribute(CONTEXT_ATTRIBUTE, otelContext);
+      executionAttributes.putAttribute(REQUEST_FINISHER_ATTRIBUTE, requestFinisher);
+      Scope scope = otelContext.makeCurrent();
+      executionAttributes.putAttribute(SCOPE_ATTRIBUTE, scope);
     } catch (Throwable throwable) {
       requestFinisher.finish(otelContext, executionAttributes, null, throwable);
       clearAttributes(executionAttributes);
