@@ -31,6 +31,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
   private final FieldMapper fieldMapper = new FieldMapper();
+
   private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
       new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
 
@@ -50,7 +51,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   @Override
   public void beforeTransmission(
       Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
-    System.out.println("modifyRequest !!!!!");
 
     io.opentelemetry.context.Context parentOtelContext = io.opentelemetry.context.Context.current();
     SdkRequest request = context.request();
@@ -88,8 +88,8 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   }
 
   @Override
-  public void afterExecution(
-      Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+  public void afterUnmarshalling(
+      Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {
 
     io.opentelemetry.context.Context otelContext = getContext(executionAttributes);
     if (otelContext != null) {
