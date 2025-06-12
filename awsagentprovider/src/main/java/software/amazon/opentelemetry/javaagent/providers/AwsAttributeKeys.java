@@ -32,6 +32,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_REMOTE_SERVICE =
       AttributeKey.stringKey("aws.remote.service");
 
+  static final AttributeKey<String> AWS_REMOTE_ENVIRONMENT =
+      AttributeKey.stringKey("aws.remote.environment");
+
   static final AttributeKey<String> AWS_REMOTE_OPERATION =
       AttributeKey.stringKey("aws.remote.operation");
 
@@ -63,6 +66,9 @@ final class AwsAttributeKeys {
 
   static final AttributeKey<String> AWS_SECRET_ARN =
       AttributeKey.stringKey("aws.secretsmanager.secret.arn");
+
+  static final AttributeKey<String> AWS_LAMBDA_NAME =
+      AttributeKey.stringKey("aws.lambda.function.name");
 
   static final AttributeKey<String> AWS_LAMBDA_ARN =
       AttributeKey.stringKey("aws.lambda.function.arn");
