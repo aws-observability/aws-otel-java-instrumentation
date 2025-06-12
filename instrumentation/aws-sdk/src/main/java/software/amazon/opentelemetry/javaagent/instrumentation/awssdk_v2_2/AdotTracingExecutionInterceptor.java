@@ -31,7 +31,8 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
   private final FieldMapper fieldMapper = new FieldMapper();
-  private final AdotAwsSdkInstrumenterFactory instrumenterFactory;
+  private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
+      new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
 
   private static final ExecutionAttribute<AwsSdkRequest> AWS_SDK_REQUEST_ATTRIBUTE =
       new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".awsSdkRequest");
@@ -45,11 +46,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   private static final ExecutionAttribute<RequestSpanFinisher> REQUEST_FINISHER_ATTRIBUTE =
       new ExecutionAttribute<>(
           AdotTracingExecutionInterceptor.class.getName() + ".RequestFinisher");
-
-  public AdotTracingExecutionInterceptor() {
-    // for instantiation
-    this.instrumenterFactory = new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
-  }
 
   @Override
   public void beforeTransmission(
@@ -85,10 +81,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
           }
         }
       }
-      executionAttributes.putAttribute(CONTEXT_ATTRIBUTE, otelContext);
-      executionAttributes.putAttribute(REQUEST_FINISHER_ATTRIBUTE, requestFinisher);
-      Scope scope = otelContext.makeCurrent();
-      executionAttributes.putAttribute(SCOPE_ATTRIBUTE, scope);
     } catch (Throwable throwable) {
       requestFinisher.finish(otelContext, executionAttributes, null, throwable);
       clearAttributes(executionAttributes);
@@ -131,9 +123,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
     if (scope != null) {
       scope.close();
     }
-    executionAttributes.putAttribute(CONTEXT_ATTRIBUTE, null);
-    executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, null);
-    executionAttributes.putAttribute(REQUEST_FINISHER_ATTRIBUTE, null);
   }
 
   private interface RequestSpanFinisher {
