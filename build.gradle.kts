@@ -40,10 +40,10 @@ nebulaRelease {
 nexusPublishing {
   repositories {
     sonatype {
-      nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/"))
-      snapshotRepositoryUrl.set(uri("https://aws.oss.sonatype.org/content/repositories/snapshots/"))
-      username.set(System.getenv("PUBLISH_TOKEN_USERNAME"))
-      password.set(System.getenv("PUBLISH_TOKEN_PASSWORD"))
+      nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+      snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+      username.set(System.getenv("PUBLISH_TOKEN_USERNAME_TEST"))
+      password.set(System.getenv("PUBLISH_TOKEN_PASSWORD_TEST"))
     }
   }
 }
@@ -53,7 +53,7 @@ val postReleaseTask = tasks.named("release")
 
 allprojects {
 
-  project.group = "software.amazon.opentelemetry"
+  project.group = "com.sonatype.central.testing.amazon"
 
   plugins.apply("com.diffplug.spotless")
 
@@ -307,5 +307,5 @@ tasks {
 
 nebulaRelease {
   // It is only possible to release from a release branch.
-  releaseBranchPatterns = setOf("""release\/v\d+\.\d+\.x""")
+  releaseBranchPatterns = setOf("""release\/v\d+\.\d+\.x""", "migrate-sonatype-test")
 }
