@@ -94,8 +94,8 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
     io.opentelemetry.context.Context otelContext = getContext(executionAttributes);
     if (otelContext != null) {
 
-      Span span = Span.fromContext(otelContext);
-      onSdkResponse(span, context.response(), executionAttributes);
+      Span currentSpan = Span.current();
+      onSdkResponse(currentSpan, context.response(), executionAttributes);
 
       SdkHttpResponse httpResponse = context.httpResponse();
 
