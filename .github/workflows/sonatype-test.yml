@@ -1,8 +1,8 @@
 name: Migrate sonatype test
 on:
-#  push:
-#    branches:
-#      - migrate-sonatype-test
+  push:
+    branches:
+      - migrate-sonatype-test
 
 permissions:
   id-token: write
@@ -30,13 +30,13 @@ jobs:
         with:
           arguments: build integrationTests -PlocalDocker=true -Prelease.version=0.0.1 --stacktrace
 
-      - name: Build and Publish release with Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
-        env:
-          PUBLISH_TOKEN_USERNAME_TEST: ${{ secrets.PUBLISH_TOKEN_USERNAME_TEST }}
-          PUBLISH_TOKEN_PASSWORD_TEST: ${{ secrets.PUBLISH_TOKEN_PASSWORD_TEST }}
-          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+#      - name: Build and Publish release with Gradle
+#        uses: gradle/gradle-build-action@v3
+#        with:
+#          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+#        env:
+#          PUBLISH_TOKEN_USERNAME_TEST: ${{ secrets.PUBLISH_TOKEN_USERNAME_TEST }}
+#          PUBLISH_TOKEN_PASSWORD_TEST: ${{ secrets.PUBLISH_TOKEN_PASSWORD_TEST }}
+#          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
+#          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+#          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
