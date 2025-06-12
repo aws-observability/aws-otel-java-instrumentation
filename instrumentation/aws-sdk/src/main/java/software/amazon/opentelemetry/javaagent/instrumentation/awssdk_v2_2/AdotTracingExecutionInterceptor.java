@@ -20,12 +20,16 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 
 import io.opentelemetry.api.trace.Span;
 import software.amazon.awssdk.core.SdkRequest;
+import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.*;
 
 public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
   private final FieldMapper fieldMapper = new FieldMapper();
+
+  private static final ExecutionAttribute<AwsSdkRequest> AWS_SDK_REQUEST_ATTRIBUTE =
+      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".awsSdkRequest");
 
   public AdotTracingExecutionInterceptor() {}
 
@@ -43,6 +47,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
       if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
         AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
         if (awsSdkRequest != null) {
+          executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
           fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
           if (awsSdkRequest.type() == BEDROCKRUNTIME) {
             currentSpan.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
@@ -50,6 +55,24 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     } catch (Throwable throwable) {
+    }
+  }
+
+  @Override
+  public void afterUnmarshalling(
+      Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {
+
+    Span currentSpan = Span.current();
+
+    if (currentSpan == null || !currentSpan.getSpanContext().isValid()) {
+      return;
+    }
+
+    SdkResponse response = context.response();
+    AwsSdkRequest awssdkRequest = executionAttributes.getAttribute(AWS_SDK_REQUEST_ATTRIBUTE);
+
+    if (awssdkRequest != null) {
+      fieldMapper.mapToAttributes(response, awssdkRequest, currentSpan);
     }
   }
 }
