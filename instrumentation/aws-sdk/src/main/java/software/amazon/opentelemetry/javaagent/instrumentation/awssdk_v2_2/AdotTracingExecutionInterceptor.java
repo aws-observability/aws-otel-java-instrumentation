@@ -19,43 +19,23 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
 
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.context.Scope;
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.*;
 
 public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
-  private final AdotAwsSdkInstrumenterFactory instrumenterFactory;
   private final FieldMapper fieldMapper = new FieldMapper();
-  private static final ExecutionAttribute<Scope> SCOPE_ATTRIBUTE =
-      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".Scope");
 
-  public AdotTracingExecutionInterceptor() {
-    // for instantiation
-    this.instrumenterFactory = new AdotAwsSdkInstrumenterFactory();
-  }
+  public AdotTracingExecutionInterceptor() {}
 
   @Override
   public void beforeTransmission(
       Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
     System.out.println("modifyRequest !!!!!");
 
-    io.opentelemetry.context.Context parentOtelContext = io.opentelemetry.context.Context.current();
     SdkRequest request = context.request();
-
-    Instrumenter<ExecutionAttributes, Response> instrumenter =
-        instrumenterFactory.requestInstrumenter();
-
-    if (!instrumenter.shouldStart(parentOtelContext, executionAttributes)) {
-      // NB: We also skip injection in case we don't start.
-      return;
-    }
-
-    io.opentelemetry.context.Context otelContext =
-        instrumenter.start(parentOtelContext, executionAttributes);
-    final Span currentSpan = Span.current();
+    Span currentSpan = Span.current();
 
     System.out.println(currentSpan);
 
@@ -70,15 +50,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     } catch (Throwable throwable) {
-      //            instrumenter.end(otelContext, executionAttributes, null, throwable);
-      //            clearAttributes(executionAttributes);
-    }
-  }
-
-  private static void clearAttributes(ExecutionAttributes executionAttributes) {
-    Scope scope = executionAttributes.getAttribute(SCOPE_ATTRIBUTE);
-    if (scope != null) {
-      scope.close();
     }
   }
 }

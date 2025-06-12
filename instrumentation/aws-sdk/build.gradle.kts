@@ -21,17 +21,6 @@ plugins {
 
 base.archivesBaseName = "aws-instrumentation-awssdk-2.2"
 
-// configurations {
-//  /*
-//  We create a separate gradle configuration to grab a published Otel instrumentation agent.
-//  We don't need the agent during development of this extension module.
-//  This agent is used only during integration test.
-//   */
-//  create("otel") // Explicitly create the 'otel' configuration
-// }
-
-// val otelVersion = "2.11.0-adot1"
-
 dependencies {
 
   compileOnly("software.amazon.awssdk:json-utils:2.17.0")
@@ -56,8 +45,6 @@ dependencies {
   compileOnly("org.slf4j:slf4j-api:2.0.0")
   compileOnly("org.slf4j:slf4j-simple:2.0.0")
 
-  // add("otel", "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelVersion")
-
   // Test dependencies
   testImplementation("org.codehaus.groovy:groovy-all:3.0.9")
   testImplementation("org.spockframework:spock-core:2.0-groovy-3.0")
@@ -80,55 +67,3 @@ dependencies {
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
 }
-
-// sourceSets {
-//  main {
-//    java {
-//      srcDirs("aws-sdk/src/main/java")
-//    }
-//    resources {
-//      srcDirs("aws-sdk/src/main/resources")
-//    }
-//  }
-//  test {
-//    groovy {
-//      srcDirs("aws-sdk/src/test/groovy")
-//    }
-//  }
-// }
-
-// //Produces a copy of upstream javaagent with this extension jar included inside it
-// //The location of extension directory inside agent jar is hard-coded in the agent source code
-// tasks.register<Jar>("extendedAgent") {
-//  dependsOn(tasks.named("jar"))
-//
-//  dependsOn(configurations.named("otel")) // Ensure the upstream agent JAR is downloaded.
-//
-//  archiveFileName.set("opentelemetry-javaagent.jar") // Sets the name of the output JAR file.
-//
-//  // Resolve the otel JAR file during the configuration phase
-//  val otelJarFile = configurations.named("otel").get().singleFile
-//
-//  from(zipTree(otelJarFile)) // Unpacks the upstream OpenTelemetry agent into the new JAR.
-//  println("File type: ${otelJarFile::class}")
-//
-//  val projectJar = tasks.named<Jar>("jar").get().archiveFile.get().asFile
-//
-//  from(projectJar) {
-//    into("extensions") // Puts the JAR into the 'extensions' directory
-//  }
-//
-//  doFirst {
-//    manifest.from(
-//      zipTree(otelJarFile).matching {
-//        include("META-INF/MANIFEST.MF")
-//      }.singleFile,
-//    )
-//  }
-// }
-//
-// tasks {
-//  build {
-//    dependsOn("extendedAgent")
-//  }
-// }

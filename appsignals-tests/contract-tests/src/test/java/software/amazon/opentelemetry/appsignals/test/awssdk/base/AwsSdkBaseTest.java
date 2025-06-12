@@ -388,10 +388,6 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             rss -> {
               var span = rss.getSpan();
               var spanAttributes = span.getAttributesList();
-
-              System.out.println("Expected span attribute !!!!!");
-              System.out.println(spanAttributes);
-
               assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsSqsConsumerAttributes(
@@ -1387,10 +1383,6 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     String cloudformationIdentifier = null;
     // Consumer traces for SQS behave like a Server span (they create the local aws service
     // attributes), but have RPC attributes like a client span.
-    System.out.println("Before printing test traces !!!!!!!");
-    System.out.println(traces);
-    System.out.println("After printing test traces !!!!!!!");
-
     assertSpanConsumerAttributes(
         traces,
         "some-queue process",

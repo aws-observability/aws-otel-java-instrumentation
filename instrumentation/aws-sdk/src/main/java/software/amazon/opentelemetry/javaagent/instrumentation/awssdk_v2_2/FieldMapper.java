@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import software.amazon.awssdk.core.SdkRequest;
+import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.utils.StringUtils;
 
 class FieldMapper {
@@ -36,6 +37,14 @@ class FieldMapper {
     mapToAttributes(
         field -> sdkRequest.getValueForField(field, Object.class).orElse(null),
         FieldMapping.Type.REQUEST,
+        request,
+        span);
+  }
+
+  void mapToAttributes(SdkResponse sdkResponse, AwsSdkRequest request, Span span) {
+    mapToAttributes(
+        field -> sdkResponse.getValueForField(field, Object.class).orElse(null),
+        FieldMapping.Type.RESPONSE,
         request,
         span);
   }
