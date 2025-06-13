@@ -20,7 +20,6 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.*;
@@ -28,16 +27,14 @@ import software.amazon.awssdk.core.interceptor.*;
 public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
-  private final FieldMapper fieldMapper = new FieldMapper();
-
-  private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
-      new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
 
   private static final ExecutionAttribute<AwsSdkRequest> AWS_SDK_REQUEST_ATTRIBUTE =
       new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".AwsSdkRequest");
 
-  private static final ExecutionAttribute<Scope> SCOPE_ATTRIBUTE =
-      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".Scope");
+  private final FieldMapper fieldMapper = new FieldMapper();
+
+  private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
+      new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
 
   @Override
   public void beforeTransmission(
@@ -74,7 +71,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
       }
     } catch (Throwable throwable) {
       requestFinisher.finish(otelContext, executionAttributes, null, throwable);
-      clearAttributes(executionAttributes);
     }
   }
 
@@ -87,13 +83,6 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
     if (sdkRequest != null) {
       fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
-    }
-  }
-
-  private static void clearAttributes(ExecutionAttributes executionAttributes) {
-    Scope scope = executionAttributes.getAttribute(SCOPE_ATTRIBUTE);
-    if (scope != null) {
-      scope.close();
     }
   }
 

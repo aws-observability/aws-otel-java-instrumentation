@@ -56,7 +56,6 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesExtractor",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonPathResolver",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
@@ -95,11 +94,9 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
     return Collections.singletonList(new ResourceInjectingTypeInstrumentation());
   }
 
-  // Defines what to instrument
   public static class ResourceInjectingTypeInstrumentation implements TypeInstrumentation {
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {
-      // Matches AWS SDK client interface
       return named("software.amazon.awssdk.core.SdkClient");
     }
 
