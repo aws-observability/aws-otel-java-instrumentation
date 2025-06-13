@@ -56,6 +56,7 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesExtractor",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonPathResolver",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
