@@ -32,8 +32,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   private final FieldMapper fieldMapper = new FieldMapper();
 
   // This is the latest point we can obtain the Sdk Request after it is modified by the upstream
-  // TracingInterceptor.
-  // It ensures upstream handles the request and applies its changes first.
+  // TracingInterceptor. It ensures upstream handles the request and applies its changes first.
   @Override
   public void beforeTransmission(
       Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
@@ -59,10 +58,8 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   }
 
   // This is the earliest point we can obtain the Sdk Response before it is modified by the upstream
-  // interceptor.
-  // This ensures the execution attribute (AWS_SDK_REQUEST_ATTRIBUTE) added in by the interceptor is
-  // handled only by this
-  // interceptor, and not the upstream interceptor.
+  // interceptor. This ensures the execution attribute (AWS_SDK_REQUEST_ATTRIBUTE) added in by the
+  // interceptor is handled only by this interceptor, and not the upstream interceptor.
   @Override
   public void afterUnmarshalling(
       Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {

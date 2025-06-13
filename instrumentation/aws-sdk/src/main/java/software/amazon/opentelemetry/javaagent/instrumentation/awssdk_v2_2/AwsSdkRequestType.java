@@ -47,6 +47,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+/*
+ * This class contains both patching logic and copied OTel aws-sdk-2.2 code.
+ */
 enum AwsSdkRequestType {
   S3(request(AWS_BUCKET_NAME.getKey(), "Bucket")),
 
@@ -103,7 +106,7 @@ enum AwsSdkRequestType {
       request(AWS_LAMBDA_RESOURCE_ID.getKey(), "UUID"),
       response(AWS_LAMBDA_ARN.getKey(), "Configuration.FunctionArn"));
 
-  // Wrapping in unmodifiableMap
+  // Copied form OTel aws-sdk
   @SuppressWarnings("ImmutableEnumChecker")
   private final Map<FieldMapping.Type, List<FieldMapping>> fields;
 

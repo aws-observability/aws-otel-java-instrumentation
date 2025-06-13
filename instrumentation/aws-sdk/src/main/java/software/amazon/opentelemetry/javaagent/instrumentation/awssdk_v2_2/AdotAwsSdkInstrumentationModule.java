@@ -70,9 +70,9 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType");
   }
 
-  // This registers the upstream execution interceptors first, then the
-  // AdotTracingExecutionInterceptor. This ensures
-  // the upstream interceptor runs before ADOT's interceptor and maintains order.
+  // This registers the upstream execution interceptor first, and then the
+  // AdotTracingExecutionInterceptor. This ensures the upstream interceptor runs before ADOT's
+  // interceptor and maintains order.
   @Override
   public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
     helperResourceBuilder.register(

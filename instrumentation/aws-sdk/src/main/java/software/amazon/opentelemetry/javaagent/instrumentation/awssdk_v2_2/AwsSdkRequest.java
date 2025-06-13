@@ -37,13 +37,9 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import software.amazon.awssdk.core.SdkRequest;
 
-/**
- * Temporary solution - maps only DynamoDB attributes. Final solution should be generated from AWS
- * SDK automatically
- * (https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/2291).
+/*
+ * This class contains both patching logic and copied OTel aws-sdk-2.2 code.
  */
-// We match the actual name in the AWS SDK for better consistency with it and possible future
-// autogeneration.
 @SuppressWarnings("MemberName")
 enum AwsSdkRequest {
   // generic requests
