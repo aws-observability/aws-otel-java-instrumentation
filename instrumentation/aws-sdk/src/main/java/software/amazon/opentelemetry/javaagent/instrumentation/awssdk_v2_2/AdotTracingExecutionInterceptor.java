@@ -31,33 +31,18 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private final FieldMapper fieldMapper = new FieldMapper();
 
-  //  private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
-  //      new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
-
+  // This is the latest point we can obtain the Sdk Request after it is modified by the upstream
+  // TracingInterceptor.
+  // It ensures upstream handles the request and applies its changes first.
   @Override
   public void beforeTransmission(
       Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
 
-    //    io.opentelemetry.context.Context parentOtelContext =
-    // io.opentelemetry.context.Context.current();
     SdkRequest request = context.request();
-
-    //    Instrumenter<ExecutionAttributes, Response> instrumenter =
-    //        instrumenterFactory.requestInstrumenter();
-    //
-    //    if (!instrumenter.shouldStart(parentOtelContext, executionAttributes)) {
-    //      // NB: We also skip injection in case we don't start.
-    //      return;
-    //    }
-    //
-    //    RequestSpanFinisher requestFinisher = instrumenter::end;
-    //    io.opentelemetry.context.Context otelContext =
-    //        instrumenter.start(parentOtelContext, executionAttributes);
-
     Span currentSpan = Span.current();
-    System.out.println(currentSpan);
 
     try {
+      // Skip injection if Otel span is invalid
       if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
         AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
         if (awsSdkRequest != null) {
@@ -69,10 +54,15 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     } catch (Throwable throwable) {
-      //      requestFinisher.finish(otelContext, executionAttributes, null, throwable);
+      // ignore
     }
   }
 
+  // This is the earliest point we can obtain the Sdk Response before it is modified by the upstream
+  // interceptor.
+  // This ensures the execution attribute (AWS_SDK_REQUEST_ATTRIBUTE) added in by the interceptor is
+  // handled only by this
+  // interceptor, and not the upstream interceptor.
   @Override
   public void afterUnmarshalling(
       Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {
@@ -84,12 +74,4 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
       fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
     }
   }
-
-  //  private interface RequestSpanFinisher {
-  //    void finish(
-  //        io.opentelemetry.context.Context otelContext,
-  //        ExecutionAttributes executionAttributes,
-  //        Response response,
-  //        Throwable exception);
-  //  }
 }
