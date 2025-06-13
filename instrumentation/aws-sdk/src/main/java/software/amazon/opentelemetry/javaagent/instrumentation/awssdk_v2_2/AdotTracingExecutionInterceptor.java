@@ -18,9 +18,7 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_SYSTEM;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKRUNTIME;
 
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.*;
 
@@ -33,27 +31,28 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private final FieldMapper fieldMapper = new FieldMapper();
 
-  private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
-      new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
+  //  private final AdotAwsSdkInstrumenterFactory instrumenterFactory =
+  //      new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
 
   @Override
   public void beforeTransmission(
       Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
 
-    io.opentelemetry.context.Context parentOtelContext = io.opentelemetry.context.Context.current();
+    //    io.opentelemetry.context.Context parentOtelContext =
+    // io.opentelemetry.context.Context.current();
     SdkRequest request = context.request();
 
-    Instrumenter<ExecutionAttributes, Response> instrumenter =
-        instrumenterFactory.requestInstrumenter();
-
-    if (!instrumenter.shouldStart(parentOtelContext, executionAttributes)) {
-      // NB: We also skip injection in case we don't start.
-      return;
-    }
-
-    RequestSpanFinisher requestFinisher = instrumenter::end;
-    io.opentelemetry.context.Context otelContext =
-        instrumenter.start(parentOtelContext, executionAttributes);
+    //    Instrumenter<ExecutionAttributes, Response> instrumenter =
+    //        instrumenterFactory.requestInstrumenter();
+    //
+    //    if (!instrumenter.shouldStart(parentOtelContext, executionAttributes)) {
+    //      // NB: We also skip injection in case we don't start.
+    //      return;
+    //    }
+    //
+    //    RequestSpanFinisher requestFinisher = instrumenter::end;
+    //    io.opentelemetry.context.Context otelContext =
+    //        instrumenter.start(parentOtelContext, executionAttributes);
 
     Span currentSpan = Span.current();
     System.out.println(currentSpan);
@@ -70,7 +69,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
         }
       }
     } catch (Throwable throwable) {
-      requestFinisher.finish(otelContext, executionAttributes, null, throwable);
+      //      requestFinisher.finish(otelContext, executionAttributes, null, throwable);
     }
   }
 
@@ -86,11 +85,11 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
     }
   }
 
-  private interface RequestSpanFinisher {
-    void finish(
-        io.opentelemetry.context.Context otelContext,
-        ExecutionAttributes executionAttributes,
-        Response response,
-        Throwable exception);
-  }
+  //  private interface RequestSpanFinisher {
+  //    void finish(
+  //        io.opentelemetry.context.Context otelContext,
+  //        ExecutionAttributes executionAttributes,
+  //        Response response,
+  //        Throwable exception);
+  //  }
 }
