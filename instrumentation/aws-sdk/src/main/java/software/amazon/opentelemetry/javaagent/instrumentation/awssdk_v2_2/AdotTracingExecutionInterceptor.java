@@ -23,9 +23,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.*;
-import software.amazon.awssdk.http.SdkHttpResponse;
 
 public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
@@ -36,17 +34,10 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
       new AdotAwsSdkInstrumenterFactory(GlobalOpenTelemetry.get());
 
   private static final ExecutionAttribute<AwsSdkRequest> AWS_SDK_REQUEST_ATTRIBUTE =
-      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".awsSdkRequest");
-
-  private static final ExecutionAttribute<io.opentelemetry.context.Context> CONTEXT_ATTRIBUTE =
-      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".Context");
+      new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".AwsSdkRequest");
 
   private static final ExecutionAttribute<Scope> SCOPE_ATTRIBUTE =
       new ExecutionAttribute<>(AdotTracingExecutionInterceptor.class.getName() + ".Scope");
-
-  private static final ExecutionAttribute<RequestSpanFinisher> REQUEST_FINISHER_ATTRIBUTE =
-      new ExecutionAttribute<>(
-          AdotTracingExecutionInterceptor.class.getName() + ".RequestFinisher");
 
   @Override
   public void beforeTransmission(
@@ -91,33 +82,12 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
   public void afterUnmarshalling(
       Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {
 
-    //    io.opentelemetry.context.Context otelContext = getContext(executionAttributes);
-    //    if (otelContext != null) {
-
     Span currentSpan = Span.current();
-    onSdkResponse(currentSpan, context.response(), executionAttributes);
-
-    SdkHttpResponse httpResponse = context.httpResponse();
-
-    //      RequestSpanFinisher finisher =
-    // executionAttributes.getAttribute(REQUEST_FINISHER_ATTRIBUTE);
-    //      finisher.finish(
-    //          otelContext, executionAttributes, new Response(httpResponse, context.response()),
-    // null);
-    //    }
-    //    clearAttributes(executionAttributes);
-  }
-
-  private void onSdkResponse(
-      Span span, SdkResponse response, ExecutionAttributes executionAttributes) {
     AwsSdkRequest sdkRequest = executionAttributes.getAttribute(AWS_SDK_REQUEST_ATTRIBUTE);
-    if (sdkRequest != null) {
-      fieldMapper.mapToAttributes(response, sdkRequest, span);
-    }
-  }
 
-  static io.opentelemetry.context.Context getContext(ExecutionAttributes attributes) {
-    return attributes.getAttribute(CONTEXT_ATTRIBUTE);
+    if (sdkRequest != null) {
+      fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
+    }
   }
 
   private static void clearAttributes(ExecutionAttributes executionAttributes) {
