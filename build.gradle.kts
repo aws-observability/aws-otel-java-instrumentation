@@ -29,6 +29,15 @@ plugins {
   id("com.gradleup.shadow") apply false
 }
 
+configurations {
+  /*
+  We create a separate gradle configuration to grab a published Otel instrumentation agent.
+  We don't need the agent during development of this extension module.
+  This agent is used only during integration test.
+   */
+  create("otel") // Explicitly create the 'otel' configuration
+}
+
 release {
   defaultVersionStrategy = Strategies.getSNAPSHOT()
 }
