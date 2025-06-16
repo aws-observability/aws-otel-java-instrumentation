@@ -50,8 +50,8 @@ To avoid incurring unnecessary charges, remember to destroy the resources when y
 terraform destroy
 ```
 
-#### (Optional) Instrumenting with Application Signals Lambda Layer
-You can choose to instrument the Lambda function with Application Signals Lambda Layer upon deployment by passing in the layer ARN to the `adot_layer_arn` variable.
+#### (Optional) Instrumenting with AWS Lambda Layer for OpenTelemetry Java
+You can choose to instrument the Lambda function with AWS Lambda Layer for OpenTelemetry Java upon deployment by passing in the layer ARN to the `adot_layer_arn` variable.
 You must have the layer already published to your account before executing the following command.
 ```bash
 terraform apply -var "adot_layer_arn=<APPLICATION_SIGNALS_LAYER_FULL_ARN_WITH_VERSION>"
