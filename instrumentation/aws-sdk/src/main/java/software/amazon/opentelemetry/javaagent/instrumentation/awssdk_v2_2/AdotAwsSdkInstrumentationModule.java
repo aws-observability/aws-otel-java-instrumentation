@@ -49,25 +49,22 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
     return Arrays.asList(
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor",
         // other helper classes as needed
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor$RequestSpanFinisher",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotAwsSdkInstrumenterFactory",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.Response",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesExtractor",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonPathResolver",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$LlmJson",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonParser",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory$1",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.Serializer",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonParser",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType$AttributeKeys",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsJsonProtocolFactoryAccess",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType");
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType$AttributeKeys");
   }
 
   // This registers the upstream execution interceptor first, and then the
