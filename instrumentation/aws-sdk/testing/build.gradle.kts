@@ -20,39 +20,31 @@ plugins {
   id("com.gradleup.shadow")
 }
 
-val awsSdkVersion = "2.2.0"
-val otelVersion = "2.11.0-adot1"
-
 dependencies {
-  api("io.opentelemetry.javaagent:opentelemetry-testing-common:$otelVersion-alpha")
+  api("io.opentelemetry.javaagent:opentelemetry-testing-common")
 
-  api("software.amazon.awssdk:apache-client:$awsSdkVersion")
+  api("software.amazon.awssdk:apache-client:2.2.0")
   api("software.amazon.awssdk:netty-nio-client:2.11.0")
 
-  // Change these from compileOnly to implementation for testing
-  implementation("software.amazon.awssdk:aws-core:$awsSdkVersion")
-  implementation("software.amazon.awssdk:sdk-core:$awsSdkVersion")
-  implementation("software.amazon.awssdk:dynamodb:$awsSdkVersion")
-  implementation("software.amazon.awssdk:ec2:$awsSdkVersion")
-  implementation("software.amazon.awssdk:kinesis:$awsSdkVersion")
-  implementation("software.amazon.awssdk:lambda:$awsSdkVersion")
-  implementation("software.amazon.awssdk:rds:$awsSdkVersion")
-  implementation("software.amazon.awssdk:s3:$awsSdkVersion")
-  implementation("software.amazon.awssdk:sqs:$awsSdkVersion")
-  implementation("software.amazon.awssdk:sns:$awsSdkVersion")
-  implementation("software.amazon.awssdk:ses:$awsSdkVersion")
-  implementation("software.amazon.awssdk:sfn:$awsSdkVersion")
-  implementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
+  // AWS SDK dependencies for version 2.2.0
+  implementation("software.amazon.awssdk:aws-core:2.2.0")
+  implementation("software.amazon.awssdk:sdk-core:2.2.0")
+  implementation("software.amazon.awssdk:dynamodb:2.2.0")
+  implementation("software.amazon.awssdk:ec2:2.2.0")
+  implementation("software.amazon.awssdk:kinesis:2.2.0")
+  implementation("software.amazon.awssdk:lambda:2.2.0")
+  implementation("software.amazon.awssdk:rds:2.2.0")
+  implementation("software.amazon.awssdk:s3:2.2.0")
+  implementation("software.amazon.awssdk:sqs:2.2.0")
+  implementation("software.amazon.awssdk:sns:2.2.0")
+  implementation("software.amazon.awssdk:ses:2.2.0")
+  implementation("software.amazon.awssdk:sfn:2.2.0")
+  implementation("software.amazon.awssdk:secretsmanager:2.2.0")
 
   implementation("com.google.guava:guava")
   implementation("org.apache.groovy:groovy")
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("org.spockframework:spock-core")
-}
-
-// Add this to handle duplicates of AbstractAwsClientCoreTest (keeps first occurance)
-tasks.withType<Jar> {
-  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 sourceSets {

@@ -24,15 +24,15 @@ base.archivesBaseName = "aws-instrumentation-awssdk-2.2"
 dependencies {
 
   compileOnly("software.amazon.awssdk:json-utils:2.17.0")
-
-  compileOnly("com.google.auto.service:auto-service:1.1.1")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
+  // OpenTelemetry dependencies
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
   compileOnly("io.opentelemetry:opentelemetry-sdk")
   compileOnly("io.opentelemetry:opentelemetry-api")
 
+  // AWS SDK dependencies for version 2.2.0
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
   compileOnly("software.amazon.awssdk:sns:2.2.0")
   compileOnly("software.amazon.awssdk:sqs:2.2.0")
@@ -41,9 +41,6 @@ dependencies {
   compileOnly("software.amazon.awssdk:sfn:2.2.0")
   compileOnly("software.amazon.awssdk:lambda:2.2.0")
   compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
-
-  compileOnly("org.slf4j:slf4j-api:2.0.0")
-  compileOnly("org.slf4j:slf4j-simple:2.0.0")
 
   // Test dependencies
   testImplementation("org.codehaus.groovy:groovy-all:3.0.9")

@@ -47,6 +47,9 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.concurrent.Future
 
+/*
+ * This class contains both patching logic and copied OTel aws-sdk-2.2 code.
+ */
 @Unroll
 abstract class AbstractAws2ClientTest extends AbstractAws2ClientCoreTest {
   static final String QUEUE_URL = "http://xxx/somequeue"

@@ -40,8 +40,8 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
 
   @Override
   public int order() {
-    // Ensure this runs after OTel
-    return 1;
+    // Ensure this runs after OTel (> 0)
+    return 99;
   }
 
   @Override
