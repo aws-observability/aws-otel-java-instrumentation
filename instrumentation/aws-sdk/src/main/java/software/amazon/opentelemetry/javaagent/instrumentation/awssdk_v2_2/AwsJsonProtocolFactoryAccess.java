@@ -27,6 +27,9 @@ import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.protocols.core.OperationInfo;
 import software.amazon.awssdk.protocols.core.ProtocolMarshaller;
 
+/*
+ * This class is copied from OTel's aws-sdk-2.2
+ */
 final class AwsJsonProtocolFactoryAccess {
 
   private static final OperationInfo OPERATION_INFO =

@@ -18,79 +18,86 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
-import com.google.auto.service.AutoService;
 import io.opentelemetry.javaagent.extension.instrumentation.HelperResourceBuilder;
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import io.opentelemetry.javaagent.extension.instrumentation.internal.ExperimentalInstrumentationModule;
+import io.opentelemetry.javaagent.extension.instrumentation.internal.injection.ClassInjector;
+import io.opentelemetry.javaagent.extension.instrumentation.internal.injection.InjectionMode;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumentationModule.class)
-public class AwsSdkInstrumentationModule extends InstrumentationModule {
+public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
+    implements ExperimentalInstrumentationModule {
 
-  public AwsSdkInstrumentationModule() {
-    super("aws-sdk", "aws-sdk-2.2", "aws-sdk-2.2-core");
+  public AdotAwsSdkInstrumentationModule() {
+    super("aws-sdk-adot", "aws-sdk-2.2-adot");
   }
 
   @Override
   public int order() {
-    // Ensure this runs after OTel
-    return 1;
-  }
-
-  @Override // Need
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // We don't actually transform it but want to make sure we only apply the instrumentation when
-    // our key dependency is present.
-    return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
+    // Ensure this runs after OTel (> 0)
+    return 99;
   }
 
   @Override
   public List<String> getAdditionalHelperClassNames() {
     return Arrays.asList(
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor",
         // other helper classes as needed
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.TracingExecutionInterceptor$RequestSpanFinisher",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor$RequestSpanFinisher",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkInstrumenterFactory",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapping$Type",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesExtractor",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonPathResolver",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$LlmJson",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonParser",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.MethodHandleFactory$1",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.Serializer",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser$JsonParser",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType$AttributeKeys",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsJsonProtocolFactoryAccess",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParser",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.Response");
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType$AttributeKeys");
+  }
+
+  // This registers the upstream execution interceptor first, and then the
+  // AdotTracingExecutionInterceptor. This ensures the upstream interceptor runs before ADOT's
+  // interceptor and maintains order.
+  @Override
+  public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
+    helperResourceBuilder.register(
+        "software/amazon/awssdk/global/handlers/execution.interceptors",
+        "software/amazon/awssdk/global/handlers/execution.interceptors.adot");
   }
 
   @Override
-  public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
-    String resourcePath = "software/amazon/awssdk/global/handlers/execution.interceptors";
-    helperResourceBuilder.register(resourcePath);
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
+  }
+
+  @Override
+  public void injectClasses(final ClassInjector injector) {
+    injector
+        .proxyBuilder(
+            "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor")
+        .inject(InjectionMode.CLASS_ONLY);
   }
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
-    return Collections.singletonList(new AwsSdkClientInstrumentation());
+    return Collections.singletonList(new ResourceInjectingTypeInstrumentation());
   }
 
-  // Defines what to instrument
-  public static class AwsSdkClientInstrumentation implements TypeInstrumentation {
+  public static class ResourceInjectingTypeInstrumentation implements TypeInstrumentation {
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {
-      // Matches AWS SDK client interface
       return named("software.amazon.awssdk.core.SdkClient");
     }
 

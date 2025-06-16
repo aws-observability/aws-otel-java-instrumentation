@@ -34,6 +34,9 @@ import spock.lang.Unroll
 
 import java.util.concurrent.Future
 
+/*
+ * This class is copied from OTel's aws-sdk-2.2
+ */
 @Unroll
 abstract class AbstractAws2ClientCoreTest extends InstrumentationSpecification {
   static boolean isSqsAttributeInjectionEnabled() {

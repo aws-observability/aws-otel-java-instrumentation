@@ -17,11 +17,7 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import software.amazon.awssdk.core.SdkBytes;
@@ -32,6 +28,9 @@ import software.amazon.awssdk.protocols.core.ProtocolMarshaller;
 import software.amazon.awssdk.utils.IoUtils;
 import software.amazon.awssdk.utils.StringUtils;
 
+/*
+ * This class contains both patching logic and copied OTel aws-sdk-2.2 code.
+ */
 class Serializer {
 
   @Nullable
@@ -44,6 +43,7 @@ class Serializer {
     if (target instanceof SdkPojo) {
       return serialize((SdkPojo) target);
     }
+
     if (target instanceof Collection) {
       return serialize((Collection<?>) target);
     }

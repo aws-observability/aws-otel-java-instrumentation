@@ -19,6 +19,9 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.opentelemetry.api.common.AttributeKey;
 
+/*
+ * This is a new class created during ADOT git patching.
+ */
 final class AwsExperimentalAttributes {
   static final AttributeKey<String> AWS_BUCKET_NAME = stringKey("aws.bucket.name");
   static final AttributeKey<String> AWS_QUEUE_URL = stringKey("aws.queue.url");
