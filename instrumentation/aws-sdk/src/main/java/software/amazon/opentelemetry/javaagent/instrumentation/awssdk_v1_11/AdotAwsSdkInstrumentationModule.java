@@ -20,6 +20,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,12 +37,18 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule {
     return 99;
   }
 
-  //  @Override
-  //  public List<String> getAdditionalHelperClassNames() {
-  //    return Collections.singletonList(
-  //
-  // "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AdotTracingRequestHandler");
-  //  }
+  @Override
+  public List<String> getAdditionalHelperClassNames() {
+    System.out.println("ADOT in getAdditionalHelperClassNames");
+    return Arrays.asList(
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AdotTracingRequestHandler",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsSdkExperimentalAttributesExtractor",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsExperimentalAttributes",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsBedrockResourceType",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.BedrockJsonParser",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.RequestAccess",
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.RequestAccess$1");
+  }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {

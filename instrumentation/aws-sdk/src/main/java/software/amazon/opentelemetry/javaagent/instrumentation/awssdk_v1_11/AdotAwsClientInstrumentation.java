@@ -28,18 +28,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class AdotAwsClientInstrumentation implements TypeInstrumentation {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-
-    System.out.println("Type matcher called for AmazonWebServiceClient");
-
     return named("com.amazonaws.AmazonWebServiceClient")
         .and(declaresField(named("requestHandler2s")));
   }
 
   @Override
   public void transform(TypeTransformer transformer) {
-
-    System.out.println("Transforming AmazonWebServiceClient");
-
     transformer.applyAdviceToMethod(
         isConstructor(), AdotAwsClientInstrumentation.class.getName() + "$AdotAwsClientAdvice");
   }
@@ -51,10 +45,10 @@ public class AdotAwsClientInstrumentation implements TypeInstrumentation {
     public static void addHandler(
         @Advice.FieldValue(value = "requestHandler2s", readOnly = false)
             List<RequestHandler2> handlers) {
-      System.out.println("Current handlers before ADOT: {}" + handlers);
+      //      System.out.println("Current handlers before ADOT: {}" + handlers);
 
       if (handlers == null) {
-        System.out.println("Handlers list is null");
+        //        System.out.println("Handlers list is null");
         return;
       }
 
@@ -68,29 +62,29 @@ public class AdotAwsClientInstrumentation implements TypeInstrumentation {
             .contains(
                 "io.opentelemetry.javaagent.instrumentation.awssdk.v1_11.TracingRequestHandler")) {
           hasOtelHandler = true;
-          System.out.println("has Otel Handler");
+          //          System.out.println("has Otel Handler");
         }
 
         if (handler instanceof AdotTracingRequestHandler) {
           hasAdotHandler = true;
-          System.out.println("has Adot Handler");
+          //          System.out.println("has Adot Handler");
           break;
         }
       }
 
-      System.out.println(hasOtelHandler);
-      System.out.println(hasAdotHandler);
-
-      System.out.println("Current handlers before ADOT: {}" + handlers);
+      //      System.out.println(hasOtelHandler);
+      //      System.out.println(hasAdotHandler);
+      //
+      //      System.out.println("Current handlers before ADOT: {}" + handlers);
 
       // Only add our handler if OTel's is present and ours isn't
       if (hasOtelHandler && !hasAdotHandler) {
-        System.out.println("adding handler");
+        //        System.out.println("adding handler");
         handlers.add(new AdotTracingRequestHandler());
-        System.out.println("after adding handler:" + handlers);
+        //        System.out.println("after adding handler:" + handlers);
       }
 
-      System.out.println("Final handlers before ADOT: {}" + handlers);
+      //      System.out.println("Final handlers before ADOT: {}" + handlers);
     }
   }
 }

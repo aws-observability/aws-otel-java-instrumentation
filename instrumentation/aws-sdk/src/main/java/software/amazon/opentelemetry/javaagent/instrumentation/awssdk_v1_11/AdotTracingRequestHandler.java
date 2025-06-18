@@ -28,17 +28,11 @@ public class AdotTracingRequestHandler extends RequestHandler2 {
   private final AwsSdkExperimentalAttributesExtractor experimentalAttributesExtractor;
 
   public AdotTracingRequestHandler() {
-    System.out.println("Starting AdotTracingRequestHandler constructor");
-    try {
-      System.out.println("Creating experimentalAttributesExtractor");
-      this.experimentalAttributesExtractor = new AwsSdkExperimentalAttributesExtractor();
-      System.out.println("Successfully created experimentalAttributesExtractor");
-    } catch (Exception e) {
-      System.out.println("Error in constructor: " + e);
-      e.printStackTrace(System.out);
-      throw e; // Re-throw to see the error in the advice
-    }
-    System.out.println("Completed AdotTracingRequestHandler constructor");
+    //    System.out.println("Starting AdotTracingRequestHandler constructor");
+
+    this.experimentalAttributesExtractor = new AwsSdkExperimentalAttributesExtractor();
+
+    //    System.out.println("Successfully created experimentalAttributesExtractor");
   }
 
   @Override
@@ -78,10 +72,5 @@ public class AdotTracingRequestHandler extends RequestHandler2 {
           .forEach(
               (key, value) -> currentSpan.setAttribute((AttributeKey<String>) key, (String) value));
     }
-  }
-
-  @Override
-  public void afterError(Request<?> request, Response<?> response, Exception e) {
-    // Your instrumentation logic here
   }
 }

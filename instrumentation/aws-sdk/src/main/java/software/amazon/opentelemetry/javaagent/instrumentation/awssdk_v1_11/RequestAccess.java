@@ -26,6 +26,9 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
+/*
+ * This class contains both patching logic and copied OTel aws-sdk-1.11 code.
+ */
 final class RequestAccess {
 
   private static final ClassValue<RequestAccess> REQUEST_ACCESSORS =

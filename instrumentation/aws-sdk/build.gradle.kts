@@ -47,14 +47,9 @@ dependencies {
   compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
 
   // Test dependencies
+  testImplementation(project(":instrumentation:aws-sdk:testing"))
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
-  testImplementation("org.codehaus.groovy:groovy-all:3.0.9")
-  testImplementation("org.spockframework:spock-core:2.0-groovy-3.0")
-  testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
-  testImplementation("org.mockito:mockito-core:3.12.4")
-  testImplementation("org.assertj:assertj-core:3.24.2")
-  testImplementation("org.mockito:mockito-junit-jupiter:3.12.4")
 
   // AWS SDK v1.11 test dependencies
   testImplementation("com.amazonaws:aws-java-sdk-sqs:1.11.106")
