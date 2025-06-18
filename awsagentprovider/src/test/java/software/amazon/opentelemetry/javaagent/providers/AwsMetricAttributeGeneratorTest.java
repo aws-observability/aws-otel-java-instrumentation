@@ -768,187 +768,125 @@ class AwsMetricAttributeGeneratorTest {
   @Test
   public void testSdkClientSpanWithRemoteResourceAttributes() {
     mockAttribute(RPC_SYSTEM, "aws-api");
-    // Validate behaviour of aws bucket name attribute, then remove it.
-    mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
     mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
     mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
+    // Validate behaviour of aws bucket name attribute, then remove it.
+    mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "aws_s3_bucket_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_BUCKET_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_QUEUE_NAME attribute, then remove it.
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_QUEUE_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove
     // them. Queue name is more reliable than queue URL, so we prefer to use name over URL.
     mockAttribute(AWS_QUEUE_URL, "https://sqs.us-east-2.amazonaws.com/123456789012/Queue");
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-2"));
     mockAttribute(AWS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Valid queue name with invalid queue URL, we should default to using the queue name.
     mockAttribute(AWS_QUEUE_URL, "invalidUrl");
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_STREAM_NAME attribute, then remove it.
     mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Kinesis::Stream", "aws_stream_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_STREAM_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_STREAM_ARN attribute, then remove it.
     mockAttribute(AWS_STREAM_ARN, "arn:aws:kinesis:us-east-1:123456789012:stream/test_stream");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Kinesis::Stream", "test_stream");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_STREAM_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_TABLE_NAME attribute, then remove it.
     mockAttribute(AWS_TABLE_NAME, "aws_table_name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_TABLE_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_TABLE_NAME attribute with special chars(|), then remove it.
     mockAttribute(AWS_TABLE_NAME, "aws_table|name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^|name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_TABLE_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_TABLE_NAME attribute with special chars(^), then remove it.
     mockAttribute(AWS_TABLE_NAME, "aws_table^name");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^^name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_TABLE_NAME, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_TABLE_ARN attribute, then remove it.
     mockAttribute(AWS_TABLE_ARN, "arn:aws:dynamodb:us-east-1:123456789012:table/test_table");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "test_table");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_TABLE_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute, then remove it.
     mockAttribute(AWS_AGENT_ID, "test_agent_id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_AGENT_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_BEDROCK_AGENT_ID attribute with special chars(^), then remove it.
     mockAttribute(AWS_AGENT_ID, "test_agent_^id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::Agent", "test_agent_^^id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_AGENT_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_KNOWLEDGE_BASE_ID attribute, then remove it.
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_KNOWLEDGE_BASE_ID attribute with special chars(^), then remove it.
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, "test_knowledgeBase_^id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::KnowledgeBase", "test_knowledgeBase_^^id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_KNOWLEDGE_BASE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_DATA_SOURCE_ID attribute, then remove it.
     mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_DATA_SOURCE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_DATA_SOURCE_ID attribute with special chars(^), then remove
     // it.
     mockAttribute(AWS_DATA_SOURCE_ID, "test_datasource_^id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::DataSource", "test_datasource_^^id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_DATA_SOURCE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
     mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
@@ -965,13 +903,9 @@ class AwsMetricAttributeGeneratorTest {
           Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_GUARDRAIL_ID, null);
     mockAttribute(AWS_GUARDRAIL_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_GUARDRAIL_ID attribute with special chars(^), then remove it.
     mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_^id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_^^id");
     // Also test with ARN containing special chars to verify delimiter escaping in
     // cloudformationPrimaryIdentifier
@@ -990,26 +924,18 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of GEN_AI_REQUEST_MODEL attribute, then remove it.
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(GEN_AI_REQUEST_MODEL, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of GEN_AI_REQUEST_MODEL attribute with special chars(^), then
     // remove it.
     mockAttribute(GEN_AI_REQUEST_MODEL, "test.service_^id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Bedrock::Model", "test.service_^^id");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(GEN_AI_REQUEST_MODEL, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_STATE_MACHINE_ARN attribute, then remove it.
     mockAttribute(
@@ -1024,8 +950,6 @@ class AwsMetricAttributeGeneratorTest {
         "test_state_machine",
         "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
     mockAttribute(AWS_STATE_MACHINE_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_STEPFUNCTIONS_ACTIVITY_ARN, then remove it.
     mockAttribute(
@@ -1040,8 +964,6 @@ class AwsMetricAttributeGeneratorTest {
         "testActivity",
         "arn:aws:states:us-east-1:123456789012:activity:testActivity");
     mockAttribute(AWS_STEP_FUNCTIONS_ACTIVITY_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_SNS_TOPIC_ARN, then remove it.
     mockAttribute(AWS_SNS_TOPIC_ARN, "arn:aws:sns:us-west-2:012345678901:testTopic");
@@ -1052,8 +974,6 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAttributes(
         "AWS::SNS::Topic", "testTopic", "arn:aws:sns:us-west-2:012345678901:testTopic");
     mockAttribute(AWS_SNS_TOPIC_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_SECRET_ARN, then remove it.
     mockAttribute(
@@ -1067,8 +987,6 @@ class AwsMetricAttributeGeneratorTest {
         "secretName",
         "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
     mockAttribute(AWS_SECRET_ARN, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_LAMBDA_NAME for non-Invoke operations (treated as resource)
     mockAttribute(RPC_SERVICE, "Lambda");
@@ -1118,28 +1036,32 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of AWS_LAMBDA_RESOURCE_ID
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Lambda::EventSourceMapping", "eventSourceId");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Validate behaviour of AWS_LAMBDA_FUNCTION_NAME
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, "eventSourceId");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAttributes("AWS::Lambda::EventSourceMapping", "eventSourceId");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(AWS_LAMBDA_RESOURCE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     // Cross account support
+    // Invalid arn but account access key is available
+    mockAttribute(AWS_SECRET_ARN, "invalid_arn");
+    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
+    mockAttribute(AWS_SECRET_ARN, null);
+
+    // Invalid arn and no account access key
+    mockAttribute(AWS_SECRET_ARN, "invalid_arn");
+    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
+    mockAttribute(AWS_SECRET_ARN, null);
+
     // Both account access key and account id are not available
+    mockAttribute(AWS_AUTH_REGION, null);
+    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
     mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "aws_s3_bucket_name");
     validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
@@ -1168,20 +1090,6 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("invalid_region"));
     mockAttribute(AWS_SECRET_ARN, null);
-
-    // Invalid arn and no account access key
-    mockAttribute(AWS_SECRET_ARN, "invalid_arn");
-    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
-    mockAttribute(AWS_SECRET_ARN, null);
-
-    // Invalid arn but account access key is available
-    mockAttribute(AWS_SECRET_ARN, "invalid_arn");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
-    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
-    mockAttribute(AWS_LAMBDA_RESOURCE_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
 
     mockAttribute(RPC_SYSTEM, "null");
   }

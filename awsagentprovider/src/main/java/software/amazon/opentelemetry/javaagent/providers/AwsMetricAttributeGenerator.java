@@ -141,18 +141,6 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final String NORMALIZED_SECRETSMANAGER_SERVICE_NAME = "AWS::SecretsManager";
   private static final String NORMALIZED_LAMBDA_SERVICE_NAME = "AWS::Lambda";
 
-  // List of resource arns to extract cross-account information
-  private static final List<AttributeKey<String>> ARN_ATTRIBUTES =
-      List.of(
-          AWS_TABLE_ARN,
-          AWS_STREAM_ARN,
-          AWS_SNS_TOPIC_ARN,
-          AWS_SECRET_ARN,
-          AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
-          AWS_STATE_MACHINE_ARN,
-          AWS_GUARDRAIL_ARN,
-          AWS_LAMBDA_FUNCTION_ARN);
-
   // Constants for Lambda operations
   private static final String LAMBDA_INVOKE_OPERATION = "Invoke";
 
@@ -658,6 +646,16 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       SpanData span, AttributesBuilder builder) {
     Optional<String> remoteResourceAccountId = Optional.empty();
     Optional<String> remoteResourceRegion = Optional.empty();
+    List<AttributeKey<String>> ARN_ATTRIBUTES =
+        List.of(
+            AWS_TABLE_ARN,
+            AWS_STREAM_ARN,
+            AWS_SNS_TOPIC_ARN,
+            AWS_SECRET_ARN,
+            AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
+            AWS_STATE_MACHINE_ARN,
+            AWS_GUARDRAIL_ARN,
+            AWS_LAMBDA_FUNCTION_ARN);
 
     if (isKeyPresent(span, AWS_QUEUE_URL)) {
       String url = escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL));
