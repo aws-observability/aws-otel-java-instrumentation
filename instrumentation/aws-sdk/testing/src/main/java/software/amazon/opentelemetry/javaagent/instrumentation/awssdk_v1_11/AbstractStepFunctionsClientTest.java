@@ -30,6 +30,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+/*
+ * This is a new class created during ADOT git patching.
+ */
 public abstract class AbstractStepFunctionsClientTest extends AbstractBaseAwsClientTest {
 
   public abstract AWSStepFunctionsClientBuilder configureClient(
