@@ -39,7 +39,6 @@ dependencies {
   compileOnly("software.amazon.awssdk:lambda:2.2.0")
   compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
   compileOnly("software.amazon.awssdk:sfn:2.2.0")
-  compileOnly("software.amazon.awssdk:lambda:2.2.0")
   compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
 
   // Test dependencies

@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11;
 
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import com.amazonaws.handlers.HandlerAfterAttemptContext;
 import com.amazonaws.handlers.RequestHandler2;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -28,16 +29,11 @@ public class AdotTracingRequestHandler extends RequestHandler2 {
   private final AwsSdkExperimentalAttributesExtractor experimentalAttributesExtractor;
 
   public AdotTracingRequestHandler() {
-    //    System.out.println("Starting AdotTracingRequestHandler constructor");
-
     this.experimentalAttributesExtractor = new AwsSdkExperimentalAttributesExtractor();
-
-    //    System.out.println("Successfully created experimentalAttributesExtractor");
   }
 
   @Override
   public void beforeRequest(Request<?> request) {
-    System.out.println("HERE BEFORE REQUEST");
     Span currentSpan = Span.current();
     if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
       // Create attributes builder
@@ -55,22 +51,20 @@ public class AdotTracingRequestHandler extends RequestHandler2 {
   }
 
   @Override
-  public void afterResponse(Request<?> request, Response<?> response) {
+  public void afterAttempt(HandlerAfterAttemptContext context) {
     Span currentSpan = Span.current();
     if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
-      // Create attributes builder
+      Request<?> request = context.getRequest();
+      Response<?> response = context.getResponse();
+      Exception exception = context.getException();
+
       AttributesBuilder attributes = Attributes.builder();
-
-      // Extract experimental response attributes
       experimentalAttributesExtractor.onEnd(
-          attributes, Context.current(), request, response, null // no error
-          );
+          attributes, Context.current(), request, response, exception);
 
-      // Add all built attributes to the span
       attributes
           .build()
-          .forEach(
-              (key, value) -> currentSpan.setAttribute((AttributeKey<String>) key, (String) value));
+          .forEach((key, value) -> currentSpan.setAttribute(key.getKey(), value.toString()));
     }
   }
 }
