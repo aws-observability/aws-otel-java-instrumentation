@@ -29,8 +29,6 @@ dependencies {
   // OpenTelemetry dependencies
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
-  compileOnly("io.opentelemetry:opentelemetry-sdk")
-  compileOnly("io.opentelemetry:opentelemetry-api")
 
   // AWS SDK dependencies for version 1.11
   compileOnly("com.amazonaws:aws-java-sdk-core:1.11.0")
@@ -38,8 +36,6 @@ dependencies {
 
   // AWS SDK dependencies for version 2.2.0
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
-  compileOnly("software.amazon.awssdk:sns:2.2.0") // !!!
-  compileOnly("software.amazon.awssdk:sqs:2.2.0") // !!!
   compileOnly("software.amazon.awssdk:lambda:2.2.0")
   compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
   compileOnly("software.amazon.awssdk:sfn:2.2.0")
@@ -49,7 +45,6 @@ dependencies {
   // Test dependencies
   testImplementation(project(":instrumentation:aws-sdk:testing"))
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
-  testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
 
   // AWS SDK v1.11 test dependencies
   testImplementation("com.amazonaws:aws-java-sdk-sqs:1.11.106")

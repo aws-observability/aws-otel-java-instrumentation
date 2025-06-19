@@ -69,6 +69,7 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
 
     if (sdkRequest != null) {
       fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
+      //      executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, null);
     }
   }
 }
