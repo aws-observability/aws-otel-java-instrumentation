@@ -30,7 +30,7 @@ if [[ -f "$OTEL_JAVA_PATCH" ]]; then
   git commit -a -m "ADOT Patch release"
   cd -
 else
-  echo "Skiping patching opentelemetry-java"
+  echo "Skipping patching opentelemetry-java"
 fi
 
 
