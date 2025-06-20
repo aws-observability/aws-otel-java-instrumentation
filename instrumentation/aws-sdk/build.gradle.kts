@@ -34,13 +34,6 @@ dependencies {
   compileOnly("com.amazonaws:aws-java-sdk-core:1.11.0")
   compileOnly("com.amazonaws:aws-java-sdk-sqs:1.11.106")
 
-  // AWS SDK dependencies for version 2.2.0
-  compileOnly("software.amazon.awssdk:aws-core:2.2.0")
-  compileOnly("software.amazon.awssdk:lambda:2.2.0")
-  compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
-  compileOnly("software.amazon.awssdk:sfn:2.2.0")
-  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
-
   // Test dependencies
   testImplementation(project(":instrumentation:aws-sdk:testing"))
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
@@ -54,15 +47,4 @@ dependencies {
   testImplementation("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
   testImplementation("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
   testImplementation("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
-
-  // AWS SDK v2.2 test dependencies
-  testImplementation("software.amazon.awssdk:dynamodb:2.2.0")
-  testImplementation("software.amazon.awssdk:ec2:2.2.0")
-  testImplementation("software.amazon.awssdk:kinesis:2.2.0")
-  testImplementation("software.amazon.awssdk:rds:2.2.0")
-  testImplementation("software.amazon.awssdk:s3:2.2.0")
-  testImplementation("software.amazon.awssdk:ses:2.2.0")
-  testImplementation("software.amazon.awssdk:sfn:2.2.0")
-  testImplementation("software.amazon.awssdk:secretsmanager:2.2.0")
-  testImplementation("software.amazon.awssdk:lambda:2.2.0")
 }

@@ -32,17 +32,17 @@ public class AdotTracingRequestHandler extends RequestHandler2 {
     this.experimentalAttributesExtractor = new AwsSdkExperimentalAttributesExtractor();
   }
 
+  // This is the latest point where the sdk request can be obtained after it is modified by the
+  // upstream aws-sdk v1.11 handler. This ensures the upstream handles the request and applies its
+  // changes first.
   @Override
   public void beforeRequest(Request<?> request) {
     Span currentSpan = Span.current();
     if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
-      // Create attributes builder
-      AttributesBuilder attributes = Attributes.builder();
 
-      // Extract experimental attributes
+      AttributesBuilder attributes = Attributes.builder();
       experimentalAttributesExtractor.onStart(attributes, Context.current(), request);
 
-      // Add all built attributes to the span
       attributes
           .build()
           .forEach(
@@ -50,6 +50,9 @@ public class AdotTracingRequestHandler extends RequestHandler2 {
     }
   }
 
+  // This is the latest point to access the sdk response before the span closes in the upstream
+  // afterResponse/afterError methods. This ensures we capture attributes from the final, fully
+  // modified response after all upstream handlers have processed it.
   @Override
   public void afterAttempt(HandlerAfterAttemptContext context) {
     Span currentSpan = Span.current();

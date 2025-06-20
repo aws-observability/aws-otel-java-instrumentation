@@ -45,46 +45,33 @@ public class AdotAwsClientInstrumentation implements TypeInstrumentation {
     public static void addHandler(
         @Advice.FieldValue(value = "requestHandler2s", readOnly = false)
             List<RequestHandler2> handlers) {
-      //      System.out.println("Current handlers before ADOT: {}" + handlers);
 
       if (handlers == null) {
-        //        System.out.println("Handlers list is null");
         return;
       }
 
-      // Check if OTel handler is present
       boolean hasOtelHandler = false;
       boolean hasAdotHandler = false;
 
+      // Checks if OTel handler is present.
       for (RequestHandler2 handler : handlers) {
         if (handler
             .toString()
             .contains(
                 "io.opentelemetry.javaagent.instrumentation.awssdk.v1_11.TracingRequestHandler")) {
           hasOtelHandler = true;
-          //          System.out.println("has Otel Handler");
         }
-
         if (handler instanceof AdotTracingRequestHandler) {
           hasAdotHandler = true;
-          //          System.out.println("has Adot Handler");
           break;
         }
       }
 
-      //      System.out.println(hasOtelHandler);
-      //      System.out.println(hasAdotHandler);
-      //
-      //      System.out.println("Current handlers before ADOT: {}" + handlers);
-
-      // Only add our handler if OTel's is present and ours isn't
+      // Only adds our ADOT handler if OTel's is present and ours isn't. This ensures upstream
+      // instrumentation is applied first.
       if (hasOtelHandler && !hasAdotHandler) {
-        //        System.out.println("adding handler");
         handlers.add(new AdotTracingRequestHandler());
-        //        System.out.println("after adding handler:" + handlers);
       }
-
-      //      System.out.println("Final handlers before ADOT: {}" + handlers);
     }
   }
 }
