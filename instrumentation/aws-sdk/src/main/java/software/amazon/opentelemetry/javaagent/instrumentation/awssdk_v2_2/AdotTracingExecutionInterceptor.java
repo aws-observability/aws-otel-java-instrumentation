@@ -20,6 +20,7 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 
 import io.opentelemetry.api.trace.Span;
 import software.amazon.awssdk.core.SdkRequest;
+import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.*;
 
 public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
@@ -57,18 +58,19 @@ public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
     }
   }
 
-  // This is the earliest point we can obtain the Sdk Response before it is modified by the upstream
-  // interceptor. This ensures the execution attribute (AWS_SDK_REQUEST_ATTRIBUTE) added in by the
-  // interceptor is handled only by this interceptor, and not the upstream interceptor.
+  // This is the latest point we can obtain the Sdk Response before span completion in upstream's
+  // afterExecution. This ensures we capture attributes from the final, fully modified response
+  // after all upstream interceptors have processed it.
   @Override
-  public void afterUnmarshalling(
-      Context.AfterUnmarshalling context, ExecutionAttributes executionAttributes) {
-
+  public SdkResponse modifyResponse(
+      Context.ModifyResponse context, ExecutionAttributes executionAttributes) {
     Span currentSpan = Span.current();
     AwsSdkRequest sdkRequest = executionAttributes.getAttribute(AWS_SDK_REQUEST_ATTRIBUTE);
 
     if (sdkRequest != null) {
       fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
+      executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, null);
     }
+    return context.response();
   }
 }

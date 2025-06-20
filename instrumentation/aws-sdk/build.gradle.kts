@@ -19,7 +19,7 @@ plugins {
   id("com.gradleup.shadow")
 }
 
-base.archivesBaseName = "aws-instrumentation-awssdk-2.2"
+base.archivesBaseName = "aws-instrumentation-awssdk"
 
 dependencies {
 
@@ -29,28 +29,19 @@ dependencies {
   // OpenTelemetry dependencies
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
-  compileOnly("io.opentelemetry:opentelemetry-sdk")
-  compileOnly("io.opentelemetry:opentelemetry-api")
 
   // AWS SDK dependencies for version 2.2.0
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
-  compileOnly("software.amazon.awssdk:sns:2.2.0")
-  compileOnly("software.amazon.awssdk:sqs:2.2.0")
   compileOnly("software.amazon.awssdk:lambda:2.2.0")
   compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
   compileOnly("software.amazon.awssdk:sfn:2.2.0")
-  compileOnly("software.amazon.awssdk:lambda:2.2.0")
   compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
 
   // Test dependencies
-  testImplementation("org.codehaus.groovy:groovy-all:3.0.9")
-  testImplementation("org.spockframework:spock-core:2.0-groovy-3.0")
-  testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
-  testImplementation("org.mockito:mockito-core:3.12.4")
-  testImplementation("org.assertj:assertj-core:3.24.2")
-  testImplementation("org.mockito:mockito-junit-jupiter:3.12.4")
+  testImplementation(project(":instrumentation:aws-sdk:testing"))
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
 
-  // AWS SDK test dependencies
+  // AWS SDK test dependencies for version 2.2.0
   testImplementation("software.amazon.awssdk:dynamodb:2.2.0")
   testImplementation("software.amazon.awssdk:ec2:2.2.0")
   testImplementation("software.amazon.awssdk:kinesis:2.2.0")
@@ -60,7 +51,4 @@ dependencies {
   testImplementation("software.amazon.awssdk:sfn:2.2.0")
   testImplementation("software.amazon.awssdk:secretsmanager:2.2.0")
   testImplementation("software.amazon.awssdk:lambda:2.2.0")
-
-  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
-  testImplementation("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
 }

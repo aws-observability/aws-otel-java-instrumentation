@@ -27,30 +27,20 @@ dependencies {
   api("software.amazon.awssdk:netty-nio-client:2.11.0")
 
   // AWS SDK dependencies for version 2.2.0
-  implementation("software.amazon.awssdk:aws-core:2.2.0")
-  implementation("software.amazon.awssdk:sdk-core:2.2.0")
-  implementation("software.amazon.awssdk:dynamodb:2.2.0")
-  implementation("software.amazon.awssdk:ec2:2.2.0")
-  implementation("software.amazon.awssdk:kinesis:2.2.0")
-  implementation("software.amazon.awssdk:lambda:2.2.0")
-  implementation("software.amazon.awssdk:rds:2.2.0")
-  implementation("software.amazon.awssdk:s3:2.2.0")
-  implementation("software.amazon.awssdk:sqs:2.2.0")
-  implementation("software.amazon.awssdk:sns:2.2.0")
-  implementation("software.amazon.awssdk:ses:2.2.0")
-  implementation("software.amazon.awssdk:sfn:2.2.0")
-  implementation("software.amazon.awssdk:secretsmanager:2.2.0")
+  compileOnly("software.amazon.awssdk:aws-core:2.2.0")
+  compileOnly("software.amazon.awssdk:sdk-core:2.2.0")
+  compileOnly("software.amazon.awssdk:dynamodb:2.2.0")
+  compileOnly("software.amazon.awssdk:ec2:2.2.0")
+  compileOnly("software.amazon.awssdk:kinesis:2.2.0")
+  compileOnly("software.amazon.awssdk:lambda:2.2.0")
+  compileOnly("software.amazon.awssdk:rds:2.2.0")
+  compileOnly("software.amazon.awssdk:s3:2.2.0")
+  compileOnly("software.amazon.awssdk:sqs:2.2.0")
+  compileOnly("software.amazon.awssdk:sns:2.2.0")
+  compileOnly("software.amazon.awssdk:ses:2.2.0")
+  compileOnly("software.amazon.awssdk:sfn:2.2.0")
+  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
 
   implementation("com.google.guava:guava")
-  implementation("org.apache.groovy:groovy")
   implementation("io.opentelemetry:opentelemetry-api")
-  implementation("org.spockframework:spock-core")
-}
-
-sourceSets {
-  test {
-    groovy {
-      srcDirs("src/main/groovy")
-    }
-  }
 }

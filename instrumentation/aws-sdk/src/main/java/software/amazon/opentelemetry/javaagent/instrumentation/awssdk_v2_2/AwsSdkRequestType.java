@@ -97,8 +97,6 @@ enum AwsSdkRequestType {
       request(AWS_STATE_MACHINE_ARN.getKey(), "stateMachineArn"),
       request(AWS_STEP_FUNCTIONS_ACTIVITY_ARN.getKey(), "activityArn")),
 
-  //  SNS(request(AWS_SNS_TOPIC_ARN.getKey(), "TopicArn")),
-
   SECRETSMANAGER(response(AWS_SECRET_ARN.getKey(), "ARN")),
 
   LAMBDA(
