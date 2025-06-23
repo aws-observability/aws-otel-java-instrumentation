@@ -1,13 +1,12 @@
 ## ADOT AWS SDK Instrumentation
 
 ### Overview
-This instrumentation is an SPI-based implementation, in place of ADOT's git patches, to extend the AWS SDK within the upstream OpenTelemetry Instrumentation for Java. 
+The aws-sdk instrumentation is an SPI-based implementation that extends the AWS SDK within the upstream OpenTelemetry Instrumentation for Java. 
 This instrumentation:
 
 1. Leverages OpenTelemetry's InstrumentationModule extension mechanism
-2. Replaces Git patches with proper SPI implementation
-3. Ensures AWS-specific instrumentation runs after core OpenTelemetry instrumentation
-4. Maintains all existing functionality while improving ADOT maintainability
+2. Ensures AWS-specific instrumentation runs after core OpenTelemetry instrumentation
+3. Maintains all existing functionality while improving ADOT maintainability
 
 Benefits:
 
