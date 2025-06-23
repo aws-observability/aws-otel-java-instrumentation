@@ -41,6 +41,9 @@ public class AdotAwsClientInstrumentation implements TypeInstrumentation {
   @SuppressWarnings("unused")
   public static class AdotAwsClientAdvice {
 
+    private static final String OTEL_HANDLER_CLASS =
+        "io.opentelemetry.javaagent.instrumentation.awssdk.v1_11.TracingRequestHandler";
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(
         @Advice.FieldValue(value = "requestHandler2s", readOnly = false)
@@ -55,10 +58,7 @@ public class AdotAwsClientInstrumentation implements TypeInstrumentation {
 
       // Checks if OTel handler is present.
       for (RequestHandler2 handler : handlers) {
-        if (handler
-            .toString()
-            .contains(
-                "io.opentelemetry.javaagent.instrumentation.awssdk.v1_11.TracingRequestHandler")) {
+        if (handler.toString().contains(OTEL_HANDLER_CLASS)) {
           hasOtelHandler = true;
         }
         if (handler instanceof AdotTracingRequestHandler) {
