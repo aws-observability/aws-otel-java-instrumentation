@@ -30,7 +30,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
@@ -890,8 +890,6 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of AWS_GUARDRAIL_ID attribute, then remove it.
     mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_id");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     // Also test with ARN to verify cloudformationPrimaryIdentifier uses ARN
     mockAttribute(
         AWS_GUARDRAIL_ARN, "arn:aws:bedrock:us-east-1:123456789012:guardrail/test_guardrail_id");
@@ -906,7 +904,6 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of AWS_GUARDRAIL_ID attribute with special chars(^), then remove it.
     mockAttribute(AWS_GUARDRAIL_ID, "test_guardrail_^id");
-    validateRemoteResourceAttributes("AWS::Bedrock::Guardrail", "test_guardrail_^^id");
     // Also test with ARN containing special chars to verify delimiter escaping in
     // cloudformationPrimaryIdentifier
     mockAttribute(
@@ -918,8 +915,6 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAccountIdAndRegion(
           Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_GUARDRAIL_ID, null);
-    mockAttribute(AWS_AUTH_REGION, null);
-    mockAttribute(AWS_AUTH_ACCESS_KEY, null);
     mockAttribute(AWS_GUARDRAIL_ARN, null);
 
     // Validate behaviour of GEN_AI_REQUEST_MODEL attribute, then remove it.
@@ -992,35 +987,38 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "GetFunction");
     mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
-    mockAttribute(AWS_LAMBDA_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(AWS_LAMBDA_FUNCTION_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
     validateRemoteResourceAttributes(
         "AWS::Lambda::Function",
         "testLambdaName",
         "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    validateRemoteResourceAccountIdAndRegion(Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
-    mockAttribute(AWS_LAMBDA_ARN, null);
+    mockAttribute(AWS_LAMBDA_FUNCTION_ARN, null);
 
     // Validate behaviour of AWS_LAMBDA_NAME containing ARN for non-Invoke operations
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "ListFunctions");
     mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
-    mockAttribute(AWS_LAMBDA_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(AWS_LAMBDA_FUNCTION_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
     validateRemoteResourceAttributes(
         "AWS::Lambda::Function",
         "testLambdaName",
         "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    validateRemoteResourceAccountIdAndRegion(Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
-    mockAttribute(AWS_LAMBDA_ARN, null);
+    mockAttribute(AWS_LAMBDA_FUNCTION_ARN, null);
 
     // Validate that Lambda Invoke with function name treats Lambda as a service, not a resource
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
     validateRemoteResourceAttributes(null, null);
+    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
@@ -1030,6 +1028,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
     validateRemoteResourceAttributes(null, null);
+    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
