@@ -55,8 +55,8 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
@@ -604,7 +604,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
               getLambdaFunctionNameFromArn(
                   Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
           cloudformationPrimaryIdentifier =
-              Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_FUNCTION_ARN)));
+              Optional.ofNullable(
+                  escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_FUNCTION_ARN)));
         }
       } else if (isKeyPresent(span, AWS_LAMBDA_RESOURCE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
@@ -717,8 +718,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       }
     } catch (IllegalArgumentException e) {
       logger.log(
-              Level.FINE,
-            String.format("Could not parse Lambda resource name from ARN: %s", stringArn));
+          Level.FINE,
+          String.format("Could not parse Lambda resource name from ARN: %s", stringArn));
     }
     return stringArn;
   }

@@ -898,7 +898,7 @@ class AwsMetricAttributeGeneratorTest {
         "test_guardrail_id",
         "arn:aws:bedrock:us-east-1:123456789012:guardrail/test_guardrail_id");
     validateRemoteResourceAccountIdAndRegion(
-          Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
+        Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_GUARDRAIL_ID, null);
     mockAttribute(AWS_GUARDRAIL_ARN, null);
 
@@ -913,7 +913,7 @@ class AwsMetricAttributeGeneratorTest {
         "test_guardrail_^^id",
         "arn:aws:bedrock:us-east-1:123456789012:guardrail/test_guardrail_^^id");
     validateRemoteResourceAccountIdAndRegion(
-          Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
+        Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_GUARDRAIL_ID, null);
     mockAttribute(AWS_GUARDRAIL_ARN, null);
 
@@ -936,8 +936,6 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(
         AWS_STATE_MACHINE_ARN,
         "arn:aws:states:us-east-1:123456789012:stateMachine:test_state_machine");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     validateRemoteResourceAttributes(
@@ -962,8 +960,6 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of AWS_SNS_TOPIC_ARN, then remove it.
     mockAttribute(AWS_SNS_TOPIC_ARN, "arn:aws:sns:us-west-2:012345678901:testTopic");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("012345678901"), Optional.empty(), Optional.of("us-west-2"));
     validateRemoteResourceAttributes(
@@ -973,8 +969,6 @@ class AwsMetricAttributeGeneratorTest {
     // Validate behaviour of AWS_SECRET_ARN, then remove it.
     mockAttribute(
         AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
-    mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
-    mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     validateRemoteResourceAttributes(
@@ -987,12 +981,14 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "GetFunction");
     mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
-    mockAttribute(AWS_LAMBDA_FUNCTION_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(
+        AWS_LAMBDA_FUNCTION_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
     validateRemoteResourceAttributes(
         "AWS::Lambda::Function",
         "testLambdaName",
         "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
-    validateRemoteResourceAccountIdAndRegion(Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
+    validateRemoteResourceAccountIdAndRegion(
+        Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
@@ -1002,12 +998,14 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "ListFunctions");
     mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
-    mockAttribute(AWS_LAMBDA_FUNCTION_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
+    mockAttribute(
+        AWS_LAMBDA_FUNCTION_ARN, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
     validateRemoteResourceAttributes(
         "AWS::Lambda::Function",
         "testLambdaName",
         "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
-    validateRemoteResourceAccountIdAndRegion(Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
+    validateRemoteResourceAccountIdAndRegion(
+        Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
@@ -1018,7 +1016,6 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "testLambdaName");
     validateRemoteResourceAttributes(null, null);
-    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
@@ -1028,7 +1025,6 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_METHOD, "Invoke");
     mockAttribute(AWS_LAMBDA_NAME, "arn:aws:lambda:us-east-1:123456789012:function:testLambdaName");
     validateRemoteResourceAttributes(null, null);
-    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
     mockAttribute(RPC_SERVICE, null);
     mockAttribute(RPC_METHOD, null);
     mockAttribute(AWS_LAMBDA_NAME, null);
@@ -1053,11 +1049,6 @@ class AwsMetricAttributeGeneratorTest {
     validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
     mockAttribute(AWS_SECRET_ARN, null);
 
-    // Invalid arn and no account access key
-    mockAttribute(AWS_SECRET_ARN, "invalid_arn");
-    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
-    mockAttribute(AWS_SECRET_ARN, null);
-
     // Both account access key and account id are not available
     mockAttribute(AWS_AUTH_REGION, null);
     mockAttribute(AWS_AUTH_ACCESS_KEY, null);
@@ -1069,7 +1060,10 @@ class AwsMetricAttributeGeneratorTest {
     // Account access key is not available
     mockAttribute(
         AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
-    validateRemoteResourceAttributes("AWS::SecretsManager::Secret", "secretName");
+    validateRemoteResourceAttributes(
+        "AWS::SecretsManager::Secret",
+        "secretName",
+        "arn:aws:secretsmanager:us-east-1:123456789012:secret:secretName");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_SECRET_ARN, null);
@@ -1077,7 +1071,10 @@ class AwsMetricAttributeGeneratorTest {
     // Arn with invalid account id
     mockAttribute(
         AWS_SECRET_ARN, "arn:aws:secretsmanager:us-east-1:invalid_account_id:secret:secretName");
-    validateRemoteResourceAttributes("AWS::SecretsManager::Secret", "secretName");
+    validateRemoteResourceAttributes(
+        "AWS::SecretsManager::Secret",
+        "secretName",
+        "arn:aws:secretsmanager:us-east-1:invalid_account_id:secret:secretName");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("invalid_account_id"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_SECRET_ARN, null);
@@ -1085,7 +1082,10 @@ class AwsMetricAttributeGeneratorTest {
     // Arn with invalid region
     mockAttribute(
         AWS_SECRET_ARN, "arn:aws:secretsmanager:invalid_region:123456789012:secret:secretName");
-    validateRemoteResourceAttributes("AWS::SecretsManager::Secret", "secretName");
+    validateRemoteResourceAttributes(
+        "AWS::SecretsManager::Secret",
+        "secretName",
+        "arn:aws:secretsmanager:invalid_region:123456789012:secret:secretName");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("invalid_region"));
     mockAttribute(AWS_SECRET_ARN, null);
