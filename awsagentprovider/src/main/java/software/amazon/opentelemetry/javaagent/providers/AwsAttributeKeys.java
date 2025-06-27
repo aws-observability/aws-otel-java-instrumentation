@@ -29,6 +29,9 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_LOCAL_OPERATION =
       AttributeKey.stringKey("aws.local.operation");
 
+  static final AttributeKey<String> AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE =
+          AttributeKey.stringKey("aws.lambda.local.operation.override");
+
   static final AttributeKey<String> AWS_REMOTE_SERVICE =
       AttributeKey.stringKey("aws.remote.service");
 

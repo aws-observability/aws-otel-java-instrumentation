@@ -28,6 +28,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.URL_PATH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.isLambdaEnvironment;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -91,6 +92,10 @@ final class AwsSpanProcessingUtil {
    */
   static String getIngressOperation(SpanData span) {
     if (isLambdaEnvironment()) {
+      String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
+      if (operationOverride != null) {
+        return operationOverride;
+      }
       return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) + "/FunctionHandler";
     }
     String operation = span.getName();
