@@ -29,6 +29,16 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_LOCAL_OPERATION =
       AttributeKey.stringKey("aws.local.operation");
 
+  /*
+   * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".
+   * To dynamically override this at runtime—such as when running a custom server inside your Lambda—
+   * you can set the span attribute "aws.lambda.local.operation.override" before ending the span. For example:
+   *
+   *   // Obtain the current Span and override its operation name
+   *   Span.current().setAttribute(
+   *       "aws.lambda.local.operation.override",
+   *       "MyService/handleRequest");
+   */
   static final AttributeKey<String> AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE =
           AttributeKey.stringKey("aws.lambda.local.operation.override");
 

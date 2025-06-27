@@ -92,6 +92,18 @@ final class AwsSpanProcessingUtil {
    */
   static String getIngressOperation(SpanData span) {
     if (isLambdaEnvironment()) {
+      /*
+       * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".
+       * To dynamically override this at runtime—such as when running a custom server inside your Lambda—
+       * you can set the span attribute "aws.lambda.local.operation.override" before ending the span. For example:
+       *
+       *   // Obtain the current Span and override its operation name
+       *   Span.current().setAttribute(
+       *       "aws.lambda.local.operation.override",
+       *       "MyServiceOperation");
+       *
+       * The code below will detect that override and use it instead of the default.
+       */
       String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
       if (operationOverride != null) {
         return operationOverride;
