@@ -32,52 +32,54 @@ public class SqsUrlParser {
     if (url == null) {
       return Optional.empty();
     }
-    url = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
-    String[] splitUrl = url.split("/");
+    String urlWithoutProtocol = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
+    String[] splitUrl = urlWithoutProtocol.split("/");
     if (splitUrl.length == 3 && isAccountId(splitUrl[1]) && isValidQueueName(splitUrl[2])) {
       return Optional.of(splitUrl[2]);
     }
     return Optional.empty();
   }
 
+  /** Extracts the account ID from an SQS URL. */
   public static Optional<String> getAccountId(String url) {
-    if (url == null) {
-      return Optional.empty();
-    }
-    url = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
-    if (isValidSqsUrl(url)) {
-      String[] splitUrl = url.split("/");
-      return Optional.of(splitUrl[1]);
-    }
-    return Optional.empty();
+    ParsedUrl parsed = parseUrl(url);
+    return Optional.ofNullable(parsed.accountId);
   }
 
+  /** Extracts the region from an SQS URL. */
   public static Optional<String> getRegion(String url) {
-    if (url == null) {
-      return Optional.empty();
-    }
-    url = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
-    if (isValidSqsUrl(url)) {
-      String[] splitUrl = url.split("/");
-      String domain = splitUrl[0];
-      String[] domainParts = domain.split("\\.");
-      if (domainParts.length == 4) {
-        return Optional.of(domainParts[1]);
-      }
-    }
-    return Optional.empty();
+    ParsedUrl parsed = parseUrl(url);
+    return Optional.ofNullable(parsed.region);
   }
 
-  private static boolean isValidSqsUrl(String url) {
-    String[] splitUrl = url.split("/");
-    return splitUrl.length == 3
-        && splitUrl[0].startsWith("sqs")
-        && isAccountId(splitUrl[1])
-        && isValidQueueName(splitUrl[2]);
+  /**
+   * Parses an SQS URL and extracts its components. URL Format:
+   * https://sqs.<region>.amazonaws.com/<accountId>/<queueName>
+   */
+  private static ParsedUrl parseUrl(String url) {
+    if (url == null) {
+      return new ParsedUrl(null, null, null);
+    }
+
+    String urlWithoutProtocol = url.replace(HTTP_SCHEMA, "").replace(HTTPS_SCHEMA, "");
+    String[] splitUrl = urlWithoutProtocol.split("/");
+
+    if (splitUrl.length != 3
+        || !isAccountId(splitUrl[1])
+        || !isValidQueueName(splitUrl[2])
+        || !splitUrl[0].toLowerCase().startsWith("sqs")) {
+      return new ParsedUrl(null, null, null);
+    }
+
+    String domain = splitUrl[0];
+    String[] domainParts = domain.split("\\.");
+
+    String region = domainParts.length == 4 ? domainParts[1] : null;
+    return new ParsedUrl(splitUrl[2], splitUrl[1], region);
   }
 
   private static boolean isAccountId(String input) {
-    if (input == null || input.length() != 12) {
+    if (input == null) {
       return false;
     }
 
@@ -102,5 +104,17 @@ public class SqsUrlParser {
     }
 
     return true;
+  }
+
+  private static class ParsedUrl {
+    private final String queueName;
+    private final String accountId;
+    private final String region;
+
+    private ParsedUrl(String queueName, String accountId, String region) {
+      this.queueName = queueName;
+      this.accountId = accountId;
+      this.region = region;
+    }
   }
 }

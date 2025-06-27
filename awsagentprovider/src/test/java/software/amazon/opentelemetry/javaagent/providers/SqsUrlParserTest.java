@@ -75,7 +75,7 @@ public class SqsUrlParserTest {
     validateGetQueueName("invalidUrl", null);
     validateGetQueueName("https://www.amazon.com", null);
     validateGetQueueName("https://sqs.us-east-1.amazonaws.com/123412341234/.", null);
-    validateGetQueueName("https://sqs.us-east-1.amazonaws.com/12/Queue", null);
+    validateGetQueueName("https://sqs.us-east-1.amazonaws.com/12xxxxxxxxxx/Queue", null);
     validateGetQueueName("https://sqs.us-east-1.amazonaws.com/A/A", null);
     validateGetQueueName(
         "https://sqs.us-east-1.amazonaws.com/123412341234/A/ThisShouldNotBeHere", null);
@@ -94,7 +94,7 @@ public class SqsUrlParserTest {
     validateGetAccountId("invalidUrl", null);
     validateGetAccountId("https://www.amazon.com", null);
     validateGetAccountId("https://sqs.us-east-1.amazonaws.com/123412341234/Queue", "123412341234");
-    validateGetAccountId("https://sqs.us-east-1.amazonaws.com/12341234/Queue", null);
+    validateGetAccountId("https://sqs.us-east-1.amazonaws.com/12341234/Queue", "12341234");
     validateGetAccountId("https://sqs.us-east-1.amazonaws.com/1234123412xx/Queue", null);
     validateGetAccountId("https://sqs.us-east-1.amazonaws.com/1234123412xx", null);
   }
