@@ -25,6 +25,17 @@ dependencies {
 
   api("software.amazon.awssdk:apache-client:2.2.0")
   api("software.amazon.awssdk:netty-nio-client:2.11.0")
+  api("com.amazonaws:aws-java-sdk-core:1.11.0")
+
+  // AWS SDK dependencies for version 1.11
+  compileOnly("com.amazonaws:aws-java-sdk-sns:1.11.106")
+  compileOnly("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
+  compileOnly("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
+  compileOnly("com.amazonaws:aws-java-sdk-lambda:1.11.678")
+  compileOnly("com.amazonaws:aws-java-sdk-bedrock:1.12.744")
+  compileOnly("com.amazonaws:aws-java-sdk-bedrockagent:1.12.744")
+  compileOnly("com.amazonaws:aws-java-sdk-bedrockagentruntime:1.12.744")
+  compileOnly("com.amazonaws:aws-java-sdk-bedrockruntime:1.12.744")
 
   // AWS SDK dependencies for version 2.2.0
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
