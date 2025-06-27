@@ -108,7 +108,7 @@ final class AwsSpanProcessingUtil {
       if (operationOverride != null) {
         return operationOverride;
       }
-      return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) + "/FunctionHandler";
+      return getFunctionNameFromEnv() + "/FunctionHandler";
     }
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
@@ -117,6 +117,11 @@ final class AwsSpanProcessingUtil {
       operation = generateIngressOperation(span);
     }
     return operation;
+  }
+
+  // define a function so that we can mock it in unit test
+  static String getFunctionNameFromEnv() {
+    return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG);
   }
 
   static String getEgressOperation(SpanData span) {
