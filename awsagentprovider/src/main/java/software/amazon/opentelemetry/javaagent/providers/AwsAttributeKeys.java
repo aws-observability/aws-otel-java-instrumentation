@@ -40,7 +40,7 @@ final class AwsAttributeKeys {
    *       "MyService/handleRequest");
    */
   static final AttributeKey<String> AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE =
-          AttributeKey.stringKey("aws.lambda.local.operation.override");
+      AttributeKey.stringKey("aws.lambda.local.operation.override");
 
   static final AttributeKey<String> AWS_REMOTE_SERVICE =
       AttributeKey.stringKey("aws.remote.service");
