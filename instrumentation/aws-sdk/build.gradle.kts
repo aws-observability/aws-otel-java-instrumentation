@@ -15,7 +15,6 @@
 
 plugins {
   java
-  id("groovy")
   id("com.gradleup.shadow")
 }
 
