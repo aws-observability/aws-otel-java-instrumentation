@@ -141,7 +141,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.LAYER_NAME }}
+          name: ${{ env.LAYER_NAME }}-${{ matrix.aws_region }}
           path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
 
       - name: clean s3
