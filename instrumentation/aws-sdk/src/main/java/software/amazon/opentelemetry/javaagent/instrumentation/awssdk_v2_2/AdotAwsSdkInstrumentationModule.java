@@ -50,9 +50,14 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor");
   }
 
-  // This registers the upstream execution interceptor first, and then the
-  // AdotTracingExecutionInterceptor. This ensures the upstream interceptor runs before ADOT's
-  // interceptor and maintains order.
+  /**
+   * Registers resource file containing reference to our {@link AdotTracingExecutionInterceptor}
+   * with SDK's service loading mechanism. The 'order' method ensures this interceptor is registered
+   * after upstream. Interceptors are executed in the order they appear in the classpath.
+   *
+   * @see <a
+   *     href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v2_2/AwsSdkInstrumentationModule.java#L27">reference</a>
+   */
   @Override
   public void registerHelperResources(HelperResourceBuilder helperResourceBuilder) {
     helperResourceBuilder.register(
@@ -81,6 +86,8 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
   public static class ResourceInjectingTypeInstrumentation implements TypeInstrumentation {
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {
+      // SdkClient is the base interface for all AWS SDK clients. Type matching against it ensures
+      // our interceptor is injected as soon as any AWS SDK client is initialized.
       return named("software.amazon.awssdk.core.SdkClient");
     }
 
