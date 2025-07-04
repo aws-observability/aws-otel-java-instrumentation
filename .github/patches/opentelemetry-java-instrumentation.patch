@@ -403,10 +403,10 @@ index 096c7826a1..27613c04f2 100644
    private AwsExperimentalAttributes() {}
  }
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-index 541e67d23b..d0e0ac71fa 100644
+index 541e67d23b..5a321f9cb1 100644
 --- a/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
 +++ b/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AwsSdkExperimentalAttributesExtractor.java
-@@ -6,25 +6,54 @@
+@@ -6,25 +6,56 @@
  package io.opentelemetry.instrumentation.awssdk.v1_11;
  
  import static io.opentelemetry.instrumentation.awssdk.v1_11.AwsExperimentalAttributes.AWS_AGENT;
@@ -458,10 +458,12 @@ index 541e67d23b..d0e0ac71fa 100644
 +  private static final String BEDROCK_AGENT_SERVICE = "AWSBedrockAgent";
 +  private static final String BEDROCK_AGENT_RUNTIME_SERVICE = "AWSBedrockAgentRuntime";
 +  private static final String BEDROCK_RUNTIME_SERVICE = "AmazonBedrockRuntime";
++  private static final HandlerContextKey<AWSCredentials> AWS_CREDENTIALS =
++      new HandlerContextKey<AWSCredentials>("AWSCredentials");
  
    @Override
    public void onStart(AttributesBuilder attributes, Context parentContext, Request<?> request) {
-@@ -32,14 +61,166 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -32,14 +63,165 @@ class AwsSdkExperimentalAttributesExtractor
      attributes.put(AWS_ENDPOINT, request.getEndpoint().toString());
  
      Object originalRequest = request.getOriginalRequest();
@@ -471,8 +473,7 @@ index 541e67d23b..d0e0ac71fa 100644
 -    setRequestAttribute(attributes, AWS_STREAM_NAME, originalRequest, RequestAccess::getStreamName);
 -    setRequestAttribute(attributes, AWS_TABLE_NAME, originalRequest, RequestAccess::getTableName);
 +    String requestClassName = originalRequest.getClass().getSimpleName();
-+
-+    AWSCredentials credentials = request.getHandlerContext(HandlerContextKey.AWS_CREDENTIALS);
++    AWSCredentials credentials = request.getHandlerContext(AWS_CREDENTIALS);
 +    if (credentials != null) {
 +      String accessKeyId = credentials.getAWSAccessKeyId();
 +      if (accessKeyId != null) {
@@ -503,8 +504,9 @@ index 541e67d23b..d0e0ac71fa 100644
 +    if (isBedrockService(serviceName)) {
 +      bedrockOnStart(attributes, originalRequest, requestClassName, serviceName);
 +    }
-+  }
-+
+   }
+ 
+-  private static void setRequestAttribute(
 +  @Override
 +  public void onEnd(
 +      AttributesBuilder attributes,
@@ -627,14 +629,13 @@ index 541e67d23b..d0e0ac71fa 100644
 +        || serviceName.equals(BEDROCK_AGENT_SERVICE)
 +        || serviceName.equals(BEDROCK_AGENT_RUNTIME_SERVICE)
 +        || serviceName.equals(BEDROCK_RUNTIME_SERVICE);
-   }
- 
--  private static void setRequestAttribute(
++  }
++
 +  private static void setAttribute(
        AttributesBuilder attributes,
        AttributeKey<String> key,
        Object request,
-@@ -49,12 +230,4 @@ class AwsSdkExperimentalAttributesExtractor
+@@ -49,12 +231,4 @@ class AwsSdkExperimentalAttributesExtractor
        attributes.put(key, value);
      }
    }
