@@ -18,12 +18,10 @@ plugins {
   id("com.gradleup.shadow")
 }
 
-base.archivesBaseName = "aws-instrumentation-awssdk"
+base.archivesBaseName = "aws-instrumentation-aws-sdk"
 
 dependencies {
-  // OpenTelemetry dependency
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
-
-  // AWS SDK dependency for version 2.2.0
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
+  compileOnly("net.bytebuddy:byte-buddy")
 }

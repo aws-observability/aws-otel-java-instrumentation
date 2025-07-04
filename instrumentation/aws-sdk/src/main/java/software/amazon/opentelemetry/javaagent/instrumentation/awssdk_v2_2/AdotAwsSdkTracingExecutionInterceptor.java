@@ -18,7 +18,7 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.*;
 
-public class AdotTracingExecutionInterceptor implements ExecutionInterceptor {
+public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionInterceptor {
 
   // This is the latest point we can obtain the Sdk Request after it is modified by the upstream
   // TracingInterceptor. It ensures upstream handles the request and applies its changes first.

@@ -22,17 +22,13 @@ import io.opentelemetry.javaagent.extension.instrumentation.HelperResourceBuilde
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
-import io.opentelemetry.javaagent.extension.instrumentation.internal.ExperimentalInstrumentationModule;
-import io.opentelemetry.javaagent.extension.instrumentation.internal.injection.ClassInjector;
-import io.opentelemetry.javaagent.extension.instrumentation.internal.injection.InjectionMode;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
-    implements ExperimentalInstrumentationModule {
+public class AdotAwsSdkInstrumentationModule extends InstrumentationModule {
 
   public AdotAwsSdkInstrumentationModule() {
     super("aws-sdk-adot", "aws-sdk-2.2-adot");
@@ -47,13 +43,14 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
   @Override
   public List<String> getAdditionalHelperClassNames() {
     return Arrays.asList(
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor");
+        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotAwsSdkTracingExecutionInterceptor");
   }
 
   /**
-   * Registers resource file containing reference to our {@link AdotTracingExecutionInterceptor}
-   * with SDK's service loading mechanism. The 'order' method ensures this interceptor is registered
-   * after upstream. Interceptors are executed in the order they appear in the classpath.
+   * Registers resource file containing reference to our {@link
+   * AdotAwsSdkTracingExecutionInterceptor} with SDK's service loading mechanism. The 'order' method
+   * ensures this interceptor is registered after upstream. Interceptors are executed in the order
+   * they appear in the classpath.
    *
    * @see <a
    *     href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v2_2/AwsSdkInstrumentationModule.java#L27">reference</a>
@@ -68,14 +65,6 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassesNamed("software.amazon.awssdk.core.interceptor.ExecutionInterceptor");
-  }
-
-  @Override
-  public void injectClasses(final ClassInjector injector) {
-    injector
-        .proxyBuilder(
-            "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor")
-        .inject(InjectionMode.CLASS_ONLY);
   }
 
   @Override
