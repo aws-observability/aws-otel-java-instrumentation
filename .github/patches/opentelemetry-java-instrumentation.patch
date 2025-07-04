@@ -2270,6 +2270,174 @@ index 3f272ba477..bea20f3d86 100644
 +        response, client, "SNS", "Publish", "POST", additionalAttributes);
    }
  }
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsSuppressReceiveSpansTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsSuppressReceiveSpansTest.java
+index c0b4b13a17..4cfaf469d9 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsSuppressReceiveSpansTest.java
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsSuppressReceiveSpansTest.java
+@@ -116,7 +116,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(URL_FULL, "http://localhost:" + sqsPort),
+                                 equalTo(SERVER_ADDRESS, "localhost"),
+                                 equalTo(SERVER_PORT, sqsPort),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"))),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x"))),
+             trace ->
+                 trace.hasSpansSatisfyingExactly(
+                     span ->
+@@ -146,7 +147,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(MESSAGING_OPERATION, "publish"),
+                                 satisfies(
+                                     MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                     span ->
+                         span.hasName("testSdkSqs process")
+                             .hasKind(SpanKind.CONSUMER)
+@@ -174,7 +176,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(MESSAGING_OPERATION, "process"),
+                                 satisfies(
+                                     MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                     span ->
+                         span.hasName("process child")
+                             .hasParent(trace.getSpan(1))
+@@ -222,7 +225,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(URL_FULL, "http://localhost:" + sqsPort),
+                                 equalTo(SERVER_ADDRESS, "localhost"),
+                                 equalTo(SERVER_PORT, sqsPort),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"))),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x"))),
+             trace ->
+                 trace.hasSpansSatisfyingExactly(
+                     span ->
+@@ -252,7 +256,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(MESSAGING_OPERATION, "publish"),
+                                 satisfies(
+                                     MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                     span ->
+                         span.hasName("testSdkSqs process")
+                             .hasKind(SpanKind.CONSUMER)
+@@ -280,7 +285,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(MESSAGING_OPERATION, "process"),
+                                 satisfies(
+                                     MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                     span ->
+                         span.hasName("process child")
+                             .hasParent(trace.getSpan(1))
+@@ -311,7 +317,8 @@ public abstract class AbstractSqsSuppressReceiveSpansTest {
+                                 equalTo(URL_FULL, "http://localhost:" + sqsPort),
+                                 equalTo(SERVER_ADDRESS, "localhost"),
+                                 equalTo(SERVER_PORT, sqsPort),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"))));
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x"))));
+   }
+ 
+   @Test
+diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsTracingTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsTracingTest.java
+index f1bfa126ca..dfb5b96550 100644
+--- a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsTracingTest.java
++++ b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractSqsTracingTest.java
+@@ -150,7 +150,8 @@ public abstract class AbstractSqsTracingTest {
+                                 equalTo(URL_FULL, "http://localhost:" + sqsPort),
+                                 equalTo(SERVER_ADDRESS, "localhost"),
+                                 equalTo(SERVER_PORT, sqsPort),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"))),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x"))),
+             trace ->
+                 trace.hasSpansSatisfyingExactly(
+                     span -> {
+@@ -179,7 +180,8 @@ public abstract class AbstractSqsTracingTest {
+                                   equalTo(MESSAGING_OPERATION, "publish"),
+                                   satisfies(
+                                       MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                  equalTo(NETWORK_PROTOCOL_VERSION, "1.1")));
++                                  equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                  equalTo(stringKey("aws.auth.account.access_key"), "x")));
+ 
+                       if (testCaptureHeaders) {
+                         attributes.add(
+@@ -220,7 +222,8 @@ public abstract class AbstractSqsTracingTest {
+                                   equalTo(MESSAGING_DESTINATION_NAME, "testSdkSqs"),
+                                   equalTo(MESSAGING_OPERATION, "receive"),
+                                   equalTo(MESSAGING_BATCH_MESSAGE_COUNT, 1),
+-                                  equalTo(NETWORK_PROTOCOL_VERSION, "1.1")));
++                                  equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                  equalTo(stringKey("aws.auth.account.access_key"), "x")));
+ 
+                       if (testCaptureHeaders) {
+                         attributes.add(
+@@ -260,7 +263,8 @@ public abstract class AbstractSqsTracingTest {
+                                   equalTo(MESSAGING_OPERATION, "process"),
+                                   satisfies(
+                                       MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                  equalTo(NETWORK_PROTOCOL_VERSION, "1.1")));
++                                  equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                  equalTo(stringKey("aws.auth.account.access_key"), "x")));
+ 
+                       if (testCaptureHeaders) {
+                         attributes.add(
+@@ -320,7 +324,8 @@ public abstract class AbstractSqsTracingTest {
+                                 equalTo(URL_FULL, "http://localhost:" + sqsPort),
+                                 equalTo(SERVER_ADDRESS, "localhost"),
+                                 equalTo(SERVER_PORT, sqsPort),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"))),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x"))),
+             trace ->
+                 trace.hasSpansSatisfyingExactly(
+                     span ->
+@@ -350,7 +355,8 @@ public abstract class AbstractSqsTracingTest {
+                                 equalTo(MESSAGING_OPERATION, "publish"),
+                                 satisfies(
+                                     MESSAGING_MESSAGE_ID, val -> val.isInstanceOf(String.class)),
+-                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"))),
++                                equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                equalTo(stringKey("aws.auth.account.access_key"), "x"))),
+             trace -> {
+               AtomicReference<SpanData> receiveSpan = new AtomicReference<>();
+               AtomicReference<SpanData> processSpan = new AtomicReference<>();
+@@ -385,7 +391,8 @@ public abstract class AbstractSqsTracingTest {
+                                       equalTo(URL_FULL, "http://localhost:" + sqsPort),
+                                       equalTo(SERVER_ADDRESS, "localhost"),
+                                       equalTo(SERVER_PORT, sqsPort),
+-                                      equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                      equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                      equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                           span ->
+                               span.hasName("testSdkSqs receive")
+                                   .hasKind(SpanKind.CONSUMER)
+@@ -419,7 +426,8 @@ public abstract class AbstractSqsTracingTest {
+                                           MessagingIncubatingAttributes
+                                               .MESSAGING_BATCH_MESSAGE_COUNT,
+                                           1),
+-                                      equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                      equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                      equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                           span ->
+                               span.hasName("testSdkSqs process")
+                                   .hasKind(SpanKind.CONSUMER)
+@@ -452,7 +460,8 @@ public abstract class AbstractSqsTracingTest {
+                                       satisfies(
+                                           MESSAGING_MESSAGE_ID,
+                                           val -> val.isInstanceOf(String.class)),
+-                                      equalTo(NETWORK_PROTOCOL_VERSION, "1.1")),
++                                      equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
++                                      equalTo(stringKey("aws.auth.account.access_key"), "x")),
+                           span ->
+                               span.hasName("process child")
+                                   .hasParent(processSpan.get())
 diff --git a/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java b/instrumentation/aws-sdk/aws-sdk-1.11/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/AbstractStepFunctionsClientTest.java
 new file mode 100644
 index 0000000000..fc58ec3c9b
@@ -3919,7 +4087,7 @@ index 73d2a0ba82..f46361a078 100644
                            equalTo(SERVER_PORT, server.httpPort()),
                            equalTo(HTTP_REQUEST_METHOD, method),
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsBaseTest.java b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsBaseTest.java
-index 902bfdc0d4..4db85ba568 100644
+index 902bfdc0d4..756968776e 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsBaseTest.java
 +++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsBaseTest.java
 @@ -214,6 +214,8 @@ public abstract class AbstractAws2SqsBaseTest {
@@ -3931,16 +4099,7 @@ index 902bfdc0d4..4db85ba568 100644
              equalTo(HTTP_REQUEST_METHOD, "POST"),
              equalTo(HTTP_RESPONSE_STATUS_CODE, 200),
              satisfies(URL_FULL, v -> v.startsWith("http://localhost:" + sqsPort)),
-@@ -232,6 +234,8 @@ public abstract class AbstractAws2SqsBaseTest {
-             equalTo(RPC_SYSTEM, "aws-api"),
-             equalTo(RPC_SERVICE, "Sqs"),
-             equalTo(RPC_METHOD, "ReceiveMessage"),
-+            equalTo(stringKey("aws.auth.account.access_key"), "my-access-key"),
-+            equalTo(stringKey("aws.auth.region"), "ap-northeast-1"),
-             equalTo(HTTP_REQUEST_METHOD, "POST"),
-             equalTo(HTTP_RESPONSE_STATUS_CODE, 200),
-             satisfies(URL_FULL, v -> v.startsWith("http://localhost:" + sqsPort)),
-@@ -257,6 +261,8 @@ public abstract class AbstractAws2SqsBaseTest {
+@@ -257,6 +259,8 @@ public abstract class AbstractAws2SqsBaseTest {
              equalTo(RPC_SYSTEM, "aws-api"),
              equalTo(RPC_SERVICE, "Sqs"),
              equalTo(RPC_METHOD, rcpMethod),
@@ -3949,6 +4108,19 @@ index 902bfdc0d4..4db85ba568 100644
              equalTo(HTTP_REQUEST_METHOD, "POST"),
              equalTo(HTTP_RESPONSE_STATUS_CODE, 200),
              satisfies(URL_FULL, v -> v.startsWith("http://localhost:" + sqsPort)),
+diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsSuppressReceiveSpansTest.java b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsSuppressReceiveSpansTest.java
+index 4d0a9be89c..382c035bf5 100644
+--- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsSuppressReceiveSpansTest.java
++++ b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsSuppressReceiveSpansTest.java
+@@ -84,6 +84,8 @@ public abstract class AbstractAws2SqsSuppressReceiveSpansTest extends AbstractAw
+                               equalTo(RPC_METHOD, "ReceiveMessage"),
+                               equalTo(HTTP_REQUEST_METHOD, "POST"),
+                               equalTo(HTTP_RESPONSE_STATUS_CODE, 200),
++                              equalTo(stringKey("aws.auth.account.access_key"), "my-access-key"),
++                              equalTo(stringKey("aws.auth.region"), "ap-northeast-1"),
+                               satisfies(URL_FULL, v -> v.startsWith("http://localhost:" + sqsPort)),
+                               equalTo(SERVER_ADDRESS, "localhost"),
+                               equalTo(SERVER_PORT, sqsPort))));
 diff --git a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsTracingTest.java b/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsTracingTest.java
 index 6fa897d462..f7ac28762c 100644
 --- a/instrumentation/aws-sdk/aws-sdk-2.2/testing/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/AbstractAws2SqsTracingTest.java
@@ -3973,6 +4145,20 @@ index 6fa897d462..f7ac28762c 100644
                                      satisfies(
                                          URL_FULL, v -> v.startsWith("http://localhost:" + sqsPort)),
                                      equalTo(SERVER_ADDRESS, "localhost"),
+diff --git a/instrumentation/camel-2.20/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/apachecamel/aws/AwsSpanAssertions.java b/instrumentation/camel-2.20/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/apachecamel/aws/AwsSpanAssertions.java
+index 8731717005..0d59b40f5e 100644
+--- a/instrumentation/camel-2.20/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/apachecamel/aws/AwsSpanAssertions.java
++++ b/instrumentation/camel-2.20/javaagent/src/test/java/io/opentelemetry/javaagent/instrumentation/apachecamel/aws/AwsSpanAssertions.java
+@@ -94,7 +94,8 @@ class AwsSpanAssertions {
+             equalTo(NETWORK_PROTOCOL_VERSION, "1.1"),
+             equalTo(RPC_SYSTEM, "aws-api"),
+             satisfies(RPC_METHOD, stringAssert -> stringAssert.isEqualTo(rpcMethod)),
+-            equalTo(RPC_SERVICE, "AmazonSQS")));
++            equalTo(RPC_SERVICE, "AmazonSQS"),
++            equalTo(stringKey("aws.auth.account.access_key"), "x")));
+ 
+     if (spanName.endsWith("receive")
+         || spanName.endsWith("process")
 diff --git a/version.gradle.kts b/version.gradle.kts
 index a1cae43b4b..c1520e9947 100644
 --- a/version.gradle.kts
