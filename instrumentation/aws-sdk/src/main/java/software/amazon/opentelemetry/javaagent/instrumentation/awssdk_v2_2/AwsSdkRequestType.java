@@ -101,7 +101,6 @@ enum AwsSdkRequestType {
       request(AWS_LAMBDA_RESOURCE_ID.getKey(), "UUID"),
       response(AWS_LAMBDA_ARN.getKey(), "Configuration.FunctionArn"));
 
-  // Copied form OTel aws-sdk
   @SuppressWarnings("ImmutableEnumChecker")
   private final Map<FieldMapping.Type, List<FieldMapping>> fields;
 

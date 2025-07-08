@@ -67,7 +67,6 @@ class FieldMapper {
     }
   }
 
-  // Contains patching logic
   private void mapToAttributes(
       Function<String, Object> fieldValueProvider, FieldMapping fieldMapping, Span span) {
     // traverse path
