@@ -16,6 +16,7 @@
 plugins {
   java
   id("com.gradleup.shadow")
+  id("groovy")
 }
 
 base.archivesBaseName = "aws-instrumentation-aws-sdk"
@@ -23,5 +24,11 @@ base.archivesBaseName = "aws-instrumentation-aws-sdk"
 dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
+  compileOnly("software.amazon.awssdk:secretsmanager:2.2.0")
+
   compileOnly("net.bytebuddy:byte-buddy")
+  compileOnly("com.google.code.findbugs:jsr305:3.0.2")
+
+  testImplementation("com.google.guava:guava")
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-testing-common")
 }
