@@ -38,6 +38,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.io.IOException;
 import java.io.InputStream;
@@ -68,6 +69,10 @@ final class AwsSpanProcessingUtil {
       Pattern.compile("^(?:" + String.join("|", getDialectKeywords()) + ")\\b");
 
   private static final String SQL_DIALECT_KEYWORDS_JSON = "configuration/sql_dialect_keywords.json";
+
+  static final AttributeKey<String> OTEL_SCOPE_NAME = AttributeKey.stringKey("otel.scope.name");
+  static final String LAMBDA_SCOPE_PREFIX = "io.opentelemetry.aws-lambda-";
+  static final String SERVLET_SCOPE_PREFIX = "io.opentelemetry.servlet-";
 
   static List<String> getDialectKeywords() {
     try (InputStream jsonFile =
@@ -107,6 +112,10 @@ final class AwsSpanProcessingUtil {
       String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
       if (operationOverride != null) {
         return operationOverride;
+      }
+      String op = generateIngressOperation(span);
+      if (!op.equals(UNKNOWN_OPERATION)) {
+        return op;
       }
       return getFunctionNameFromEnv() + "/FunctionHandler";
     }
@@ -269,5 +278,31 @@ final class AwsSpanProcessingUtil {
     return isKeyPresent(span, DB_SYSTEM)
         || isKeyPresent(span, DB_OPERATION)
         || isKeyPresent(span, DB_STATEMENT);
+  }
+
+  static boolean isLambdaServerSpan(ReadableSpan span) {
+    String scopeName = null;
+    if (span != null
+        && span.toSpanData() != null
+        && span.toSpanData().getInstrumentationScopeInfo() != null) {
+      scopeName = span.toSpanData().getInstrumentationScopeInfo().getName();
+    }
+
+    return scopeName != null
+        && scopeName.startsWith(LAMBDA_SCOPE_PREFIX)
+        && SpanKind.SERVER == span.getKind();
+  }
+
+  static boolean isServletServerSpan(ReadableSpan span) {
+    String scopeName = null;
+    if (span != null
+        && span.toSpanData() != null
+        && span.toSpanData().getInstrumentationScopeInfo() != null) {
+      scopeName = span.toSpanData().getInstrumentationScopeInfo().getName();
+    }
+
+    return scopeName != null
+        && scopeName.startsWith(SERVLET_SCOPE_PREFIX)
+        && SpanKind.SERVER == span.getKind();
   }
 }
