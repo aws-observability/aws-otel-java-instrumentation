@@ -109,7 +109,7 @@ jobs:
             aws lambda publish-layer-version \
               --layer-name ${{ env.LAYER_NAME }} \
               --content S3Bucket=${{ env.BUCKET_NAME }},S3Key=aws-opentelemetry-java-layer.zip \
-              --compatible-runtimes java17 java21 \
+              --compatible-runtimes java11 java17 java21 \
               --compatible-architectures "arm64" "x86_64" \
               --license-info "Apache-2.0" \
               --description "AWS Distro of OpenTelemetry Lambda Layer for Java Runtime" \
@@ -140,7 +140,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.LAYER_NAME }}
+          name: ${{ env.LAYER_NAME }}-${{ matrix.aws_region }}
           path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
 
       - name: clean s3
@@ -154,13 +154,16 @@ jobs:
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
         uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v2
+
       - name: download layerARNs
         uses: actions/download-artifact@v4
         with:
           pattern: ${{ env.LAYER_NAME }}-*
           path: ${{ env.LAYER_NAME }}
           merge-multiple: true
+
       - name: show layerARNs
         run: |
           for file in ${{ env.LAYER_NAME }}/*
@@ -168,6 +171,7 @@ jobs:
           echo $file
           cat $file
           done
+
       - name: generate layer-note
         working-directory: ${{ env.LAYER_NAME }}
         run: |
