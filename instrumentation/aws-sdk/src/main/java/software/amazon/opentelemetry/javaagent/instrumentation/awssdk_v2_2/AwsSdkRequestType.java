@@ -30,7 +30,9 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_SNS_TOPIC_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STATE_MACHINE_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STREAM_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STREAM_NAME;
+import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_TABLE_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_MODEL;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_REQUEST_MAX_TOKENS;
@@ -52,9 +54,13 @@ enum AwsSdkRequestType {
 
   SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
 
-  KINESIS(request(AWS_STREAM_NAME.getKey(), "StreamName")),
+  KINESIS(
+      request(AWS_STREAM_NAME.getKey(), "StreamName"),
+      request(AWS_STREAM_ARN.getKey(), "StreamARN")),
 
-  DYNAMODB(request(AWS_TABLE_NAME.getKey(), "TableName")),
+  DYNAMODB(
+      request(AWS_TABLE_NAME.getKey(), "TableName"),
+      response(AWS_TABLE_ARN.getKey(), "Table.TableArn")),
 
   SNS(
       /*

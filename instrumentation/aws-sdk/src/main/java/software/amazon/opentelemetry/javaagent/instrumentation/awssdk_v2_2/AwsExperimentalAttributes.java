@@ -24,6 +24,7 @@ final class AwsExperimentalAttributes {
   static final AttributeKey<String> AWS_QUEUE_URL = stringKey("aws.queue.url");
   static final AttributeKey<String> AWS_QUEUE_NAME = stringKey("aws.queue.name");
   static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
+  static final AttributeKey<String> AWS_STREAM_ARN = stringKey("aws.stream.arn");
   static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
   static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
   static final AttributeKey<String> AWS_GUARDRAIL_ARN = stringKey("aws.bedrock.guardrail.arn");
@@ -69,6 +70,12 @@ final class AwsExperimentalAttributes {
 
   static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
       stringKey("aws.lambda.resource_mapping.id");
+
+  static final AttributeKey<String> AWS_TABLE_ARN = stringKey("aws.table.arn");
+
+  static final AttributeKey<String> AWS_AUTH_ACCESS_KEY = stringKey("aws.auth.account.access_key");
+
+  static final AttributeKey<String> AWS_AUTH_REGION = stringKey("aws.auth.region");
 
   static boolean isGenAiAttribute(String attributeKey) {
     return attributeKey.equals(GEN_AI_REQUEST_MAX_TOKENS.getKey())
