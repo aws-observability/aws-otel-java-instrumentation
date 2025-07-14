@@ -19,9 +19,14 @@ The AdotAwsSdkInstrumentationModule uses the instrumentation (specified in AdotA
 Key aspects of handler registration:
 - `order` method ensures ADOT instrumentation runs after OpenTelemetry's base instrumentation. It is set to 99 as precaution, in case upstream aws-sdk registers more handlers.
 - `AdotAwsSdkClientInstrumentation` class
+
+**AdotAwsSdkClientInstrumentation**
+
+AWS SDK v1.11 instrumentation requires ByteBuddy because, unlike v2.2, it doesn't provide an SPI for adding request handlers. While v2.2 uses the ExecutionInterceptor interface and Java's ServiceLoader mechanism, v1.11 maintains a direct list of handlers that can't be modified through a public API. Therefore, we use ByteBuddy to modify the AWS client constructor and inject our handler directly into the requestHandler2s list.
+
   - `AdotAwsSdkClientAdvice` registers our handler only if the upstream aws-sdk span is enabled (i.e. it checks if the upstream handler is present when an AWS SDK client is
   initialized).
-  - Ensures the OpenTelemetry handler is registered first.
+    - Ensures the OpenTelemetry handler is registered first.
 
 **AdotAwsSdkTracingRequestHandler**
 
