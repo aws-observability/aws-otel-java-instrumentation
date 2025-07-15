@@ -42,6 +42,13 @@ public class AdotAwsSdkClientInstrumentation implements TypeInstrumentation {
         AdotAwsSdkClientInstrumentation.class.getName() + "$AdotAwsSdkClientAdvice");
   }
 
+  /**
+   * ByteBuddy is used because AWS SDK v1.11 doesn't have a built-in SPI registration mechanism
+   * like v2.2. AWS SDK v1.11 keeps a list of handlers instead.
+   *
+   * <p>Upstream handler registration: @see
+   * <a href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v1_11/AwsClientInstrumentation.java#L39">...</a>
+   */
   @SuppressWarnings("unused")
   public static class AdotAwsSdkClientAdvice {
 
