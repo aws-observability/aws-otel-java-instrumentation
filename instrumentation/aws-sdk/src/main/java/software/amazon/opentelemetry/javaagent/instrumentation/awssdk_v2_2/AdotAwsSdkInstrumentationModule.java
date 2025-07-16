@@ -37,7 +37,7 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule {
   @Override
   public int order() {
     // Ensure this runs after OTel (> 0)
-    return 99;
+    return Integer.MAX_VALUE;
   }
 
   @Override
