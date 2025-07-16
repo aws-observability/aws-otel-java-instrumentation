@@ -59,3 +59,4 @@ Artifacts released will include a `.sha256` file for checksum verification start
 To verify, run the command `shasum -a 256 -c <artifact_name>.sha256` 
 It should return the output `<artifact_name>: OK` if the validation is successful
 
+
