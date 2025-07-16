@@ -106,6 +106,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -648,7 +649,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     Optional<String> remoteResourceAccountId = Optional.empty();
     Optional<String> remoteResourceRegion = Optional.empty();
     List<AttributeKey<String>> ARN_ATTRIBUTES =
-        List.of(
+        Arrays.asList(
             AWS_TABLE_ARN,
             AWS_STREAM_ARN,
             AWS_SNS_TOPIC_ARN,
