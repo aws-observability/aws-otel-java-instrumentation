@@ -25,4 +25,8 @@ dependencies {
   compileOnly("com.amazonaws:aws-java-sdk-core:1.11.0")
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
   compileOnly("net.bytebuddy:byte-buddy")
+
+  testImplementation("com.amazonaws:aws-java-sdk-core:1.11.0")
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  testImplementation("org.mockito:mockito-core:5.14.2")
 }
