@@ -15,6 +15,10 @@ _Initialization Workflow_
 
 ### AWS SDK v2 Instrumentation Summary
 
+_IMPORTANT:_ This instrumentation depends on upstream OpenTelemetry AWS SDK instrumentation
+being enabled. However, if you disable upstream aws-sdk spans, you must also disable this instrumentation. Even with upstream disabled, this interceptor
+will still be loaded by AWS SDK's SPI mechanism and attempt to enhance spans with AWS attributes.
+
 **AdotAwsSdkInstrumentationModule**
 
 The AdotAwsSdkInstrumentationModule registers the AdotAwsSdkTracingExecutionInterceptor in `registerHelperResources`.

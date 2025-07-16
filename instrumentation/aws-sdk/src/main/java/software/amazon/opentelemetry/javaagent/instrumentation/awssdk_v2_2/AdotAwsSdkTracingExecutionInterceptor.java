@@ -56,17 +56,6 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
         return;
       }
 
-      /**
-       * Verify aws-sdk span is enabled by checking the span attributes for the 'aws.agent'
-       * attribute set by upstream aws-sdk.
-       *
-       * <p>Upstream's "aws.agent" attribute injection: @see <a
-       * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/AwsSdkExperimentalAttributesExtractor.java#L15">reference</a>
-       */
-      if (!currentSpan.toString().contains("aws.agent=java-aws-sdk")) {
-        return;
-      }
-
       AwsCredentials credentials =
           executionAttributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
       Region signingRegion =
