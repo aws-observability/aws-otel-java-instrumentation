@@ -57,21 +57,13 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
       }
 
       /**
-       * Verify upstream interceptor has run by checking for its shaded attributes. The upstream
-       * TracingExecutionInterceptor adds several attributes with its class name, which gets shaded
-       * by ADOT's "com.gradleup.shadow" gradle plugin from
-       * 'io.opentelemetry.instrumentation.awssdk' to
-       * 'io.opentelemetry.javaagent.shaded.instrumentation.awssdk'
+       * Verify aws-sdk span is enabled by checking the span attributes for the 'aws.agent'
+       * attribute set by upstream aws-sdk.
        *
-       * <p>Upstream's executionAttributes: @see
-       * https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java#L57
-       *
-       * <p>ADOT's "com.gradleup.shadow" plugin: @see
-       * https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/build.gradle.kts#L166
+       * <p>Upstream's "aws.agent" attribute injection: @see <a
+       * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/AwsSdkExperimentalAttributesExtractor.java#L15">reference</a>
        */
-      if (!executionAttributes
-          .toString()
-          .contains("io.opentelemetry.javaagent.shaded.instrumentation.awssdk")) {
+      if (!currentSpan.toString().contains("aws.agent=java-aws-sdk")) {
         return;
       }
 
