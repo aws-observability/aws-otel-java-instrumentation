@@ -3,7 +3,21 @@
 ### Overview
 The aws-sdk instrumentation is an SPI-based implementation that extends the upstream OpenTelemetry AWS Java SDK instrumentation.
 
-_Example: v2.2 Initialization Workflow_
+##### _v1.11 Initialization Workflow_
+1. OpenTelemetry Agent Starts 
+    - Loads default instrumentations 
+    - Loads aws-sdk v1.11 instrumentations
+    - Injects **TracingRequestHandler** into constructor
+2. Scans for other SPI implementations
+    - Finds ADOT’s **AdotAwsSdkInstrumentationModule**
+    - Injects code that:
+      - Checks for TracingRequestHandler
+      - If present, adds **AdotAwsSdkTracingRequestHandler**
+3. AWS SDK Client Created 
+   - Constructor runs with injected code:
+      [AWS Handlers] → TracingRequestHandler → AdotAwsSdkTracingRequestHandler
+
+##### _v2.2 Initialization Workflow_
 
 1. OpenTelemetry Agent starts
    - Loads default instrumentations
@@ -17,8 +31,8 @@ _Example: v2.2 Initialization Workflow_
 The AdotAwsSdkInstrumentationModule uses the instrumentation (specified in AdotAwsClientInstrumentation) to register the AdotAwsSdkTracingRequestHandler through `typeInstrumentations`.
 
 Key aspects of handler registration:
-- `order` method ensures ADOT instrumentation runs after OpenTelemetry's base instrumentation. It is set to 99 as precaution, in case upstream aws-sdk registers more handlers.
-- `AdotAwsSdkClientInstrumentation` class
+- `order` method ensures ADOT instrumentation runs after OpenTelemetry's base instrumentation. It is set to the max integer value, as precaution, in case upstream aws-sdk registers more handlers.
+- `AdotAwsSdkClientInstrumentation` class adds ADOT handler to list of request handlers
 
 **AdotAwsSdkClientInstrumentation**
 
@@ -34,6 +48,11 @@ The AdotAwsSdkTracingRequestHandler hooks onto OpenTelemetry's spans during spec
 
 1.  `beforeRequest`: the latest point where the SDK request can be obtained after it is modified by the upstream aws-sdk v1.11 handler
 2.  `afterAttempt`: the latest point to access the SDK response before the span closes in the upstream afterResponse/afterError methods
+    - _NOTE:_ We use afterAttempt not because it's ideal, but because it our last chance to add attributes, even though this means our logic runs multiple times during retries. 
+    - This is a trade-off:
+      - We get to add our attributes before span closure 
+      - But our code runs redundantly on each retry attempt 
+      - We're constrained by when upstream closes the span
 
 All the span lifecycle hooks provided by AWS SDK RequestHandler2 can be found [here.](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/handlers/RequestHandler2.html#beforeMarshalling-com.amazonaws.AmazonWebServiceRequest)
 

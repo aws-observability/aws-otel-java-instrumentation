@@ -25,6 +25,13 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+/**
+ * Based on OpenTelemetry Java Instrumentation's AWS SDK v1.11 AwsClientInstrumentation
+ * (release/v2.11.x). Adapts the base instrumentation pattern to add ADOT-specific functionality.
+ *
+ * <p>Source: <a
+ * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v1_11/AwsClientInstrumentation.java">...</a>
+ */
 public class AdotAwsSdkClientInstrumentation implements TypeInstrumentation {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
@@ -43,19 +50,18 @@ public class AdotAwsSdkClientInstrumentation implements TypeInstrumentation {
   }
 
   /**
-   * ByteBuddy is used because AWS SDK v1.11 doesn't have a built-in SPI registration mechanism
-   * like v2.2. AWS SDK v1.11 keeps a list of handlers instead.
+   * ByteBuddy is used because AWS SDK v1.11 doesn't have a built-in SPI registration mechanism like
+   * v2.2. AWS SDK v1.11 keeps a list of handlers instead.
    *
-   * <p>Upstream handler registration: @see
-   * <a href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v1_11/AwsClientInstrumentation.java#L39">...</a>
+   * <p>Upstream handler registration: @see <a
+   * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v1_11/AwsClientInstrumentation.java#L39">...</a>
    */
   @SuppressWarnings("unused")
   public static class AdotAwsSdkClientAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(
-        @Advice.FieldValue(value = "requestHandler2s", readOnly = false)
-            List<RequestHandler2> handlers) {
+        @Advice.FieldValue(value = "requestHandler2s") List<RequestHandler2> handlers) {
 
       if (handlers == null) {
         return;

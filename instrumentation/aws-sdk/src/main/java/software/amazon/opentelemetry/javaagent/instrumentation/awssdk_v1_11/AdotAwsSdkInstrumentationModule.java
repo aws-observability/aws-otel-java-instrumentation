@@ -24,6 +24,13 @@ import java.util.Collections;
 import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
 
+/**
+ * Based on OpenTelemetry Java Instrumentation's AWS SDK v1.11 AbstractAwsSdkInstrumentationModule
+ * (release/v2.11.x). Adapts the base instrumentation pattern to add ADOT-specific functionality.
+ *
+ * <p>Source: <a
+ * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v1_11/AbstractAwsSdkInstrumentationModule.java">...</a>
+ */
 public class AdotAwsSdkInstrumentationModule extends InstrumentationModule {
 
   public AdotAwsSdkInstrumentationModule() {
@@ -33,7 +40,7 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule {
   @Override
   public int order() {
     // Ensure this runs after OTel (> 0)
-    return 99;
+    return Integer.MAX_VALUE;
   }
 
   @Override

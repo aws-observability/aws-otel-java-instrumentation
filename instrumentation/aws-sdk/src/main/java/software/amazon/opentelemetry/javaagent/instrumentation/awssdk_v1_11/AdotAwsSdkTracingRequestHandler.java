@@ -19,6 +19,13 @@ import com.amazonaws.Request;
 import com.amazonaws.handlers.HandlerAfterAttemptContext;
 import com.amazonaws.handlers.RequestHandler2;
 
+/**
+ * Based on OpenTelemetry Java Instrumentation's AWS SDK v1.11 TracingRequestHandler
+ * (release/v2.11.x). Adapts the base instrumentation pattern to add ADOT-specific functionality.
+ *
+ * <p>Source: <a
+ * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/TracingRequestHandler.java">...</a>
+ */
 public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
 
   public AdotAwsSdkTracingRequestHandler() {}
