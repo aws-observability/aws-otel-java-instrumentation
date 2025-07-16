@@ -26,7 +26,20 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * Based on OpenTelemetry Java Instrumentation's AWS SDK v1.11 AwsClientInstrumentation
+ * This class provides instrumentation by injecting our request handler into the AWS client's
+ * handler chain. Key components:
+ *
+ * <p>1. Type Matching: Targets AmazonWebServiceClient (base class for all AWS SDK v1.11 clients).
+ * Ensures handler injection during client initialization.
+ *
+ * <p>2. Transformation: Uses ByteBuddy to modify the client constructor. Injects our handler
+ * registration code.
+ *
+ * <p>3. Handler Registration (via Advice): Checks for existing OpenTelemetry handler and adds ADOT
+ * handler only if: a) OpenTelemetry handler is present (ensuring base instrumentation) b) ADOT
+ * handler isn't already added (preventing duplicates)
+ *
+ * <p>Based on OpenTelemetry Java Instrumentation's AWS SDK v1.11 AwsClientInstrumentation
  * (release/v2.11.x). Adapts the base instrumentation pattern to add ADOT-specific functionality.
  *
  * <p>Source: <a
@@ -50,10 +63,7 @@ public class AdotAwsSdkClientInstrumentation implements TypeInstrumentation {
   }
 
   /**
-   * ByteBuddy is used because AWS SDK v1.11 doesn't have a built-in SPI registration mechanism like
-   * v2.2. AWS SDK v1.11 keeps a list of handlers instead.
-   *
-   * <p>Upstream handler registration: @see <a
+   * Upstream handler registration: @see <a
    * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-1.11/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awssdk/v1_11/AwsClientInstrumentation.java#L39">...</a>
    */
   @SuppressWarnings("unused")
