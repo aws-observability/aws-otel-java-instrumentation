@@ -49,8 +49,8 @@ public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
   @Override
   public void beforeRequest(Request<?> request) {
     Span currentSpan = Span.current();
-    if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
 
+    if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
       AttributesBuilder attributes = Attributes.builder();
       experimentalAttributesExtractor.onStart(attributes, Context.current(), request);
 
@@ -75,6 +75,7 @@ public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
   @Override
   public void afterAttempt(HandlerAfterAttemptContext context) {
     Span currentSpan = Span.current();
+
     if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
       Request<?> request = context.getRequest();
       Response<?> response = context.getResponse();

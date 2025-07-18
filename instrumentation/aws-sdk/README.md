@@ -27,6 +27,21 @@ The aws-sdk instrumentation is an SPI-based implementation that extends the upst
    - Finds ADOT’s **AdotAwsSdkInstrumentationModule**
    - Registers **AdotAwsSdkTracingExecutionInterceptor** (order > 0)
 
+#### _Note on Attribute Collection:_
+AWS SDK v1.11 and v2.2 handle attribute collection differently:
+
+**V1.11:**
+- Maintains a separate AttributesBuilder during request/response lifecycle
+- Collects ADOT-specific attributes alongside upstream processing without interference
+- Injects collected attributes into span at the end of the request and response lifecycle hooks
+
+
+**V2.2:**
+- FieldMapper directly modifies spans during request/response processing
+- Attributes are added to spans immediately when discovered
+- Direct integration with span lifecycle
+
+This architectural difference exists due to upstream AWS SDK injecting attributes into spans differently for v1.11 and v2.2
 ### AWS SDK v1 Instrumentation Summary
 The AdotAwsSdkInstrumentationModule uses the instrumentation (specified in AdotAwsClientInstrumentation) to register the AdotAwsSdkTracingRequestHandler through `typeInstrumentations`.
 
