@@ -15,6 +15,13 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_DATA_SOURCE_ID;
@@ -50,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 
 enum AwsSdkRequestType {
+  // 2025-07-22: Amazon addition
   S3(request(AWS_BUCKET_NAME.getKey(), "Bucket")),
 
   SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
@@ -106,6 +114,8 @@ enum AwsSdkRequestType {
       request(AWS_LAMBDA_NAME.getKey(), "FunctionName"),
       request(AWS_LAMBDA_RESOURCE_ID.getKey(), "UUID"),
       response(AWS_LAMBDA_ARN.getKey(), "Configuration.FunctionArn"));
+
+  // End of Amazon addition
 
   @SuppressWarnings("ImmutableEnumChecker")
   private final Map<FieldMapping.Type, List<FieldMapping>> fields;

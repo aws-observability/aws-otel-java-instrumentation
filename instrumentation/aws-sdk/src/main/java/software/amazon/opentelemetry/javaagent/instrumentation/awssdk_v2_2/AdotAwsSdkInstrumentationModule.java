@@ -44,7 +44,6 @@ public class AdotAwsSdkInstrumentationModule extends InstrumentationModule {
   public List<String> getAdditionalHelperClassNames() {
     return Arrays.asList(
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotAwsSdkTracingExecutionInterceptor",
-        "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AdotTracingExecutionInterceptor$RequestSpanFinisher",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequest",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType",
         "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.FieldMapper",

@@ -15,6 +15,13 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCK;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKAGENTOPERATION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkRequestType.BEDROCKAGENTRUNTIMEOPERATION;
@@ -39,13 +46,13 @@ import software.amazon.awssdk.core.SdkRequest;
 
 @SuppressWarnings("MemberName")
 enum AwsSdkRequest {
-  // generic requests
   DynamoDbRequest(DYNAMODB, "DynamoDbRequest"),
   S3Request(S3, "S3Request"),
   SnsRequest(SNS, "SnsRequest"),
   SqsRequest(SQS, "SqsRequest"),
   KinesisRequest(KINESIS, "KinesisRequest"),
 
+  // 2025-07-22: Amazon addition
   BedrockRequest(BEDROCK, "BedrockRequest"),
   BedrockAgentRuntimeRequest(BEDROCKAGENTRUNTIMEOPERATION, "BedrockAgentRuntimeRequest"),
   BedrockRuntimeRequest(BEDROCKRUNTIME, "BedrockRuntimeRequest"),
@@ -91,6 +98,7 @@ enum AwsSdkRequest {
   SecretsManagerRequest(SECRETSMANAGER, "SecretsManagerRequest"),
 
   LambdaRequest(LAMBDA, "LambdaRequest");
+  // End of Amazon addition
 
   private final AwsSdkRequestType type;
   private final String requestClass;

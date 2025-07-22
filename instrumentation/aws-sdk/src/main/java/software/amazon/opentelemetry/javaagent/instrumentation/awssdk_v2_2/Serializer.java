@@ -15,6 +15,13 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -51,6 +58,7 @@ class Serializer {
     return target.toString();
   }
 
+  // 2025-07-22: Amazon addition
   @Nullable
   String serialize(String attributeName, Object target) {
     try {
@@ -90,6 +98,8 @@ class Serializer {
     }
   }
 
+  // End of Amazon addition
+
   @Nullable
   private static String serialize(SdkPojo sdkPojo) {
     ProtocolMarshaller<SdkHttpFullRequest> marshaller =
@@ -115,6 +125,7 @@ class Serializer {
     return (StringUtils.isEmpty(serialized) ? null : "[" + serialized + "]");
   }
 
+  // 2025-07-22: Amazon addition
   @Nullable
   private static String approximateTokenCount(
       BedrockJsonParser.LlmJson jsonBody, String... textPaths) {
@@ -277,4 +288,5 @@ class Serializer {
 
     return approxTokenCount != null ? String.valueOf(approxTokenCount) : null;
   }
+  // End of Amazon addition
 }

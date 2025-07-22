@@ -15,6 +15,13 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import io.opentelemetry.api.trace.Span;
 import java.util.List;
 import java.util.function.Function;
@@ -75,6 +82,7 @@ class FieldMapper {
     for (int i = 1; i < path.size() && target != null; i++) {
       target = next(target, path.get(i));
     }
+    // 2025-07-22: Amazon addition
     String value;
     if (target != null) {
       if (AwsExperimentalAttributes.isGenAiAttribute(fieldMapping.getAttribute())) {
@@ -82,6 +90,7 @@ class FieldMapper {
       } else {
         value = serializer.serialize(target);
       }
+      // End of Amazon addition
       if (!StringUtils.isEmpty(value)) {
         span.setAttribute(fieldMapping.getAttribute(), value);
       }

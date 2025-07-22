@@ -38,8 +38,11 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
   private final FieldMapper fieldMapper = new FieldMapper();
 
   /**
-   * This is the latest point we can obtain the Sdk Request after it is modified by the upstream
-   * TracingInterceptor. It ensures upstream handles the request and applies its changes first.
+   * This method coordinates the request attribute mapping process. This is the latest point we can
+   * obtain the Sdk Request after it is modified by the upstream TracingInterceptor. It ensures
+   * upstream handles the request and applies its changes to the span first. We use this hook to
+   * extract the ADOT AWS attributes from the Sdk Request and map them to the span via the
+   * FieldMapper.
    *
    * <p>Upstream's last Sdk Request modification: @see <a
    * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java#L237">reference</a>
@@ -87,9 +90,11 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
   }
 
   /**
-   * This is the latest point we can obtain the Sdk Response before span completion in upstream's
-   * afterExecution. This ensures we capture attributes from the final, fully modified response
-   * after all upstream interceptors have processed it.
+   * This method coordinates the response attribute mapping process. This is the latest point we can
+   * obtain the Sdk Response before span completion in upstream's afterExecution. This ensures we
+   * capture attributes from the final, fully modified response after all upstream interceptors have
+   * processed it. We use this hook to extract the ADOT AWS attributes from the Sdk Response and map
+   * them to the span via the FieldMapper.
    *
    * <p>Upstream's last Sdk Response modification before span closure: @see <a
    * href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java#L348">reference</a>
