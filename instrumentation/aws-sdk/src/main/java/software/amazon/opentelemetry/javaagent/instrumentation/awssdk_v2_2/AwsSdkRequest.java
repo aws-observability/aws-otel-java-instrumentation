@@ -46,6 +46,7 @@ import software.amazon.awssdk.core.SdkRequest;
 
 @SuppressWarnings("MemberName")
 enum AwsSdkRequest {
+  // generic requests
   DynamoDbRequest(DYNAMODB, "DynamoDbRequest"),
   S3Request(S3, "S3Request"),
   SnsRequest(SNS, "SnsRequest"),
