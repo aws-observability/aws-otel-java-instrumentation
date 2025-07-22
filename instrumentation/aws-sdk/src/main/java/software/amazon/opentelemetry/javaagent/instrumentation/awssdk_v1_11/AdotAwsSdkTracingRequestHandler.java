@@ -19,7 +19,6 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerAfterAttemptContext;
 import com.amazonaws.handlers.RequestHandler2;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.Span;
@@ -56,8 +55,7 @@ public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
 
       attributes
           .build()
-          .forEach(
-              (key, value) -> currentSpan.setAttribute((AttributeKey<String>) key, (String) value));
+          .forEach((key, value) -> currentSpan.setAttribute(key.getKey(), value.toString()));
     }
   }
 

@@ -120,4 +120,14 @@ _**Important Note:**_
 The upstream interceptor closes the span in `afterExecution`. That hook is inaccessible for span modification.
 `modifyResponse` is our final hook point, giving us access to both the fully processed response and active span.
 
+### Commands for Running Groovy Tests
 
+To run the BedrockJsonParserTest for aws-sdk v1.11:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.BedrockJsonParserTest"
+````
+
+To run the BedrockJsonParserTest for aws-sdk v2.2:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParserTest"
+````
