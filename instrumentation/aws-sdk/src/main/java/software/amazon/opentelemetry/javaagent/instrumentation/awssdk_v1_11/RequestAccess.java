@@ -15,6 +15,13 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -36,6 +43,7 @@ final class RequestAccess {
         }
       };
 
+  // 2025-07-22: Amazon addition
   @Nullable
   private static BedrockJsonParser.LlmJson parseTargetBody(ByteBuffer buffer) {
     try {
@@ -384,6 +392,8 @@ final class RequestAccess {
     return invokeOrNull(access.getModelId, request);
   }
 
+  // End of Amazon addition
+
   @Nullable
   private static String invokeOrNull(@Nullable MethodHandle method, Object obj) {
     if (method == null) {
@@ -396,6 +406,7 @@ final class RequestAccess {
     }
   }
 
+  // 2025-07-22: Amazon addition
   @Nullable
   private static <T> T invokeOrNullGeneric(
       @Nullable MethodHandle method, Object obj, Class<T> returnType) {
@@ -439,17 +450,44 @@ final class RequestAccess {
     getLambdaResourceId = findAccessorOrNull(clz, "getUUID", String.class);
   }
 
+  /**
+   * Uses Java reflection to find a getter method on a class and create a MethodHandle for it.
+   *
+   * @param clz The class to search for the method
+   * @param methodName The name of the getter method (e.g., "getStreamARN")
+   * @param returnType The expected return type of the method
+   * @return A MethodHandle for the method, or null if not found
+   *     <p>Example: For class PutRecordRequest with method "getStreamARN":
+   *     findAccessorOrNull(PutRecordRequest.class, "getStreamARN", String.class) Creates a method
+   *     handle that can invoke getStreamARN() on PutRecordRequest instances
+   */
   @Nullable
   private static MethodHandle findAccessorOrNull(
       Class<?> clz, String methodName, Class<?> returnType) {
     try {
+      // Uses MethodHandles.publicLookup() to get access to public methods
+      // findVirtual finds an instance method with the given name and type
+      // methodType creates a method type with no parameters and the specified return type
       return MethodHandles.publicLookup()
           .findVirtual(clz, methodName, MethodType.methodType(returnType));
     } catch (Throwable t) {
+      // Returns null if method doesn't exist or can't be accessed
       return null;
     }
   }
 
+  /**
+   * Uses reflection to navigate through nested method calls and extract a String value. Unlike
+   * using method handles, this supports chained method calls where each method might return a
+   * different type of object.
+   *
+   * @param obj The initial object to start method calls from
+   * @param methodNames Variable list of method names to call in sequence
+   * @return The final String value, or null if any method in the chain fails or returns null
+   *     <p>Example: For Lambda ARN: findNestedAccessorOrNull(request, "getConfiguration",
+   *     "getFunctionArn") - First calls request.getConfiguration() to get a Configuration object,
+   *     then calls configuration.getFunctionArn() to get the ARN string
+   */
   @Nullable
   private static String findNestedAccessorOrNull(Object obj, String... methodNames) {
     Object current = obj;
@@ -466,4 +504,5 @@ final class RequestAccess {
     }
     return (current instanceof String) ? (String) current : null;
   }
+  // End of Amazon addition
 }

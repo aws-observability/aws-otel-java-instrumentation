@@ -15,6 +15,13 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsExperimentalAttributes.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsExperimentalAttributes.AWS_AUTH_ACCESS_KEY;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsExperimentalAttributes.AWS_BEDROCK_RUNTIME_MODEL_ID;
@@ -52,6 +59,7 @@ import javax.annotation.Nullable;
 
 class AwsSdkExperimentalAttributesExtractor
     implements AttributesExtractor<Request<?>, Response<?>> {
+  // 2025-07-22: Amazon addition
   private static final String BEDROCK_SERVICE = "AmazonBedrock";
   private static final String BEDROCK_AGENT_SERVICE = "AWSBedrockAgent";
   private static final String BEDROCK_AGENT_RUNTIME_SERVICE = "AWSBedrockAgentRuntime";
@@ -219,6 +227,8 @@ class AwsSdkExperimentalAttributesExtractor
         || serviceName.equals(BEDROCK_AGENT_RUNTIME_SERVICE)
         || serviceName.equals(BEDROCK_RUNTIME_SERVICE);
   }
+
+  // End of Amazon addition
 
   private static void setAttribute(
       AttributesBuilder attributes,

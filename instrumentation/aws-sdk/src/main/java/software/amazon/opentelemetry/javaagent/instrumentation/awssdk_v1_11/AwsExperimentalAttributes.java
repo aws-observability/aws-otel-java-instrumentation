@@ -15,12 +15,20 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11;
 
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ */
+
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.opentelemetry.api.common.AttributeKey;
 
 final class AwsExperimentalAttributes {
 
+  // 2025-07-22: Amazon addition
   static final AttributeKey<String> AWS_STREAM_ARN = stringKey("aws.stream.arn");
   static final AttributeKey<String> AWS_TABLE_ARN = stringKey("aws.table.arn");
   static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
@@ -55,6 +63,8 @@ final class AwsExperimentalAttributes {
   static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
       stringKey("aws.lambda.resource_mapping.id");
   static final AttributeKey<String> AWS_AUTH_ACCESS_KEY = stringKey("aws.auth.account.access_key");
+
+  // End of Amazon addition
 
   private AwsExperimentalAttributes() {}
 }
