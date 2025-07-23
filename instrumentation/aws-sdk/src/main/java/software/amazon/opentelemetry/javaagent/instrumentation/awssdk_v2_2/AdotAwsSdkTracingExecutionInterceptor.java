@@ -15,6 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
 
+import static io.opentelemetry.instrumentation.api.internal.ConfigPropertiesUtil.getBoolean;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_AUTH_ACCESS_KEY;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_AUTH_REGION;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_SYSTEM;
@@ -31,11 +32,13 @@ import software.amazon.awssdk.regions.Region;
 public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
-  private static final ExecutionAttribute<AwsSdkRequest> AWS_SDK_REQUEST_ATTRIBUTE =
+  private static final ExecutionAttribute<AwsSdkRequest> ADOT_AWS_SDK_REQUEST_ATTRIBUTE =
       new ExecutionAttribute<>(
           AdotAwsSdkTracingExecutionInterceptor.class.getName() + ".AwsSdkRequest");
 
   private final FieldMapper fieldMapper = new FieldMapper();
+  private final boolean captureExperimentalSpanAttributes =
+      getBoolean("otel.instrumentation.aws-sdk.experimental-span-attributes", true);
 
   /**
    * This method coordinates the request attribute mapping process. This is the latest point we can
@@ -51,41 +54,47 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
   public void beforeTransmission(
       Context.BeforeTransmission context, ExecutionAttributes executionAttributes) {
 
-    SdkRequest request = context.request();
-    Span currentSpan = Span.current();
+    if (captureExperimentalSpanAttributes) {
+      SdkRequest request = context.request();
+      Span currentSpan = Span.current();
 
-    try {
-      if (currentSpan == null || !currentSpan.getSpanContext().isValid()) {
-        return;
-      }
-
-      AwsCredentials credentials =
-          executionAttributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
-      Region signingRegion =
-          executionAttributes.getAttribute(AwsSignerExecutionAttribute.SIGNING_REGION);
-
-      if (credentials != null) {
-        String accessKeyId = credentials.accessKeyId();
-        if (accessKeyId != null) {
-          currentSpan.setAttribute(AWS_AUTH_ACCESS_KEY, accessKeyId);
+      try {
+        if (request == null) {
+          return;
         }
-      }
 
-      if (signingRegion != null) {
-        String region = signingRegion.toString();
-        currentSpan.setAttribute(AWS_AUTH_REGION, region);
-      }
-
-      AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
-      if (awsSdkRequest != null) {
-        executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
-        fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
-        if (awsSdkRequest.type() == BEDROCKRUNTIME) {
-          currentSpan.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+        if (currentSpan == null || !currentSpan.getSpanContext().isValid()) {
+          return;
         }
+
+        AwsCredentials credentials =
+            executionAttributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
+        Region signingRegion =
+            executionAttributes.getAttribute(AwsSignerExecutionAttribute.SIGNING_REGION);
+
+        if (credentials != null) {
+          String accessKeyId = credentials.accessKeyId();
+          if (accessKeyId != null) {
+            currentSpan.setAttribute(AWS_AUTH_ACCESS_KEY, accessKeyId);
+          }
+        }
+
+        if (signingRegion != null) {
+          String region = signingRegion.toString();
+          currentSpan.setAttribute(AWS_AUTH_REGION, region);
+        }
+
+        AwsSdkRequest awsSdkRequest = AwsSdkRequest.ofSdkRequest(request);
+        if (awsSdkRequest != null) {
+          executionAttributes.putAttribute(ADOT_AWS_SDK_REQUEST_ATTRIBUTE, awsSdkRequest);
+          fieldMapper.mapToAttributes(request, awsSdkRequest, currentSpan);
+          if (awsSdkRequest.type() == BEDROCKRUNTIME) {
+            currentSpan.setAttribute(GEN_AI_SYSTEM, GEN_AI_SYSTEM_BEDROCK);
+          }
+        }
+      } catch (Throwable throwable) {
+        // ignore
       }
-    } catch (Throwable throwable) {
-      // ignore
     }
   }
 
@@ -103,12 +112,14 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
   public SdkResponse modifyResponse(
       Context.ModifyResponse context, ExecutionAttributes executionAttributes) {
 
-    Span currentSpan = Span.current();
-    AwsSdkRequest sdkRequest = executionAttributes.getAttribute(AWS_SDK_REQUEST_ATTRIBUTE);
+    if (captureExperimentalSpanAttributes) {
+      Span currentSpan = Span.current();
+      AwsSdkRequest sdkRequest = executionAttributes.getAttribute(ADOT_AWS_SDK_REQUEST_ATTRIBUTE);
 
-    if (sdkRequest != null) {
-      fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
-      executionAttributes.putAttribute(AWS_SDK_REQUEST_ATTRIBUTE, null);
+      if (sdkRequest != null) {
+        fieldMapper.mapToAttributes(context.response(), sdkRequest, currentSpan);
+        executionAttributes.putAttribute(ADOT_AWS_SDK_REQUEST_ATTRIBUTE, null);
+      }
     }
 
     return context.response();
