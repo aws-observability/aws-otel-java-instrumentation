@@ -46,7 +46,7 @@ dependencies {
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
 
   // For OtlpAwsExporter SigV4 Authentication
-  implementation("software.amazon.awssdk:sts")
+  runtimeOnly("software.amazon.awssdk:sts")
   implementation("software.amazon.awssdk:auth")
   implementation("software.amazon.awssdk:http-auth-aws")
 
