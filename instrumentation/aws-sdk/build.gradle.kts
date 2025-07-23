@@ -23,6 +23,7 @@ base.archivesBaseName = "aws-instrumentation-aws-sdk"
 
 dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  compileOnly("com.amazonaws:aws-java-sdk-core:1.11.0")
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
   compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
 
@@ -31,4 +32,8 @@ dependencies {
 
   testImplementation("com.google.guava:guava")
   testImplementation("io.opentelemetry.javaagent:opentelemetry-testing-common")
+
+  testImplementation("com.amazonaws:aws-java-sdk-core:1.11.0")
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  testImplementation("org.mockito:mockito-core:5.14.2")
 }
