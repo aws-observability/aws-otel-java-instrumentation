@@ -28,16 +28,18 @@ dependencies {
   compileOnly("com.amazonaws:aws-java-sdk-core:1.11.0")
   compileOnly("software.amazon.awssdk:aws-core:2.2.0")
   compileOnly("software.amazon.awssdk:aws-json-protocol:2.2.0")
-
   compileOnly("net.bytebuddy:byte-buddy")
-  compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
   testImplementation("com.google.guava:guava")
-  testImplementation("io.opentelemetry.javaagent:opentelemetry-testing-common")
-
-  testImplementation("com.amazonaws:aws-java-sdk-core:1.11.0")
-  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   testImplementation("org.mockito:mockito-core:5.14.2")
-  testImplementation("com.google.guava:guava")
   testImplementation("io.opentelemetry.javaagent:opentelemetry-testing-common")
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
+  testImplementation("com.amazonaws:aws-java-sdk-core:1.11.0")
+  testImplementation("software.amazon.awssdk:aws-core:2.2.0")
+
+  testImplementation("com.amazonaws:aws-java-sdk-lambda:1.11.0")
+  testImplementation("com.amazonaws:aws-java-sdk-kinesis:1.11.0")
+  testImplementation("com.amazonaws:aws-java-sdk-sns:1.11.0")
+  testImplementation("com.amazonaws:aws-java-sdk-stepfunctions:1.11.0")
+  testImplementation("com.amazonaws:aws-java-sdk-secretsmanager:1.11.0")
 }
