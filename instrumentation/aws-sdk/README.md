@@ -27,6 +27,22 @@ The aws-sdk instrumentation is an SPI-based implementation that extends the upst
    - Finds ADOT’s **AdotAwsSdkInstrumentationModule**
    - Registers **AdotAwsSdkTracingExecutionInterceptor** (order > 0)
 
+#### _Note on Attribute Collection:_
+AWS SDK v1.11 and v2.2 handle attribute collection differently:
+
+**V1.11:**
+- Maintains a separate AttributesBuilder during request/response lifecycle
+- Collects ADOT-specific attributes alongside upstream processing without interference
+- Injects collected attributes into span at the end of the request and response lifecycle hooks
+
+
+**V2.2:**
+- FieldMapper directly modifies spans during request/response processing
+- Attributes are added to spans immediately when discovered
+- Direct integration with span lifecycle
+
+This architectural difference exists due to upstream AWS SDK injecting attributes into spans differently for v1.11 and v2.2
+
 ### AWS SDK v1 Instrumentation Summary
 The AdotAwsSdkInstrumentationModule uses the instrumentation (specified in AdotAwsClientInstrumentation) to register the AdotAwsSdkTracingRequestHandler through `typeInstrumentations`.
 
@@ -61,6 +77,28 @@ _**Important Notes:**_
 - The upstream interceptor closes the span in [afterResponse](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/TracingRequestHandler.java#L116) and/or [afterError](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/aws-sdk/aws-sdk-1.11/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v1_11/TracingRequestHandler.java#L131). These hooks are inaccessible for span modification.
   `afterAttempt` is our final hook point, giving us access to both the fully processed response and active span.
 
+**High-Level Sequence Diagram:**
+![img.png](sequence-diagram-1.11.png)
+
+_Class Functionalities:_
+- `AdotAwsSdkTracingRequestHandler`
+  - Hooks into AWS SDK request/response lifecycle 
+  - Adds ADOT-specific attributes to spans extracted by AwsSdkExperimentalAttributesExtractor
+- `AwsSdkExperimentalAttributesExtractor`
+  - Extracts attributes from AWS requests/responses and enriches spans
+  - Uses RequestAccess to get field values
+  - Special handling for Bedrock services
+- `RequestAccess`
+  - Provides access to AWS SDK object fields 
+  - Caches method handles for performance 
+  - Uses BedrockJsonParser for parsing LLM payloads
+- `BedrockJsonParser`
+  - Custom JSON parser for Bedrock payloads
+  - Handles different LLM model formats
+- `AwsBedrockResourceType`
+  - Maps Bedrock class names to resource types
+  - Provides attribute keys and accessors for each type
+
 ### AWS SDK v2 Instrumentation Summary
 
 **AdotAwsSdkInstrumentationModule**
@@ -87,7 +125,6 @@ _**Important Notes:**_
 `modifyResponse` is our final hook point, giving us access to both the fully processed response and active span.
 
 **High-Level Sequence Diagram:**
-
 ![img.png](sequence-diagram-2.2.png)
 
 _Class Functionalities:_
@@ -112,3 +149,15 @@ _Class Functionalities:_
   - Caches method handles for performance
 - `BedrockJasonParser`
   - Parses and extracts specific attributes from Bedrock LLM responses for GenAI telemetry
+
+### Commands for Running Groovy Tests
+
+To run the BedrockJsonParserTest for aws-sdk v1.11:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.BedrockJsonParserTest"
+````
+
+To run the BedrockJsonParserTest for aws-sdk v2.2:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParserTest"
+````
