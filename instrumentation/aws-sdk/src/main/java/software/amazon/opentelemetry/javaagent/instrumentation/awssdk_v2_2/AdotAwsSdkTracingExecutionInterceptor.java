@@ -29,6 +29,35 @@ import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.*;
 import software.amazon.awssdk.regions.Region;
 
+/**
+ * This interceptor manages the AWS SDK requests and responses for attribute mapping. Here's the
+ * flow:
+ *
+ * <p>1. Request Phase (beforeTransmission):
+ *
+ * <ul>
+ *   <li>Receives the SDK request before it's sent to AWS
+ *   <li>Creates an AwsSdkRequest object containing request metadata
+ *   <li>Stores this AwsSdkRequest in ExecutionAttributes using ADOT_AWS_SDK_REQUEST_ATTRIBUTE
+ *   <li>Maps request attributes to the current span
+ * </ul>
+ *
+ * <p>2. Response Phase (modifyResponse):
+ *
+ * <ul>
+ *   <li>Retrieves the stored AwsSdkRequest from ExecutionAttributes via
+ *       ADOT_AWS_SDK_REQUEST_ATTRIBUTE
+ *   <li>Uses this request context to properly map response fields to the span
+ *   <li>Cleans up by removing the stored request from ExecutionAttributes
+ * </ul>
+ *
+ * <p>The ExecutionAttributes object persists throughout the entire request lifecycle, allowing
+ * correlation between the request and response phases. All ExecutionInterceptor's have access to
+ * the ExecutionAttributes.
+ *
+ * @see <a
+ *     href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/core/interceptor/ExecutionInterceptor.html">reference</a>
+ */
 public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionInterceptor {
 
   private static final String GEN_AI_SYSTEM_BEDROCK = "aws.bedrock";
