@@ -15,6 +15,8 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11;
 
+import static io.opentelemetry.instrumentation.api.internal.ConfigPropertiesUtil.getBoolean;
+
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerAfterAttemptContext;
@@ -25,6 +27,25 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 
 /**
+ * This handler extends the AWS SDK v1.11 request handling chain to add ADOT-specific span
+ * attributes. It operates at two key points in the request lifecycle:
+ *
+ * <p>1. Request Phase (beforeRequest):
+ *
+ * <ul>
+ *   <li>Intercepts the request after upstream modifications
+ *   <li>Extracts experimental attributes from the request in a separate AttributesBuilder
+ *   <li>Adds these attributes to the current span
+ * </ul>
+ *
+ * <p>2. Response/Error Phase (afterAttempt):
+ *
+ * <ul>
+ *   <li>Captures final state after all upstream handlers
+ *   <li>Extracts attributes from both request and response/error in a separate AttributesBuilder
+ *   <li>Adds these attributes to the current span before it closes
+ * </ul>
+ *
  * Based on OpenTelemetry Java Instrumentation's AWS SDK v1.11 TracingRequestHandler
  * (release/v2.11.x). Adapts the base instrumentation pattern to add ADOT-specific functionality.
  *
@@ -33,6 +54,8 @@ import io.opentelemetry.context.Context;
  */
 public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
   private final AwsSdkExperimentalAttributesExtractor experimentalAttributesExtractor;
+  private final boolean captureExperimentalSpanAttributes =
+      getBoolean("otel.instrumentation.aws-sdk.experimental-span-attributes", true);
 
   public AdotAwsSdkTracingRequestHandler() {
     this.experimentalAttributesExtractor = new AwsSdkExperimentalAttributesExtractor();
@@ -49,7 +72,9 @@ public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
   public void beforeRequest(Request<?> request) {
     Span currentSpan = Span.current();
 
-    if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
+    if (captureExperimentalSpanAttributes
+        && currentSpan != null
+        && currentSpan.getSpanContext().isValid()) {
       AttributesBuilder attributes = Attributes.builder();
       experimentalAttributesExtractor.onStart(attributes, Context.current(), request);
 
@@ -74,7 +99,9 @@ public class AdotAwsSdkTracingRequestHandler extends RequestHandler2 {
   public void afterAttempt(HandlerAfterAttemptContext context) {
     Span currentSpan = Span.current();
 
-    if (currentSpan != null && currentSpan.getSpanContext().isValid()) {
+    if (captureExperimentalSpanAttributes
+        && currentSpan != null
+        && currentSpan.getSpanContext().isValid()) {
       Request<?> request = context.getRequest();
       Response<?> response = context.getResponse();
       Exception exception = context.getException();
