@@ -88,11 +88,7 @@ public class AdotAwsSdkTracingExecutionInterceptor implements ExecutionIntercept
       Span currentSpan = Span.current();
 
       try {
-        if (request == null) {
-          return;
-        }
-
-        if (currentSpan == null || !currentSpan.getSpanContext().isValid()) {
+        if (request == null || currentSpan == null || !currentSpan.getSpanContext().isValid()) {
           return;
         }
 
