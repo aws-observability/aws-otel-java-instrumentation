@@ -79,8 +79,36 @@ The AdotAwsSdkTracingExecutionInterceptor hooks onto OpenTelemetry's spans durin
 1. `beforeTransmission`: the latest point where the SDK request can be obtained after it is modified by the upstream's interceptor
 2. `modifyResponse`: the latest point to access the SDK response before the span closes in the upstream afterExecution method
 
-_**Important Note:**_
-The upstream interceptor closes the span in `afterExecution`. That hook is inaccessible for span modification.
+All the span lifecycle hooks provided by AWS SDK ExecutionInterceptor can be found [here.](https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/core/interceptor/ExecutionInterceptor.html)
+
+_**Important Notes:**_
+- The upstream interceptor's last point of request modification occurs in [beforeTransmission](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java#L237).
+- The upstream interceptor closes the span in [afterExecution](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/release/v2.11.x/instrumentation/aws-sdk/aws-sdk-2.2/library/src/main/java/io/opentelemetry/instrumentation/awssdk/v2_2/internal/TracingExecutionInterceptor.java#L348). That hook is inaccessible for span modification.
 `modifyResponse` is our final hook point, giving us access to both the fully processed response and active span.
 
+**High-Level Sequence Diagram:**
 
+![img.png](sequence-diagram-2.2.png)
+
+_Class Functionalities:_
+- `AdotAwsSdkTracingExecutionInterceptor`
+  - Intercepts AWS SDK calls to create and enrich OpenTelemetry spans with AWS attributes
+  - Coordinates the attribute mapping process
+- `FieldMapper`
+  - Maps the AWS SDK fields to span attributes
+  - Coordinates with Serializer for value conversion
+- `FieldMapping`
+  - Defines what fields to map from SDK to spans
+  - Groups mappings by type (REQUEST/RESPONSE)
+- `MethodHandleFacotry`
+  - Provides fast, cached access to AWS SDK object fields for better performance
+  - Used by FieldMapper for efficient field value extraction
+- `Serializer`
+  - Converts AWS SDK objects and Bedrock objects into string values that can be used as span attributes
+  - Works with BedrockJsonParser for LLM responses
+- `AwsJsonProtocolFactoryAccess`
+  - Enables access to AWS SDK's internal JSON serialization capabilities for complex SDK objects
+  - Uses reflection to access internal SDK classes
+  - Caches method handles for performance
+- `BedrockJasonParser`
+  - Parses and extracts specific attributes from Bedrock LLM responses for GenAI telemetry
