@@ -34,12 +34,11 @@ dependencies {
   testImplementation("org.mockito:mockito-core:5.14.2")
   testImplementation("io.opentelemetry.javaagent:opentelemetry-testing-common")
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
-  testImplementation("com.amazonaws:aws-java-sdk-core:1.11.0")
-  testImplementation("software.amazon.awssdk:aws-core:2.2.0")
 
-  testImplementation("com.amazonaws:aws-java-sdk-lambda:1.11.0")
-  testImplementation("com.amazonaws:aws-java-sdk-kinesis:1.11.0")
-  testImplementation("com.amazonaws:aws-java-sdk-sns:1.11.0")
-  testImplementation("com.amazonaws:aws-java-sdk-stepfunctions:1.11.0")
-  testImplementation("com.amazonaws:aws-java-sdk-secretsmanager:1.11.0")
+  testImplementation("software.amazon.awssdk:aws-core:2.2.0")
+  testImplementation("com.amazonaws:aws-java-sdk-lambda:1.11.678")
+  testImplementation("com.amazonaws:aws-java-sdk-kinesis:1.11.106")
+  testImplementation("com.amazonaws:aws-java-sdk-sns:1.11.106")
+  testImplementation("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
+  testImplementation("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
 }

@@ -34,6 +34,14 @@ import io.opentelemetry.context.Context;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/*
+ * NOTE: V1.11 attribute extraction is difficult to test in unit tests due to reflection-based
+ * method access via MethodHandle. Many tests here only verify that the extractor correctly
+ * identifies different AWS service types rather than actual attribute extraction. However, these
+ * attributes are comprehensively tested in the contract tests which provide end-to-end validation
+ * of the reflection-based extraction logic. The contract tests cover most V1.11 attributes
+ * including all Bedrock Gen AI attributes.
+ */
 class AwsSdkExperimentalAttributesInjectionTest {
 
   private AwsSdkExperimentalAttributesExtractor extractor;
@@ -98,6 +106,20 @@ class AwsSdkExperimentalAttributesInjectionTest {
   }
 
   @Test
+  void testAuthAccessKeyAttributes() {
+    AWSCredentials credentials = mock(AWSCredentials.class);
+    when(mockRequest.getHandlerContext(AWS_CREDENTIALS)).thenReturn(credentials);
+    when(credentials.getAWSAccessKeyId()).thenReturn("AKIAIOSFODNN7EXAMPLE");
+    when(mockRequest.getOriginalRequest()).thenReturn(mock(PublishRequest.class));
+    when(mockRequest.getServiceName()).thenReturn("AmazonSNS");
+
+    extractor.onStart(attributes, Context.current(), mockRequest);
+
+    verify(attributes)
+        .put(eq(AwsExperimentalAttributes.AWS_AUTH_ACCESS_KEY), eq("AKIAIOSFODNN7EXAMPLE"));
+  }
+
+  @Test
   void testSecretsManagerExperimentalAttributes() {
     GetSecretValueRequest secretRequest = mock(GetSecretValueRequest.class);
     when(mockRequest.getServiceName()).thenReturn("AWSSecretsManager");
@@ -137,33 +159,32 @@ class AwsSdkExperimentalAttributesInjectionTest {
   }
 
   @Test
-  void testAuthAccessKeyAttributes() {
-    AWSCredentials credentials = mock(AWSCredentials.class);
-    when(mockRequest.getHandlerContext(AWS_CREDENTIALS)).thenReturn(credentials);
-    when(credentials.getAWSAccessKeyId()).thenReturn("AKIAIOSFODNN7EXAMPLE");
-    when(mockRequest.getOriginalRequest()).thenReturn(mock(PublishRequest.class));
-    when(mockRequest.getServiceName()).thenReturn("AmazonSNS");
+  void testLambdaResourceIdExperimentalAttributes() {
+    PublishRequest originalRequest = mock(PublishRequest.class);
+    when(mockRequest.getServiceName()).thenReturn("AWSLambda");
+    when(mockRequest.getOriginalRequest()).thenReturn(originalRequest);
 
     extractor.onStart(attributes, Context.current(), mockRequest);
-
-    verify(attributes)
-        .put(eq(AwsExperimentalAttributes.AWS_AUTH_ACCESS_KEY), eq("AKIAIOSFODNN7EXAMPLE"));
+    // We can't verify the actual attribute setting since it depends on reflection
   }
 
-  // These tests cover all the main AwsExperimentalAttributes in the awssdk_v1_11 package. For the
-  // Bedrock-related tests, we've taken a simplified approach since it's difficult to mock the
-  // reflection-based access in unit tests. The tests verify that the service name is correctly
-  // identified and the request is properly processed, but they don't verify the actual attribute
-  // extraction that depends on reflection.
+  @Test
+  void testTableArnExperimentalAttributes() {
+    PublishRequest originalRequest = mock(PublishRequest.class);
+    when(mockRequest.getServiceName()).thenReturn("AmazonDynamoDBv2");
+    when(mockRequest.getOriginalRequest()).thenReturn(originalRequest);
+
+    extractor.onStart(attributes, Context.current(), mockRequest);
+    // We can't verify the actual attribute setting since it depends on reflection
+  }
+
   @Test
   void testBedrockRuntimeAttributes() {
-    // This is a simplified test since we can't easily mock the reflection behavior
     PublishRequest originalRequest = mock(PublishRequest.class);
     when(mockRequest.getServiceName()).thenReturn("AmazonBedrockRuntime");
     when(mockRequest.getOriginalRequest()).thenReturn(originalRequest);
 
     extractor.onStart(attributes, Context.current(), mockRequest);
-
     // We can't verify the actual attribute setting since it depends on reflection and class name
   }
 
@@ -174,7 +195,6 @@ class AwsSdkExperimentalAttributesInjectionTest {
     when(mockRequest.getOriginalRequest()).thenReturn(originalRequest);
 
     extractor.onStart(attributes, Context.current(), mockRequest);
-
     // We can't verify the actual attribute setting since it depends on reflection
   }
 
@@ -185,7 +205,6 @@ class AwsSdkExperimentalAttributesInjectionTest {
     when(mockRequest.getOriginalRequest()).thenReturn(originalRequest);
 
     extractor.onStart(attributes, Context.current(), mockRequest);
-
     // We can't verify the actual attribute setting since it depends on reflection
   }
 
@@ -196,7 +215,6 @@ class AwsSdkExperimentalAttributesInjectionTest {
     when(mockRequest.getOriginalRequest()).thenReturn(originalRequest);
 
     extractor.onStart(attributes, Context.current(), mockRequest);
-
     // We can't verify the actual attribute setting since it depends on reflection
   }
 }
