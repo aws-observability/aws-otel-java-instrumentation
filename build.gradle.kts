@@ -37,6 +37,8 @@ nebulaRelease {
   addReleaseBranchPattern("""v\d+\.\d+\.x""")
 }
 
+apply(from = "version.gradle.kts")
+
 nexusPublishing {
   repositories {
     sonatype {
