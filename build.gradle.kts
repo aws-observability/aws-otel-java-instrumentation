@@ -73,7 +73,7 @@ allprojects {
       ktlint("1.4.0").editorConfigOverride(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
 
       // Doesn't support pluginManagement block
-      targetExclude("settings.gradle.kts")
+      targetExclude("settings.gradle.kts", "version.gradle.kts")
 
       if (!project.path.startsWith(":sample-apps:")) {
         licenseHeaderFile("${rootProject.projectDir}/config/license/header.java", "plugins|include|import")
