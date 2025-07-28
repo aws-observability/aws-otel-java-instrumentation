@@ -16,5 +16,9 @@
 val adotVersion = "2.11.1-dev0"
 
 allprojects {
-  version = adotVersion
+  version = if (project.hasProperty("release.version")) {
+    project.property("release.version") as String
+  } else {
+    adotVersion
+  }
 }
