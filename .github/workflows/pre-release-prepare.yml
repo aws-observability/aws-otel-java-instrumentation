@@ -1,0 +1,106 @@
+name: Pre Release Prepare - Update Version and Create PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.1)'
+        required: true
+      is_patch:
+        description: 'Is this a patch? (true or false)'
+        required: true
+        default: 'false'
+
+env:
+  AWS_DEFAULT_REGION: us-east-1
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+
+jobs:
+  update-version-and-create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials for BOT secrets
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_SECRETS_MANAGER }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Get Bot secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        id: bot_secrets
+        with:
+          secret-ids: |
+            BOT_TOKEN ,${{ secrets.BOT_TOKEN_SECRET_ARN }}
+          parse-json-secrets: true
+
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          ref: 'main'
+          token: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Extract Major.Minor Version and setup Env variable
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "MAJOR_MINOR=$(echo ${{ github.event.inputs.version }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
+
+      - name: Create branches
+        run: |
+          IS_PATCH=${{ github.event.inputs.is_patch }}
+          if [[ "$IS_PATCH" != "true" && "$IS_PATCH" != "false" ]]; then
+            echo "Invalid input for IS_PATCH. Must be 'true' or 'false'."
+            exit 1
+          fi
+          
+          
+          if git ls-remote --heads origin release/v${MAJOR_MINOR}.x | grep -q "release/v${MAJOR_MINOR}.x"; then
+            if [ "$IS_PATCH" = "true" ]; then
+              git fetch origin release/v${MAJOR_MINOR}.x
+              echo "Branch release/v${MAJOR_MINOR}.x already exists, checking out."
+              git checkout "release/v${MAJOR_MINOR}.x"
+            else 
+              echo "Error, release series branch release/v${MAJOR_MINOR}.x exist for non-patch release"
+              echo "Check your input or branch"
+              exit 1
+            fi
+          else
+            if [ "$IS_PATCH" = "true" ]; then
+              echo "Error, release series branch release/v${MAJOR_MINOR}.x NOT exist for patch release"
+              echo "Check your input or branch"
+              exit 1
+            else 
+              echo "Creating branch release/v${MAJOR_MINOR}.x."
+              git checkout -b "release/v${MAJOR_MINOR}.x"
+              git push origin "release/v${MAJOR_MINOR}.x"
+            fi
+          fi
+          
+          git checkout -b "v${VERSION}_release"
+          git push origin "v${VERSION}_release"
+
+      - name: Update version in file
+        run: |
+          sed -i'' -e "s/val adotVersion = \".*\"/val adotVersion = \"${VERSION}\"/" version.gradle.kts
+          git commit -am "Update version to ${VERSION}"
+          git push origin "v${VERSION}_release"
+
+      - name: Create pull request against the release branch
+        env:
+          GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
+        run: |
+          gh pr create --title "Pre-release: Update version to ${VERSION}" \
+                       --body "This PR updates the version to ${VERSION}.
+          
+          By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice." \
+                       --head v${{ github.event.inputs.version }}_release \
+                       --base release/v${MAJOR_MINOR}.x
