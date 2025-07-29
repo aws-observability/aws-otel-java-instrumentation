@@ -24,25 +24,25 @@ jobs:
   update-version-and-create-pr:
     runs-on: ubuntu-latest
     steps:
-#      - name: Configure AWS credentials for BOT secrets
-#        uses: aws-actions/configure-aws-credentials@v4
-#        with:
-#          role-to-assume: ${{ secrets.AWS_ROLE_ARN_SECRETS_MANAGER }}
-#          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-#
-#      - name: Get Bot secrets
-#        uses: aws-actions/aws-secretsmanager-get-secrets@v1
-#        id: bot_secrets
-#        with:
-#          secret-ids: |
-#            BOT_TOKEN ,${{ secrets.BOT_TOKEN_SECRET_ARN }}
-#          parse-json-secrets: true
+      - name: Configure AWS credentials for BOT secrets
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_SECRETS_MANAGER }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Get Bot secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        id: bot_secrets
+        with:
+          secret-ids: |
+            BOT_TOKEN ,${{ secrets.BOT_TOKEN_SECRET_ARN }}
+          parse-json-secrets: true
 
       - name: Checkout main branch
         uses: actions/checkout@v3
         with:
           ref: 'main'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
 
       - name: Setup Git
         run: |
@@ -96,7 +96,7 @@ jobs:
 
       - name: Create pull request against the release branch
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
         run: |
           gh pr create --title "Pre-release: Update version to ${VERSION}" \
                        --body "This PR updates the version to ${VERSION}.
