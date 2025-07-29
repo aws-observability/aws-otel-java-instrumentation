@@ -1,0 +1,120 @@
+name: Post Release - Prepare Main for Next Development Cycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.1)'
+        required: true
+
+env:
+  AWS_DEFAULT_REGION: us-east-1
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Extract Major.Minor Version and setup Env variable
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "MAJOR_MINOR=$(echo ${{ github.event.inputs.version }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
+
+      - name: Get current major.minor version from main branch
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep '__version__' aws-opentelemetry-distro/src/amazon/opentelemetry/distro/version.py | sed -E 's/__version__ = "([0-9]+\.[0-9]+)\.[0-9]+.*"/\1/')
+          echo "CURRENT_MAJOR_MINOR_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      - name: Set major and minor for current version
+        run: |
+          echo "CURRENT_MAJOR=$(echo $CURRENT_MAJOR_MINOR_VERSION | cut -d. -f1)" >> $GITHUB_ENV
+          echo "CURRENT_MINOR=$(echo $CURRENT_MAJOR_MINOR_VERSION | cut -d. -f2)" >> $GITHUB_ENV
+
+      - name: Set major and minor for input version
+        run: |
+          echo "INPUT_MAJOR=$(echo $MAJOR_MINOR | cut -d. -f1)" >> $GITHUB_ENV
+          echo "INPUT_MINOR=$(echo $MAJOR_MINOR | cut -d. -f2)" >> $GITHUB_ENV
+
+      - name: Compare major.minor version and skip if behind
+        run: |
+          if [ "$CURRENT_MAJOR" -gt "$INPUT_MAJOR" ] || { [ "$CURRENT_MAJOR" -eq "$INPUT_MAJOR" ] && [ "$CURRENT_MINOR" -gt "$INPUT_MINOR" ]; }; then
+            echo "Input version is behind main's current major.minor version, don't need to update major version"
+            exit 1
+          fi
+  
+
+  prepare-main:
+    runs-on: ubuntu-latest
+    needs: check-version
+    steps:
+      - name: Configure AWS credentials for BOT secrets
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_SECRETS_MANAGER }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Get Bot secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        id: bot_secrets
+        with:
+          secret-ids: |
+            BOT_TOKEN ,${{ secrets.BOT_TOKEN_SECRET_ARN }}
+          parse-json-secrets: true
+
+      - name: Setup Git
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          token: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Extract Major.Minor Version and setup Env variable
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "MAJOR_MINOR=$(echo ${{ github.event.inputs.version }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
+
+      - name: Determine release branch and checkout
+        run: |
+          RELEASE_BRANCH="release/v${MAJOR_MINOR}.x"
+          git fetch origin $RELEASE_BRANCH
+          git checkout -b "prepare-main-for-next-dev-cycle-${VERSION}" origin/$RELEASE_BRANCH
+
+      - name: Update version to next development version in main
+        run: |
+          DEV_VERSION="${{ github.event.inputs.version }}.dev0"
+          sed -i'' -e "s/val adotVersion = \".*\"/val adotVersion = \"${DEV_VERSION}\"/" version.gradle.kts
+          VERSION="${{ github.event.inputs.version }}"
+          sed -i'' -e 's/adot-autoinstrumentation-java:v2\.[0-9]+\.[0-9]+/adot-autoinstrumentation-java:v'$VERSION'/g' .github/workflows/daily-scan.yml
+          git add version.gradle.kts
+          git add .github/workflows/daily-scan.yml
+          git commit -m "Prepare main for next development cycle: Update version to $DEV_VERSION"
+          git push --set-upstream origin "prepare-main-for-next-dev-cycle-${VERSION}"
+
+      - name: Create Pull Request to main
+        env:
+          GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
+        run: |
+          DEV_VERSION="${{ github.event.inputs.version }}.dev0"
+          gh pr create --title "Post release $VERSION: Update version to $DEV_VERSION" \
+                       --body "This PR prepares the main branch for the next development cycle by updating the version to $DEV_VERSION and updating the image version to be scanned to the latest released.
+          
+          This PR should only be merge when release for version v$VERSION is success.
+          
+          By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice." \
+                       --head prepare-main-for-next-dev-cycle-${VERSION} \
+                       --base main
