@@ -424,7 +424,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       // get compression method from environment
       String compression =
           configProps.getString(
-              OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
+              OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG,
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
       try {
