@@ -221,7 +221,9 @@ abstract class AbstractOtlpAwsExporterTest {
       lenient().when(this.mockExporter.toBuilder()).thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
-      lenient().when(this.mockBuilder.setHeaders(this.headersCaptor.capture())).thenReturn(mockBuilder);
+      lenient()
+          .when(this.mockBuilder.setHeaders(this.headersCaptor.capture()))
+          .thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.build()).thenReturn(this.mockExporter);
       OtlpAwsExporterTest tester = new MockOtlpAwsSpanExporterWrapper(this.mockExporter);
       this.init(XRAY_OTLP_ENDPOINT, tester);
@@ -231,35 +233,35 @@ abstract class AbstractOtlpAwsExporterTest {
 
     @Test
     void testSpanExporterCompressionDefaultsToNone() {
-      OtlpAwsSpanExporter exporter = OtlpAwsSpanExporterBuilder.create(
-          this.mockExporter, XRAY_OTLP_ENDPOINT).build();
+      OtlpAwsSpanExporter exporter =
+          OtlpAwsSpanExporterBuilder.create(this.mockExporter, XRAY_OTLP_ENDPOINT).build();
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
     @Test
     void testSpanExporterCompressionCanBeSetToGzip() {
-      OtlpAwsSpanExporter exporter = OtlpAwsSpanExporterBuilder.create(
-          this.mockExporter, XRAY_OTLP_ENDPOINT)
-          .setCompression("gzip")
-          .build();
+      OtlpAwsSpanExporter exporter =
+          OtlpAwsSpanExporterBuilder.create(this.mockExporter, XRAY_OTLP_ENDPOINT)
+              .setCompression("gzip")
+              .build();
       assertEquals(CompressionMethod.GZIP, exporter.getCompression());
     }
 
     @Test
     void testSpanExporterCompressionIgnoresCaseForGzip() {
-      OtlpAwsSpanExporter exporter = OtlpAwsSpanExporterBuilder.create(
-          this.mockExporter, XRAY_OTLP_ENDPOINT)
-          .setCompression("GZIP")
-          .build();
+      OtlpAwsSpanExporter exporter =
+          OtlpAwsSpanExporterBuilder.create(this.mockExporter, XRAY_OTLP_ENDPOINT)
+              .setCompression("GZIP")
+              .build();
       assertEquals(CompressionMethod.GZIP, exporter.getCompression());
     }
 
     @Test
     void testSpanExporterCompressionDefaultsToNoneForUnknownValue() {
-      OtlpAwsSpanExporter exporter = OtlpAwsSpanExporterBuilder.create(
-          this.mockExporter, XRAY_OTLP_ENDPOINT)
-          .setCompression("unknown")
-          .build();
+      OtlpAwsSpanExporter exporter =
+          OtlpAwsSpanExporterBuilder.create(this.mockExporter, XRAY_OTLP_ENDPOINT)
+              .setCompression("unknown")
+              .build();
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
@@ -292,7 +294,9 @@ abstract class AbstractOtlpAwsExporterTest {
       lenient().when(this.mockExporter.toBuilder()).thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
-      lenient().when(this.mockBuilder.setHeaders(this.headersCaptor.capture())).thenReturn(mockBuilder);
+      lenient()
+          .when(this.mockBuilder.setHeaders(this.headersCaptor.capture()))
+          .thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.build()).thenReturn(this.mockExporter);
       OtlpAwsExporterTest mocker = new MockOtlpAwsLogsExporterWrapper(this.mockExporter);
       this.init(LOGS_OTLP_ENDPOINT, mocker);
@@ -302,35 +306,35 @@ abstract class AbstractOtlpAwsExporterTest {
 
     @Test
     void testLogsExporterCompressionDefaultsToNone() {
-      OtlpAwsLogsExporter exporter = OtlpAwsLogsExporterBuilder.create(
-          this.mockExporter, LOGS_OTLP_ENDPOINT).build();
+      OtlpAwsLogsExporter exporter =
+          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT).build();
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
     @Test
     void testLogsExporterCompressionCanBeSetToGzip() {
-      OtlpAwsLogsExporter exporter = OtlpAwsLogsExporterBuilder.create(
-          this.mockExporter, LOGS_OTLP_ENDPOINT)
-          .setCompression("gzip")
-          .build();
+      OtlpAwsLogsExporter exporter =
+          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
+              .setCompression("gzip")
+              .build();
       assertEquals(CompressionMethod.GZIP, exporter.getCompression());
     }
 
     @Test
     void testLogsExporterCompressionIgnoresCaseForGzip() {
-      OtlpAwsLogsExporter exporter = OtlpAwsLogsExporterBuilder.create(
-          this.mockExporter, LOGS_OTLP_ENDPOINT)
-          .setCompression("GZIP")
-          .build();
+      OtlpAwsLogsExporter exporter =
+          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
+              .setCompression("GZIP")
+              .build();
       assertEquals(CompressionMethod.GZIP, exporter.getCompression());
     }
 
     @Test
     void testLogsExporterCompressionDefaultsToNoneForUnknownValue() {
-      OtlpAwsLogsExporter exporter = OtlpAwsLogsExporterBuilder.create(
-          this.mockExporter, LOGS_OTLP_ENDPOINT)
-          .setCompression("unknown")
-          .build();
+      OtlpAwsLogsExporter exporter =
+          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
+              .setCompression("unknown")
+              .build();
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
