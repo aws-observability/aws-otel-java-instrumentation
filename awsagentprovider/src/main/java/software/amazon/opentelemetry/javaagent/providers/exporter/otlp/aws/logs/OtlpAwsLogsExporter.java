@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 /**
  * This exporter extends the functionality of the OtlpHttpLogsRecordExporter to allow logs to be
@@ -103,5 +104,10 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
   @Override
   public String serviceName() {
     return "logs";
+  }
+
+  @Override
+  public CompressionMethod getCompression() {
+    return CompressionMethod.NONE; // TODO: implement
   }
 }

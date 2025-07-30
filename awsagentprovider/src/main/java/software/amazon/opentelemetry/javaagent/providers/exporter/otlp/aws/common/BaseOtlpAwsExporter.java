@@ -38,4 +38,6 @@ public abstract class BaseOtlpAwsExporter {
   }
 
   public abstract String serviceName();
+
+  public abstract CompressionMethod getCompression();
 }

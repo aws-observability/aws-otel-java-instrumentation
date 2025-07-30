@@ -16,11 +16,14 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -50,6 +53,15 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
               .putHeader("Content-Type", "application/x-protobuf")
               .build();
 
+      // Compress the data before signing with gzip
+      byte[] compressedData;
+      if (exporter.getCompression().equals(CompressionMethod.GZIP)) {
+        logger.info("Compressing with gzip"); //TODO: remove
+        compressedData = compressWithGzip(data);
+      } else {
+        compressedData = data;
+      }
+
       AwsCredentials credentials = DefaultCredentialsProvider.create().resolveCredentials();
 
       SignedRequest signedRequest =
@@ -60,7 +72,7 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
                           .request(httpRequest)
                           .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, exporter.serviceName())
                           .putProperty(AwsV4HttpSigner.REGION_NAME, exporter.awsRegion)
-                          .payload(() -> new ByteArrayInputStream(data)));
+                          .payload(() -> new ByteArrayInputStream(compressedData)));
 
       Map<String, String> result = new HashMap<>();
 
@@ -82,6 +94,24 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
               exporter.endpoint, e.getMessage()));
 
       return Collections.emptyMap();
+    }
+  }
+
+  /**
+   * Compresses the given byte array using GZIP compression.
+   *
+   * @param data the byte array to compress
+   * @return the compressed byte array
+   * @throws IOException if compression fails
+   */
+  private byte[] compressWithGzip(byte[] data) throws IOException {
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        GZIPOutputStream gzipOut = new GZIPOutputStream(baos)) {
+
+      gzipOut.write(data);
+      gzipOut.finish();
+
+      return baos.toByteArray();
     }
   }
 }

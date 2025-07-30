@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 /**
  * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
@@ -38,20 +39,20 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.commo
 public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements SpanExporter {
   private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final OtlpHttpSpanExporter parentExporter;
+  private final CompressionMethod compression;
 
   static OtlpAwsSpanExporter getDefault(String endpoint) {
-    return new OtlpAwsSpanExporter(endpoint);
+    return new OtlpAwsSpanExporter(
+        OtlpHttpSpanExporter.getDefault(), endpoint, CompressionMethod.NONE);
   }
 
-  static OtlpAwsSpanExporter create(OtlpHttpSpanExporter parent, String endpoint) {
-    return new OtlpAwsSpanExporter(parent, endpoint);
+  static OtlpAwsSpanExporter create(
+      OtlpHttpSpanExporter parent, String endpoint, CompressionMethod compression) {
+    return new OtlpAwsSpanExporter(parent, endpoint, compression);
   }
 
-  private OtlpAwsSpanExporter(String endpoint) {
-    this(OtlpHttpSpanExporter.getDefault(), endpoint);
-  }
-
-  private OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
+  private OtlpAwsSpanExporter(
+      OtlpHttpSpanExporter parentExporter, String endpoint, CompressionMethod compression) {
     super(endpoint);
 
     this.parentExporterBuilder =
@@ -61,6 +62,7 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
             .setHeaders(this.headerSupplier);
 
     this.parentExporter = this.parentExporterBuilder.build();
+    this.compression = compression;
   }
 
   /**
@@ -93,6 +95,11 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
   @Override
   public String serviceName() {
     return "xray";
+  }
+
+  @Override
+  public CompressionMethod getCompression() {
+    return this.compression;
   }
 
   @Override
