@@ -421,10 +421,17 @@ public final class AwsApplicationSignalsCustomizerProvider
       // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
       // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
 
+      // get compression method from environment
+      String compression =
+          configProps.getString(
+              OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
+              configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
+
       try {
         return OtlpAwsLogsExporterBuilder.create(
                 (OtlpHttpLogRecordExporter) logsExporter,
                 configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
+            .setCompression(compression)
             .build();
       } catch (Exception e) {
         // This technically should never happen as the validator checks for the correct env

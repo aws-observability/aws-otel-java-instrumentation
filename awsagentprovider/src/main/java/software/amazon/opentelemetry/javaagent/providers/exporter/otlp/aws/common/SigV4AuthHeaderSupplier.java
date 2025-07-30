@@ -56,7 +56,7 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
       // Compress the data before signing with gzip
       byte[] compressedData;
       if (exporter.getCompression().equals(CompressionMethod.GZIP)) {
-        logger.info("Compressing with gzip"); //TODO: remove
+        logger.info("Compressing with gzip"); // TODO: remove
         compressedData = compressWithGzip(data);
       } else {
         compressedData = data;
