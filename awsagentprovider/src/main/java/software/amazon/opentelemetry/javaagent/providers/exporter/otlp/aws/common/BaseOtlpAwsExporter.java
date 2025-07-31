@@ -15,6 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -27,7 +28,7 @@ public abstract class BaseOtlpAwsExporter {
 
   protected final String awsRegion;
   protected final String endpoint;
-  protected final AtomicReference<byte[]> data;
+  protected final AtomicReference<ByteArrayOutputStream> data;
   protected final Supplier<Map<String, String>> headerSupplier;
   protected final CompressionMethod compression;
 

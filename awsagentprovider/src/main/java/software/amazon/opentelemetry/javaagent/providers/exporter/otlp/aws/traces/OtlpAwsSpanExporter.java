@@ -73,7 +73,7 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
     try {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
       TraceRequestMarshaler.create(spans).writeBinaryTo(buffer);
-      this.data.set(buffer.toByteArray());
+      this.data.set(buffer);
       return this.parentExporter.export(spans);
     } catch (IOException e) {
       return CompletableResultCode.ofFailure();

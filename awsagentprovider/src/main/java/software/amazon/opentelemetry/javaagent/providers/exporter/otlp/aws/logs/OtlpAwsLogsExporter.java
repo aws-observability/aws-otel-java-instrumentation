@@ -75,7 +75,7 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
     try {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
       LogsRequestMarshaler.create(logs).writeBinaryTo(buffer);
-      this.data.set(buffer.toByteArray());
+      this.data.set(buffer);
       return this.parentExporter.export(logs);
     } catch (IOException e) {
       return CompletableResultCode.ofFailure();

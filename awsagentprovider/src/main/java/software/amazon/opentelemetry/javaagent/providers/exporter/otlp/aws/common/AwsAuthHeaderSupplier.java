@@ -44,7 +44,7 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
   @Override
   public Map<String, String> get() {
     try {
-      byte[] data = exporter.data.get();
+      ByteArrayOutputStream data = exporter.data.get();
 
       SdkHttpRequest httpRequest =
           SdkHttpFullRequest.builder()
@@ -54,7 +54,7 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
               .build();
 
       // Compress the data before signing with gzip
-      byte[] compressedData;
+      ByteArrayOutputStream compressedData;
       if (exporter.getCompression().equals(CompressionMethod.GZIP)) {
         compressedData = compressWithGzip(data);
       } else {
@@ -71,7 +71,7 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
                           .request(httpRequest)
                           .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, exporter.serviceName())
                           .putProperty(AwsV4HttpSigner.REGION_NAME, exporter.awsRegion)
-                          .payload(() -> new ByteArrayInputStream(compressedData)));
+                          .payload(() -> new ByteArrayInputStream(compressedData.toByteArray())));
 
       Map<String, String> result = new HashMap<>();
 
@@ -99,18 +99,17 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
   /**
    * Compresses the given byte array using GZIP compression.
    *
-   * @param data the byte array to compress
-   * @return the compressed byte array
+   * @param data the byte array stream to compress
+   * @return the compressed byte as a ByteArrayOutputStream
    * @throws IOException if compression fails
    */
-  private byte[] compressWithGzip(byte[] data) throws IOException {
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        GZIPOutputStream gzipOut = new GZIPOutputStream(baos)) {
+  private ByteArrayOutputStream compressWithGzip(ByteArrayOutputStream data) throws IOException {
+    ByteArrayOutputStream compressedData = new ByteArrayOutputStream();
 
-      gzipOut.write(data);
-      gzipOut.finish();
-
-      return baos.toByteArray();
+    try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedData)) {
+      data.writeTo(gzipOut);
     }
+
+    return compressedData;
   }
 }
