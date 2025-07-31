@@ -96,11 +96,6 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
   }
 
   @Override
-  public CompressionMethod getCompression() {
-    return this.compression;
-  }
-
-  @Override
   public String toString() {
     StringJoiner joiner = new StringJoiner(", ", "OtlpAwsSpanExporter{", "}");
     joiner.add(this.parentExporterBuilder.toString());

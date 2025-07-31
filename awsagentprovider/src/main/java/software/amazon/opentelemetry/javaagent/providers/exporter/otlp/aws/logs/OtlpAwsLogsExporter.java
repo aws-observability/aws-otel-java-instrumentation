@@ -104,9 +104,4 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
   public String serviceName() {
     return "logs";
   }
-
-  @Override
-  public CompressionMethod getCompression() {
-    return this.compression;
-  }
 }
