@@ -41,7 +41,6 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.commo
 public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements LogRecordExporter {
   private final OtlpHttpLogRecordExporterBuilder parentExporterBuilder;
   private final OtlpHttpLogRecordExporter parentExporter;
-  private final CompressionMethod compression;
 
   static OtlpAwsLogsExporter getDefault(String endpoint) {
     return new OtlpAwsLogsExporter(
@@ -55,7 +54,7 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
 
   private OtlpAwsLogsExporter(
       OtlpHttpLogRecordExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint);
+    super(endpoint, compression);
 
     this.parentExporterBuilder =
         parentExporter.toBuilder()
@@ -64,7 +63,6 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
             .setHeaders(this.headerSupplier);
 
     this.parentExporter = this.parentExporterBuilder.build();
-    this.compression = compression;
   }
 
   /**

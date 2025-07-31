@@ -29,9 +29,11 @@ public abstract class BaseOtlpAwsExporter {
   protected final String endpoint;
   protected final AtomicReference<byte[]> data;
   protected final Supplier<Map<String, String>> headerSupplier;
+  protected final CompressionMethod compression;
 
-  protected BaseOtlpAwsExporter(String endpoint) {
+  protected BaseOtlpAwsExporter(String endpoint, CompressionMethod compression) {
     this.endpoint = endpoint.toLowerCase();
+    this.compression = compression;
     this.awsRegion = endpoint.split("\\.")[1];
     this.data = new AtomicReference<>();
     this.headerSupplier = new SigV4AuthHeaderSupplier(this);
@@ -39,5 +41,7 @@ public abstract class BaseOtlpAwsExporter {
 
   public abstract String serviceName();
 
-  public abstract CompressionMethod getCompression();
+  public CompressionMethod getCompression() {
+    return this.compression;
+  }
 }

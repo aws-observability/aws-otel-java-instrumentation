@@ -39,7 +39,6 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.commo
 public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements SpanExporter {
   private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final OtlpHttpSpanExporter parentExporter;
-  private final CompressionMethod compression;
 
   static OtlpAwsSpanExporter getDefault(String endpoint) {
     return new OtlpAwsSpanExporter(
@@ -53,7 +52,7 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
 
   private OtlpAwsSpanExporter(
       OtlpHttpSpanExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint);
+    super(endpoint, compression);
 
     this.parentExporterBuilder =
         parentExporter.toBuilder()
@@ -62,7 +61,6 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
             .setHeaders(this.headerSupplier);
 
     this.parentExporter = this.parentExporterBuilder.build();
-    this.compression = compression;
   }
 
   /**
