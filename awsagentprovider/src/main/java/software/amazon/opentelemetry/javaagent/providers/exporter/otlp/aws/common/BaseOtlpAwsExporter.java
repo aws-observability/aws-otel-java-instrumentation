@@ -36,7 +36,7 @@ public abstract class BaseOtlpAwsExporter {
     this.compression = compression;
     this.awsRegion = endpoint.split("\\.")[1];
     this.data = new AtomicReference<>();
-    this.headerSupplier = new SigV4AuthHeaderSupplier(this);
+    this.headerSupplier = new AwsAuthHeaderSupplier(this);
   }
 
   public abstract String serviceName();

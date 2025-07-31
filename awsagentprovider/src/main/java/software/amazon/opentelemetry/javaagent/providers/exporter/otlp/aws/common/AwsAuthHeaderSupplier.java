@@ -32,11 +32,11 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 
-final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
+final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
   BaseOtlpAwsExporter exporter;
   Logger logger;
 
-  public SigV4AuthHeaderSupplier(BaseOtlpAwsExporter exporter) {
+  public AwsAuthHeaderSupplier(BaseOtlpAwsExporter exporter) {
     this.exporter = exporter;
     this.logger = Logger.getLogger(exporter.getClass().getName());
   }
