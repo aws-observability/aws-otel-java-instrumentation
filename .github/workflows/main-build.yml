@@ -256,6 +256,7 @@ jobs:
           aws s3 cp ./build/distributions/aws-opentelemetry-java-layer.zip s3://adot-main-build-staging-jar/adot-java-lambda-layer-${{ github.run_id }}.zip
 
   application-signals-e2e-test:
+    name: "Application Signals E2E Test"
     needs: [build]
     uses: ./.github/workflows/application-signals-e2e-test.yml
     secrets: inherit
