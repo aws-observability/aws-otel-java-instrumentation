@@ -18,10 +18,12 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trac
 import static java.util.Objects.requireNonNull;
 
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 public class OtlpAwsSpanExporterBuilder {
   private final OtlpHttpSpanExporter parentExporter;
   private final String endpoint;
+  private String compression;
 
   public static OtlpAwsSpanExporterBuilder create(
       OtlpHttpSpanExporter parentExporter, String endpoint) {
@@ -32,12 +34,22 @@ public class OtlpAwsSpanExporterBuilder {
     return OtlpAwsSpanExporter.getDefault(endpoint);
   }
 
+  public OtlpAwsSpanExporterBuilder setCompression(String compression) {
+    this.compression = compression;
+    return this;
+  }
+
   private OtlpAwsSpanExporterBuilder(OtlpHttpSpanExporter parentExporter, String endpoint) {
     this.parentExporter = requireNonNull(parentExporter, "Must set a parentExporter");
     this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
   }
 
   public OtlpAwsSpanExporter build() {
-    return OtlpAwsSpanExporter.create(this.parentExporter, this.endpoint);
+    CompressionMethod compression = CompressionMethod.NONE;
+    if (this.compression != null && "gzip".equalsIgnoreCase(this.compression)) {
+      compression = CompressionMethod.GZIP;
+    }
+
+    return OtlpAwsSpanExporter.create(this.parentExporter, this.endpoint, compression);
   }
 }
