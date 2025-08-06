@@ -265,7 +265,7 @@ jobs:
 
   publish-build-status:
     name: "Publish Main Build Status"
-    needs: [ build, contract-tests, application-signals-e2e-test ]
+    needs: [ build, e2e-test, contract-tests, application-signals-lambda-layer-build, application-signals-e2e-test ]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -277,7 +277,8 @@ jobs:
 
       - name: Publish main build status
         run: |
-          value="${{ needs.build.result == 'success' && needs.contract-tests.result == 'success' && needs.application-signals-e2e-test.result == 'success' && '0.0' || '1.0'}}"
+          value="${{ needs.build.result == 'success' && needs.e2e-test.result == 'success' && needs.contract-tests.result == 'success' \
+            && needs.application-signals-lambda-layer-build.result == 'success' && \needs.application-signals-e2e-test.result == 'success' && '0.0' || '1.0'}}"
           aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
             --metric-name Failure \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=main_build \
