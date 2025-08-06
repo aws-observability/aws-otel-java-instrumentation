@@ -23,6 +23,7 @@ import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.List;
 import java.util.function.Function;
 import javax.annotation.concurrent.Immutable;
@@ -43,22 +44,26 @@ public final class AttributePropagatingSpanProcessor implements SpanProcessor {
   private final Function<SpanData, String> propagationDataExtractor;
   private final AttributeKey<String> propagationDataKey;
   private final List<AttributeKey<String>> attributesKeysToPropagate;
+  private final Sampler sampler;
 
   public static AttributePropagatingSpanProcessor create(
       Function<SpanData, String> propagationDataExtractor,
       AttributeKey<String> propagationDataKey,
-      List<AttributeKey<String>> attributesKeysToPropagate) {
+      List<AttributeKey<String>> attributesKeysToPropagate,
+      Sampler sampler) {
     return new AttributePropagatingSpanProcessor(
-        propagationDataExtractor, propagationDataKey, attributesKeysToPropagate);
+        propagationDataExtractor, propagationDataKey, attributesKeysToPropagate, sampler);
   }
 
   private AttributePropagatingSpanProcessor(
       Function<SpanData, String> propagationDataExtractor,
       AttributeKey<String> propagationDataKey,
-      List<AttributeKey<String>> attributesKeysToPropagate) {
+      List<AttributeKey<String>> attributesKeysToPropagate,
+      Sampler sampler) {
     this.propagationDataExtractor = propagationDataExtractor;
     this.propagationDataKey = propagationDataKey;
     this.attributesKeysToPropagate = attributesKeysToPropagate;
+    this.sampler = sampler;
   }
 
   @Override

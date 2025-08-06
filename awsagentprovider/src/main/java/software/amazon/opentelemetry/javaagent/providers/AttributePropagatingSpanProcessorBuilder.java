@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,7 @@ public class AttributePropagatingSpanProcessorBuilder {
   private AttributeKey<String> propagationDataKey = AwsAttributeKeys.AWS_LOCAL_OPERATION;
   private List<AttributeKey<String>> attributesKeysToPropagate =
       Arrays.asList(AwsAttributeKeys.AWS_REMOTE_SERVICE, AwsAttributeKeys.AWS_REMOTE_OPERATION);
+  private Sampler sampler;
 
   public static AttributePropagatingSpanProcessorBuilder create() {
     return new AttributePropagatingSpanProcessorBuilder();
@@ -69,8 +71,14 @@ public class AttributePropagatingSpanProcessorBuilder {
     return this;
   }
 
+  @CanIgnoreReturnValue
+  public AttributePropagatingSpanProcessorBuilder setSampler(Sampler sampler) {
+    this.sampler = sampler;
+    return this;
+  }
+
   public AttributePropagatingSpanProcessor build() {
     return AttributePropagatingSpanProcessor.create(
-        propagationDataExtractor, propagationDataKey, attributesKeysToPropagate);
+        propagationDataExtractor, propagationDataKey, attributesKeysToPropagate, sampler);
   }
 }

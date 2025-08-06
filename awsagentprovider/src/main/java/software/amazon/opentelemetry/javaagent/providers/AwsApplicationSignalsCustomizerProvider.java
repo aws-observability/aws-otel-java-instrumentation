@@ -17,7 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
-import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
@@ -142,10 +142,15 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG =
       "otel.exporter.otlp.logs.compression";
 
+  private static final String AWS_XRAY_ADAPTIVE_SAMPLING_CONFIG =
+      "aws.xray.adaptive.sampling.config";
+
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
+
+  private Sampler sampler;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -215,6 +220,11 @@ public final class AwsApplicationSignalsCustomizerProvider
         }
         if (configProps.getString(OTEL_TRACES_SAMPLER_ARG) == null) {
           propsOverride.put(OTEL_TRACES_SAMPLER_ARG, "endpoint=http://localhost:2000");
+        } else {
+          logger.log(
+              Level.SEVERE,
+              "Sampler was already set to: {0}",
+              configProps.getString(OTEL_TRACES_SAMPLER_ARG));
         }
       }
 
@@ -281,6 +291,19 @@ public final class AwsApplicationSignalsCustomizerProvider
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
+    if (sampler instanceof AwsXrayRemoteSampler) {
+      String config = configProps.getString(AWS_XRAY_ADAPTIVE_SAMPLING_CONFIG);
+
+      if (config != null) {
+        try {
+          ((AwsXrayRemoteSampler) sampler).setAdaptiveSamplingConfig(config);
+        } catch (Exception e) {
+          logger.log(
+              Level.WARNING, "Error processing adaptive sampling config: {0}", e.getMessage());
+        }
+      }
+      this.sampler = sampler;
+    }
     if (isApplicationSignalsEnabled(configProps)) {
       return AlwaysRecordSampler.create(sampler);
     }
@@ -296,7 +319,7 @@ public final class AwsApplicationSignalsCustomizerProvider
               configProps, DEFAULT_METRIC_EXPORT_INTERVAL, logger);
       // Construct and set local and remote attributes span processor
       tracerProviderBuilder.addSpanProcessor(
-          AttributePropagatingSpanProcessorBuilder.create().build());
+          AttributePropagatingSpanProcessorBuilder.create().setSampler(this.sampler).build());
 
       // If running on Lambda, we just need to export 100% spans and skip generating any Application
       // Signals metrics.
@@ -322,10 +345,13 @@ public final class AwsApplicationSignalsCustomizerProvider
               .build();
 
       // Construct and set application signals metrics processor
-      SpanProcessor spanMetricsProcessor =
+      AwsSpanMetricsProcessorBuilder awsSpanMetricsProcessorBuilder =
           AwsSpanMetricsProcessorBuilder.create(
-                  meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush)
-              .build();
+              meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush);
+      if (this.sampler != null) {
+        awsSpanMetricsProcessorBuilder.setSampler(this.sampler);
+      }
+      SpanProcessor spanMetricsProcessor = awsSpanMetricsProcessorBuilder.build();
       tracerProviderBuilder.addSpanProcessor(spanMetricsProcessor);
     }
     return tracerProviderBuilder;
@@ -401,11 +427,14 @@ public final class AwsApplicationSignalsCustomizerProvider
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
-      return AwsMetricAttributesSpanExporterBuilder.create(
-              spanExporter, ResourceHolder.getResource())
-          .build();
+      spanExporter =
+          AwsMetricAttributesSpanExporterBuilder.create(spanExporter, ResourceHolder.getResource())
+              .build();
     }
 
+    if (this.sampler instanceof AwsXrayRemoteSampler) {
+      ((AwsXrayRemoteSampler) this.sampler).setSpanExporter(spanExporter);
+    }
     return spanExporter;
   }
 
