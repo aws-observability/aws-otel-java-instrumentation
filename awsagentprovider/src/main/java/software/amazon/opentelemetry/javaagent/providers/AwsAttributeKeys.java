@@ -97,4 +97,7 @@ final class AwsAttributeKeys {
       AttributeKey.stringKey("aws.bedrock.guardrail.id");
   static final AttributeKey<String> AWS_GUARDRAIL_ARN =
       AttributeKey.stringKey("aws.bedrock.guardrail.arn");
+
+  static final AttributeKey<Boolean> AWS_TRACE_LAMBDA_MULTIPLE_SERVER =
+      AttributeKey.booleanKey("aws.trace.lambda.multiple-server");
 }
