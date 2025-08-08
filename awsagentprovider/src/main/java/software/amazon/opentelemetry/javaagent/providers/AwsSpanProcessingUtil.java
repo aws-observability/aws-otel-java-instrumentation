@@ -27,6 +27,7 @@ import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
 import static io.opentelemetry.semconv.SemanticAttributes.URL_PATH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.isLambdaEnvironment;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -96,11 +97,23 @@ final class AwsSpanProcessingUtil {
    */
   static String getIngressOperation(SpanData span) {
     if (isLambdaEnvironment()) {
-      String op = generateIngressOperation(span);
-      if (!op.equals(UNKNOWN_OPERATION)) {
-        return op;
+      /*
+       * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".
+       * To dynamically override this at runtime—such as when running a custom server inside your Lambda—
+       * you can set the span attribute "aws.lambda.local.operation.override" before ending the span. For example:
+       *
+       *   // Obtain the current Span and override its operation name
+       *   Span.current().setAttribute(
+       *       "aws.lambda.local.operation.override",
+       *       "MyServiceOperation");
+       *
+       * The code below will detect that override and use it instead of the default.
+       */
+      String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
+      if (operationOverride != null) {
+        return operationOverride;
       }
-      return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) + "/FunctionHandler";
+      return getFunctionNameFromEnv() + "/FunctionHandler";
     }
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
@@ -109,6 +122,11 @@ final class AwsSpanProcessingUtil {
       operation = generateIngressOperation(span);
     }
     return operation;
+  }
+
+  // define a function so that we can mock it in unit test
+  static String getFunctionNameFromEnv() {
+    return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG);
   }
 
   static String getEgressOperation(SpanData span) {

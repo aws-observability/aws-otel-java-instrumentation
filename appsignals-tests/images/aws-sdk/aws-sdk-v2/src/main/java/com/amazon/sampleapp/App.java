@@ -35,6 +35,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
@@ -68,6 +69,7 @@ import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketConfiguration;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -148,6 +150,7 @@ public class App {
     setupSfn();
     setupBedrock();
     setupSns();
+    setupCrossAccount();
     // Add this log line so that we only start testing after all routes are configured.
     awaitInitialization();
     logger.info("All routes initialized");
@@ -328,6 +331,36 @@ public class App {
           dynamoDbClient.putItem(putItemRequest);
           return "";
         });
+
+    get(
+        "/ddb/describetable/:tablename",
+        (req, res) -> {
+          var tableName = req.params(":tablename");
+
+          var createTableRequest =
+              CreateTableRequest.builder()
+                  .tableName(tableName)
+                  .attributeDefinitions(
+                      AttributeDefinition.builder()
+                          .attributeName("partitionKey")
+                          .attributeType("S")
+                          .build())
+                  .keySchema(
+                      KeySchemaElement.builder()
+                          .attributeName("partitionKey")
+                          .keyType(KeyType.HASH)
+                          .build())
+                  .provisionedThroughput(
+                      ProvisionedThroughput.builder()
+                          .readCapacityUnits(1L)
+                          .writeCapacityUnits(1L)
+                          .build())
+                  .build();
+          dynamoDbClient.createTable(createTableRequest);
+          dynamoDbClient.describeTable(r -> r.tableName(tableName));
+          return "";
+        });
+
     get(
         "/ddb/error",
         (req, res) -> {
@@ -410,6 +443,26 @@ public class App {
                   .data(SdkBytes.fromByteArray(data))
                   .partitionKey(partitionKey)
                   .build());
+          return "";
+        });
+
+    get(
+        "/kinesis/describestream/:streamname",
+        (req, res) -> {
+          var streamName = req.params(":streamname");
+
+          var kinesisClient =
+              KinesisClient.builder()
+                  .endpointOverride(endpoint)
+                  .credentialsProvider(CREDENTIALS_PROVIDER)
+                  .build();
+
+          kinesisClient.createStream(CreateStreamRequest.builder().streamName(streamName).build());
+
+          // Describe stream using ARN
+          var streamArn = "arn:aws:kinesis:us-west-2:000000000000:stream/" + streamName;
+          var describeStreamRequest = DescribeStreamRequest.builder().streamARN(streamArn).build();
+          kinesisClient.describeStream(describeStreamRequest);
           return "";
         });
 
@@ -1206,6 +1259,38 @@ public class App {
           RetrieveRequest request =
               RetrieveRequest.builder().knowledgeBaseId(knowledgeBaseId).build();
           var repo = bedrockAgentRuntimeClient.retrieve(request);
+          return "";
+        });
+  }
+
+  private static void setupCrossAccount() {
+    // Create credentials provider with temporary credentials
+    AwsSessionCredentials sessionCredentials =
+        AwsSessionCredentials.create(
+            "account_b_access_key_id", "account_b_secret_access_key", "account_b_token");
+    StaticCredentialsProvider sessionCredentialsProvider =
+        StaticCredentialsProvider.create(sessionCredentials);
+
+    // Create S3 client with temporary credentials
+    var crossAccountS3Client =
+        S3Client.builder()
+            .credentialsProvider(sessionCredentialsProvider)
+            .endpointOverride(s3Endpoint)
+            .region(Region.EU_CENTRAL_1)
+            .build();
+
+    get(
+        "/crossaccount/createbucket/accountb",
+        (req, res) -> {
+          CreateBucketRequest createBucketRequest =
+              CreateBucketRequest.builder()
+                  .bucket("cross-account-bucket")
+                  .createBucketConfiguration(
+                      CreateBucketConfiguration.builder()
+                          .locationConstraint(Region.EU_CENTRAL_1.id())
+                          .build())
+                  .build();
+          crossAccountS3Client.createBucket(createBucketRequest);
           return "";
         });
   }

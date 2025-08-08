@@ -263,16 +263,21 @@ jobs:
       adot-image-name: ${{ needs.build.outputs.staging-image }}
 
   publish-build-status:
-    needs: [ build, contract-tests ]
-    if: ${{ always() }}
-    uses: ./.github/workflows/publish-status.yml
-    with:
-      namespace: 'ADOT/GitHubActions'
-      repository: ${{ github.repository }}
-      branch: ${{ github.ref_name }}
-      workflow: main-build
-      success: ${{  needs.build.result == 'success' &&
-                    needs.contract-tests.result == 'success'  }}
-      region: us-east-1
-    secrets:
-      roleArn: ${{ secrets.METRICS_ROLE_ARN }}
+    name: "Publish Main Build Status"
+    needs: [ build, e2e-test, contract-tests, application-signals-lambda-layer-build, application-signals-e2e-test ]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Configure AWS Credentials for emitting metrics
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Publish main build status
+        run: |
+          value="${{ needs.build.result == 'success' && needs.e2e-test.result == 'success' && needs.contract-tests.result == 'success' && needs.application-signals-lambda-layer-build.result == 'success' && needs.application-signals-e2e-test.result == 'success' && '0.0' || '1.0' }}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Failure \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=main_build \
+            --value $value
