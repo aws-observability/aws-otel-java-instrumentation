@@ -20,13 +20,13 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
   java
-
+  kotlin("jvm") version "2.1.0-RC2"
   id("com.diffplug.spotless")
   id("com.github.jk1.dependency-license-report")
   id("io.github.gradle-nexus.publish-plugin")
   id("nebula.release")
 
-  id("com.github.johnrengelman.shadow") apply false
+  id("com.gradleup.shadow") apply false
 }
 
 release {
@@ -40,8 +40,8 @@ nebulaRelease {
 nexusPublishing {
   repositories {
     sonatype {
-      nexusUrl.set(uri("https://aws.oss.sonatype.org/service/local/"))
-      snapshotRepositoryUrl.set(uri("https://aws.oss.sonatype.org/content/repositories/snapshots/"))
+      nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+      snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
       username.set(System.getenv("PUBLISH_TOKEN_USERNAME"))
       password.set(System.getenv("PUBLISH_TOKEN_PASSWORD"))
     }
@@ -68,7 +68,7 @@ allprojects {
 
   spotless {
     kotlinGradle {
-      ktlint("0.48.0").userData(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
+      ktlint("1.4.0").editorConfigOverride(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
 
       // Doesn't support pluginManagement block
       targetExclude("settings.gradle.kts")
@@ -155,7 +155,7 @@ allprojects {
     }
   }
 
-  plugins.withId("com.github.johnrengelman.shadow") {
+  plugins.withId("com.gradleup.shadow") {
     tasks {
       withType<ShadowJar>().configureEach {
         exclude("**/module-info.class")

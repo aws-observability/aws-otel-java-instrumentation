@@ -119,46 +119,36 @@ public abstract class BaseHttpClientTest extends ContractTestBase {
     assertThat(attributesList)
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_NAME);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
               assertThat(attribute.getValue().getStringValue()).isEqualTo("backend");
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.NET_PEER_PORT);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_PORT);
               assertThat(attribute.getValue().getIntValue()).isEqualTo(8080L);
             })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.HTTP_STATUS_CODE);
+                  .isEqualTo(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE);
               assertThat(attribute.getValue().getIntValue()).isEqualTo(status_code);
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_URL);
+              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.URL_FULL);
               assertThat(attribute.getValue().getStringValue())
                   .isEqualTo(String.format("%s/%s", "http://backend:8080/backend", endpoint));
             })
         .satisfiesOnlyOnce(
             attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.HTTP_METHOD);
+              assertThat(attribute.getKey())
+                  .isEqualTo(SemanticConventionsConstants.HTTP_REQUEST_METHOD);
               assertThat(attribute.getValue().getStringValue()).isEqualTo(method);
             })
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_PROTOCOL_NAME);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("http");
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.NET_PROTOCOL_VERSION);
-            })
-        .satisfiesOnlyOnce(
-            attribute -> {
-              assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.PEER_SERVICE);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("backend:8080");
+                  .isEqualTo(SemanticConventionsConstants.NETWORK_PROTOCOL_VERSION);
             })
         .satisfiesOnlyOnce(
             attribute -> {
@@ -168,6 +158,15 @@ public abstract class BaseHttpClientTest extends ContractTestBase {
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.THREAD_NAME);
             });
+
+    if (!getApplicationImageName().equals("aws-appsignals-tests-netty-http-client-app")) {
+      assertThat(attributesList)
+          .satisfiesOnlyOnce(
+              attribute -> {
+                assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.PEER_SERVICE);
+                assertThat(attribute.getValue().getStringValue()).isEqualTo("backend:8080");
+              });
+    }
   }
 
   protected void assertMetricAttributes(

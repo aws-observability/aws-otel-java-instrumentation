@@ -214,7 +214,7 @@ public class KafkaProducersTest extends ContractTestBase {
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey())
-                  .isEqualTo(SemanticConventionsConstants.MESSAGING_KAFKA_DESTINATION_PARTITION);
+                  .isEqualTo(SemanticConventionsConstants.MESSAGING_DESTINATION_PARTITION_ID);
             })
         .satisfiesOnlyOnce(
             attribute -> {

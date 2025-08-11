@@ -42,7 +42,7 @@ tasks {
 }
 jib {
   configureImages(
-    "public.ecr.aws/docker/library/amazoncorretto:17-alpine",
+    "public.ecr.aws/docker/library/amazoncorretto:23-alpine",
     "aws-appsignals-mock-collector",
     localDocker = rootProject.property("localDocker")!! == "true",
     multiPlatform = false,

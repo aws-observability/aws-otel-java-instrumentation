@@ -134,25 +134,18 @@ public abstract class ContractTestBase {
   }
 
   protected Map<String, String> getApplicationEnvironmentVariables() {
-    return Map.of(
-        "JAVA_TOOL_OPTIONS",
-        "-javaagent:" + MOUNT_PATH,
-        "OTEL_METRIC_EXPORT_INTERVAL",
-        "100", // 100 ms
-        "OTEL_AWS_APPLICATION_SIGNALS_ENABLED",
-        "true",
-        "OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED",
-        isRuntimeEnabled(),
-        "OTEL_METRICS_EXPORTER",
-        "none",
-        "OTEL_BSP_SCHEDULE_DELAY",
-        "0", // Don't wait to export spans to the collector
-        "OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT",
-        COLLECTOR_HTTP_ENDPOINT,
-        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-        COLLECTOR_HTTP_ENDPOINT,
-        "OTEL_RESOURCE_ATTRIBUTES",
-        getApplicationOtelResourceAttributes());
+    return Map.ofEntries(
+        Map.entry("JAVA_TOOL_OPTIONS", "-javaagent:" + MOUNT_PATH),
+        Map.entry("OTEL_METRIC_EXPORT_INTERVAL", "100"), // 100 ms
+        Map.entry("OTEL_AWS_APPLICATION_SIGNALS_ENABLED", "true"),
+        Map.entry("OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED", isRuntimeEnabled()),
+        Map.entry("OTEL_METRICS_EXPORTER", "none"),
+        Map.entry("OTEL_BSP_SCHEDULE_DELAY", "0"), // Don't wait to export spans to the collector
+        Map.entry("OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT", COLLECTOR_HTTP_ENDPOINT),
+        Map.entry("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", COLLECTOR_HTTP_ENDPOINT),
+        Map.entry("OTEL_RESOURCE_ATTRIBUTES", getApplicationOtelResourceAttributes()),
+        Map.entry("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc"),
+        Map.entry("OTEL_TRACES_SAMPLER", "parentbased_always_on"));
   }
 
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {

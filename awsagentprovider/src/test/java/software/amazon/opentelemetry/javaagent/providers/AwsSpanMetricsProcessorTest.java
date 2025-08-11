@@ -15,7 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,6 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.SERVICE_METRIC;
 
@@ -41,9 +42,9 @@ import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.EventData;
+import io.opentelemetry.sdk.trace.data.ExceptionEventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
-import io.opentelemetry.sdk.trace.internal.data.ExceptionEventData;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -141,7 +142,7 @@ class AwsSpanMetricsProcessorTest {
 
   @Test
   public void testOnEndMetricsGenerationWithoutMetricAttributes() {
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, 500L);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, 500L);
     ReadableSpan readableSpanMock = buildReadableSpanMock(spanAttributes);
     Map<String, Attributes> metricAttributesMap =
         buildMetricAttributes(CONTAINS_NO_ATTRIBUTES, readableSpanMock.toSpanData());
@@ -273,7 +274,7 @@ class AwsSpanMetricsProcessorTest {
 
   @Test
   public void testOnEndMetricsGenerationWithoutEndRequired() {
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, 500L);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, 500L);
     ReadableSpan readableSpanMock = buildReadableSpanMock(spanAttributes);
     Map<String, Attributes> metricAttributesMap =
         buildMetricAttributes(CONTAINS_ATTRIBUTES, readableSpanMock.toSpanData());
@@ -296,7 +297,7 @@ class AwsSpanMetricsProcessorTest {
 
   @Test
   public void testOnEndMetricsGenerationWithLatency() {
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, 200L);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, 200L);
     ReadableSpan readableSpanMock = buildReadableSpanMock(spanAttributes);
     Map<String, Attributes> metricAttributesMap =
         buildMetricAttributes(CONTAINS_ATTRIBUTES, readableSpanMock.toSpanData());
@@ -378,6 +379,21 @@ class AwsSpanMetricsProcessorTest {
     validateMetricsGeneratedForStatusDataOk(600L, ExpectedStatusMetric.NEITHER);
   }
 
+  @Test
+  public void testOnEndMetricsGenerationFromEc2MetadataApi() {
+    Attributes spanAttributes = Attributes.of(AWS_REMOTE_SERVICE, "169.254.169.254");
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(
+            spanAttributes, SpanKind.CLIENT, SpanContext.getInvalid(), StatusData.unset());
+    Map<String, Attributes> metricAttributesMap = buildEc2MetadataApiMetricAttributes();
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+    verifyNoInteractions(errorHistogramMock);
+    verifyNoInteractions(faultHistogramMock);
+    verifyNoInteractions(latencyHistogramMock);
+  }
+
   private static Attributes buildSpanAttributes(boolean containsAttribute) {
     if (containsAttribute) {
       return Attributes.of(AttributeKey.stringKey("original key"), "original value");
@@ -401,6 +417,14 @@ class AwsSpanMetricsProcessorTest {
         attributesMap.put(MetricAttributeGenerator.DEPENDENCY_METRIC, attributes);
       }
     }
+    return attributesMap;
+  }
+
+  private static Map<String, Attributes> buildEc2MetadataApiMetricAttributes() {
+    Map<String, Attributes> attributesMap = new HashMap<>();
+    Attributes attributes =
+        Attributes.of(AttributeKey.stringKey(AWS_REMOTE_SERVICE.toString()), "169.254.169.254");
+    attributesMap.put(MetricAttributeGenerator.DEPENDENCY_METRIC, attributes);
     return attributesMap;
   }
 
@@ -440,7 +464,7 @@ class AwsSpanMetricsProcessorTest {
 
   private static ReadableSpan buildReadableSpanWithThrowableMock(Throwable throwable) {
     // config http status code as null
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, null);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, null);
     ReadableSpan readableSpanMock = mock(ReadableSpan.class);
     SpanData mockSpanData = mock(SpanData.class);
     InstrumentationScopeInfo awsSdkScopeInfo =
@@ -476,7 +500,7 @@ class AwsSpanMetricsProcessorTest {
 
   private void validateMetricsGeneratedForHttpStatusCode(
       Long httpStatusCode, ExpectedStatusMetric expectedStatusMetric) {
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, httpStatusCode);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, httpStatusCode);
     ReadableSpan readableSpanMock =
         buildReadableSpanMock(spanAttributes, SpanKind.PRODUCER, null, StatusData.unset());
     Map<String, Attributes> metricAttributesMap =
@@ -501,14 +525,14 @@ class AwsSpanMetricsProcessorTest {
           Attributes.of(
               AttributeKey.stringKey("new service key"),
               "new service value",
-              HTTP_STATUS_CODE,
+              HTTP_RESPONSE_STATUS_CODE,
               awsStatusCode));
       metricAttributesMap.put(
           DEPENDENCY_METRIC,
           Attributes.of(
               AttributeKey.stringKey("new dependency key"),
               "new dependency value",
-              HTTP_STATUS_CODE,
+              HTTP_RESPONSE_STATUS_CODE,
               awsStatusCode));
     }
     configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
@@ -518,7 +542,7 @@ class AwsSpanMetricsProcessorTest {
 
   private void validateMetricsGeneratedForStatusDataError(
       Long httpStatusCode, ExpectedStatusMetric expectedStatusMetric) {
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, httpStatusCode);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, httpStatusCode);
     ReadableSpan readableSpanMock =
         buildReadableSpanMock(spanAttributes, SpanKind.PRODUCER, null, StatusData.error());
     Map<String, Attributes> metricAttributesMap =
@@ -531,7 +555,7 @@ class AwsSpanMetricsProcessorTest {
 
   private void validateMetricsGeneratedForStatusDataOk(
       Long httpStatusCode, ExpectedStatusMetric expectedStatusMetric) {
-    Attributes spanAttributes = Attributes.of(HTTP_STATUS_CODE, httpStatusCode);
+    Attributes spanAttributes = Attributes.of(HTTP_RESPONSE_STATUS_CODE, httpStatusCode);
 
     ReadableSpan readableSpanMock =
         buildReadableSpanMock(spanAttributes, SpanKind.PRODUCER, null, StatusData.ok());

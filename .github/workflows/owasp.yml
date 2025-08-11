@@ -59,33 +59,53 @@ jobs:
       - name: Install and run dependency scan
         id: dep_scan
         if: always()
-        run: |
-          gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 259A55407DD6C00299E6607EFFDE55BE73A2D1ED
-          VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt)
-          curl -Ls "https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" --output dependency-check.zip
-          curl -Ls "https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip.asc" --output dependency-check.zip.asc
-          gpg --verify dependency-check.zip.asc
-          unzip dependency-check.zip
-          ./dependency-check/bin/dependency-check.sh --failOnCVSS 0 --nvdApiKey ${{ env.NVD_API_KEY_NVD_API_KEY }} -s 'otelagent/build/libs/aws-opentelemetry-agent-*-SNAPSHOT.jar'
+        uses: ./.github/actions/execute_and_retry
+        with:
+          command: 'gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 259A55407DD6C00299E6607EFFDE55BE73A2D1ED &&
+                    VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt | head -n1 | cut -d" " -f1) &&
+                    curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" --output dependency-check.zip &&
+                    curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip.asc" --output dependency-check.zip.asc &&
+                    gpg --verify dependency-check.zip.asc &&
+                    unzip dependency-check.zip &&
+                    ./dependency-check/bin/dependency-check.sh --failOnCVSS 0 --nvdApiKey ${{ env.NVD_API_KEY_NVD_API_KEY }} -s "otelagent/build/libs/aws-opentelemetry-agent-*-SNAPSHOT.jar"'
+          cleanup: 'rm -f ./dependency-check.zip && rm -f ./dependency-check.zip.asc && rm -rf ./dependency-check || true'
+          max_retry: 5
+          sleep_time: 60
 
       - name: Print dependency scan results on failure
         if: ${{ steps.dep_scan.outcome != 'success' }}
         run: less dependency-check-report.html
 
-      - name: Perform high image scan
+      - name: Perform high image scan on v1
         if: always()
-        id: high_scan
+        id: high_scan_v1
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.5"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'CRITICAL,HIGH'
 
-      - name: Perform low image scan
+      - name: Perform low image scan on v1
         if: always()
-        id: low_scan
+        id: low_scan_v1
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.5"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
+          severity: 'MEDIUM,LOW,UNKNOWN'
+
+      - name: Perform high image scan on v2
+        if: always()
+        id: high_scan_v2
+        uses: ./.github/actions/image_scan
+        with:
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
+          severity: 'CRITICAL,HIGH'
+
+      - name: Perform low image scan on v2
+        if: always()
+        id: low_scan_v2
+        uses: ./.github/actions/image_scan
+        with:
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
           severity: 'MEDIUM,LOW,UNKNOWN'
 
       - name: Configure AWS Credentials for emitting metrics
@@ -95,19 +115,37 @@ jobs:
           role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
           aws-region:  ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Publish high scan status
+      - name: Publish high scan status on v1
         if: always()
         run: |
-          value="${{ steps.high_scan.outcome == 'success' && '1.0' || '0.0' }}"
+          value="${{ steps.high_scan_v1.outcome == 'success' && '1.0' || '0.0' }}"
           aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
             --metric-name Success \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
             --value $value
 
-      - name: Publish low scan status
+      - name: Publish high scan status on v2
         if: always()
         run: |
-          value="${{ steps.low_scan.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
+          value="${{ steps.high_scan_v2.outcome == 'success' && '1.0' || '0.0' }}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Success \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
+            --value $value
+
+      - name: Publish low scan status on v1
+        if: always()
+        run: |
+          value="${{ steps.low_scan_v1.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Success \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
+            --value $value
+      
+      - name: Publish low scan status on v2
+        if: always()
+        run: |
+          value="${{ steps.low_scan_v2.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
           aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
             --metric-name Success \
             --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \

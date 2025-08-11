@@ -33,6 +33,10 @@ dependencies {
   implementation("software.amazon.awssdk:dynamodb")
   implementation("software.amazon.awssdk:sqs")
   implementation("software.amazon.awssdk:kinesis")
+  implementation("software.amazon.awssdk:secretsmanager")
+  implementation("software.amazon.awssdk:iam")
+  implementation("software.amazon.awssdk:sfn")
+  implementation("software.amazon.awssdk:sns")
   implementation("software.amazon.awssdk:bedrock")
   implementation("software.amazon.awssdk:bedrockagent")
   implementation("software.amazon.awssdk:bedrockruntime")
@@ -53,7 +57,7 @@ tasks {
 }
 jib {
   configureImages(
-    "public.ecr.aws/docker/library/amazoncorretto:17-alpine",
+    "public.ecr.aws/docker/library/amazoncorretto:23-alpine",
     "aws-appsignals-tests-aws-sdk-v2",
     localDocker = rootProject.property("localDocker")!! == "true",
     multiPlatform = false,
