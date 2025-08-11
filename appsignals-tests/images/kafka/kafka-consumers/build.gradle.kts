@@ -47,7 +47,7 @@ tasks {
 }
 jib {
   configureImages(
-    "public.ecr.aws/docker/library/amazoncorretto:21-alpine",
+    "public.ecr.aws/docker/library/amazoncorretto:23-alpine",
     "aws-appsignals-tests-kafka-kafka-consumers",
     localDocker = rootProject.property("localDocker")!! == "true",
     multiPlatform = false,

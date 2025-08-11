@@ -21,23 +21,22 @@ package software.amazon.opentelemetry.appsignals.test.utils;
 public class SemanticConventionsConstants {
 
   // Semantic Conventions Attribute names
-  public static final String NET_PEER_NAME = "net.peer.name";
-  public static final String NET_PEER_PORT = "net.peer.port";
-  public static final String NET_PROTOCOL_NAME = "net.protocol.name";
-  public static final String NET_PROTOCOL_VERSION = "net.protocol.version";
-  public static final String NET_HOST_NAME = "net.host.name";
-  public static final String NET_HOST_PORT = "net.host.port";
-  public static final String NET_SOCK_HOST_ADDR = "net.sock.host.addr";
-  public static final String NET_SOCK_HOST_PORT = "net.sock.host.port";
-  public static final String NET_SOCK_PEER_ADDR = "net.sock.peer.addr";
-  public static final String NET_SOCK_PEER_PORT = "net.sock.peer.port";
+  public static final String SERVER_ADDRESS = "server.address";
+  public static final String SERVER_PORT = "server.port";
+  public static final String NETWORK_PROTOCOL_NAME = "network.protocol.name";
+  public static final String NETWORK_PROTOCOL_VERSION = "network.protocol.version";
+  public static final String NETWORK_LOCAL_ADDRESS = "network.local.address";
+  public static final String NETWORK_LOCAL_PORT = "network.local.port";
+  public static final String NETWORK_PEER_ADDRESS = "network.peer.address";
+  public static final String NETWORK_PEER_PORT = "network.peer.port";
   public static final String NET_SOCK_PEER_NAME = "net.sock.peer.name";
-  public static final String HTTP_STATUS_CODE = "http.status_code";
-  public static final String HTTP_SCHEME = "http.scheme";
-  public static final String HTTP_TARGET = "http.target";
-  public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.response_content_length";
-  public static final String HTTP_URL = "http.url";
-  public static final String HTTP_METHOD = "http.method";
+  public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
+  public static final String URL_SCHEME = "url.scheme";
+  public static final String URL_PATH = "url.path";
+  public static final String HTTP_RESPONSE_HEADER_CONTENT_LENGTH =
+      "http.response.header.content-length";
+  public static final String URL_FULL = "url.full";
+  public static final String HTTP_REQUEST_METHOD = "http.request.method";
   public static final String HTTP_ROUTE = "http.route";
 
   public static final String PEER_SERVICE = "peer.service";
@@ -57,6 +56,7 @@ public class SemanticConventionsConstants {
   public static final String AWS_TABLE_NAME = "aws.table.name";
   public static final String AWS_QUEUE_URL = "aws.queue.url";
   public static final String AWS_QUEUE_NAME = "aws.queue.name";
+  public static final String AWS_STREAM_ARN = "aws.stream.arn";
   public static final String AWS_STREAM_NAME = "aws.stream.name";
   public static final String AWS_KNOWLEDGE_BASE_ID = "aws.bedrock.knowledge_base.id";
   public static final String AWS_DATA_SOURCE_ID = "aws.bedrock.data_source.id";
@@ -64,6 +64,7 @@ public class SemanticConventionsConstants {
   public static final String AWS_GUARDRAIL_ID = "aws.bedrock.guardrail.id";
   public static final String AWS_GUARDRAIL_ARN = "aws.bedrock.guardrail.arn";
   public static final String GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
+  public static final String GEN_AI_SYSTEM = "gen_ai.system";
   public static final String GEN_AI_REQUEST_MAX_TOKENS = "gen_ai.request.max_tokens";
   public static final String GEN_AI_REQUEST_TEMPERATURE = "gen_ai.request.temperature";
   public static final String GEN_AI_REQUEST_TOP_P = "gen_ai.request.top_p";
@@ -78,13 +79,12 @@ public class SemanticConventionsConstants {
   // kafka
   public static final String MESSAGING_CLIENT_ID = "messaging.client_id";
   public static final String MESSAGING_DESTINATION_NAME = "messaging.destination.name";
-  public static final String MESSAGING_KAFKA_DESTINATION_PARTITION =
-      "messaging.kafka.destination.partition";
+  public static final String MESSAGING_DESTINATION_PARTITION_ID =
+      "messaging.destination.partition.id";
   public static final String MESSAGING_KAFKA_MESSAGE_OFFSET = "messaging.kafka.message.offset";
   public static final String MESSAGING_SYSTEM = "messaging.system";
   public static final String MESSAGING_KAFKA_CONSUMER_GROUP = "messaging.kafka.consumer.group";
-  public static final String MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES =
-      "messaging.message.payload_size_bytes";
+  public static final String MESSAGING_MESSAGE_BODY_SIZE = "messaging.message.body.size";
   public static final String MESSAGING_OPERATION = "messaging.operation";
 
   // GRPC specific semantic attributes

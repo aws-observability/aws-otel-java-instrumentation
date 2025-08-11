@@ -54,6 +54,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               "localstack",
               "s3.localstack",
               "create-bucket.s3.localstack",
+              "cross-account-bucket.s3.localstack",
               "put-object.s3.localstack",
               "get-object.s3.localstack");
 
@@ -258,24 +259,30 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     };
   }
 
+  private ThrowingConsumer<KeyValue> assertKeyIsNotPresent(String key) {
+    return (attribute) -> {
+      assertThat(attribute.getKey()).isNotEqualTo(key);
+    };
+  }
+
   /** All the spans of the AWS SDK Should have a RPC properties. */
   private void assertSemanticConventionsAttributes(
       List<KeyValue> attributesList,
       String service,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, address))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port))
         .satisfiesOnlyOnce(
-            assertAttribute(SemanticConventionsConstants.HTTP_STATUS_CODE, statusCode))
-        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+            assertAttribute(SemanticConventionsConstants.HTTP_RESPONSE_STATUS_CODE, statusCode))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
 
@@ -284,16 +291,16 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       List<KeyValue> attributesList,
       String service,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url) {
     assertThat(attributesList)
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_METHOD, method))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SERVICE, service))
         .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.RPC_SYSTEM, "aws-api"))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_NAME, peerName))
-        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.NET_PEER_PORT, peerPort))
-        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.HTTP_URL, url))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_ADDRESS, address))
+        .satisfiesOnlyOnce(assertAttribute(SemanticConventionsConstants.SERVER_PORT, port))
+        .satisfiesOnlyOnce(assertAttributeStartsWith(SemanticConventionsConstants.URL_FULL, url))
         .satisfiesOnlyOnce(assertKeyIsPresent(SemanticConventionsConstants.THREAD_ID));
   }
 
@@ -308,8 +315,11 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
-      String peerName,
-      int peerPort,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -327,8 +337,11 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
-        peerName,
-        peerPort,
+        remoteAccountId,
+        remoteAccessKey,
+        remoteRegion,
+        address,
+        port,
         url,
         statusCode,
         extraAssertions);
@@ -345,8 +358,11 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
-      String peerName,
-      int peerPort,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -363,8 +379,11 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
-        peerName,
-        peerPort,
+        remoteAccountId,
+        remoteAccessKey,
+        remoteRegion,
+        address,
+        port,
         url,
         statusCode,
         extraAssertions);
@@ -377,8 +396,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String operation,
       String localService,
       String method,
-      String peerName,
-      int peerPort,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -391,7 +410,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               assertThat(span.getKind()).isEqualTo(SpanKind.SPAN_KIND_CONSUMER);
               assertThat(span.getName()).isEqualTo(spanName);
               assertSemanticConventionsSqsConsumerAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url);
+                  spanAttributes, rpcService, method, address, port, url);
               assertSqsConsumerAwsAttributes(span.getAttributesList(), operation);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -412,8 +431,11 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
-      String peerName,
-      int peerPort,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
+      String address,
+      int port,
       String url,
       int statusCode,
       List<ThrowingConsumer<KeyValue>> extraAssertions) {
@@ -425,9 +447,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
               var spanAttributes = span.getAttributesList();
               assertThat(span.getKind()).isEqualTo(spanKind);
               assertThat(span.getName()).isEqualTo(spanName);
-
               assertSemanticConventionsAttributes(
-                  spanAttributes, rpcService, method, peerName, peerPort, url, statusCode);
+                  spanAttributes, rpcService, method, address, port, url, statusCode);
               assertAwsAttributes(
                   spanAttributes,
                   localService,
@@ -437,6 +458,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                   type,
                   identifier,
                   cloudformationIdentifier,
+                  remoteAccountId,
+                  remoteAccessKey,
+                  remoteRegion,
                   awsSpanKind);
               for (var assertion : extraAssertions) {
                 assertThat(spanAttributes).satisfiesOnlyOnce(assertion);
@@ -453,6 +477,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String clouformationIdentifier,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
       String spanKind) {
 
     var assertions =
@@ -471,6 +498,27 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       assertions.satisfiesOnlyOnce(
           assertAttribute(
               AppSignalsConstants.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, clouformationIdentifier));
+    }
+
+    if (remoteAccountId != null) {
+      assertions.satisfiesOnlyOnce(
+          assertKeyIsPresent(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER));
+      assertions.satisfiesOnlyOnce(
+          assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_ACCOUNT_ID, remoteAccountId));
+      assertKeyIsNotPresent(AppSignalsConstants.AWS_REMOTE_RESOURCE_ACCESS_KEY);
+    }
+
+    if (remoteAccessKey != null) {
+      assertions.satisfiesOnlyOnce(
+          assertKeyIsPresent(AppSignalsConstants.AWS_REMOTE_RESOURCE_IDENTIFIER));
+      assertions.satisfiesOnlyOnce(
+          assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_ACCESS_KEY, remoteAccessKey));
+      assertKeyIsNotPresent(AppSignalsConstants.AWS_REMOTE_RESOURCE_ACCOUNT_ID);
+    }
+
+    if (remoteRegion != null) {
+      assertions.satisfiesOnlyOnce(
+          assertAttribute(AppSignalsConstants.AWS_REMOTE_RESOURCE_REGION, remoteRegion));
     }
   }
 
@@ -496,6 +544,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -508,6 +559,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        remoteAccountId,
+        remoteAccessKey,
+        remoteRegion,
         expectedSum);
   }
 
@@ -521,6 +575,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -533,6 +590,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        remoteAccountId,
+        remoteAccessKey,
+        remoteRegion,
         expectedSum);
   }
 
@@ -546,6 +606,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
       Double expectedSum) {
     assertMetricAttributes(
         resourceScopeMetrics,
@@ -558,6 +621,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        remoteAccountId,
+        remoteAccessKey,
+        remoteRegion,
         expectedSum);
   }
 
@@ -572,6 +638,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
       String type,
       String identifier,
       String cloudformationIdentifier,
+      String remoteAccountId,
+      String remoteAccessKey,
+      String remoteRegion,
       Double expectedSum) {
     assertThat(resourceScopeMetrics)
         .anySatisfy(
@@ -592,6 +661,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
                             type,
                             identifier,
                             cloudformationIdentifier,
+                            remoteAccountId,
+                            remoteAccessKey,
+                            remoteRegion,
                             spanKind);
                         if (expectedSum != null) {
                           double actualSum = dataPoint.getSum();
@@ -635,6 +707,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "create-bucket.s3.localstack",
         4566,
         "http://create-bucket.s3.localstack:4566",
@@ -650,6 +725,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -661,6 +739,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -672,6 +753,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -703,6 +787,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "put-object.s3.localstack",
         4566,
         "http://put-object.s3.localstack:4566",
@@ -718,6 +805,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -729,6 +819,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -740,6 +833,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -770,6 +866,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "get-object.s3.localstack",
         4566,
         "http://get-object.s3.localstack:4566",
@@ -785,6 +884,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -796,6 +898,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -807,6 +912,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -837,6 +945,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "error-bucket.s3.test",
         8080,
         "http://error-bucket.s3.test:8080",
@@ -852,6 +963,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -863,6 +977,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -874,6 +991,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
   }
 
@@ -904,6 +1024,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "fault-bucket.s3.test",
         8080,
         "http://fault-bucket.s3.test:8080",
@@ -919,6 +1042,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -930,6 +1056,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -941,6 +1070,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -979,6 +1111,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -994,6 +1129,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         20000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1005,6 +1143,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1016,6 +1157,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1046,6 +1190,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1061,6 +1208,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1072,6 +1222,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1083,6 +1236,91 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
+        0.0);
+  }
+
+  protected void doTestDynamoDbDescribeTable() {
+    appClient.get("/ddb/describetable/test-table").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /ddb/describetable/:tablename";
+    var type = "AWS::DynamoDB::Table";
+    var identifier = "test-table";
+    var cloudformationIdentifier = "test-table";
+    var remoteAccountId = "000000000000";
+    var remoteRegion = "us-west-2";
+
+    assertSpanClientAttributes(
+        traces,
+        dynamoDbSpanName("DescribeTable"),
+        getDynamoDbRpcServiceName(),
+        localService,
+        localOperation,
+        getDynamoDbServiceName(),
+        "DescribeTable",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
+        "localstack",
+        4566,
+        "http://localstack:4566",
+        200,
+        dynamoDbAttributes("DescribeTable", "test-table"));
+
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getDynamoDbServiceName(),
+        "DescribeTable",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getDynamoDbServiceName(),
+        "DescribeTable",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getDynamoDbServiceName(),
+        "DescribeTable",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
         0.0);
   }
 
@@ -1113,6 +1351,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1128,6 +1369,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1139,6 +1383,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1150,6 +1397,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
   }
 
@@ -1186,6 +1436,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1201,6 +1454,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         20000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1212,6 +1468,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -1223,6 +1482,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1253,6 +1515,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1268,6 +1533,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1279,6 +1547,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1290,6 +1561,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1321,6 +1595,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1337,6 +1614,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1348,6 +1628,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1359,6 +1642,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1407,6 +1693,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricConsumerAttributes(
         metrics,
@@ -1418,6 +1707,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1449,6 +1741,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1465,6 +1760,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1476,6 +1774,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1487,6 +1788,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
   }
 
@@ -1518,6 +1822,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1534,6 +1841,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1545,6 +1855,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
     assertMetricProducerAttributes(
         metrics,
@@ -1556,6 +1869,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1586,6 +1902,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -1601,6 +1920,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1612,6 +1934,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1623,6 +1948,93 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
+        0.0);
+  }
+
+  protected void doTestKinesisDescribeStream() {
+    appClient.get("/kinesis/describestream/test-stream").aggregate().join();
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /kinesis/describestream/:streamname";
+    var type = "AWS::Kinesis::Stream";
+    var identifier = "test-stream";
+    var cloudformationIdentifier = "test-stream";
+    var remoteAccountId = "000000000000";
+    var remoteRegion = "us-west-2";
+
+    assertSpanClientAttributes(
+        traces,
+        kinesisSpanName("DescribeStream"),
+        getKinesisRpcServiceName(),
+        localService,
+        localOperation,
+        getKinesisServiceName(),
+        "DescribeStream",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
+        "localstack",
+        4566,
+        "http://localstack:4566",
+        200,
+        List.of(
+            assertAttribute(
+                SemanticConventionsConstants.AWS_STREAM_ARN,
+                "arn:aws:kinesis:us-west-2:000000000000:stream/test-stream")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getKinesisServiceName(),
+        "DescribeStream",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getKinesisServiceName(),
+        "DescribeStream",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getKinesisServiceName(),
+        "DescribeStream",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        remoteAccountId,
+        null,
+        remoteRegion,
         0.0);
   }
 
@@ -1653,6 +2065,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -1669,6 +2084,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1680,6 +2098,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1691,6 +2112,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
   }
 
@@ -1721,6 +2145,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -1736,6 +2163,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1747,6 +2177,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -1758,6 +2191,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1788,6 +2224,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1805,6 +2244,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1816,6 +2258,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1827,6 +2272,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1856,6 +2304,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1871,6 +2322,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1882,6 +2336,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1893,6 +2350,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1922,6 +2382,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1939,6 +2402,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -1950,6 +2416,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -1961,6 +2430,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -1990,6 +2462,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -1997,6 +2472,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "ai21.jamba-1-5-mini-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.7"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.8"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
@@ -2012,6 +2488,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2023,6 +2502,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2034,6 +2516,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2063,6 +2548,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2071,6 +2559,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
                 "amazon.titan-text-premier-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "100"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.7"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
@@ -2088,6 +2577,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2099,6 +2591,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2110,6 +2605,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2141,6 +2639,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2149,6 +2650,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
                 "anthropic.claude-3-haiku-20240307-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "512"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.6"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.53"),
@@ -2166,6 +2668,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2177,6 +2682,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2188,6 +2696,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2219,6 +2730,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2226,6 +2740,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "cohere.command-r-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.8"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.45"),
@@ -2243,6 +2758,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2254,6 +2772,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2265,6 +2786,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2296,6 +2820,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2303,6 +2830,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         List.of(
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL, "meta.llama3-70b-instruct-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "128"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.1"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.9"),
@@ -2319,6 +2847,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2330,6 +2861,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2341,6 +2875,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2372,6 +2909,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2380,11 +2920,12 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
             assertAttribute(
                 SemanticConventionsConstants.GEN_AI_REQUEST_MODEL,
                 "mistral.mistral-large-2402-v1:0"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_SYSTEM, "aws.bedrock"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_MAX_TOKENS, "4096"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TEMPERATURE, "0.75"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_REQUEST_TOP_P, "0.25"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_RESPONSE_FINISH_REASONS, "[stop]"),
-            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "15"),
+            assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_INPUT_TOKENS, "16"),
             assertAttribute(SemanticConventionsConstants.GEN_AI_USAGE_OUTPUT_TOKENS, "24")));
     assertMetricClientAttributes(
         metrics,
@@ -2396,6 +2937,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2407,6 +2951,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2418,6 +2965,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2448,6 +2998,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2468,6 +3021,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2479,6 +3035,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2490,6 +3049,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2519,6 +3081,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2534,6 +3099,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2545,6 +3113,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2556,6 +3127,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2586,6 +3160,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "bedrock.test",
         8080,
         "http://bedrock.test:8080",
@@ -2603,6 +3180,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2614,6 +3194,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2625,6 +3208,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2654,6 +3240,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -2672,6 +3261,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2683,6 +3275,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2694,6 +3289,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2719,6 +3317,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -2734,6 +3335,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2745,6 +3349,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2753,6 +3360,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSecretsManagerServiceName(),
         "DescribeSecret",
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -2782,6 +3392,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -2797,6 +3410,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2808,6 +3424,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -2816,6 +3435,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSecretsManagerServiceName(),
         "DescribeSecret",
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -2849,6 +3471,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -2867,6 +3492,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2878,6 +3506,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2889,6 +3520,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2918,6 +3552,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -2936,6 +3573,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -2947,6 +3587,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -2958,6 +3601,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -2989,6 +3635,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -3007,6 +3656,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -3018,6 +3670,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
     assertMetricClientAttributes(
         metrics,
@@ -3029,6 +3684,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
   }
 
@@ -3059,6 +3717,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -3077,6 +3738,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         5000.0);
     assertMetricClientAttributes(
         metrics,
@@ -3088,6 +3752,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         1.0);
     assertMetricClientAttributes(
         metrics,
@@ -3099,6 +3766,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         0.0);
   }
 
@@ -3129,6 +3799,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         type,
         identifier,
         cloudformationIdentifier,
+        null,
+        null,
+        null,
         "localstack",
         4566,
         "http://localstack:4566",
@@ -3162,6 +3835,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         "error.test",
         8080,
         "http://error.test:8080",
@@ -3178,6 +3854,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         5000.0);
 
     assertMetricClientAttributes(
@@ -3190,6 +3869,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         0.0);
 
     assertMetricClientAttributes(
@@ -3199,6 +3881,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSnsServiceName(),
         "GetTopicAttributes",
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -3228,6 +3913,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         "fault.test",
         8080,
         "http://fault.test:8080",
@@ -3244,6 +3932,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         5000.0);
 
     assertMetricClientAttributes(
@@ -3253,6 +3944,9 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         localOperation,
         getSnsServiceName(),
         "GetTopicAttributes",
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -3268,6 +3962,91 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         null,
         null,
         null,
+        null,
+        null,
+        null,
+        0.0);
+  }
+
+  protected void doTestCrossAccount(String remoteRegion) throws Exception {
+    appClient.get("/crossaccount/createbucket/accountb").aggregate().join();
+
+    var traces = mockCollectorClient.getTraces();
+    var metrics =
+        mockCollectorClient.getMetrics(
+            Set.of(
+                AppSignalsConstants.ERROR_METRIC,
+                AppSignalsConstants.FAULT_METRIC,
+                AppSignalsConstants.LATENCY_METRIC));
+
+    var localService = getApplicationOtelServiceName();
+    var localOperation = "GET /crossaccount/createbucket/accountb";
+    var type = "AWS::S3::Bucket";
+    var identifier = "cross-account-bucket";
+    var cloudformationIdentifier = "cross-account-bucket";
+    var remoteAccessKey = "account_b_access_key_id";
+
+    assertSpanClientAttributes(
+        traces,
+        s3SpanName("CreateBucket"),
+        getS3RpcServiceName(),
+        localService,
+        localOperation,
+        getS3ServiceName(),
+        "CreateBucket",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        null,
+        remoteAccessKey,
+        remoteRegion,
+        "cross-account-bucket.s3.localstack",
+        4566,
+        "http://cross-account-bucket.s3.localstack:4566",
+        200,
+        List.of(
+            assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "cross-account-bucket")));
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.LATENCY_METRIC,
+        localService,
+        localOperation,
+        getS3ServiceName(),
+        "CreateBucket",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        null,
+        remoteAccessKey,
+        remoteRegion,
+        5000.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.FAULT_METRIC,
+        localService,
+        localOperation,
+        getS3ServiceName(),
+        "CreateBucket",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        null,
+        remoteAccessKey,
+        remoteRegion,
+        0.0);
+    assertMetricClientAttributes(
+        metrics,
+        AppSignalsConstants.ERROR_METRIC,
+        localService,
+        localOperation,
+        getS3ServiceName(),
+        "CreateBucket",
+        type,
+        identifier,
+        cloudformationIdentifier,
+        null,
+        remoteAccessKey,
+        remoteRegion,
         0.0);
   }
 }

@@ -13,6 +13,11 @@ can be exported in a variety of formats. In addition, the agent and exporter can
 command line arguments or environment variables. The net result is the ability to gather telemetry
 data from a Java application without any code changes.
 
+Note: There are 2.x releases and 1.x releases. The 2.0 release included significant breaking changes from [OpenTelemetry Agent for Java](https://github.com/open-telemetry/opentelemetry-java-instrumentation), 
+the details of which can be found in the [release notes](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases). 
+It is recommended to use the latest 2.x release which will have the latest features and improvements. 
+1.x will receive security patches for a limited time and will not include other bug fixes and enhancements.
+
 ## Getting Started
 
 Check out the [getting started documentation](https://aws-otel.github.io/docs/getting-started/java-sdk/auto-instr).
@@ -45,4 +50,12 @@ In addition to the sample apps in this repository, there are also a set of [stan
 Please note that as per policy, we're providing support via GitHub on a best effort basis. However, if you have AWS Enterprise Support you can create a ticket and we will provide direct support within the respective SLAs.
 
 ## Security issue notifications
+
 If you discover a potential security issue in this project we ask that you notify AWS/Amazon Security via our [vulnerability reporting page](http://aws.amazon.com/security/vulnerability-reporting/). Please do **not** create a public github issue.
+
+## Checksum Verification
+
+Artifacts released will include a `.sha256` file for checksum verification starting from v1.32.6
+To verify, run the command `shasum -a 256 -c <artifact_name>.sha256` 
+It should return the output `<artifact_name>: OK` if the validation is successful
+

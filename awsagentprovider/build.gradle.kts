@@ -13,9 +13,11 @@
  * permissions and limitations under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   java
-  id("com.github.johnrengelman.shadow")
+  id("com.gradleup.shadow")
 }
 
 base {
@@ -24,8 +26,8 @@ base {
 
 dependencies {
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
-  compileOnly("io.opentelemetry.semconv:opentelemetry-semconv")
-  testImplementation("io.opentelemetry.semconv:opentelemetry-semconv")
+  compileOnly("io.opentelemetry.semconv:opentelemetry-semconv:1.28.0-alpha")
+  testImplementation("io.opentelemetry.semconv:opentelemetry-semconv:1.28.0-alpha")
   compileOnly("com.google.errorprone:error_prone_annotations:2.19.1")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   compileOnly("org.slf4j:slf4j-api")
@@ -43,12 +45,18 @@ dependencies {
   // For Udp emitter
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
 
+  // For OtlpAwsExporter SigV4 Authentication
+  runtimeOnly("software.amazon.awssdk:sts")
+  implementation("software.amazon.awssdk:auth")
+  implementation("software.amazon.awssdk:http-auth-aws")
+
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
   testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")
@@ -56,7 +64,7 @@ dependencies {
 }
 
 tasks {
-  shadowJar {
+  val shadowJar by existing(ShadowJar::class) {
     archiveClassifier.set("")
   }
 }

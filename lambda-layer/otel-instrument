@@ -2,11 +2,11 @@
 
 export OTEL_INSTRUMENTATION_AWS_SDK_EXPERIMENTAL_SPAN_ATTRIBUTES=true
 
-export OTEL_PROPAGATORS="${OTEL_PROPAGATORS:-xray,tracecontext,b3,b3multi}"
+export OTEL_PROPAGATORS="${OTEL_PROPAGATORS:-baggage,xray,tracecontext,b3,b3multi}"
 
 export OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-${AWS_LAMBDA_FUNCTION_NAME}}
 
-export JAVA_TOOL_OPTIONS="-javaagent:/opt/opentelemetry-javaagent.jar ${JAVA_TOOL_OPTIONS}"
+export JAVA_TOOL_OPTIONS="-javaagent:/opt/aws-opentelemetry-javaagent.jar ${JAVA_TOOL_OPTIONS}"
 
 if [[ $OTEL_RESOURCE_ATTRIBUTES != *"service.name="* ]]; then
   export OTEL_RESOURCE_ATTRIBUTES="service.name=${AWS_LAMBDA_FUNCTION_NAME},${OTEL_RESOURCE_ATTRIBUTES}"
@@ -35,4 +35,34 @@ else
     export OTEL_RESOURCE_ATTRIBUTES="$LAMBDA_RESOURCE_ATTRIBUTES,$OTEL_RESOURCE_ATTRIBUTES";
 fi
 
-exec "$@"
+# Enable default instrumentations
+export OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED=${OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED:-"false"}
+export OTEL_INSTRUMENTATION_OPENTELEMETRY_API_ENABLED=${OTEL_INSTRUMENTATION_OPENTELEMETRY_API_ENABLED:-"true"}
+export OTEL_INSTRUMENTATION_AWS_LAMBDA_ENABLED=${OTEL_INSTRUMENTATION_AWS_LAMBDA_ENABLED:-"true"}
+export OTEL_INSTRUMENTATION_AWS_SDK_ENABLED=${OTEL_INSTRUMENTATION_AWS_SDK_ENABLED:-"true"}
+export OTEL_INSTRUMENTATION_APACHE_HTTPCLIENT_ENABLED=${OTEL_INSTRUMENTATION_APACHE_HTTPCLIENT_ENABLED:-"true"}
+export OTEL_INSTRUMENTATION_JAVA_HTTP_CLIENT_ENABLED=${OTEL_INSTRUMENTATION_JAVA_HTTP_CLIENT_ENABLED:-"true"}
+export OTEL_INSTRUMENTATION_NETTY_ENABLED=${OTEL_INSTRUMENTATION_NETTY_ENABLED:-"true"}
+
+ARGS=("$@")
+EXTRA_ARGS=()
+
+if [ "${OTEL_JAVA_AGENT_FAST_STARTUP_ENABLED}" == "true" ]; then
+  echo "[OTEL] Enabling fast startup mode ..."
+  # Disable bytecode verification
+  EXTRA_ARGS+=("-Xverify:none")
+  # Be sure that tiered compilation is enabled
+  EXTRA_ARGS+=("-XX:+TieredCompilation")
+  # Stop tiered compilation at level 1
+  EXTRA_ARGS+=("-XX:TieredStopAtLevel=1")
+  for i in "${!ARGS[@]}"; do
+    # If tiered compilation is disabled, ignore it as we enable it at level 1 for fast startup
+    if [[ ${ARGS[i]} = "-XX:-TieredCompilation" ]]; then
+      unset 'ARGS[i]'
+    fi
+  done
+fi
+
+ARGS=("${ARGS[0]}" "${EXTRA_ARGS[@]}" "${ARGS[@]:1}")
+
+exec "${ARGS[@]}"
