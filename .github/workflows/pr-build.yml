@@ -90,7 +90,7 @@ jobs:
 
       - name: Build and Test UDP exporter
         run: |
-          ./gradlew build -p exporters/aws-opentelemetry-xray-udp-span-exporter
+          ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
 
       - name: Set up Java version for tests
         uses: actions/setup-java@v4
