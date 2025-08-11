@@ -1,0 +1,69 @@
+name: Release ADOT X-Ray UDP Exporter
+
+on:
+  workflow_dispatch:
+    inputs:
+      udp-exporter-version:
+        description: The version to tag the release with, e.g., 1.2.0
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  validate-udp-exporter-e2e-test:
+    name: "Validate X-Ray UDP Exporter E2E Test Succeeds"
+    uses: ./.github/workflows/udp-exporter-e2e-test.yml
+    secrets: inherit
+    permissions:
+      id-token: write
+
+  release-udp-exporter:
+    environment: Release
+    runs-on: ubuntu-latest
+    needs: validate-udp-exporter-e2e-test
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build and Test UDP exporter
+        run: |
+          ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
+
+      - name: Validate project version matches workflow input
+        run: |
+          xrayUdpSpanExporterVersion=$(./gradlew -q printVersion -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter)
+          if [[ ! "$xrayUdpSpanExporterVersion" == "${{ inputs.udp-exporter-version }}" ]]; then
+            echo "Input version '${{ inputs.udp-exporter-version }}' does not match with the UDP Exporter project version '$xrayUdpSpanExporterVersion'"
+            exit 1
+          fi
+
+      - name: Build and publish to sonatype
+        run: ./gradlew -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter publishToSonatype closeAndReleaseSonatypeStagingRepository --stacktrace
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      # Publish to GitHub releases
+      - name: Create GH release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        run: |
+          gh release create --target "$GITHUB_REF_NAME" \
+            --title "Release aws-distro-opentelemetry-xray-udp-span-exporter v${{ inputs.udp-exporter-version }}" \
+            --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/exporters/aws-distro-opentelemetry-xray-udp-span-exporter/CHANGELOG.md) for more details" \
+            --draft \
+            "aws-distro-opentelemetry-xray-udp-span-exporter/v${{ inputs.udp-exporter-version }}"

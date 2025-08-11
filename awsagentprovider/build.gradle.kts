@@ -45,12 +45,18 @@ dependencies {
   // For Udp emitter
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
 
+  // For OtlpAwsExporter SigV4 Authentication
+  runtimeOnly("software.amazon.awssdk:sts")
+  implementation("software.amazon.awssdk:auth")
+  implementation("software.amazon.awssdk:http-auth-aws")
+
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
   testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")
