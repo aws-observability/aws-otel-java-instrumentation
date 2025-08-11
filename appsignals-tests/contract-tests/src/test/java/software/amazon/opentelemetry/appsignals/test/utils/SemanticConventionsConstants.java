@@ -56,7 +56,6 @@ public class SemanticConventionsConstants {
   public static final String AWS_TABLE_NAME = "aws.table.name";
   public static final String AWS_QUEUE_URL = "aws.queue.url";
   public static final String AWS_QUEUE_NAME = "aws.queue.name";
-  public static final String AWS_STREAM_ARN = "aws.stream.arn";
   public static final String AWS_STREAM_NAME = "aws.stream.name";
   public static final String AWS_KNOWLEDGE_BASE_ID = "aws.bedrock.knowledge_base.id";
   public static final String AWS_DATA_SOURCE_ID = "aws.bedrock.data_source.id";

@@ -18,12 +18,10 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs
 import static java.util.Objects.requireNonNull;
 
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 public class OtlpAwsLogsExporterBuilder {
   private final OtlpHttpLogRecordExporter parentExporter;
   private final String endpoint;
-  private String compression;
 
   public static OtlpAwsLogsExporterBuilder create(
       OtlpHttpLogRecordExporter parentExporter, String endpoint) {
@@ -34,18 +32,8 @@ public class OtlpAwsLogsExporterBuilder {
     return OtlpAwsLogsExporter.getDefault(endpoint);
   }
 
-  public OtlpAwsLogsExporterBuilder setCompression(String compression) {
-    this.compression = compression;
-    return this;
-  }
-
   public OtlpAwsLogsExporter build() {
-    CompressionMethod compression = CompressionMethod.NONE;
-    if (this.compression != null && "gzip".equalsIgnoreCase(this.compression)) {
-      compression = CompressionMethod.GZIP;
-    }
-
-    return OtlpAwsLogsExporter.create(this.parentExporter, this.endpoint, compression);
+    return OtlpAwsLogsExporter.create(this.parentExporter, this.endpoint);
   }
 
   private OtlpAwsLogsExporterBuilder(OtlpHttpLogRecordExporter parentExporter, String endpoint) {

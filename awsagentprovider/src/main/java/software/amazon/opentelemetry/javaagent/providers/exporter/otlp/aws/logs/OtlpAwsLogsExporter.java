@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 /**
  * This exporter extends the functionality of the OtlpHttpLogsRecordExporter to allow logs to be
@@ -43,18 +42,19 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
   private final OtlpHttpLogRecordExporter parentExporter;
 
   static OtlpAwsLogsExporter getDefault(String endpoint) {
-    return new OtlpAwsLogsExporter(
-        OtlpHttpLogRecordExporter.getDefault(), endpoint, CompressionMethod.NONE);
+    return new OtlpAwsLogsExporter(endpoint);
   }
 
-  static OtlpAwsLogsExporter create(
-      OtlpHttpLogRecordExporter parent, String endpoint, CompressionMethod compression) {
-    return new OtlpAwsLogsExporter(parent, endpoint, compression);
+  static OtlpAwsLogsExporter create(OtlpHttpLogRecordExporter parent, String endpoint) {
+    return new OtlpAwsLogsExporter(parent, endpoint);
   }
 
-  private OtlpAwsLogsExporter(
-      OtlpHttpLogRecordExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint, compression);
+  private OtlpAwsLogsExporter(String endpoint) {
+    this(OtlpHttpLogRecordExporter.getDefault(), endpoint);
+  }
+
+  private OtlpAwsLogsExporter(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
+    super(endpoint);
 
     this.parentExporterBuilder =
         parentExporter.toBuilder()
@@ -75,7 +75,7 @@ public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements Lo
     try {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
       LogsRequestMarshaler.create(logs).writeBinaryTo(buffer);
-      this.data.set(buffer);
+      this.data.set(buffer.toByteArray());
       return this.parentExporter.export(logs);
     } catch (IOException e) {
       return CompletableResultCode.ofFailure();

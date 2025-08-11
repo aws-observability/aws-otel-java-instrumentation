@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 /**
  * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
@@ -41,18 +40,19 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
   private final OtlpHttpSpanExporter parentExporter;
 
   static OtlpAwsSpanExporter getDefault(String endpoint) {
-    return new OtlpAwsSpanExporter(
-        OtlpHttpSpanExporter.getDefault(), endpoint, CompressionMethod.NONE);
+    return new OtlpAwsSpanExporter(endpoint);
   }
 
-  static OtlpAwsSpanExporter create(
-      OtlpHttpSpanExporter parent, String endpoint, CompressionMethod compression) {
-    return new OtlpAwsSpanExporter(parent, endpoint, compression);
+  static OtlpAwsSpanExporter create(OtlpHttpSpanExporter parent, String endpoint) {
+    return new OtlpAwsSpanExporter(parent, endpoint);
   }
 
-  private OtlpAwsSpanExporter(
-      OtlpHttpSpanExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint, compression);
+  private OtlpAwsSpanExporter(String endpoint) {
+    this(OtlpHttpSpanExporter.getDefault(), endpoint);
+  }
+
+  private OtlpAwsSpanExporter(OtlpHttpSpanExporter parentExporter, String endpoint) {
+    super(endpoint);
 
     this.parentExporterBuilder =
         parentExporter.toBuilder()
@@ -73,7 +73,7 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
     try {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
       TraceRequestMarshaler.create(spans).writeBinaryTo(buffer);
-      this.data.set(buffer);
+      this.data.set(buffer.toByteArray());
       return this.parentExporter.export(spans);
     } catch (IOException e) {
       return CompletableResultCode.ofFailure();

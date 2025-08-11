@@ -135,12 +135,6 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_TRACES_SAMPLER = "otel.traces.sampler";
   private static final String OTEL_TRACES_SAMPLER_ARG = "otel.traces.sampler.arg";
   static final String OTEL_EXPORTER_OTLP_LOGS_HEADERS = "otel.exporter.otlp.logs.headers";
-  private static final String OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG =
-      "otel.exporter.otlp.compression";
-  private static final String OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG =
-      "otel.exporter.otlp.traces.compression";
-  private static final String OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG =
-      "otel.exporter.otlp.logs.compression";
 
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
@@ -400,18 +394,11 @@ public final class AwsApplicationSignalsCustomizerProvider
       // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
       // so the given spanExporter will be an instance of OtlpHttpSpanExporter
 
-      // get compression method from environment
-      String compression =
-          configProps.getString(
-              OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
-              configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
-
       try {
         spanExporter =
             OtlpAwsSpanExporterBuilder.create(
                     (OtlpHttpSpanExporter) spanExporter,
                     configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
-                .setCompression(compression)
                 .build();
       } catch (Exception e) {
         // This technically should never happen as the validator checks for the correct env
@@ -443,17 +430,10 @@ public final class AwsApplicationSignalsCustomizerProvider
       // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
       // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
 
-      // get compression method from environment
-      String compression =
-          configProps.getString(
-              OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG,
-              configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
-
       try {
         return OtlpAwsLogsExporterBuilder.create(
                 (OtlpHttpLogRecordExporter) logsExporter,
                 configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
-            .setCompression(compression)
             .build();
       } catch (Exception e) {
         // This technically should never happen as the validator checks for the correct env

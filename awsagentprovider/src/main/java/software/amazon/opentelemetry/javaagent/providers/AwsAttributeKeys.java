@@ -22,30 +22,12 @@ final class AwsAttributeKeys {
 
   private AwsAttributeKeys() {}
 
-  static final AttributeKey<String> AWS_AUTH_ACCESS_KEY =
-      AttributeKey.stringKey("aws.auth.account.access_key");
-
-  static final AttributeKey<String> AWS_AUTH_REGION = AttributeKey.stringKey("aws.auth.region");
-
   static final AttributeKey<String> AWS_SPAN_KIND = AttributeKey.stringKey("aws.span.kind");
 
   static final AttributeKey<String> AWS_LOCAL_SERVICE = AttributeKey.stringKey("aws.local.service");
 
   static final AttributeKey<String> AWS_LOCAL_OPERATION =
       AttributeKey.stringKey("aws.local.operation");
-
-  /*
-   * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".
-   * To dynamically override this at runtime—such as when running a custom server inside your Lambda—
-   * you can set the span attribute "aws.lambda.local.operation.override" before ending the span. For example:
-   *
-   *   // Obtain the current Span and override its operation name
-   *   Span.current().setAttribute(
-   *       "aws.lambda.local.operation.override",
-   *       "MyService/handleRequest");
-   */
-  static final AttributeKey<String> AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE =
-      AttributeKey.stringKey("aws.lambda.local.operation.override");
 
   static final AttributeKey<String> AWS_REMOTE_SERVICE =
       AttributeKey.stringKey("aws.remote.service");
@@ -55,15 +37,6 @@ final class AwsAttributeKeys {
 
   static final AttributeKey<String> AWS_REMOTE_OPERATION =
       AttributeKey.stringKey("aws.remote.operation");
-
-  static final AttributeKey<String> AWS_REMOTE_RESOURCE_ACCESS_KEY =
-      AttributeKey.stringKey("aws.remote.resource.account.access_key");
-
-  static final AttributeKey<String> AWS_REMOTE_RESOURCE_ACCOUNT_ID =
-      AttributeKey.stringKey("aws.remote.resource.account.id");
-
-  static final AttributeKey<String> AWS_REMOTE_RESOURCE_REGION =
-      AttributeKey.stringKey("aws.remote.resource.region");
 
   static final AttributeKey<String> AWS_REMOTE_RESOURCE_IDENTIFIER =
       AttributeKey.stringKey("aws.remote.resource.identifier");
@@ -97,7 +70,7 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_LAMBDA_NAME =
       AttributeKey.stringKey("aws.lambda.function.name");
 
-  static final AttributeKey<String> AWS_LAMBDA_FUNCTION_ARN =
+  static final AttributeKey<String> AWS_LAMBDA_ARN =
       AttributeKey.stringKey("aws.lambda.function.arn");
 
   static final AttributeKey<String> AWS_LAMBDA_RESOURCE_ID =
@@ -114,9 +87,7 @@ final class AwsAttributeKeys {
   static final AttributeKey<String> AWS_QUEUE_URL = AttributeKey.stringKey("aws.queue.url");
   static final AttributeKey<String> AWS_QUEUE_NAME = AttributeKey.stringKey("aws.queue.name");
   static final AttributeKey<String> AWS_STREAM_NAME = AttributeKey.stringKey("aws.stream.name");
-  static final AttributeKey<String> AWS_STREAM_ARN = AttributeKey.stringKey("aws.stream.arn");
   static final AttributeKey<String> AWS_TABLE_NAME = AttributeKey.stringKey("aws.table.name");
-  static final AttributeKey<String> AWS_TABLE_ARN = AttributeKey.stringKey("aws.table.arn");
   static final AttributeKey<String> AWS_AGENT_ID = AttributeKey.stringKey("aws.bedrock.agent.id");
   static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =
       AttributeKey.stringKey("aws.bedrock.knowledge_base.id");

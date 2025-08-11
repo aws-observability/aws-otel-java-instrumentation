@@ -33,7 +33,7 @@ dependencyResolutionManagement {
     mavenLocal()
 
     maven {
-      setUrl("https://central.sonatype.com/repository/maven-snapshots/")
+      setUrl("https://oss.sonatype.org/content/repositories/snapshots")
     }
   }
 }
@@ -44,7 +44,6 @@ include(":dependencyManagement")
 include(":instrumentation:logback-1.0")
 include(":instrumentation:log4j-2.13.2")
 include(":instrumentation:jmx-metrics")
-include("instrumentation:aws-sdk")
 include(":otelagent")
 include(":smoke-tests:fakebackend")
 include(":smoke-tests:runner")

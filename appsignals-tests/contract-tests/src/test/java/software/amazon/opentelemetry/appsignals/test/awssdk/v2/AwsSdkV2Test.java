@@ -180,11 +180,6 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   }
 
   @Test
-  void testDynamoDbDescribeTable() {
-    doTestDynamoDbDescribeTable();
-  }
-
-  @Test
   void testDynamoDbError() throws Exception {
     doTestDynamoDbError();
   }
@@ -227,11 +222,6 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   @Test
   void testKinesisPutRecord() throws Exception {
     doTestKinesisPutRecord();
-  }
-
-  @Test
-  void testKinesisDescribeStream() {
-    doTestKinesisDescribeStream();
   }
 
   @Test
@@ -352,10 +342,5 @@ public class AwsSdkV2Test extends AwsSdkBaseTest {
   @Test
   void testSnsFault() throws Exception {
     doTestStepFunctionsFault();
-  }
-
-  @Test
-  void testCrossAccount() throws Exception {
-    doTestCrossAccount("eu-central-1");
   }
 }
