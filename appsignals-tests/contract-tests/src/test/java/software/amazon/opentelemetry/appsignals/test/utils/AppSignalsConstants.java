@@ -31,9 +31,14 @@ public class AppSignalsConstants {
   public static final String AWS_REMOTE_OPERATION = "aws.remote.operation";
   public static final String AWS_REMOTE_RESOURCE_TYPE = "aws.remote.resource.type";
   public static final String AWS_REMOTE_RESOURCE_IDENTIFIER = "aws.remote.resource.identifier";
+  public static final String AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER =
+      "aws.remote.resource.cfn.primary.identifier";
   public static final String AWS_SPAN_KIND = "aws.span.kind";
   public static final String AWS_REMOTE_DB_USER = "aws.remote.db.user";
-
+  public static final String AWS_REMOTE_RESOURCE_ACCESS_KEY =
+      "aws.remote.resource.account.access_key";
+  public static final String AWS_REMOTE_RESOURCE_ACCOUNT_ID = "aws.remote.resource.account.id";
+  public static final String AWS_REMOTE_RESOURCE_REGION = "aws.remote.resource.region";
   // JVM Metrics
   public static final String JVM_GC_DURATION = "jvm.gc.collections.elapsed";
   public static final String JVM_GC_COUNT = "jvm.gc.collections.count";

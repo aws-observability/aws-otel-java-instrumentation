@@ -5,7 +5,7 @@ on:
       - main
       - "release/v*"
 env:
-  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
 
 jobs:
   testpatch:
@@ -63,6 +63,13 @@ jobs:
 
       - uses: gradle/wrapper-validation-action@v1
 
+        # Cleanup directories before proceeding with setup
+      - name: Clean up old installations
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+
         # cache local patch outputs
       - name: Cache local Maven repository
         uses: actions/cache@v3
@@ -81,15 +88,31 @@ jobs:
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
+      - name: Build and Test UDP exporter
+        run: |
+          ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
+
+      - name: Set up Java version for tests
+        uses: actions/setup-java@v4
+        with:
+          java-version: 23
+          distribution: temurin
+
       - name: Pull base image of Contract Tests Sample Apps
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
       - name: Run contract tests
         uses: gradle/gradle-build-action@v3
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: contractTests -PlocalDocker=true -i
+
+      - name: Set up Java version for image build
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
 
       - name: Get current version
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -136,4 +159,20 @@ jobs:
         with:
           arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@v3
+
+  build-lambda:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Build layer
+        working-directory: lambda-layer
+        run: ./build-layer.sh
 

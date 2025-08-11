@@ -47,8 +47,8 @@ dependencies {
 
 jib {
   configureImages(
-    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
-    "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot",
+    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha-v2",
+    "public.ecr.aws/aws-otel-test/aws-otel-java-smoketests-springboot:v2",
     localDocker = rootProject.property("localDocker")!!.equals("true"),
     multiPlatform = false,
   )
