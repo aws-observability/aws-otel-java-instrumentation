@@ -19,8 +19,12 @@ import static io.opentelemetry.semconv.SemanticAttributes.*;
 import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
 import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.RECEIVE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Answers.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getDialectKeywords;
@@ -33,6 +37,7 @@ import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 public class AwsSpanProcessingUtilTest {
   private static final String DEFAULT_PATH_VALUE = "/";
@@ -73,7 +78,7 @@ public class AwsSpanProcessingUtilTest {
     String invalidName = "GET";
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
-    when(attributesMock.get(HTTP_METHOD)).thenReturn(invalidName);
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn(invalidName);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
     assertThat(actualOperation).isEqualTo(UNKNOWN_OPERATION);
   }
@@ -102,7 +107,7 @@ public class AwsSpanProcessingUtilTest {
     String validTarget = "/";
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
-    when(attributesMock.get(HTTP_TARGET)).thenReturn(validTarget);
+    when(attributesMock.get(URL_PATH)).thenReturn(validTarget);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
     assertThat(actualOperation).isEqualTo(validTarget);
   }
@@ -114,10 +119,53 @@ public class AwsSpanProcessingUtilTest {
     String validMethod = "GET";
     when(spanDataMock.getName()).thenReturn(invalidName);
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
-    when(attributesMock.get(HTTP_TARGET)).thenReturn(validTarget);
-    when(attributesMock.get(HTTP_METHOD)).thenReturn(validMethod);
+    when(attributesMock.get(URL_PATH)).thenReturn(validTarget);
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn(validMethod);
     String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
     assertThat(actualOperation).isEqualTo(validMethod + " " + validTarget);
+  }
+
+  @Test
+  public void testGetIngressOperationLambdaOverride() {
+    try (MockedStatic<AwsApplicationSignalsCustomizerProvider> providerStatic =
+        mockStatic(
+            AwsApplicationSignalsCustomizerProvider.class,
+            withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      // Force Lambda environment branch
+      providerStatic
+          .when(AwsApplicationSignalsCustomizerProvider::isLambdaEnvironment)
+          .thenReturn(true);
+      // Simulate an override attribute on the span
+      when(attributesMock.get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE)).thenReturn("MyOverrideOp");
+
+      String actualOperation = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
+      assertThat(actualOperation).isEqualTo("MyOverrideOp");
+    }
+  }
+
+  @Test
+  public void testGetIngressOperationLambdaDefault() throws Exception {
+    try (
+    // Mock the AWS environment check
+    MockedStatic<AwsApplicationSignalsCustomizerProvider> providerStatic =
+            mockStatic(
+                AwsApplicationSignalsCustomizerProvider.class,
+                withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        // Mock only getFunctionNameFromEnv, leave all other util logic untouched
+        MockedStatic<AwsSpanProcessingUtil> utilStatic =
+            mockStatic(
+                AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      // force lambda branch and no override attribute
+      providerStatic
+          .when(AwsApplicationSignalsCustomizerProvider::isLambdaEnvironment)
+          .thenReturn(true);
+      when(attributesMock.get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE)).thenReturn(null);
+      // Provide a deterministic function name
+      utilStatic.when(AwsSpanProcessingUtil::getFunctionNameFromEnv).thenReturn("MockFunction");
+
+      String actual = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
+      assertThat(actual).isEqualTo("MockFunction/FunctionHandler");
+    }
   }
 
   @Test
@@ -183,13 +231,13 @@ public class AwsSpanProcessingUtilTest {
 
   @Test
   public void testIsKeyPresentKeyPresent() {
-    when(attributesMock.get(HTTP_TARGET)).thenReturn("target");
-    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, HTTP_TARGET)).isTrue();
+    when(attributesMock.get(URL_PATH)).thenReturn("target");
+    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, URL_PATH)).isTrue();
   }
 
   @Test
   public void testIsKeyPresentKeyAbsent() {
-    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, HTTP_TARGET)).isFalse();
+    assertThat(AwsSpanProcessingUtil.isKeyPresent(spanDataMock, URL_PATH)).isFalse();
   }
 
   @Test
