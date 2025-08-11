@@ -27,13 +27,15 @@ val javaagentDependency by configurations.creating {
   extendsFrom()
 }
 
+val otelVersion: String by project
+
 dependencies {
-  compileOnly(platform("io.opentelemetry:opentelemetry-bom:1.32.1"))
-  compileOnly(platform("io.opentelemetry:opentelemetry-bom-alpha:1.32.1-alpha"))
+  compileOnly(platform("io.opentelemetry:opentelemetry-bom:$otelVersion"))
+  compileOnly(platform("io.opentelemetry:opentelemetry-bom-alpha:$otelVersion-alpha"))
   // Already included in wrapper so compileOnly
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-aws")
-  javaagentDependency("software.amazon.opentelemetry:aws-opentelemetry-agent:1.32.1-adot-lambda1")
+  javaagentDependency("software.amazon.opentelemetry:aws-opentelemetry-agent:$otelVersion-adot-lambda1")
 }
 
 tasks.register<Copy>("download") {

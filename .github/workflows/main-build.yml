@@ -226,6 +226,35 @@ jobs:
         with:
           arguments: contractTests -PlocalDocker=true
 
+  application-signals-lambda-layer-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+      - name: Build Application Signals Lambda Layer
+        working-directory: lambda-layer
+        run: |
+          ./build-layer.sh
+      - name: Upload layer zip to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-opentelemetry-java-layer.zip
+          path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ACCOUNT_ID }}:role/${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ROLE_NAME }}
+          aws-region: us-east-1
+      - name: Upload layer zip to S3
+        working-directory: lambda-layer
+        run: |
+          aws s3 cp ./build/distributions/aws-opentelemetry-java-layer.zip s3://adot-main-build-staging-jar/adot-java-lambda-layer-${{ github.run_id }}.zip
+
   application-signals-e2e-test:
     needs: [build]
     uses: ./.github/workflows/application-signals-e2e-test.yml
@@ -234,16 +263,21 @@ jobs:
       adot-image-name: ${{ needs.build.outputs.staging-image }}
 
   publish-build-status:
-    needs: [ build, contract-tests ]
-    if: ${{ always() }}
-    uses: ./.github/workflows/publish-status.yml
-    with:
-      namespace: 'ADOT/GitHubActions'
-      repository: ${{ github.repository }}
-      branch: ${{ github.ref_name }}
-      workflow: main-build
-      success: ${{  needs.build.result == 'success' &&
-                    needs.contract-tests.result == 'success'  }}
-      region: us-east-1
-    secrets:
-      roleArn: ${{ secrets.METRICS_ROLE_ARN }}
+    name: "Publish Main Build Status"
+    needs: [ build, e2e-test, contract-tests, application-signals-lambda-layer-build, application-signals-e2e-test ]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Configure AWS Credentials for emitting metrics
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Publish main build status
+        run: |
+          value="${{ needs.build.result == 'success' && needs.e2e-test.result == 'success' && needs.contract-tests.result == 'success' && needs.application-signals-lambda-layer-build.result == 'success' && needs.application-signals-e2e-test.result == 'success' && '0.0' || '1.0' }}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Failure \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=main_build \
+            --value $value

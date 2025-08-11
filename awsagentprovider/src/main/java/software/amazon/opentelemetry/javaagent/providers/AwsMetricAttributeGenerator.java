@@ -45,21 +45,30 @@ import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
 import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
 import static io.opentelemetry.semconv.SemanticAttributes.URL_FULL;
+import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCESS_KEY;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_ACCOUNT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_IDENTIFIER;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
@@ -67,7 +76,9 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
@@ -95,7 +106,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -128,6 +141,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static final String NORMALIZED_SNS_SERVICE_NAME = "AWS::SNS";
   private static final String NORMALIZED_SECRETSMANAGER_SERVICE_NAME = "AWS::SecretsManager";
   private static final String NORMALIZED_LAMBDA_SERVICE_NAME = "AWS::Lambda";
+
+  // Constants for Lambda operations
+  private static final String LAMBDA_INVOKE_OPERATION = "Invoke";
 
   // Special DEPENDENCY attribute value if GRAPHQL_OPERATION_TYPE attribute key is present.
   private static final String GRAPHQL = "graphql";
@@ -167,7 +183,14 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     setService(resource, span, builder);
     setEgressOperation(span, builder);
     setRemoteServiceAndOperation(span, builder);
-    setRemoteResourceTypeAndIdentifier(span, builder);
+    setRemoteEnvironment(span, builder);
+    boolean isRemoteResourceIdentifierPresent = setRemoteResourceTypeAndIdentifier(span, builder);
+    if (isRemoteResourceIdentifierPresent) {
+      boolean isAccountIdAndRegionPresent = setRemoteResourceAccountIdAndRegion(span, builder);
+      if (!isAccountIdAndRegionPresent) {
+        setRemoteResourceAccessKeyAndRegion(span, builder);
+      }
+    }
     setSpanKindForDependency(span, builder);
     setHttpStatus(span, builder);
     setRemoteDbUser(span, builder);
@@ -292,6 +315,27 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   }
 
   /**
+   * Remote environment is used to identify the environment of downstream services. Currently only
+   * set to "lambda:default" for Lambda Invoke operations when aws-api system is detected.
+   */
+  private static void setRemoteEnvironment(SpanData span, AttributesBuilder builder) {
+    // We want to treat downstream Lambdas as a service rather than a resource because
+    // Application Signals topology map gets disconnected due to conflicting Lambda Entity
+    // definitions
+    // Additional context can be found in
+    // https://github.com/aws-observability/aws-otel-python-instrumentation/pull/319
+    if (isLambdaInvokeOperation(span)) {
+      // TODO: This should be passed via ConfigProperties from
+      // AwsApplicationSignalsCustomizerProvider
+      String remoteEnvironment =
+          Optional.ofNullable(System.getenv(LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT))
+              .filter(s -> !s.isEmpty())
+              .orElse("default");
+      builder.put(AWS_REMOTE_ENVIRONMENT, "lambda:" + remoteEnvironment);
+    }
+  }
+
+  /**
    * When the remote call operation is undetermined for http use cases, will try to extract the
    * remote operation name from http url string
    */
@@ -373,6 +417,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     return remoteService;
   }
 
+  private static boolean isLambdaInvokeOperation(SpanData span) {
+    if (!isAwsSDKSpan(span)) {
+      return false;
+    }
+    String rpcService = getRemoteService(span, RPC_SERVICE);
+    return ("AWSLambda".equals(rpcService) || "Lambda".equals(rpcService))
+        && LAMBDA_INVOKE_OPERATION.equals(span.getAttributes().get(RPC_METHOD));
+  }
+
   /**
    * If the span is an AWS SDK span, normalize the name to align with <a
    * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
@@ -420,7 +473,19 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
           return NORMALIZED_SECRETSMANAGER_SERVICE_NAME;
         case "AWSLambda": // AWS SDK v1
         case "Lambda": // AWS SDK v2
-          return NORMALIZED_LAMBDA_SERVICE_NAME;
+          if (isLambdaInvokeOperation(span)) {
+            // AWS_LAMBDA_NAME can contain either a function name or function ARN since Lambda AWS
+            // SDK calls accept both formats
+            Optional<String> lambdaFunctionName =
+                getLambdaFunctionNameFromArn(
+                    Optional.ofNullable(span.getAttributes().get(AWS_LAMBDA_NAME)));
+            // If Lambda name is not present, use UnknownRemoteService
+            // This is intentional - we want to clearly indicate when the Lambda function name
+            // is missing rather than falling back to a generic service name
+            return lambdaFunctionName.orElse(UNKNOWN_REMOTE_SERVICE);
+          } else {
+            return NORMALIZED_LAMBDA_SERVICE_NAME;
+          }
         default:
           return "AWS::" + serviceName;
       }
@@ -439,7 +504,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * href="https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html">AWS
    * Cloud Control resource format</a>.
    */
-  private static void setRemoteResourceTypeAndIdentifier(SpanData span, AttributesBuilder builder) {
+  private static boolean setRemoteResourceTypeAndIdentifier(
+      SpanData span, AttributesBuilder builder) {
     Optional<String> remoteResourceType = Optional.empty();
     Optional<String> remoteResourceIdentifier = Optional.empty();
     Optional<String> cloudformationPrimaryIdentifier = Optional.empty();
@@ -449,10 +515,20 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_TABLE_NAME)));
+      } else if (isKeyPresent(span, AWS_TABLE_ARN)) {
+        remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
+        remoteResourceIdentifier =
+            getDynamodbTableNameFromArn(
+                Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_TABLE_ARN))));
       } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
         remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STREAM_NAME)));
+      } else if (isKeyPresent(span, AWS_STREAM_ARN)) {
+        remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
+        remoteResourceIdentifier =
+            getKinesisStreamNameFromArn(
+                Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STREAM_ARN))));
       } else if (isKeyPresent(span, AWS_BUCKET_NAME)) {
         remoteResourceType = Optional.of(NORMALIZED_S3_SERVICE_NAME + "::Bucket");
         remoteResourceIdentifier =
@@ -518,6 +594,20 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
                 Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN))));
         cloudformationPrimaryIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_SECRET_ARN)));
+      } else if (isKeyPresent(span, AWS_LAMBDA_NAME)) {
+        // For non-Invoke Lambda operations, treat Lambda as a resource,
+        // see normalizeRemoteServiceName for more information.
+        if (!isLambdaInvokeOperation(span)) {
+          remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::Function");
+          // AWS_LAMBDA_NAME can contain either a function name or function ARN since Lambda AWS SDK
+          // calls accept both formats
+          remoteResourceIdentifier =
+              getLambdaFunctionNameFromArn(
+                  Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_NAME))));
+          cloudformationPrimaryIdentifier =
+              Optional.ofNullable(
+                  escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_FUNCTION_ARN)));
+        }
       } else if (isKeyPresent(span, AWS_LAMBDA_RESOURCE_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
         remoteResourceIdentifier =
@@ -536,22 +626,137 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       builder.put(AWS_REMOTE_RESOURCE_TYPE, remoteResourceType.get());
       builder.put(AWS_REMOTE_RESOURCE_IDENTIFIER, remoteResourceIdentifier.get());
       builder.put(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER, cloudformationPrimaryIdentifier.get());
+      return true;
+    }
+    return false;
+  }
+
+  private static void setRemoteResourceAccessKeyAndRegion(
+      SpanData span, AttributesBuilder builder) {
+    if (isKeyPresent(span, AWS_AUTH_ACCESS_KEY)) {
+      String remoteResourceAccessKey = span.getAttributes().get(AWS_AUTH_ACCESS_KEY);
+      builder.put(AWS_REMOTE_RESOURCE_ACCESS_KEY, remoteResourceAccessKey);
+    }
+
+    if (isKeyPresent(span, AWS_AUTH_REGION)) {
+      String remoteResourceRegion = span.getAttributes().get(AWS_AUTH_REGION);
+      builder.put(AWS_REMOTE_RESOURCE_REGION, remoteResourceRegion);
     }
   }
 
+  private static boolean setRemoteResourceAccountIdAndRegion(
+      SpanData span, AttributesBuilder builder) {
+    Optional<String> remoteResourceAccountId = Optional.empty();
+    Optional<String> remoteResourceRegion = Optional.empty();
+    List<AttributeKey<String>> ARN_ATTRIBUTES =
+        Arrays.asList(
+            AWS_TABLE_ARN,
+            AWS_STREAM_ARN,
+            AWS_SNS_TOPIC_ARN,
+            AWS_SECRET_ARN,
+            AWS_STEP_FUNCTIONS_ACTIVITY_ARN,
+            AWS_STATE_MACHINE_ARN,
+            AWS_GUARDRAIL_ARN,
+            AWS_LAMBDA_FUNCTION_ARN);
+
+    if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      String url = escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL));
+      remoteResourceAccountId = SqsUrlParser.getAccountId(url);
+      remoteResourceRegion = SqsUrlParser.getRegion(url);
+    } else {
+      for (AttributeKey<String> attributeKey : ARN_ATTRIBUTES) {
+        if (isKeyPresent(span, attributeKey)) {
+          String stringArn = escapeDelimiters(span.getAttributes().get(attributeKey));
+          try {
+            Arn resourceArn = Arn.fromString(stringArn);
+            remoteResourceAccountId = Optional.of(resourceArn.getAccountId());
+            remoteResourceRegion = Optional.of(resourceArn.getRegion());
+          } catch (IllegalArgumentException e) {
+            logger.log(
+                Level.FINE,
+                String.format(
+                    "Could not parse ARN to extract cross-account information: %s", stringArn));
+          }
+        }
+      }
+    }
+
+    if (remoteResourceAccountId.isPresent() && remoteResourceRegion.isPresent()) {
+      builder.put(AWS_REMOTE_RESOURCE_ACCOUNT_ID, remoteResourceAccountId.get());
+      builder.put(AWS_REMOTE_RESOURCE_REGION, remoteResourceRegion.get());
+      return true;
+    }
+    return false;
+  }
+
+  private static Optional<String> getKinesisStreamNameFromArn(Optional<String> stringArn) {
+    try {
+      Arn resourceArn = Arn.fromString(stringArn.get());
+      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    } catch (IllegalArgumentException e) {
+      logger.log(
+          Level.FINE, String.format("Could not parse Kinesis stream name from ARN: %s", stringArn));
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<String> getDynamodbTableNameFromArn(Optional<String> stringArn) {
+    try {
+      Arn resourceArn = Arn.fromString(stringArn.get());
+      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    } catch (IllegalArgumentException e) {
+      logger.log(
+          Level.FINE, String.format("Could not parse DynamoDB table name from ARN: %s", stringArn));
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<String> getLambdaFunctionNameFromArn(Optional<String> stringArn) {
+    try {
+      if (stringArn.isPresent() && stringArn.get().startsWith("arn:aws:lambda:")) {
+        Arn resourceArn = Arn.fromString(stringArn.get());
+        return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+      }
+    } catch (IllegalArgumentException e) {
+      logger.log(
+          Level.FINE,
+          String.format("Could not parse Lambda resource name from ARN: %s", stringArn));
+    }
+    return stringArn;
+  }
+
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {
-    Arn resourceArn = Arn.fromString(stringArn.get());
-    return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    try {
+      Arn resourceArn = Arn.fromString(stringArn.get());
+      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    } catch (IllegalArgumentException e) {
+      logger.log(
+          Level.FINE,
+          String.format("Could not parse Secrets Manager resource name from ARN: %s", stringArn));
+    }
+    return Optional.empty();
   }
 
   private static Optional<String> getSfnResourceNameFromArn(Optional<String> stringArn) {
-    Arn resourceArn = Arn.fromString(stringArn.get());
-    return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    try {
+      Arn resourceArn = Arn.fromString(stringArn.get());
+      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+    } catch (IllegalArgumentException e) {
+      logger.log(
+          Level.FINE, String.format("Could not parse Sfn resource name from ARN: %s", stringArn));
+    }
+    return Optional.empty();
   }
 
   private static Optional<String> getSnsResourceNameFromArn(Optional<String> stringArn) {
-    Arn resourceArn = Arn.fromString(stringArn.get());
-    return Optional.of(resourceArn.getResource().toString());
+    try {
+      Arn resourceArn = Arn.fromString(stringArn.get());
+      return Optional.of(resourceArn.getResource().toString());
+    } catch (IllegalArgumentException e) {
+      logger.log(
+          Level.FINE, String.format("Could not parse Sfn resource name from ARN: %s", stringArn));
+    }
+    return Optional.empty();
   }
 
   /**
