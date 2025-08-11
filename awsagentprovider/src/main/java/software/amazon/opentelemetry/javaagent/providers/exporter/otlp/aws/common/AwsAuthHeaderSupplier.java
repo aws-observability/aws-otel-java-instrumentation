@@ -16,11 +16,14 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -29,11 +32,11 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 
-final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
+final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
   BaseOtlpAwsExporter exporter;
   Logger logger;
 
-  public SigV4AuthHeaderSupplier(BaseOtlpAwsExporter exporter) {
+  public AwsAuthHeaderSupplier(BaseOtlpAwsExporter exporter) {
     this.exporter = exporter;
     this.logger = Logger.getLogger(exporter.getClass().getName());
   }
@@ -41,7 +44,7 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
   @Override
   public Map<String, String> get() {
     try {
-      byte[] data = exporter.data.get();
+      ByteArrayOutputStream data = exporter.data.get();
 
       SdkHttpRequest httpRequest =
           SdkHttpFullRequest.builder()
@@ -49,6 +52,14 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
               .method(SdkHttpMethod.POST)
               .putHeader("Content-Type", "application/x-protobuf")
               .build();
+
+      // Compress the data before signing with gzip
+      ByteArrayOutputStream compressedData;
+      if (exporter.getCompression().equals(CompressionMethod.GZIP)) {
+        compressedData = compressWithGzip(data);
+      } else {
+        compressedData = data;
+      }
 
       AwsCredentials credentials = DefaultCredentialsProvider.create().resolveCredentials();
 
@@ -60,7 +71,7 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
                           .request(httpRequest)
                           .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, exporter.serviceName())
                           .putProperty(AwsV4HttpSigner.REGION_NAME, exporter.awsRegion)
-                          .payload(() -> new ByteArrayInputStream(data)));
+                          .payload(() -> new ByteArrayInputStream(compressedData.toByteArray())));
 
       Map<String, String> result = new HashMap<>();
 
@@ -83,5 +94,22 @@ final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
 
       return Collections.emptyMap();
     }
+  }
+
+  /**
+   * Compresses the given byte array using GZIP compression.
+   *
+   * @param data the byte array stream to compress
+   * @return the compressed byte as a ByteArrayOutputStream
+   * @throws IOException if compression fails
+   */
+  private ByteArrayOutputStream compressWithGzip(ByteArrayOutputStream data) throws IOException {
+    ByteArrayOutputStream compressedData = new ByteArrayOutputStream();
+
+    try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedData)) {
+      data.writeTo(gzipOut);
+    }
+
+    return compressedData;
   }
 }
