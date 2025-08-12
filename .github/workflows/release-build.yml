@@ -84,7 +84,7 @@ jobs:
           driver-opts: image=moby/buildkit:v0.15.1
 
       - name: Build image for testing
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -98,7 +98,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
