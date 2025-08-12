@@ -25,12 +25,14 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
@@ -75,6 +77,8 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   private final Resource resource;
   private final Supplier<CompletableResultCode> forceFlushAction;
 
+  private Sampler sampler;
+
   /** Use {@link AwsSpanMetricsProcessorBuilder} to construct this processor. */
   static AwsSpanMetricsProcessor create(
       LongHistogram errorHistogram,
@@ -82,9 +86,16 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
       Resource resource,
+      Sampler sampler,
       Supplier<CompletableResultCode> forceFlushAction) {
     return new AwsSpanMetricsProcessor(
-        errorHistogram, faultHistogram, latencyHistogram, generator, resource, forceFlushAction);
+        errorHistogram,
+        faultHistogram,
+        latencyHistogram,
+        generator,
+        resource,
+        sampler,
+        forceFlushAction);
   }
 
   private AwsSpanMetricsProcessor(
@@ -93,12 +104,14 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
       Resource resource,
+      Sampler sampler,
       Supplier<CompletableResultCode> forceFlushAction) {
     this.errorHistogram = errorHistogram;
     this.faultHistogram = faultHistogram;
     this.latencyHistogram = latencyHistogram;
     this.generator = generator;
     this.resource = resource;
+    this.sampler = sampler;
     this.forceFlushAction = forceFlushAction;
   }
 
@@ -124,6 +137,9 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
 
     for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
       recordMetrics(span, spanData, attribute.getValue());
+    }
+    if (sampler != null) {
+      ((AwsXrayRemoteSampler) sampler).adaptSampling(span, spanData);
     }
   }
 
