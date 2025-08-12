@@ -147,6 +147,7 @@ jobs:
         with:
           image-ref: ${{ env.TEST_TAG }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+          logout: 'true'
 
       - name: Test docker image
         if: ${{ matrix.os == 'ubuntu-latest' }}

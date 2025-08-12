@@ -11,6 +11,9 @@ inputs:
   severity:
     required: true
     description: "List of severities that will cause a failure"
+  logout:
+    required: true
+    description: "Whether to logout of public AWS ECR"
 
 runs:
   using: "composite"
@@ -22,6 +25,7 @@ runs:
     # ensure we can make unauthenticated call. This is important for making the pr_build workflow run on
     # PRs created from forked repos.
     - name: Logout of public AWS ECR
+      if: inputs.logout == 'true'
       shell: bash
       run: docker logout public.ecr.aws
 
