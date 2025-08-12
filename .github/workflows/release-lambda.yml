@@ -98,7 +98,7 @@ jobs:
           echo BUCKET_NAME=java-lambda-layer-${{ github.run_id }}-${{ matrix.aws_region }} | tee --append $GITHUB_ENV
 
       - name: download layer.zip
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: aws-opentelemetry-java-layer.zip
 
@@ -157,7 +157,7 @@ jobs:
         uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v2
       - name: download layerARNs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.LAYER_NAME }}-*
           path: ${{ env.LAYER_NAME }}
@@ -206,7 +206,7 @@ jobs:
           echo "}" >> ../layer_cdk
           cat ../layer_cdk
       - name: download layer.zip
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: layer.zip
       - name: Get commit hash
