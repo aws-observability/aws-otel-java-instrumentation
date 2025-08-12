@@ -15,19 +15,24 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.Map;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -57,6 +62,10 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   private static final int FAULT_CODE_LOWER_BOUND = 500;
   private static final int FAULT_CODE_UPPER_BOUND = 599;
 
+  // EC2 Metadata API IP Address
+  // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html#instancedata-inside-access
+  private final String EC2_METADATA_API_IP = "169.254.169.254";
+
   // Metric instruments
   private final LongHistogram errorHistogram;
   private final LongHistogram faultHistogram;
@@ -64,6 +73,7 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
 
   private final MetricAttributeGenerator generator;
   private final Resource resource;
+  private final Supplier<CompletableResultCode> forceFlushAction;
 
   /** Use {@link AwsSpanMetricsProcessorBuilder} to construct this processor. */
   static AwsSpanMetricsProcessor create(
@@ -71,9 +81,10 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       LongHistogram faultHistogram,
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
-      Resource resource) {
+      Resource resource,
+      Supplier<CompletableResultCode> forceFlushAction) {
     return new AwsSpanMetricsProcessor(
-        errorHistogram, faultHistogram, latencyHistogram, generator, resource);
+        errorHistogram, faultHistogram, latencyHistogram, generator, resource, forceFlushAction);
   }
 
   private AwsSpanMetricsProcessor(
@@ -81,12 +92,19 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       LongHistogram faultHistogram,
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
-      Resource resource) {
+      Resource resource,
+      Supplier<CompletableResultCode> forceFlushAction) {
     this.errorHistogram = errorHistogram;
     this.faultHistogram = faultHistogram;
     this.latencyHistogram = latencyHistogram;
     this.generator = generator;
     this.resource = resource;
+    this.forceFlushAction = forceFlushAction;
+  }
+
+  @Override
+  public CompletableResultCode forceFlush() {
+    return forceFlushAction.get();
   }
 
   @Override
@@ -118,11 +136,16 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   // possible except for the throttle
   // https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/awsxrayexporter/internal/translator/cause.go#L121-L160
   private void recordErrorOrFault(SpanData spanData, Attributes attributes) {
-    Long httpStatusCode = spanData.getAttributes().get(HTTP_STATUS_CODE);
+    Long httpStatusCode = null;
+    if (isKeyPresent(spanData, HTTP_RESPONSE_STATUS_CODE)) {
+      httpStatusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
+    } else if (isKeyPresent(spanData, HTTP_STATUS_CODE)) {
+      httpStatusCode = spanData.getAttributes().get(HTTP_STATUS_CODE);
+    }
     StatusCode statusCode = spanData.getStatus().getStatusCode();
 
     if (httpStatusCode == null) {
-      httpStatusCode = attributes.get(HTTP_STATUS_CODE);
+      httpStatusCode = attributes.get(HTTP_RESPONSE_STATUS_CODE);
     }
 
     if (httpStatusCode == null
@@ -154,9 +177,18 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
 
   private void recordMetrics(ReadableSpan span, SpanData spanData, Attributes attributes) {
     // Only record metrics if non-empty attributes are returned.
-    if (!attributes.isEmpty()) {
+    if (!attributes.isEmpty() && !isEc2MetadataSpan((attributes))) {
       recordErrorOrFault(spanData, attributes);
       recordLatency(span, attributes);
     }
+  }
+
+  private boolean isEc2MetadataSpan(Attributes attributes) {
+    if (attributes.get(AWS_REMOTE_SERVICE) != null
+        && attributes.get(AWS_REMOTE_SERVICE).equals(EC2_METADATA_API_IP)) {
+      return true;
+    }
+
+    return false;
   }
 }

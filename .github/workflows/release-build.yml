@@ -9,10 +9,11 @@ on:
 env:
   AWS_PUBLIC_ECR_REGION: us-east-1
   AWS_PRIVATE_ECR_REGION: us-west-2
-  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
+  TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
   PUBLIC_REPOSITORY: public.ecr.aws/aws-observability/adot-autoinstrumentation-java
   PRIVATE_REPOSITORY: 020628701572.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java
   PRIVATE_REGISTRY: 020628701572.dkr.ecr.us-west-2.amazonaws.com
+  ARTIFACT_NAME: aws-opentelemetry-agent.jar 
 
 permissions:
   id-token: write
@@ -20,6 +21,7 @@ permissions:
 
 jobs:
   build:
+    environment: Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,9 +80,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.15.1
 
       - name: Build image for testing
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -94,7 +98,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -115,13 +119,28 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+
+      - name: Get SHA256 checksum of release artifact
+        id: get_sha256
+        run: |
+          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
+          shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
-          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" aws-opentelemetry-agent.jar
+          # Download layer.zip from existing latest tagged SDK release note
+          LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
+          mkdir -p layer_artifact
+          gh release download "$LATEST_SDK_VERSION" --repo "aws-observability/aws-otel-java-instrumentation" --pattern "layer.zip" --dir layer_artifact
+          shasum -a 256 layer_artifact/layer.zip > layer_artifact/layer.zip.sha256
+
           gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ github.event.inputs.version }}" \
              --draft \
              "v${{ github.event.inputs.version }}" \
-             aws-opentelemetry-agent.jar
+             ${{ env.ARTIFACT_NAME }} \
+             ${{ env.ARTIFACT_NAME }}.sha256 \
+             layer_artifact/layer.zip \
+             layer_artifact/layer.zip.sha256

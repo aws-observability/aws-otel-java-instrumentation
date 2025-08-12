@@ -13,7 +13,7 @@
 # permissions and limitations under the License.
 
 # Stage 1: Build the cp-utility binary
-FROM rust:1.75 as builder
+FROM public.ecr.aws/docker/library/rust:1.86 as builder
 
 WORKDIR /usr/src/cp-utility
 COPY ./tools/cp-utility .
@@ -51,4 +51,4 @@ ARG ADOT_JAVA_VERSION
 COPY --from=builder /usr/src/cp-utility/bin/cp-utility /bin/cp
 
 
-COPY --chmod=go+r ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar  /javaagent.jar
+COPY --chmod=go+r ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar /javaagent.jar

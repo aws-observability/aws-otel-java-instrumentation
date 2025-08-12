@@ -1,0 +1,132 @@
+---
+rules:
+  - bean: java.lang:type=ClassLoading
+    unit: "1"
+    prefix: jvm.classes.
+    type: gauge
+    mapping:
+      LoadedClassCount:
+        metric: loaded
+        desc: Number of loaded classes
+  - bean: java.lang:type=GarbageCollector,name=*
+    prefix: jvm.gc.collections.
+    type: counter
+    metricAttribute:
+      name: param(name)
+    mapping:
+      CollectionCount:
+        metric: count
+        unit: "1"
+        desc: Total number of collections that have occurred
+      CollectionTime:
+        metric: elapsed
+        unit: ms
+        desc: The approximate accumulated collection elapsed time in milliseconds
+  - bean: java.lang:type=Memory
+    unit: By
+    prefix: jvm.memory.
+    type: gauge
+    mapping:
+      HeapMemoryUsage.init:
+        metric: heap.init
+        desc: The initial amount of memory that the JVM requests from the operating system for the heap
+      HeapMemoryUsage.used:
+        metric: heap.used
+        desc: The current heap usage
+      HeapMemoryUsage.committed:
+        metric: heap.committed
+        desc: The amount of memory that is guaranteed to be available for the heap
+      HeapMemoryUsage.max:
+        metric: heap.max
+        desc: The maximum amount of memory can be used for the heap
+      NonHeapMemoryUsage.init:
+        metric: nonheap.init
+        desc: The initial amount of memory that the JVM requests from the operating system for non-heap purposes
+      NonHeapMemoryUsage.used:
+        metric: nonheap.used
+        desc: The current non-heap memory usage
+      NonHeapMemoryUsage.committed:
+        metric: nonheap.committed
+        desc: The amount of memory that is guaranteed to be available for non-heap purposes
+      NonHeapMemoryUsage.max:
+        metric: nonheap.max
+        desc: The maximum amount of memory can be used for non-heap purposes
+  - bean: java.lang:type=MemoryPool,name=*
+    unit: By
+    prefix: jvm.memory.pool.
+    type: gauge
+    metricAttribute:
+      name: param(name)
+    mapping:
+      CollectionUsage.used:
+        metric: used_after_last_gc
+        desc: Memory used after the most recent gc event
+      Usage.init:
+        metric: init
+        desc: The initial amount of memory that the JVM requests from the operating system for the memory pool
+      Usage.used:
+        metric: used
+        desc: The current memory pool memory usage
+      Usage.committed:
+        metric: committed
+        desc: The amount of memory that is guaranteed to be available for the memory pool
+      Usage.max:
+        metric: max
+        desc: The maximum amount of memory can be used for the memory pool
+  - bean: java.lang:type=Threading
+    unit: "1"
+    type: gauge
+    mapping:
+      ThreadCount:
+        metric: jvm.threads.count
+        desc: Number of threads
+      DaemonThreadCount:
+        metric: jvm.daemon_threads.count
+        desc: Number of daemon threads
+  - bean: java.lang:type=OperatingSystem
+    mapping:
+      TotalSwapSpaceSize:
+        metric: jvm.system.swap.space.total
+        type: gauge
+        desc: The host swap memory size in Bytes
+        unit: By
+      FreeSwapSpaceSize:
+        metric: jvm.system.swap.space.free
+        type: gauge
+        desc: The amount of available swap memory in Bytes
+        unit: By
+      TotalPhysicalMemorySize:
+        metric: jvm.system.physical.memory.total
+        type: gauge
+        desc: The total physical memory size in host
+        unit: By
+      FreePhysicalMemorySize:
+        metric: jvm.system.physical.memory.free
+        type: gauge
+        desc: The amount of free physical memory in host
+        unit: By
+      AvailableProcessors:
+        metric: jvm.system.available.processors
+        type: gauge
+        desc: The number of available processors
+        unit: "1"
+      SystemCpuLoad:
+        metric: jvm.system.cpu.utilization
+        type: gauge
+        desc: The current load of CPU in host
+        unit: "1"
+      ProcessCpuTime:
+        metric: jvm.cpu.time
+        type: counter
+        unit: ns
+        desc: CPU time used
+      ProcessCpuLoad:
+        metric: jvm.cpu.recent_utilization
+        type: gauge
+        unit: "1"
+        desc: Recent CPU utilization for the process
+      OpenFileDescriptorCount:
+        metric: jvm.open_file_descriptor.count
+        type: gauge
+        desc: The number of opened file descriptors
+        unit: "1"

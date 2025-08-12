@@ -48,16 +48,19 @@ public abstract class ContractTestBase {
 
   private final Logger collectorLogger =
       LoggerFactory.getLogger("collector " + getApplicationOtelServiceName());
-  private final Logger applicationLogger =
+  protected final Logger applicationLogger =
       LoggerFactory.getLogger("application " + getApplicationOtelServiceName());
 
-  private static final String AGENT_PATH =
+  protected static final String AGENT_PATH =
       System.getProperty("io.awsobservability.instrumentation.contracttests.agentPath");
+  protected static final String MOUNT_PATH = "/opentelemetry-javaagent-all.jar";
 
   protected final Network network = Network.newNetwork();
 
   private static final String COLLECTOR_HOSTNAME = "collector";
   private static final int COLLECTOR_PORT = 4317;
+  protected static final String COLLECTOR_HTTP_ENDPOINT =
+      "http://" + COLLECTOR_HOSTNAME + ":" + COLLECTOR_PORT;
 
   protected final GenericContainer<?> mockCollector =
       new GenericContainer<>("aws-appsignals-mock-collector")
@@ -67,29 +70,7 @@ public abstract class ContractTestBase {
           .withNetwork(network)
           .withNetworkAliases(COLLECTOR_HOSTNAME);
 
-  protected final GenericContainer<?> application =
-      new GenericContainer<>(getApplicationImageName())
-          .dependsOn(getDependsOn())
-          .withExposedPorts(getApplicationPort())
-          .withNetwork(network)
-          .withLogConsumer(new Slf4jLogConsumer(applicationLogger))
-          .withCopyFileToContainer(
-              MountableFile.forHostPath(AGENT_PATH), "/opentelemetry-javaagent-all.jar")
-          .waitingFor(getApplicationWaitCondition())
-          .withEnv("JAVA_TOOL_OPTIONS", "-javaagent:/opentelemetry-javaagent-all.jar")
-          .withEnv("OTEL_METRIC_EXPORT_INTERVAL", "100") // 100 ms
-          .withEnv("OTEL_AWS_APPLICATION_SIGNALS_ENABLED", "true")
-          .withEnv("OTEL_METRICS_EXPORTER", "none")
-          .withEnv("OTEL_BSP_SCHEDULE_DELAY", "0") // Don't wait to export spans to the collector
-          .withEnv(
-              "OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT",
-              "http://" + COLLECTOR_HOSTNAME + ":" + COLLECTOR_PORT)
-          .withEnv(
-              "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-              "http://" + COLLECTOR_HOSTNAME + ":" + COLLECTOR_PORT)
-          .withEnv("OTEL_RESOURCE_ATTRIBUTES", getApplicationOtelResourceAttributes())
-          .withEnv(getApplicationExtraEnvironmentVariables())
-          .withNetworkAliases(getApplicationNetworkAliases().toArray(new String[0]));
+  protected final GenericContainer<?> application = getApplicationContainer();
 
   protected MockCollectorClient mockCollectorClient;
   protected WebClient appClient;
@@ -108,10 +89,8 @@ public abstract class ContractTestBase {
   protected void setupClients() {
     application.start();
 
-    appClient = WebClient.of("http://localhost:" + application.getMappedPort(8080));
-    mockCollectorClient =
-        new MockCollectorClient(
-            WebClient.of("http://localhost:" + mockCollector.getMappedPort(4317)));
+    appClient = getApplicationClient();
+    mockCollectorClient = getMockCollectorClient();
   }
 
   @AfterEach
@@ -127,9 +106,46 @@ public abstract class ContractTestBase {
     return dependencies;
   }
 
+  protected WebClient getApplicationClient() {
+    return WebClient.of("http://localhost:" + application.getMappedPort(8080));
+  }
+
+  protected MockCollectorClient getMockCollectorClient() {
+    return new MockCollectorClient(
+        WebClient.of("http://localhost:" + mockCollector.getMappedPort(4317)));
+  }
+
+  protected GenericContainer<?> getApplicationContainer() {
+    return new GenericContainer<>(getApplicationImageName())
+        .dependsOn(getDependsOn())
+        .withExposedPorts(getApplicationPort())
+        .withNetwork(network)
+        .withLogConsumer(new Slf4jLogConsumer(applicationLogger))
+        .withCopyFileToContainer(MountableFile.forHostPath(AGENT_PATH), MOUNT_PATH)
+        .waitingFor(getApplicationWaitCondition())
+        .withEnv(getApplicationEnvironmentVariables())
+        .withEnv(getApplicationExtraEnvironmentVariables())
+        .withNetworkAliases(getApplicationNetworkAliases().toArray(new String[0]));
+  }
+
   /** Methods that should be overridden in sub classes * */
   protected int getApplicationPort() {
     return 8080;
+  }
+
+  protected Map<String, String> getApplicationEnvironmentVariables() {
+    return Map.ofEntries(
+        Map.entry("JAVA_TOOL_OPTIONS", "-javaagent:" + MOUNT_PATH),
+        Map.entry("OTEL_METRIC_EXPORT_INTERVAL", "100"), // 100 ms
+        Map.entry("OTEL_AWS_APPLICATION_SIGNALS_ENABLED", "true"),
+        Map.entry("OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED", isRuntimeEnabled()),
+        Map.entry("OTEL_METRICS_EXPORTER", "none"),
+        Map.entry("OTEL_BSP_SCHEDULE_DELAY", "0"), // Don't wait to export spans to the collector
+        Map.entry("OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT", COLLECTOR_HTTP_ENDPOINT),
+        Map.entry("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", COLLECTOR_HTTP_ENDPOINT),
+        Map.entry("OTEL_RESOURCE_ATTRIBUTES", getApplicationOtelResourceAttributes()),
+        Map.entry("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc"),
+        Map.entry("OTEL_TRACES_SAMPLER", "parentbased_always_on"));
   }
 
   protected Map<String, String> getApplicationExtraEnvironmentVariables() {
@@ -158,5 +174,9 @@ public abstract class ContractTestBase {
 
   protected String getApplicationOtelResourceAttributes() {
     return "service.name=" + getApplicationOtelServiceName();
+  }
+
+  protected String isRuntimeEnabled() {
+    return "false";
   }
 }

@@ -20,7 +20,7 @@ plugins {
   `maven-publish`
 
   id("com.google.cloud.tools.jib")
-  id("com.github.johnrengelman.shadow")
+  id("com.gradleup.shadow")
   id("org.owasp.dependencycheck")
 }
 
@@ -40,9 +40,8 @@ val javaagentLibs by configurations.creating {
   exclude("io.opentelemetry", "opentelemetry-api")
   exclude("io.opentelemetry", "opentelemetry-sdk")
   exclude("io.opentelemetry", "opentelemetry-sdk-common")
-  // Once io.opentelemetry.contrib:opentelemetry-aws-resources starts using
-  // the new semantic convention packages we will need to exclude it here.
-  // io.opentelemetry.semconv:opentelemetry-semconv
+  exclude("io.opentelemetry.semconv", "opentelemetry-semconv")
+  exclude("io.opentelemetry", "opentelemetry-api-incubator")
 }
 
 val shadowClasspath by configurations.creating {
@@ -61,7 +60,9 @@ dependencies {
 
   javaagentLibs(project(":awsagentprovider"))
   javaagentLibs(project(":instrumentation:log4j-2.13.2"))
+  javaagentLibs(project(":instrumentation:aws-sdk"))
   javaagentLibs(project(":instrumentation:logback-1.0"))
+  javaagentLibs(project(":instrumentation:jmx-metrics"))
 }
 
 tasks {
@@ -73,7 +74,7 @@ tasks {
     archiveFileName.set("javaagentLibs-relocated.jar")
   }
 
-  shadowJar {
+  val shadowJar by existing(ShadowJar::class) {
     dependsOn(relocateJavaagentLibs)
 
     archiveClassifier.set("")
@@ -111,7 +112,7 @@ tasks {
   }
 }
 
-val shadowJar = tasks.named("shadowJar")
+val shadowJar by tasks.existing(ShadowJar::class)
 tasks {
   named("jar") {
     enabled = false
@@ -136,7 +137,7 @@ tasks {
 jib {
   configureImages(
     "gcr.io/distroless/java17-debian11:debug",
-    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha",
+    "public.ecr.aws/aws-otel-test/aws-opentelemetry-java-base:alpha-v2",
     localDocker = false,
     multiPlatform = !rootProject.property("localDocker")!!.equals("true"),
   )

@@ -32,6 +32,7 @@ dependencies {
   implementation("com.h2database:h2:2.2.224")
   implementation("org.slf4j:slf4j-simple")
   implementation("org.postgresql:postgresql:42.2.0")
+  implementation("io.opentelemetry:opentelemetry-api:1.34.1")
   implementation("com.mysql:mysql-connector-j:8.4.0")
 }
 
@@ -44,7 +45,7 @@ tasks {
 }
 jib {
   configureImages(
-    "public.ecr.aws/docker/library/amazoncorretto:17-alpine",
+    "public.ecr.aws/docker/library/amazoncorretto:23-alpine",
     "aws-appsignals-tests-jdbc-app",
     localDocker = rootProject.property("localDocker")!! == "true",
     multiPlatform = false,

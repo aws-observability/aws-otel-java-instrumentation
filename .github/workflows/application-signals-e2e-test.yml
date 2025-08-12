@@ -31,30 +31,80 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ACCOUNT_ID }}:role/${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ROLE_NAME }}
           aws-region: us-east-1
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v5
         with:
           name: aws-opentelemetry-agent.jar
 
       - name: Upload main-build adot.jar to s3
         run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
 
-  java-ec2-default-e2e-test:
+  #
+  # PACKAGED DISTRIBUTION LANGUAGE VERSION COVERAGE
+  # DEFAULT SETTING: {Java Version}, EC2, AMD64, AL2
+  #
+
+  default-v8-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
+      java-version: '8'
+      cpu-architecture: 'x86_64'
 
-  java-ec2-asg-e2e-test:
+  default-v11-amd64:
     needs: [ upload-main-build ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
+      java-version: '11'
+      cpu-architecture: 'x86_64'
 
-  java-eks-e2e-test:
+  default-v17-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '17'
+      cpu-architecture: 'x86_64'
+
+  default-v21-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '21'
+      cpu-architecture: 'x86_64'
+
+  default-v22-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '22'
+      cpu-architecture: 'x86_64'
+
+  java-ec2-adot-sigv4-test:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-sigv4-test.yml@main
+    secrets: inherit
+    with:
+      caller-workflow-name: 'main-build'
+  #
+  # DOCKER DISTRIBUTION LANGUAGE VERSION COVERAGE
+  # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
+  #
+
+  eks-v8-amd64:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
@@ -62,9 +112,124 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+      java-version: '8'
 
-  java-metric-limiter-e2e-test:
-    needs: [ java-eks-e2e-test ]
+  eks-v11-amd64:
+    needs: eks-v8-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
+  eks-v17-amd64:
+    needs: eks-v11-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '17'
+
+  eks-v21-amd64:
+    needs: eks-v17-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '21'
+
+  eks-v22-amd64:
+    needs: eks-v21-amd64
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '22'
+
+  #
+  # PACKAGED DISTRIBUTION PLATFORM COVERAGE
+  # DEFAULT SETTING: Java 11, {Platform}, AMD64, AL2
+  #
+
+  asg-v11-amd64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-asg-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
+  #
+  # DOCKER DISTRIBUTION PLATFORM COVERAGE
+  # DEFAULT SETTING: Java 11, {Platform}, AMD64, AL2
+  #
+
+  k8s-v11-amd64:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-k8s-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
+
+  ecs-v11-amd64:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ecs-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
+  #
+  # CPU ARCHITECTURE COVERAGE
+  # DEFAULT SETTING: Java 11, EC2, {CPU Architecture}, AL2
+  #
+
+  default-v11-arm64:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+      cpu-architecture: 'arm64'
+
+  #
+  # UBUNTU COVERAGE
+  # DEFAULT SETTING: Java 11, EC2, AMD64, Ubuntu
+  #
+
+  v11-amd64-ubuntu:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-ubuntu-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+
+  #
+  # Other Functional Test Case
+  #
+
+  metric-limiter-v11-amd64:
+    needs: [ eks-v22-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
@@ -72,11 +237,27 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+      java-version: '11'
 
-  java-k8s-e2e-test:
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-k8s-test.yml@main
+  java-lambda-test:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-lambda-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
-      adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
+
+  # This validation is to ensure that all test workflows relevant to this repo are actually
+  # being used in this repo, which is referring to all the other jobs in this file.
+  #
+  # If this starts failing, then it most likely means that new e2e test workflow was
+  # added to `aws-observability/aws-application-signals-test-framework`, but was not
+  # added to this file. It could also mean that a test in this file has been removed.
+  #
+  # If a particular test file is intended to not be tested in this repo and should not
+  # be failing this particular validation, then choose one of the following options:
+  # - Add the test file to the exclusions input (CSV format) to the workflow
+  #   (see: https://github.com/aws-observability/aws-application-signals-test-framework/blob/main/.github/workflows/validate-e2e-tests-are-accounted-for.yml#L1)
+  # - Update the `validate-e2e-tests-are-accounted-for` job to change which "workflow files are expected to be used by this repo"
+  #   (see: https://github.com/aws-observability/aws-application-signals-test-framework/blob/main/.github/workflows/validate-e2e-tests-are-accounted-for.yml)
+  validate-all-tests-are-accounted-for:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/validate-e2e-tests-are-accounted-for.yml@main

@@ -1,0 +1,33 @@
+## Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+## SPDX-License-Identifier: Apache-2.0
+name: image-scan
+description: |
+  This action performs a scan of a provided (local or public ECR remote) image, using Trivy.
+
+inputs:
+  image-ref:
+    required: true
+    description: "Reference for the image to be scanned"
+  severity:
+    required: true
+    description: "List of severities that will cause a failure"
+
+runs:
+  using: "composite"
+  steps:
+
+    # Per https://docs.aws.amazon.com/AmazonECR/latest/public/docker-pull-ecr-image.html, it is possible to
+    # make unauthorized calls to get public ECR images (needed to build the ADOT Java docker image), but
+    # it can fail if you previously authenticated to a public repo. Adding this step to log out, so we
+    # ensure we can make unauthenticated call. This is important for making the pr_build workflow run on
+    # PRs created from forked repos.
+    - name: Logout of public AWS ECR
+      shell: bash
+      run: docker logout public.ecr.aws
+
+    - name: Run Trivy vulnerability scanner on image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        severity: ${{ inputs.severity }}
+        exit-code: '1'

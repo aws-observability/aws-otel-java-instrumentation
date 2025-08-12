@@ -22,7 +22,9 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
+import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
+import java.util.function.Supplier;
 
 /** A builder for {@link AwsSpanMetricsProcessor} */
 public final class AwsSpanMetricsProcessorBuilder {
@@ -42,18 +44,29 @@ public final class AwsSpanMetricsProcessorBuilder {
   private final MeterProvider meterProvider;
   private final Resource resource;
 
+  // ForceFlush action provided from {@link SdkMeterProvider#forceFlush()} so that when the
+  // application exits The spanMetricProcessor calls the meterProvder.forceFlush to flush
+  // any remaining metrics before shutdown
+  private final Supplier<CompletableResultCode> forceFlushAction;
+
   // Optional builder elements
   private MetricAttributeGenerator generator = DEFAULT_GENERATOR;
   private String scopeName = DEFAULT_SCOPE_NAME;
 
   public static AwsSpanMetricsProcessorBuilder create(
-      MeterProvider meterProvider, Resource resource) {
-    return new AwsSpanMetricsProcessorBuilder(meterProvider, resource);
+      MeterProvider meterProvider,
+      Resource resource,
+      Supplier<CompletableResultCode> forceFlushAction) {
+    return new AwsSpanMetricsProcessorBuilder(meterProvider, resource, forceFlushAction);
   }
 
-  private AwsSpanMetricsProcessorBuilder(MeterProvider meterProvider, Resource resource) {
+  private AwsSpanMetricsProcessorBuilder(
+      MeterProvider meterProvider,
+      Resource resource,
+      Supplier<CompletableResultCode> forceFlushAction) {
     this.meterProvider = meterProvider;
     this.resource = resource;
+    this.forceFlushAction = forceFlushAction;
   }
 
   /**
@@ -86,6 +99,6 @@ public final class AwsSpanMetricsProcessorBuilder {
         meter.histogramBuilder(LATENCY).setUnit(LATENCY_UNITS).build();
 
     return AwsSpanMetricsProcessor.create(
-        errorHistogram, faultHistogram, latencyHistogram, generator, resource);
+        errorHistogram, faultHistogram, latencyHistogram, generator, resource, forceFlushAction);
   }
 }
