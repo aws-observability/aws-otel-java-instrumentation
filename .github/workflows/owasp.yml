@@ -8,8 +8,10 @@
 name: Daily scan
 
 on:
-  schedule:
-    - cron: '0 18 * * *' # scheduled to run at 18:00 UTC every day
+  schedule: # scheduled to run at 14:00, 20:00, 02:00 UTC every day
+    - cron: '0 14 * * *' # 6:00/7:00   PST/PDT (14:00 UTC)
+    - cron: '0 20 * * *' # 12:00/13:00 PST/PDT (20:00 UTC)
+    - cron: '0 02 * * *' # 18:00/19:00 PST/PDT (02:00 UTC)
   workflow_dispatch: # be able to run the workflow on demand
 
 env:
