@@ -13,7 +13,9 @@ inputs:
     description: "List of severities that will cause a failure"
   logout:
     required: true
-    description: "Whether to logout of public AWS ECR"
+    description: |
+      Whether to logout of public AWS ECR. Set to 'true' for PR workflows to avoid potential call failures,
+      'false' for daily scans which has a higher bar for passing regularly and specifically wants to sign in.
 
 runs:
   using: "composite"
