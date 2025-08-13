@@ -63,7 +63,7 @@ jobs:
         run: |
           echo "TEST_DURATION_MINUTES=${{ github.event.inputs.test_duration_minutes || env.DEFAULT_TEST_DURATION_MINUTES }}" | tee --append $GITHUB_ENV;
       - name: Clone This Repo @ ${{ env.TARGET_SHA }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_SHA }}
 
@@ -110,7 +110,7 @@ jobs:
           aws ecr-public get-login-password |
           docker login --username AWS --password-stdin public.ecr.aws
       - name: Build Sample App locally directly to the Docker daemon
-        uses: burrunan/gradle-cache-action@v1
+        uses: burrunan/gradle-cache-action@v2
         with:
           arguments: jibDockerBuild
         env:
