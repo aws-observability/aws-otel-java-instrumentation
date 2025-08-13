@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Java Instrumentation repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -71,7 +71,7 @@ jobs:
         env:
           COMMIT_HASH: ${{ inputs.image_tag }}
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
 
   test_Spring_App_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
         with:
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
         with:
@@ -141,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
         with:
@@ -167,18 +167,18 @@ jobs:
           VALIDATOR_COMMAND: -c spark-otel-trace-metric-validation.yml --endpoint http://app:4567 --metric-namespace aws-otel-integ-test -t ${{ github.run_id }}-${{ github.run_number }}
 
   # publish status
-  publish-build-status:
-    needs: [ test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent ]
-    if: ${{ always() }}
-    uses: ./.github/workflows/publish-status.yml
-    with:
-      namespace: 'ADOT/GitHubActions'
-      repository: ${{ github.repository }}
-      branch: ${{ github.ref_name }}
-      workflow: ${{ inputs.caller-workflow-name }}
-      success: ${{  needs.test_Spring_App_With_Java_Agent.result == 'success'  &&
-                    needs.test_Spark_App_With_Java_Agent.result == 'success'  &&
-                    needs.test_Spark_AWS_SDK_V1_App_With_Java_Agent.result == 'success' }}
-      region: us-east-1
-    secrets:
-      roleArn: ${{ secrets.METRICS_ROLE_ARN }}
+  # publish-build-status:
+  #   needs: [ test_Spring_App_With_Java_Agent, test_Spark_App_With_Java_Agent, test_Spark_AWS_SDK_V1_App_With_Java_Agent ]
+  #   if: ${{ always() }}
+  #   uses: ./.github/workflows/publish-status.yml
+  #   with:
+  #     namespace: 'ADOT/GitHubActions'
+  #     repository: ${{ github.repository }}
+  #     branch: ${{ github.ref_name }}
+  #     workflow: ${{ inputs.caller-workflow-name }}
+  #     success: ${{  needs.test_Spring_App_With_Java_Agent.result == 'success'  &&
+  #                   needs.test_Spark_App_With_Java_Agent.result == 'success'  &&
+  #                   needs.test_Spark_AWS_SDK_V1_App_With_Java_Agent.result == 'success' }}
+  #     region: us-east-1
+  #   secrets:
+  #     roleArn: ${{ secrets.METRICS_ROLE_ARN }}
