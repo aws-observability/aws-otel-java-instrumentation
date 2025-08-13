@@ -78,6 +78,17 @@ jobs:
         if: ${{ steps.dep_scan.outcome != 'success' }}
         run: less dependency-check-report.html
 
+      - name: Configure AWS credentials for image scan
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Login to Public ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
+
       - name: Perform high image scan on v1
         if: always()
         id: high_scan_v1
@@ -85,6 +96,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'CRITICAL,HIGH'
+          logout: 'false'
 
       - name: Perform low image scan on v1
         if: always()
@@ -93,6 +105,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'MEDIUM,LOW,UNKNOWN'
+          logout: 'false'
 
       - name: Perform high image scan on v2
         if: always()
@@ -101,6 +114,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.2"
           severity: 'CRITICAL,HIGH'
+          logout: 'false'
 
       - name: Perform low image scan on v2
         if: always()
@@ -109,6 +123,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.2"
           severity: 'MEDIUM,LOW,UNKNOWN'
+          logout: 'false'
 
       - name: Configure AWS Credentials for emitting metrics
         if: always()
