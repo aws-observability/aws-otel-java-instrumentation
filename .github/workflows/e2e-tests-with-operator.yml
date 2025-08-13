@@ -34,7 +34,7 @@ jobs:
   build-sample-app:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -84,14 +84,14 @@ jobs:
       test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
     steps:
       - name: Checkout Testing Framework repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ env.TESTING_FRAMEWORK_REPO }}
           path: testing-framework
           ref: ${{ inputs.test_ref }}
 
       - name: Checkout Java Instrumentation repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           path: aws-otel-java-instrumentation
@@ -126,7 +126,7 @@ jobs:
     steps:
       # required for versioning
       - name: Checkout Java Instrumentation repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           path: aws-otel-java-instrumentation
@@ -151,7 +151,7 @@ jobs:
           role-duration-seconds: 14400
 
       - name: Checkout Testing Framework repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ env.TESTING_FRAMEWORK_REPO }}
           path: testing-framework
