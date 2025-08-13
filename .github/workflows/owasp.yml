@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo for dependency scan
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -110,7 +110,7 @@ jobs:
         id: high_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.2"
           severity: 'CRITICAL,HIGH'
           logout: 'false'
 
@@ -119,7 +119,7 @@ jobs:
         id: low_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.2"
           severity: 'MEDIUM,LOW,UNKNOWN'
           logout: 'false'
 
