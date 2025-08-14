@@ -152,12 +152,32 @@ _Class Functionalities:_
 
 ### Commands for Running Groovy Tests
 
-To run the BedrockJsonParserTest for aws-sdk v1.11:
+#### aws-sdk v1.11
+To run the `BedrockJsonParserTest`:
 ````
 ./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.BedrockJsonParserTest"
 ````
 
-To run the BedrockJsonParserTest for aws-sdk v2.2:
+#### aws-sdk v2.2
+To run the `BedrockJsonParserTest`:
 ````
 ./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParserTest"
 ````
+
+### Commands for Running Java Tests
+
+#### aws-sdk v1.11
+To run the `AwsSdkExperimentalAttributesInjectionTest`:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsSdkExperimentalAttributesInjectionTest"
+````
+
+To run the `AdotAwsSdkClientAdviceTest`:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AdotAwsSdkClientAdviceTest"
+````
+
+#### aws-sdk v2.2
+To run the `AwsSdkExperimentalAttributesInjectionTest`:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesInjectionTest"
