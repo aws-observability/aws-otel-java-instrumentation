@@ -40,7 +40,9 @@ val dependencyBoms = listOf(
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
   "io.grpc:grpc-bom:1.59.1",
-  "io.netty:netty-bom:4.1.124.Final", // Fix for CVE-2025-55163, remove once https://github.com/aws/aws-sdk-java-v2/pull/6344 is released.
+  // netty-bom is a fix for CVE-2025-55163 (https://github.com/advisories/GHSA-prj3-ccx8-p6x4).
+  // Remove once https://github.com/aws/aws-sdk-java-v2/pull/6344 is released.
+  "io.netty:netty-bom:4.1.124.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
   "org.junit:junit-bom:5.10.1",
