@@ -58,7 +58,7 @@ dependencies {
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
   testImplementation("org.testcontainers:kafka:1.21.3")
   testImplementation("org.testcontainers:postgresql:1.21.3")
-  testImplementation("org.testcontainers:mysql:1.19.8")
+  testImplementation("org.testcontainers:mysql:1.21.3")
   testImplementation("com.mysql:mysql-connector-j:8.4.0")
 }
 
