@@ -15,16 +15,16 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_REQUEST_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
-import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
-import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
-import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.URL_PATH;
+import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.isLambdaEnvironment;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE;
