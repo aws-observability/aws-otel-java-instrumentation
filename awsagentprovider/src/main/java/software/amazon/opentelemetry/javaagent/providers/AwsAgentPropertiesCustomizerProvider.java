@@ -26,7 +26,7 @@ public class AwsAgentPropertiesCustomizerProvider implements AutoConfigurationCu
         () ->
             new HashMap<String, String>() {
               {
-                put("otel.propagators", "baggage,xray,tracecontext,b3,b3multi");
+                put("otel.propagators", "baggage,xray,tracecontext");
                 put("otel.instrumentation.aws-sdk.experimental-span-attributes", "true");
                 put(
                     "otel.instrumentation.aws-sdk.experimental-record-individual-http-error",
