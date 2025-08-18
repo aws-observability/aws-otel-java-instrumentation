@@ -38,6 +38,7 @@ import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_URL;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_SYSTEM;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
 import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_NAME;
@@ -1264,31 +1265,31 @@ class AwsMetricAttributeGeneratorTest {
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
     mockAttribute(NET_PEER_PORT, null);
 
-    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS and SERVER_SOCKET_PORT exist, then
+    // Validate behaviour of DB_NAME, NETWORK_PEER_ADDRESS and NETWORK_PEER_PORT exist, then
     // remove it.
     mockAttribute(DB_NAME, "db_name");
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_ADDRESS, "abc.com");
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_PORT, 3306L);
+    mockAttribute(NETWORK_PEER_ADDRESS, "abc.com");
+    mockAttribute(NETWORK_PEER_PORT, 3306L);
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
     mockAttribute(DB_NAME, null);
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_ADDRESS, null);
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_PORT, null);
+    mockAttribute(NETWORK_PEER_ADDRESS, null);
+    mockAttribute(NETWORK_PEER_PORT, null);
 
-    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS exist, then remove it.
+    // Validate behaviour of DB_NAME, NETWORK_PEER_ADDRESS exist, then remove it.
     mockAttribute(DB_NAME, "db_name");
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_ADDRESS, "abc.com");
+    mockAttribute(NETWORK_PEER_ADDRESS, "abc.com");
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
     mockAttribute(DB_NAME, null);
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_ADDRESS, null);
+    mockAttribute(NETWORK_PEER_ADDRESS, null);
 
-    // Validate behaviour of SERVER_SOCKET_PORT exist, then remove it.
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_PORT, 3306L);
+    // Validate behaviour of NETWORK_PEER_PORT exist, then remove it.
+    mockAttribute(NETWORK_PEER_PORT, 3306L);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
-    mockAttribute(AwsMetricAttributeGenerator.SERVER_SOCKET_PORT, null);
+    mockAttribute(NETWORK_PEER_PORT, null);
 
     // Validate behaviour of only DB_NAME exist, then remove it.
     mockAttribute(DB_NAME, "db_name");
@@ -1612,6 +1613,36 @@ class AwsMetricAttributeGeneratorTest {
     Attributes actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
+  }
+
+  @Test
+  public void testGetRemoteOperationWithFallback_NewKeyPresent() {
+    mockAttribute(MESSAGING_OPERATION_TYPE, "send");
+    mockAttribute(MESSAGING_OPERATION, "publish");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteOperationWithFallback(
+            spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
+
+    assertThat(result).isEqualTo("send");
+  }
+
+  @Test
+  public void testGetRemoteOperationWithFallback_DeprecatedKeyPresent() {
+    mockAttribute(MESSAGING_OPERATION, "publish");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteOperationWithFallback(
+            spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
+
+    assertThat(result).isEqualTo("publish");
+  }
+
+  @Test
+  public void testGetRemoteOperationWithFallback_BothKeysAbsent() {
+    String result =
+        AwsMetricAttributeGenerator.getRemoteOperationWithFallback(
+            spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
+
+    assertThat(result).isEqualTo(UNKNOWN_REMOTE_OPERATION);
   }
 
   @Test

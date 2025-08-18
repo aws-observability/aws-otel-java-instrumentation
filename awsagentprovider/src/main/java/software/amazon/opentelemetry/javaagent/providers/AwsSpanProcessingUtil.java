@@ -23,6 +23,7 @@ import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
 import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
@@ -153,6 +154,23 @@ final class AwsSpanProcessingUtil {
     return span.getAttributes().get(key) != null;
   }
 
+  static <T> boolean isKeyPresentWithFallback(
+      SpanData span, AttributeKey<T> key, AttributeKey<T> fallbackKey) {
+    if (span.getAttributes().get(key) != null) {
+      return true;
+    }
+    return isKeyPresent(span, fallbackKey);
+  }
+
+  static <T> T getKeyValueWithFallback(
+      SpanData span, AttributeKey<T> key, AttributeKey<T> fallbackKey) {
+    T value = span.getAttributes().get(key);
+    if (value != null) {
+      return value;
+    }
+    return span.getAttributes().get(fallbackKey);
+  }
+
   static boolean isAwsSDKSpan(SpanData span) {
     // https://opentelemetry.io/docs/specs/otel/trace/semantic_conventions/instrumentation/aws-sdk/#common-attributes
     return "aws-api".equals(span.getAttributes().get(RPC_SYSTEM));
@@ -170,7 +188,8 @@ final class AwsSpanProcessingUtil {
   }
 
   static boolean isConsumerProcessSpan(SpanData spanData) {
-    String messagingOperation = spanData.getAttributes().get(MESSAGING_OPERATION);
+    String messagingOperation =
+        getKeyValueWithFallback(spanData, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
     return SpanKind.CONSUMER.equals(spanData.getKind()) && PROCESS.equals(messagingOperation);
   }
 
@@ -192,7 +211,8 @@ final class AwsSpanProcessingUtil {
   private static boolean isSqsReceiveMessageConsumerSpan(SpanData spanData) {
     String spanName = spanData.getName();
     SpanKind spanKind = spanData.getKind();
-    String messagingOperation = spanData.getAttributes().get(MESSAGING_OPERATION);
+    String messagingOperation =
+        getKeyValueWithFallback(spanData, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
     InstrumentationScopeInfo instrumentationScopeInfo = spanData.getInstrumentationScopeInfo();
 
     return SQS_RECEIVE_MESSAGE_SPAN_NAME.equalsIgnoreCase(spanName)
