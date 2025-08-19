@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
       # vaadin 14 tests fail with node 18
       - name: Set up Node
@@ -56,9 +56,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
 
       - uses: gradle/wrapper-validation-action@v1
@@ -93,9 +93,9 @@ jobs:
           ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
 
       - name: Set up Java version for tests
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 23
+          java-version-file: .java-version
           distribution: temurin
 
       - name: Pull base image of Contract Tests Sample Apps
@@ -109,9 +109,9 @@ jobs:
           arguments: contractTests -PlocalDocker=true -i
 
       - name: Set up Java version for image build
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
 
       - name: Get current version
@@ -168,9 +168,9 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
 
       - name: Build layer

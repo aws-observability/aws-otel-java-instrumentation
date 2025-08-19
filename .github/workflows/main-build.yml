@@ -23,9 +23,9 @@ jobs:
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
       # vaadin 14 tests fail with node 18
       - name: Set up Node
@@ -57,9 +57,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
 
         # cache local patch outputs
@@ -192,9 +192,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 23
+          java-version-file: .java-version
           distribution: 'temurin'
       - uses: gradle/wrapper-validation-action@v1
 
@@ -232,9 +232,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: 'temurin'
       - name: Build Application Signals Lambda Layer
         working-directory: lambda-layer
