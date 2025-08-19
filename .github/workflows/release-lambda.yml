@@ -20,7 +20,25 @@ permissions:
   contents: write
 
 jobs:
+  check-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@v5
+      - name: Check for release draft
+        run: |
+          TAG="v${{ github.event.inputs.version }}"
+          # Check if draft release exists with this tag
+          if ! gh release view $TAG --json isDraft -q .isDraft 2>/dev/null | grep -q true; then
+            echo "No draft release found for tag $TAG. Did you first run the Release Build workflow?"
+            exit 1
+          fi
+          echo "Found draft release for tag $TAG. Proceeding with Lambda layer release."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-layer:
+    needs: check-draft
     environment: Release
     runs-on: ubuntu-latest
     outputs:
@@ -212,36 +230,36 @@ jobs:
       - name: Get commit hash
         id: commit
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Create Release Notes
-        run: |
-          echo "AWS OpenTelemetry Lambda Layer for Java version ${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}" > release_notes.md
-          echo "" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "See new Lambda Layer ARNs:" >> release_notes.md
-          echo "" >> release_notes.md
-          cat layer-note >> release_notes.md
-          echo "" >> release_notes.md
-          echo "Notes:" >> release_notes.md
-      - name: Create GH release
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        run: |
-          gh release create --target "$GITHUB_REF_NAME" \
-             --title "Release lambda-v${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}" \
-             --notes-file release_notes.md  \
-             --draft \
-             "lambda-v${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}" \
-             layer_arns.tf layer.zip
-          echo Removing release_notes.md ...
-          rm -f release_notes.md
-      - name: Upload layer.zip and SHA-256 checksum to SDK Release Notes (tagged with latest)
+      - name: Update GH release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
+          TAG="v${{ github.event.inputs.version }}"
           # Generate SHA-256 checksum for layer.zip
           shasum -a 256 layer.zip > layer.zip.sha256
-          # Upload layer.zip and its checksum to the latest SDK release note
-          gh release upload "$LATEST_SDK_VERSION" layer.zip layer.zip.sha256 --repo "aws-observability/aws-otel-java-instrumentation" --clobber
-          echo "✅ layer.zip successfully uploaded to $LATEST_SDK_VERSION in the upstream repo!"
+          gh release upload $TAG \
+            layer.zip \
+            layer.zip.sha256 \
+            layer_arns.tf \
+            --clobber
+      - name: Update Release Notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ github.event.inputs.version }}"
+          # Get current release notes
+          current_notes=$(gh release view $TAG --json body -q .body)
+          echo "This release also includes the AWS OpenTelemetry Lambda Layer for Java version ${{ github.event.inputs.version }}-${{ steps.commit.outputs.sha_short }}." >> lambda_notes.md
+          echo "" >> lambda_notes.md
+          echo "Lambda Layer ARNs:" >> lambda_notes.md
+          echo "" >> lambda_notes.md
+          cat layer-note >> lambda_notes.md
+          echo "" >> lambda_notes.md
+          echo "Notes:" >> lambda_notes.md
+          {
+            echo "$current_notes"
+            echo ""
+            cat lambda_notes.md
+          } > updated_notes.md
+          # Update release notes
+          gh release edit $TAG --notes-file updated_notes.md
