@@ -110,7 +110,7 @@ jobs:
           aws ecr-public get-login-password |
           docker login --username AWS --password-stdin public.ecr.aws
       - name: Build Sample App locally directly to the Docker daemon
-        uses: burrunan/gradle-cache-action@v1
+        uses: burrunan/gradle-cache-action@v3
         with:
           arguments: jibDockerBuild
         env:
