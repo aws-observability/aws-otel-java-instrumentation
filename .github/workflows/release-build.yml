@@ -130,6 +130,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
+          # Create release notes template
+          cat > release_notes.md << 'EOF'
+          This release contains updates of the following upstream components:
+
+          OpenTelemetry Java - <opentelemetry-java version number - e.g. 1.45.0>
+          OpenTelemetry Java Contrib - <opentelemetry-java-contrib version number - e.g. 1.39.0>
+          Opentelemetry Instrumentation for Java - <opentelemetry-java-instrumentation version number - e.g. 2.11.0>
+
+          This release also publishes to public ECR and Maven Central.
+          * See ADOT Java auto-instrumentation Docker image v${{ github.event.inputs.version }} in our public ECR repository:
+          https://gallery.ecr.aws/aws-observability/adot-autoinstrumentation-java
+          * See version ${{ github.event.inputs.version }} in our Maven Central repository:
+          https://central.sonatype.com/artifact/software.amazon.opentelemetry/aws-opentelemetry-agent
+          EOF
+
           gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ github.event.inputs.version }}" \
              --draft \
