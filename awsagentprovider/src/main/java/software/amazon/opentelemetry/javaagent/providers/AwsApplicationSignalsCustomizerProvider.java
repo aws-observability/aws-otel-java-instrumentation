@@ -289,6 +289,10 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   private SdkTracerProviderBuilder customizeTracerProviderBuilder(
       SdkTracerProviderBuilder tracerProviderBuilder, ConfigProperties configProps) {
+    if (isLambdaEnvironment()) {
+      tracerProviderBuilder.addSpanProcessor(new AwsLambdaSpanProcessor());
+    }
+
     if (isApplicationSignalsEnabled(configProps)) {
       logger.info("AWS Application Signals enabled");
       Duration exportInterval =
@@ -300,9 +304,27 @@ public final class AwsApplicationSignalsCustomizerProvider
 
       // If running on Lambda, we just need to export 100% spans and skip generating any Application
       // Signals metrics.
-      if (isLambdaEnvironment()) {
+      if (isLambdaEnvironment()
+          && System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) == null) {
+        String tracesEndpoint =
+            Optional.ofNullable(System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG))
+                .orElse(DEFAULT_UDP_ENDPOINT);
+        SpanExporter spanExporter =
+            new OtlpUdpSpanExporterBuilder()
+                .setPayloadSampleDecision(TracePayloadSampleDecision.UNSAMPLED)
+                .setEndpoint(tracesEndpoint)
+                .build();
+
+        // Wrap the udp exporter with the AwsMetricsAttributesSpanExporter to add Application
+        // Signals attributes to unsampled spans too
+        SpanExporter appSignalsSpanExporter =
+            AwsMetricAttributesSpanExporterBuilder.create(
+                    spanExporter, ResourceHolder.getResource())
+                .build();
+
         tracerProviderBuilder.addSpanProcessor(
             AwsUnsampledOnlySpanProcessorBuilder.create()
+                .setSpanExporter(appSignalsSpanExporter)
                 .setMaxExportBatchSize(LAMBDA_SPAN_EXPORT_BATCH_SIZE)
                 .build());
         return tracerProviderBuilder;
