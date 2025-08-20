@@ -31,7 +31,7 @@ jobs:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-test-cache-pnpm-modules
 
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
 
       - uses: ./.github/actions/patch-dependencies
         with:
@@ -61,7 +61,7 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
 
         # Cleanup directories before proceeding with setup
       - name: Clean up old installations
