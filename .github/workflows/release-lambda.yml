@@ -110,7 +110,7 @@ jobs:
             aws lambda publish-layer-version \
               --layer-name ${{ env.LAYER_NAME }} \
               --content S3Bucket=${{ env.BUCKET_NAME }},S3Key=aws-opentelemetry-java-layer.zip \
-              --compatible-runtimes java17 java21 \
+              --compatible-runtimes java11 java17 java21 \
               --compatible-architectures "arm64" "x86_64" \
               --license-info "Apache-2.0" \
               --description "AWS Distro of OpenTelemetry Lambda Layer for Java Runtime" \
