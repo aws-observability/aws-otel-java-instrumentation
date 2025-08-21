@@ -1,4 +1,6 @@
-**Current Lambda Layer Patches**
+## Exploring Removing Lambda Layer Patches via SPI Integration
+
+### Current Lambda Layer Patches
 
 Why does lambda have separate instrumentation?
 
@@ -16,7 +18,7 @@ Why does lambda have separate instrumentation?
 
 
 
-**ADOT Lambda layer patches currently**
+### ADOT Lambda layer patches currently
 
 1. Prioritize X-Ray context extraction (checking environment variables and system properties first)
 2. Optimize API Gateway requests by skipping HTTP header extraction when only X-Ray is being used
@@ -25,13 +27,13 @@ Why does lambda have separate instrumentation?
 In essence: They make context extraction more efficient by prioritizing X-Ray and avoiding unnecessary header parsing, while also adding stream handler support.
 
 
-**SPI  Integration Approach**
+### SPI  Integration Approach
 
 Have our instrumentation run before upstream aws-lambda creates spans. This way, we can conduct context propagation and modify the context to what we want, and hand that over to upstream to make spans based off our context.
 
 ![img.png](spi-lambda.jpg)
 
-_Potential Issues_
+### Potential Issues
 
 1. We patch APIGatewayProxyRequest to optimize performance by skipping HTTP header extraction when only X-Ray tracing is being used. This creates two scenarios:
     1. Customers using auto-instrumentation (where we inject our code via ByteBuddy) will get these optimizations through our SPI approach
@@ -62,9 +64,9 @@ Setting order = -1 could be problematic because if our instrumentation calls Ope
 
 However, this API instrumentation module is just handling the redirection of API calls (intercepting OpenTelemetry.get()), not setting up core OpenTelemetry functionality.
 
-**Experimental Implementation for aws-lambda-core-1.0**
+### Experimental Implementation for aws-lambda-core-1.0
 
-__*Class Descriptions:*__
+#### Class Descriptions:
 
 **AdotAwsLambdaInstrumentationModule**
 
