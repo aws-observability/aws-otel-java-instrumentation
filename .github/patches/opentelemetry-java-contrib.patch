@@ -892,7 +892,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..79c344bc 100644
+index 75977dc0..d24148d2 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,15 +5,24 @@
@@ -1016,7 +1016,7 @@ index 75977dc0..79c344bc 100644
    }
 
    @Override
-@@ -74,10 +126,30 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +126,32 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1032,6 +1032,8 @@ index 75977dc0..79c344bc 100644
 +        SamplingResult result =
 +            applier.shouldSample(parentContext, traceId, name, spanKind, attributes, parentLinks);
 +
++        // If the trace state has a sampling rule reference, propagate it
++        // Otherwise, propagate the matched sampling rule using AwsSamplingResult
 +        String ruleToPropagate =
 +            upstreamMatchedRule == null ? applier.getRuleName() : upstreamMatchedRule;
 +        if (this.adaptiveSamplingConfig != null
@@ -1049,7 +1051,7 @@ index 75977dc0..79c344bc 100644
        }
      }
 
-@@ -96,7 +168,144 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +170,153 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1087,6 +1089,15 @@ index 75977dc0..79c344bc 100644
 +        operation = generateIngressOperation(spanData);
 +      }
 +      for (AwsXrayAdaptiveSamplingConfig.AnomalyConditions condition : anomalyConditions) {
++        // Skip condition if it would only re-apply action already being taken
++        if ((shouldBoostSampling
++                && AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST.equals(
++                    condition.getUsage()))
++            || (shouldCaptureAnomalySpan
++                && AwsXrayAdaptiveSamplingConfig.UsageType.ERROR_SPAN_CAPTURE.equals(
++                    condition.getUsage()))) {
++          continue;
++        }
 +        // Check if the operation matches any in the list or if operations list is null (match all)
 +        List<String> operations = condition.getOperations();
 +        if (!(operations == null || operations.isEmpty() || operations.contains(operation))) {
@@ -1141,15 +1152,15 @@ index 75977dc0..79c344bc 100644
 +    boolean isLocalRootSpan =
 +        parentContext == null || !parentContext.isValid() || parentContext.isRemote();
 +
-+    if (shouldBoostSampling || shouldCaptureAnomalySpan || isLocalRootSpan) {
-+      // Anomaly Capture
-+      if (shouldCaptureAnomalySpan
-+          && anomalyCaptureRateLimiter != null
-+          && anomalyCaptureRateLimiter.trySpend(1)) {
-+        spanBatcher.accept(span);
-+      }
++    // Anomaly Capture
++    if (shouldCaptureAnomalySpan
++        && anomalyCaptureRateLimiter != null
++        && anomalyCaptureRateLimiter.trySpend(1)) {
++      spanBatcher.accept(span);
++    }
 +
-+      // Sampling Boost
++    // Sampling Boost
++    if (shouldBoostSampling || isLocalRootSpan) {
 +      String ruleNameForBoostStats =
 +          span.getSpanContext()
 +              .getTraceState()
@@ -1195,7 +1206,7 @@ index 75977dc0..79c344bc 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +324,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +335,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1214,7 +1225,7 @@ index 75977dc0..79c344bc 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +345,59 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +356,59 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
@@ -2882,21 +2893,6 @@ index 00000000..32752d5e
 +    "speed": "0"
 +  }
 +}
-diff --git a/disk-buffering/build.gradle.kts b/disk-buffering/build.gradle.kts
-index 041d2e91..e3d60f46 100644
---- a/disk-buffering/build.gradle.kts
-+++ b/disk-buffering/build.gradle.kts
-@@ -70,6 +70,10 @@ tasks.named<ShadowJar>("shadowJar") {
-   mustRunAfter("jar")
- }
-
-+tasks.withType<Test>().configureEach {
-+  dependsOn("shadowJar")
-+}
-+
- // The javadoc from wire's generated classes has errors that make the task that generates the "javadoc" artifact to fail. This
- // makes the javadoc task to ignore those generated classes.
- tasks.withType(Javadoc::class.java) {
 diff --git a/version.gradle.kts b/version.gradle.kts
 index acefcee9..329b524f 100644
 --- a/version.gradle.kts
