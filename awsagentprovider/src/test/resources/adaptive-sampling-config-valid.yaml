@@ -1,0 +1,12 @@
+version: 1.0
+anomalyConditions:
+  - errorCodeRegex: "^5\\d\\d$"
+    usage: both
+  - errorCodeRegex: "^4\\d\\d$"
+    usage: both
+  - errorCodeRegex: "^3\\d\\d$"
+    usage: both
+  - errorCodeRegex: "^2\\d\\d$"
+    usage: both
+errorCaptureLimit:
+  errorSpansPerSecond: 10
