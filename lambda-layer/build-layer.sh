@@ -15,22 +15,6 @@ if [[ -z "$version" ]]; then
   exit 1
 fi
 
-
-## Clone and Patch the OpenTelemetry Java Instrumentation Repository
-echo "Info: Cloning and Patching OpenTelemetry Java Instrumentation Repository"
-git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
-pushd opentelemetry-java-instrumentation
-git checkout v${version} -b tag-v${version}
-
-# This patch is for Lambda related context propagation
-patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
-
-patch -p1 < "$SOURCEDIR"/patches/StreamHandlerInstrumentation.patch
-
-./gradlew publishToMavenLocal
-popd
-rm -rf opentelemetry-java-instrumentation
-
 contrib_version=$(awk -F'=v' '/OTEL_JAVA_CONTRIB_VERSION/ {print $2}' "$file")
 if [[ -n "$contrib_version" ]]; then
   echo "Found OTEL Contrib Version: ${contrib_version}"
@@ -51,7 +35,6 @@ fi
 ## Build the ADOT Java from current source
 echo "Info: Building ADOT Java from current source"
 pushd "$SOURCEDIR"/..
-patch  -p1 < "${SOURCEDIR}"/patches/aws-otel-java-instrumentation.patch
 CI=false ./gradlew publishToMavenLocal -Prelease.version=${version}-adot-lambda1
 popd
 
