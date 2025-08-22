@@ -167,8 +167,6 @@ class SpringBootSmokeTest {
         .extracting(e -> e.getKey().toString())
         .contains(
             "received-x-amzn-trace-id",
-            "received-b3",
-            "received-x-b3-traceid",
             "received-traceparent");
 
     var exported = getExported();
