@@ -307,7 +307,7 @@ public final class AwsApplicationSignalsCustomizerProvider
             Level.WARNING, "Failed to parse adaptive sampling configuration: {0}", e.getMessage());
       }
 
-      if (config != null) {
+      if (parsedConfig != null) {
         try {
           ((AwsXrayRemoteSampler) sampler).setAdaptiveSamplingConfig(parsedConfig);
         } catch (Exception e) {
