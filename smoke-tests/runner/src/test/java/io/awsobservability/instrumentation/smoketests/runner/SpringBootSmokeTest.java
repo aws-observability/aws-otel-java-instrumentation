@@ -165,9 +165,7 @@ class SpringBootSmokeTest {
     assertThat(response.status().isSuccess()).isTrue();
     assertThat(response.headers())
         .extracting(e -> e.getKey().toString())
-        .contains(
-            "received-x-amzn-trace-id",
-            "received-traceparent");
+        .contains("received-x-amzn-trace-id", "received-traceparent");
 
     var exported = getExported();
     assertThat(exported)
