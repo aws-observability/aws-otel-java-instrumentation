@@ -892,7 +892,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..75c39807 100644
+index 75977dc0..25383077 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,15 +5,24 @@
@@ -1051,7 +1051,7 @@ index 75977dc0..75c39807 100644
        }
      }
 
-@@ -96,7 +170,154 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +170,157 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1133,6 +1133,9 @@ index 75977dc0..75c39807 100644
 +                shouldCaptureAnomalySpan = true;
 +                break;
 +            }
++          } else {
++            shouldBoostSampling = true;
++            shouldCaptureAnomalySpan = true;
 +          }
 +        }
 +        if (shouldBoostSampling && shouldCaptureAnomalySpan) {
@@ -1207,7 +1210,7 @@ index 75977dc0..75c39807 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +336,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +339,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1226,7 +1229,7 @@ index 75977dc0..75c39807 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +357,59 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +360,59 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
