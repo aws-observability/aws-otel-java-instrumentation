@@ -12,10 +12,10 @@ index ccec9d52..f764bba9 100644
    implementation("io.opentelemetry:opentelemetry-semconv")
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java
 new file mode 100644
-index 00000000..2d547990
+index 00000000..41f22f90
 --- /dev/null
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,54 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -30,7 +30,9 @@ index 00000000..2d547990
 +
 +final class AwsSamplingResult implements SamplingResult {
 +
-+  public static final String AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY = "awsxraysamplingrule";
++  // OTel trace state is a space shared with other vendors with a 256 character limit
++  // We keep the key and values as short as possible while still identifiable
++  public static final String AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY = "xrsr";
 +
 +  private final SamplingDecision decision;
 +  private final Attributes attributes;
@@ -892,10 +894,10 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..25383077 100644
+index 75977dc0..a60fec96 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-@@ -5,15 +5,24 @@
+@@ -5,42 +5,78 @@
 
  package io.opentelemetry.contrib.awsxray;
 
@@ -917,10 +919,14 @@ index 75977dc0..25383077 100644
  import io.opentelemetry.sdk.trace.samplers.Sampler;
  import io.opentelemetry.sdk.trace.samplers.SamplingResult;
 +import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
++import java.nio.charset.StandardCharsets;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
  import java.util.Arrays;
  import java.util.Comparator;
  import java.util.Date;
-@@ -21,26 +30,47 @@ import java.util.List;
++import java.util.HashMap;
+ import java.util.List;
  import java.util.Map;
  import java.util.Objects;
  import java.util.Set;
@@ -951,13 +957,15 @@ index 75977dc0..25383077 100644
    private final Clock clock;
    private final Sampler fallbackSampler;
    private final SamplingRuleApplier[] ruleAppliers;
-
++  private final Map<String, String> ruleToHashMap;
++  private final Map<String, String> hashToRuleMap;
++
 +  private final boolean adaptiveSamplingRuleExists;
 +  private final Set<String> anomalyTracesSet;
 +
 +  @Nullable private AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig;
 +  @Nullable private RateLimiter anomalyCaptureRateLimiter;
-+
+
    XrayRulesSampler(
        String clientId,
        Resource resource,
@@ -969,7 +977,7 @@ index 75977dc0..25383077 100644
      this(
          clientId,
          resource,
-@@ -49,8 +79,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -49,8 +85,17 @@ final class XrayRulesSampler implements Sampler {
          rules.stream()
              // Lower priority value takes precedence so normal ascending sort.
              .sorted(Comparator.comparingInt(GetSamplingRulesResponse.SamplingRule::getPriority))
@@ -983,17 +991,19 @@ index 75977dc0..25383077 100644
 +                        resource.getAttribute(ResourceAttributes.SERVICE_NAME),
 +                        clock))
 +            .toArray(SamplingRuleApplier[]::new),
++        createRuleHashMaps(rules),
 +        rules.stream().anyMatch(r -> r.getSamplingRateBoost() != null),
 +        adaptiveSamplingConfig);
    }
 
    private XrayRulesSampler(
-@@ -58,12 +96,26 @@ final class XrayRulesSampler implements Sampler {
+@@ -58,12 +103,32 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
        Clock clock,
        Sampler fallbackSampler,
 -      SamplingRuleApplier[] ruleAppliers) {
 +      SamplingRuleApplier[] ruleAppliers,
++      Map<String, String> ruleToHashMap,
 +      boolean adaptiveSamplingRuleExists,
 +      @Nullable AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig) {
      this.clientId = clientId;
@@ -1001,6 +1011,11 @@ index 75977dc0..25383077 100644
      this.clock = clock;
      this.fallbackSampler = fallbackSampler;
      this.ruleAppliers = ruleAppliers;
++    this.ruleToHashMap = ruleToHashMap;
++    this.hashToRuleMap = new HashMap<>();
++    for (Map.Entry<String, String> entry : ruleToHashMap.entrySet()) {
++      this.hashToRuleMap.put(entry.getValue(), entry.getKey());
++    }
 +    this.adaptiveSamplingRuleExists = adaptiveSamplingRuleExists;
 +    this.adaptiveSamplingConfig = adaptiveSamplingConfig;
 +    // The set is self-clearing, when spans close they are removed from the set
@@ -1016,7 +1031,7 @@ index 75977dc0..25383077 100644
    }
 
    @Override
-@@ -74,10 +126,32 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +139,36 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1033,9 +1048,14 @@ index 75977dc0..25383077 100644
 +            applier.shouldSample(parentContext, traceId, name, spanKind, attributes, parentLinks);
 +
 +        // If the trace state has a sampling rule reference, propagate it
-+        // Otherwise, propagate the matched sampling rule using AwsSamplingResult
-+        String ruleToPropagate =
-+            upstreamMatchedRule == null ? applier.getRuleName() : upstreamMatchedRule;
++        // Otherwise, encode and propagate the matched sampling rule using AwsSamplingResult
++        String ruleToPropagate;
++        if (upstreamMatchedRule != null) {
++          ruleToPropagate = hashToRuleMap.getOrDefault(upstreamMatchedRule, applier.getRuleName());
++        } else {
++          ruleToPropagate = applier.getRuleName();
++        }
++        String hashedRule = ruleToHashMap.getOrDefault(ruleToPropagate, ruleToPropagate);
 +        if (this.adaptiveSamplingConfig != null
 +            && this.adaptiveSamplingConfig.getErrorCaptureLimit() != null) {
 +          // If the span is capturable based on local SDK config, add sampling rule attribute
@@ -1044,14 +1064,13 @@ index 75977dc0..25383077 100644
 +              result.getAttributes().toBuilder()
 +                  .put(AWS_XRAY_SAMPLING_RULE.getKey(), ruleToPropagate)
 +                  .build(),
-+              ruleToPropagate);
++              hashedRule);
 +        }
-+        return AwsSamplingResult.create(
-+            result.getDecision(), result.getAttributes(), ruleToPropagate);
++        return AwsSamplingResult.create(result.getDecision(), result.getAttributes(), hashedRule);
        }
      }
 
-@@ -96,7 +170,157 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +187,161 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1165,10 +1184,14 @@ index 75977dc0..25383077 100644
 +
 +    // Sampling Boost
 +    if (shouldBoostSampling || isLocalRootSpan) {
-+      String ruleNameForBoostStats =
++      String traceStateValue =
 +          span.getSpanContext()
 +              .getTraceState()
 +              .get(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
++      String ruleNameForBoostStats =
++          traceStateValue != null
++              ? hashToRuleMap.getOrDefault(traceStateValue, traceStateValue)
++              : traceStateValue;
 +      SamplingRuleApplier ruleToReportTo = null;
 +      SamplingRuleApplier matchedRule = null;
 +      for (SamplingRuleApplier applier : ruleAppliers) {
@@ -1210,7 +1233,7 @@ index 75977dc0..25383077 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +339,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +360,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1229,7 +1252,7 @@ index 75977dc0..25383077 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +360,59 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +381,90 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
@@ -1240,6 +1263,7 @@ index 75977dc0..25383077 100644
 +        clock,
 +        fallbackSampler,
 +        newAppliers,
++        ruleToHashMap,
 +        adaptiveSamplingRuleExists,
 +        adaptiveSamplingConfig);
 +  }
@@ -1283,6 +1307,36 @@ index 75977dc0..25383077 100644
 +      return "/" + paths[1];
 +    }
 +    return "/";
++  }
++
++  private static Map<String, String> createRuleHashMaps(
++      List<GetSamplingRulesResponse.SamplingRule> rules) {
++    Map<String, String> ruleToHashMap = new HashMap<>();
++    for (GetSamplingRulesResponse.SamplingRule rule : rules) {
++      String ruleName = rule.getRuleName();
++      if (ruleName != null) {
++        ruleToHashMap.put(ruleName, hashRuleName(ruleName));
++      }
++    }
++    return ruleToHashMap;
++  }
++
++  static String hashRuleName(String ruleName) {
++    try {
++      MessageDigest digest = MessageDigest.getInstance("SHA-256");
++      byte[] hash = digest.digest(ruleName.getBytes(StandardCharsets.UTF_8));
++      StringBuilder hexString = new StringBuilder();
++      for (int i = 0; i < Math.min(hash.length, 8); i++) {
++        String hex = Integer.toHexString(0xff & hash[i]);
++        if (hex.length() == 1) {
++          hexString.append('0');
++        }
++        hexString.append(hex);
++      }
++      return hexString.toString();
++    } catch (NoSuchAlgorithmException e) {
++      return ruleName;
++    }
 +  }
 +
 +  // For testing
@@ -1927,7 +1981,7 @@ index 6bb6e82a..6d71711b 100644
      return applier.shouldSample(
          Context.current(),
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index 1ca8df34..436c9cbd 100644
+index 1ca8df34..3c1dfda6 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -5,17 +5,28 @@
@@ -2020,7 +2074,7 @@ index 1ca8df34..436c9cbd 100644
 
      TestClock clock = TestClock.create();
      XrayRulesSampler sampler =
-@@ -103,22 +124,41 @@ class XrayRulesSamplerTest {
+@@ -103,22 +124,58 @@ class XrayRulesSamplerTest {
              Resource.getDefault(),
              clock,
              Sampler.alwaysOn(),
@@ -2033,44 +2087,61 @@ index 1ca8df34..436c9cbd 100644
 +        .usingRecursiveComparison()
 +        .isEqualTo(
 +            AwsSamplingResult.create(
-+                SamplingDecision.RECORD_AND_SAMPLE, Attributes.empty(), "cat-rule"));
++                SamplingDecision.RECORD_AND_SAMPLE,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("cat-rule")));
      assertThat(doSample(sampler, "cat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
 +        .usingRecursiveComparison()
 +        .isEqualTo(
 +            AwsSamplingResult.create(
-+                SamplingDecision.RECORD_AND_SAMPLE, Attributes.empty(), "cat-rule"));
++                SamplingDecision.RECORD_AND_SAMPLE,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("cat-rule")));
      assertThat(doSample(sampler, "dog-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
 +        .usingRecursiveComparison()
 +        .isEqualTo(
 +            AwsSamplingResult.create(
-+                SamplingDecision.RECORD_AND_SAMPLE, Attributes.empty(), "dog-rule"));
++                SamplingDecision.RECORD_AND_SAMPLE,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "dog-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 +        .usingRecursiveComparison()
-+        .isEqualTo(AwsSamplingResult.create(SamplingDecision.DROP, Attributes.empty(), "dog-rule"));
++        .isEqualTo(
++            AwsSamplingResult.create(
++                SamplingDecision.DROP,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "bat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
 +        .usingRecursiveComparison()
 +        .isEqualTo(
 +            AwsSamplingResult.create(
-+                SamplingDecision.RECORD_AND_SAMPLE, Attributes.empty(), "bat-rule"));
++                SamplingDecision.RECORD_AND_SAMPLE,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("bat-rule")));
      assertThat(doSample(sampler, "bat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
 +        .usingRecursiveComparison()
 +        .isEqualTo(
 +            AwsSamplingResult.create(
-+                SamplingDecision.RECORD_AND_SAMPLE, Attributes.empty(), "bat-rule"));
++                SamplingDecision.RECORD_AND_SAMPLE,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("bat-rule")));
      assertThat(doSample(sampler, "unknown"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 +        .usingRecursiveComparison()
 +        .isEqualTo(
-+            AwsSamplingResult.create(SamplingDecision.DROP, Attributes.empty(), "default-rule"));
++            AwsSamplingResult.create(
++                SamplingDecision.DROP,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("default-rule")));
 
      Instant now = Instant.ofEpochSecond(0, clock.now());
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
-@@ -128,10 +168,10 @@ class XrayRulesSamplerTest {
+@@ -128,10 +185,10 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
 
      SamplingTargetDocument catTarget =
@@ -2083,7 +2154,7 @@ index 1ca8df34..436c9cbd 100644
 
      clock.advance(Duration.ofSeconds(10));
      now = Instant.ofEpochSecond(0, clock.now());
-@@ -145,16 +185,24 @@ class XrayRulesSamplerTest {
+@@ -145,16 +202,41 @@ class XrayRulesSamplerTest {
                  .collect(Collectors.toSet()),
              Date.from(now));
      assertThat(doSample(sampler, "dog-service"))
@@ -2091,29 +2162,46 @@ index 1ca8df34..436c9cbd 100644
 +        .usingRecursiveComparison()
 +        .isEqualTo(
 +            AwsSamplingResult.create(
-+                SamplingDecision.RECORD_AND_SAMPLE, Attributes.empty(), "dog-rule"));
++                SamplingDecision.RECORD_AND_SAMPLE,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "dog-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 +        .usingRecursiveComparison()
-+        .isEqualTo(AwsSamplingResult.create(SamplingDecision.DROP, Attributes.empty(), "dog-rule"));
++        .isEqualTo(
++            AwsSamplingResult.create(
++                SamplingDecision.DROP,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "unknown"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 +        .usingRecursiveComparison()
 +        .isEqualTo(
-+            AwsSamplingResult.create(SamplingDecision.DROP, Attributes.empty(), "default-rule"));
++            AwsSamplingResult.create(
++                SamplingDecision.DROP,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("default-rule")));
      // Targets overridden to always drop.
      assertThat(doSample(sampler, "cat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 +        .usingRecursiveComparison()
-+        .isEqualTo(AwsSamplingResult.create(SamplingDecision.DROP, Attributes.empty(), "cat-rule"));
++        .isEqualTo(
++            AwsSamplingResult.create(
++                SamplingDecision.DROP,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("cat-rule")));
      assertThat(doSample(sampler, "bat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 +        .usingRecursiveComparison()
-+        .isEqualTo(AwsSamplingResult.create(SamplingDecision.DROP, Attributes.empty(), "bat-rule"));
++        .isEqualTo(
++            AwsSamplingResult.create(
++                SamplingDecision.DROP,
++                Attributes.empty(),
++                XrayRulesSampler.hashRuleName("bat-rule")));
 
      // Minimum is batTarget, 5s from now
      assertThat(sampler.nextTargetFetchTimeNanos())
-@@ -169,6 +217,731 @@ class XrayRulesSamplerTest {
+@@ -169,6 +251,731 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
    }
 
@@ -2210,7 +2298,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
 +                    .build(),
-+                "cat-rule"));
++                XrayRulesSampler.hashRuleName("cat-rule")));
 +    assertThat(doSample(sampler, "cat-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2219,7 +2307,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
 +                    .build(),
-+                "cat-rule"));
++                XrayRulesSampler.hashRuleName("cat-rule")));
 +    assertThat(doSample(sampler, "dog-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2228,7 +2316,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
 +                    .build(),
-+                "dog-rule"));
++                XrayRulesSampler.hashRuleName("dog-rule")));
 +    assertThat(doSample(sampler, "dog-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2237,7 +2325,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
 +                    .build(),
-+                "dog-rule"));
++                XrayRulesSampler.hashRuleName("dog-rule")));
 +    assertThat(doSample(sampler, "bat-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2246,7 +2334,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
 +                    .build(),
-+                "bat-rule"));
++                XrayRulesSampler.hashRuleName("bat-rule")));
 +    assertThat(doSample(sampler, "bat-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2255,7 +2343,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
 +                    .build(),
-+                "bat-rule"));
++                XrayRulesSampler.hashRuleName("bat-rule")));
 +    assertThat(doSample(sampler, "unknown"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2264,7 +2352,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
 +                    .build(),
-+                "default-rule"));
++                XrayRulesSampler.hashRuleName("default-rule")));
 +
 +    Instant now = Instant.ofEpochSecond(0, clock.now());
 +    assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
@@ -2298,7 +2386,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
 +                    .build(),
-+                "dog-rule"));
++                XrayRulesSampler.hashRuleName("dog-rule")));
 +    assertThat(doSample(sampler, "dog-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2307,7 +2395,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
 +                    .build(),
-+                "dog-rule"));
++                XrayRulesSampler.hashRuleName("dog-rule")));
 +    assertThat(doSample(sampler, "unknown"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2316,7 +2404,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
 +                    .build(),
-+                "default-rule"));
++                XrayRulesSampler.hashRuleName("default-rule")));
 +    // Targets overridden to always drop.
 +    assertThat(doSample(sampler, "cat-service"))
 +        .usingRecursiveComparison()
@@ -2326,7 +2414,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
 +                    .build(),
-+                "cat-rule"));
++                XrayRulesSampler.hashRuleName("cat-rule")));
 +    assertThat(doSample(sampler, "bat-service"))
 +        .usingRecursiveComparison()
 +        .isEqualTo(
@@ -2335,7 +2423,7 @@ index 1ca8df34..436c9cbd 100644
 +                Attributes.builder()
 +                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
 +                    .build(),
-+                "bat-rule"));
++                XrayRulesSampler.hashRuleName("bat-rule")));
 +
 +    // Minimum is batTarget, 5s from now
 +    assertThat(sampler.nextTargetFetchTimeNanos())
