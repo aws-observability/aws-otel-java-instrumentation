@@ -163,7 +163,6 @@ jobs:
              ${{ env.ARTIFACT_NAME }} \
              ${{ env.ARTIFACT_NAME }}.sha256
   build-layer:
-    environment: Release
     needs: build
     runs-on: ubuntu-latest
     outputs:
