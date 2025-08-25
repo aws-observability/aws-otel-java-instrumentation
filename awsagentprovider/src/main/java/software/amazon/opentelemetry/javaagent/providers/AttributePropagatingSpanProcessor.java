@@ -112,6 +112,7 @@ public final class AttributePropagatingSpanProcessor implements SpanProcessor {
     if (propagationData != null) {
       span.setAttribute(propagationDataKey, propagationData);
     }
+    span.setAttribute(AwsAttributeKeys.AWS_TRACE_FLAG_SAMPLED, span.getSpanContext().isSampled());
   }
 
   private boolean isConsumerKind(ReadableSpan span) {

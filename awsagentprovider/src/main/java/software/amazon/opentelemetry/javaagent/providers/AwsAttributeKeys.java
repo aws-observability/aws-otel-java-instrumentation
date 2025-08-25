@@ -106,9 +106,6 @@ final class AwsAttributeKeys {
   static final AttributeKey<Boolean> AWS_TRACE_FLAG_SAMPLED =
       AttributeKey.booleanKey("aws.trace.flag.sampled");
 
-  static final AttributeKey<String> AWS_XRAY_SAMPLING_RULE =
-      AttributeKey.stringKey("aws.xray.sampling_rule");
-
   // use the same AWS Resource attribute name defined by OTel java auto-instr for aws_sdk_v_1_1
   // TODO: all AWS specific attributes should be defined in semconv package and reused cross all
   // otel packages. Related sim -
