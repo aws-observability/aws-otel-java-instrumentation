@@ -60,9 +60,9 @@ jobs:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
         uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: 'temurin'
 
       - name: Build layers
@@ -128,7 +128,7 @@ jobs:
             aws lambda publish-layer-version \
               --layer-name ${{ env.LAYER_NAME }} \
               --content S3Bucket=${{ env.BUCKET_NAME }},S3Key=aws-opentelemetry-java-layer.zip \
-              --compatible-runtimes java17 java21 \
+              --compatible-runtimes java11 java17 java21 \
               --compatible-architectures "arm64" "x86_64" \
               --license-info "Apache-2.0" \
               --description "AWS Distro of OpenTelemetry Lambda Layer for Java Runtime" \

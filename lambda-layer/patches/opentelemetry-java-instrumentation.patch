@@ -306,14 +306,14 @@ index 4cd11fc0c4..7b7d62755c 100644
    }
 
 diff --git a/version.gradle.kts b/version.gradle.kts
-index 7900c9a4d9..80383d7c22 100644
+index 023d04703c..b267166804 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.11.0"
--val alphaVersion = "2.11.0-alpha"
-+val stableVersion = "2.11.0-adot-lambda1"
-+val alphaVersion = "2.11.0-adot-lambda1-alpha"
-
+-val stableVersion = "2.18.1"
+-val alphaVersion = "2.18.1-alpha"
++val stableVersion = "2.18.1-adot-lambda1"
++val alphaVersion = "2.18.1-adot-lambda1-alpha"
+ 
  allprojects {
    if (findProperty("otel.stable") != "true") {
