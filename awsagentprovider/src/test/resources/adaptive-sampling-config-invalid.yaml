@@ -10,4 +10,4 @@ anomalyConditions:
     operations: invalid part of config
     usage: both
 errorCaptureLimit:
-  errorSpansPerSecond: 10
+  errorTracesPerSecond: 10
