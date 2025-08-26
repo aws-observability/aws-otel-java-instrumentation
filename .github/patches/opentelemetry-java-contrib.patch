@@ -902,7 +902,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..23d3d490 100644
+index 75977dc0..b933a044 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,81 @@
@@ -1037,7 +1037,7 @@ index 75977dc0..23d3d490 100644
 +            .build();
 +    this.capturedTraceIdCache =
 +        Caffeine.newBuilder()
-+            .maximumSize(10_000)
++            .maximumSize(100_000)
 +            .ticker(clock::nanoTime)
 +            .expireAfterWrite(Duration.ofMinutes(1))
 +            .build();
