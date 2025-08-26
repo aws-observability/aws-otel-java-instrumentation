@@ -1,5 +1,5 @@
 diff --git a/aws-xray/build.gradle.kts b/aws-xray/build.gradle.kts
-index ccec9d52..f764bba9 100644
+index ccec9d52..fddbad18 100644
 --- a/aws-xray/build.gradle.kts
 +++ b/aws-xray/build.gradle.kts
 @@ -11,6 +11,7 @@ dependencies {
@@ -10,6 +10,14 @@ index ccec9d52..f764bba9 100644
 
    implementation("com.squareup.okhttp3:okhttp")
    implementation("io.opentelemetry:opentelemetry-semconv")
+@@ -24,6 +25,7 @@ dependencies {
+
+   implementation("com.fasterxml.jackson.core:jackson-core")
+   implementation("com.fasterxml.jackson.core:jackson-databind")
++  implementation("com.github.ben-manes.caffeine:caffeine:2.9.3")
+
+   testImplementation("com.linecorp.armeria:armeria-junit5")
+   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java
 new file mode 100644
 index 00000000..41f22f90
@@ -894,15 +902,17 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..a60fec96 100644
+index 75977dc0..7cd9bcc5 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-@@ -5,42 +5,78 @@
+@@ -5,42 +5,81 @@
 
  package io.opentelemetry.contrib.awsxray;
 
 +import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 +
++import com.github.benmanes.caffeine.cache.Cache;
++import com.github.benmanes.caffeine.cache.Caffeine;
 +import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.Attributes;
 +import io.opentelemetry.api.trace.Span;
@@ -922,6 +932,7 @@ index 75977dc0..a60fec96 100644
 +import java.nio.charset.StandardCharsets;
 +import java.security.MessageDigest;
 +import java.security.NoSuchAlgorithmException;
++import java.time.Duration;
  import java.util.Arrays;
  import java.util.Comparator;
  import java.util.Date;
@@ -930,7 +941,6 @@ index 75977dc0..a60fec96 100644
  import java.util.Map;
  import java.util.Objects;
  import java.util.Set;
-+import java.util.concurrent.ConcurrentHashMap;
 +import java.util.function.Consumer;
  import java.util.logging.Level;
  import java.util.logging.Logger;
@@ -961,7 +971,8 @@ index 75977dc0..a60fec96 100644
 +  private final Map<String, String> hashToRuleMap;
 +
 +  private final boolean adaptiveSamplingRuleExists;
-+  private final Set<String> anomalyTracesSet;
++  private final Cache<String, Boolean> anomalyTracesCache;
++  private final Cache<String, Boolean> capturedTraceIdCache;
 +
 +  @Nullable private AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig;
 +  @Nullable private RateLimiter anomalyCaptureRateLimiter;
@@ -977,7 +988,7 @@ index 75977dc0..a60fec96 100644
      this(
          clientId,
          resource,
-@@ -49,8 +85,17 @@ final class XrayRulesSampler implements Sampler {
+@@ -49,8 +88,17 @@ final class XrayRulesSampler implements Sampler {
          rules.stream()
              // Lower priority value takes precedence so normal ascending sort.
              .sorted(Comparator.comparingInt(GetSamplingRulesResponse.SamplingRule::getPriority))
@@ -997,7 +1008,7 @@ index 75977dc0..a60fec96 100644
    }
 
    private XrayRulesSampler(
-@@ -58,12 +103,32 @@ final class XrayRulesSampler implements Sampler {
+@@ -58,12 +106,42 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
        Clock clock,
        Sampler fallbackSampler,
@@ -1018,8 +1029,18 @@ index 75977dc0..a60fec96 100644
 +    }
 +    this.adaptiveSamplingRuleExists = adaptiveSamplingRuleExists;
 +    this.adaptiveSamplingConfig = adaptiveSamplingConfig;
-+    // The set is self-clearing, when spans close they are removed from the set
-+    this.anomalyTracesSet = ConcurrentHashMap.newKeySet(100_000);
++    this.anomalyTracesCache =
++        Caffeine.newBuilder()
++            .maximumSize(100_000)
++            .ticker(clock::nanoTime)
++            .expireAfterWrite(Duration.ofMinutes(10))
++            .build();
++    this.capturedTraceIdCache =
++        Caffeine.newBuilder()
++            .maximumSize(10_000)
++            .ticker(clock::nanoTime)
++            .expireAfterWrite(Duration.ofMinutes(1))
++            .build();
 +
 +    // Initialize anomaly capture rate limiter if error capture limit is configured
 +    if (adaptiveSamplingConfig != null && adaptiveSamplingConfig.getErrorCaptureLimit() != null) {
@@ -1031,7 +1052,7 @@ index 75977dc0..a60fec96 100644
    }
 
    @Override
-@@ -74,10 +139,36 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +152,36 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1070,7 +1091,7 @@ index 75977dc0..a60fec96 100644
        }
      }
 
-@@ -96,7 +187,161 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +200,164 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1175,10 +1196,12 @@ index 75977dc0..a60fec96 100644
 +        parentContext == null || !parentContext.isValid() || parentContext.isRemote();
 +
 +    // Anomaly Capture
-+    if (shouldCaptureAnomalySpan
-+        && !span.getSpanContext().isSampled()
-+        && anomalyCaptureRateLimiter != null
-+        && anomalyCaptureRateLimiter.trySpend(1)) {
++    if (capturedTraceIdCache.getIfPresent(traceId) != null
++        || (shouldCaptureAnomalySpan
++            && !span.getSpanContext().isSampled()
++            && anomalyCaptureRateLimiter != null
++            && anomalyCaptureRateLimiter.trySpend(1))) {
++      capturedTraceIdCache.put(traceId, true);
 +      spanBatcher.accept(span);
 +    }
 +
@@ -1217,14 +1240,15 @@ index 75977dc0..a60fec96 100644
 +      if (shouldBoostSampling
 +          && ruleToReportTo != null
 +          && ruleToReportTo.hasBoost()
-+          && this.anomalyTracesSet.add(traceId)) {
++          && this.anomalyTracesCache.getIfPresent(traceId) == null) {
++        this.anomalyTracesCache.put(traceId, true);
 +        ruleToReportTo.countAnomalyTrace(span);
 +      }
 +      if (isLocalRootSpan) {
 +        if (ruleToReportTo != null && ruleToReportTo.hasBoost()) {
 +          ruleToReportTo.countTrace();
 +        }
-+        this.anomalyTracesSet.remove(traceId);
++        this.anomalyTracesCache.invalidate(traceId);
 +      }
 +    }
 +  }
@@ -1233,7 +1257,7 @@ index 75977dc0..a60fec96 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +360,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +376,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1252,7 +1276,7 @@ index 75977dc0..a60fec96 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +381,90 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +397,90 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
@@ -1340,8 +1364,8 @@ index 75977dc0..a60fec96 100644
 +  }
 +
 +  // For testing
-+  Set<String> getAnomalyTracesSet() {
-+    return anomalyTracesSet;
++  Cache<String, Boolean> getAnomalyTracesCache() {
++    return anomalyTracesCache;
    }
  }
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
@@ -1981,7 +2005,7 @@ index 6bb6e82a..6d71711b 100644
      return applier.shouldSample(
          Context.current(),
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index 1ca8df34..3c1dfda6 100644
+index 1ca8df34..f6a24af8 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -5,17 +5,28 @@
@@ -2201,7 +2225,7 @@ index 1ca8df34..3c1dfda6 100644
 
      // Minimum is batTarget, 5s from now
      assertThat(sampler.nextTargetFetchTimeNanos())
-@@ -169,6 +251,731 @@ class XrayRulesSamplerTest {
+@@ -169,6 +251,763 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
    }
 
@@ -2474,7 +2498,7 @@ index 1ca8df34..3c1dfda6 100644
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
-+    assertThat(sampler.getAnomalyTracesSet().isEmpty()).isEqualTo(true);
++    assertThat(sampler.getAnomalyTracesCache().asMap().size()).isEqualTo(0);
 +  }
 +
 +  @Test
@@ -2545,15 +2569,17 @@ index 1ca8df34..3c1dfda6 100644
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
 +    SpanData spanDataMock = mock(SpanData.class);
 +    Attributes attributesMock = mock(Attributes.class);
-+    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID");
 +    when(spanDataMock.getAttributes()).thenReturn(attributesMock);
 +    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(500L);
 +    LongAdder exportCounter = new LongAdder();
 +    Consumer<ReadableSpan> stubbedConsumer = x -> exportCounter.increment();
 +
 +    // First span should be captured, second should be rate limited
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID1");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID2");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID3");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    // Only first span captured due to rate limiting
 +    assertThat(exportCounter.sumThenReset()).isEqualTo(2L);
@@ -2595,7 +2621,7 @@ index 1ca8df34..3c1dfda6 100644
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
-+    assertThat(sampler.getAnomalyTracesSet().isEmpty()).isEqualTo(true);
++    assertThat(sampler.getAnomalyTracesCache().asMap().size()).isEqualTo(0);
 +  }
 +
 +  @Test
@@ -2686,15 +2712,17 @@ index 1ca8df34..3c1dfda6 100644
 +
 +    SpanData spanDataMock = mock(SpanData.class);
 +    Attributes attributesMock = mock(Attributes.class);
-+    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID");
 +    when(spanDataMock.getAttributes()).thenReturn(attributesMock);
 +    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(456L);
 +
 +    LongAdder exportCounter = new LongAdder();
 +    Consumer<ReadableSpan> stubbedConsumer = x -> exportCounter.increment();
 +
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID1");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID2");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID3");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    assertThat(exportCounter.sum()).isEqualTo(2L);
 +  }
@@ -2752,15 +2780,17 @@ index 1ca8df34..3c1dfda6 100644
 +
 +    SpanData spanDataMock = mock(SpanData.class);
 +    Attributes attributesMock = mock(Attributes.class);
-+    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID");
 +    when(spanDataMock.getAttributes()).thenReturn(attributesMock);
 +    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(200L);
 +
 +    LongAdder exportCounter = new LongAdder();
 +    Consumer<ReadableSpan> stubbedConsumer = x -> exportCounter.add(1);
 +
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID1");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID2");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID3");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    assertThat(exportCounter.sum()).isEqualTo(2L);
 +  }
@@ -2826,22 +2856,23 @@ index 1ca8df34..3c1dfda6 100644
 +    LongAdder exportCounter = new LongAdder();
 +    Consumer<ReadableSpan> stubbedConsumer = x -> exportCounter.add(1);
 +
-+    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
-+    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID1");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    assertThat(exportCounter.sum()).isEqualTo(0L);
 +
 +    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(456L);
 +    when(readableSpanMock.getLatencyNanos()).thenReturn(1L);
-+    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
-+    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID2");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    assertThat(exportCounter.sum()).isEqualTo(0L);
 +
 +    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(456L);
 +    when(readableSpanMock.getLatencyNanos()).thenReturn(300_000_000L); // 300 ms
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID3");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID4");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID5");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    assertThat(exportCounter.sum()).isEqualTo(2L);
 +  }
@@ -2916,18 +2947,43 @@ index 1ca8df34..3c1dfda6 100644
 +    assertThat(exportCounter.sumThenReset()).isEqualTo(2L);
 +
 +    // Test non-matching operation
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID_2");
 +    when(attributesMock.get(URL_PATH)).thenReturn("/api1/ext");
 +    when(attributesMock.get(HTTP_METHOD)).thenReturn("POST");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    when(attributesMock.get(URL_PATH)).thenReturn("/non-matching");
 +    when(attributesMock.get(HTTP_METHOD)).thenReturn("GET");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
-+    assertThat(exportCounter.sum()).isEqualTo(0L);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(0L);
 +
 +    // Test aws.local.operation takes priority
 +    when(attributesMock.get(AwsAttributeKeys.AWS_LOCAL_OPERATION)).thenReturn("GET /api1");
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
-+    assertThat(exportCounter.sum()).isEqualTo(1L);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++
++    // Test sending previously matched traceIDs gets captured
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID");
++    when(attributesMock.get(AwsAttributeKeys.AWS_LOCAL_OPERATION)).thenReturn("GET /non-matching");
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID_2");
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(2L);
++
++    // Test sending previously matched traceIDs gets captured as long as trace is active
++    clock.advance(Duration.ofSeconds(45));
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++    clock.advance(Duration.ofSeconds(45));
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++    clock.advance(Duration.ofSeconds(45));
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++
++    // Test sending non-matching trace after expire-time elapses
++    clock.advance(Duration.ofMinutes(100));
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(0L);
 +  }
 +
    private static SamplingResult doSample(Sampler sampler, String name) {
