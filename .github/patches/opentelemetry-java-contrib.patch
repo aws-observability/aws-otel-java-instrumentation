@@ -80,7 +80,7 @@ index 00000000..41f22f90
 +}
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayAdaptiveSamplingConfig.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayAdaptiveSamplingConfig.java
 new file mode 100644
-index 00000000..b2146f13
+index 00000000..8c2e8fe2
 --- /dev/null
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayAdaptiveSamplingConfig.java
 @@ -0,0 +1,139 @@
@@ -112,9 +112,9 @@ index 00000000..b2146f13
 +  @Nullable
 +  public abstract List<AnomalyConditions> getAnomalyConditions();
 +
-+  @JsonProperty("errorCaptureLimit")
++  @JsonProperty("anomalyCaptureLimit")
 +  @Nullable
-+  public abstract ErrorCaptureLimit getErrorCaptureLimit();
++  public abstract AnomalyCaptureLimit getAnomalyCaptureLimit();
 +
 +  public static Builder builder() {
 +    return new AutoValue_AwsXrayAdaptiveSamplingConfig.Builder();
@@ -128,8 +128,8 @@ index 00000000..b2146f13
 +    @JsonProperty("anomalyConditions")
 +    public abstract Builder setAnomalyConditions(List<AnomalyConditions> value);
 +
-+    @JsonProperty("errorCaptureLimit")
-+    public abstract Builder setErrorCaptureLimit(ErrorCaptureLimit value);
++    @JsonProperty("anomalyCaptureLimit")
++    public abstract Builder setAnomalyCaptureLimit(AnomalyCaptureLimit value);
 +
 +    public abstract AwsXrayAdaptiveSamplingConfig build();
 +  }
@@ -179,7 +179,7 @@ index 00000000..b2146f13
 +  public enum UsageType {
 +    BOTH("both"),
 +    SAMPLING_BOOST("sampling-boost"),
-+    ERROR_SPAN_CAPTURE("error-span-capture");
++    ANOMALY_SPAN_CAPTURE("anomaly-span-capture");
 +
 +    private final String value;
 +
@@ -205,21 +205,21 @@ index 00000000..b2146f13
 +
 +  @AutoValue
 +  @JsonDeserialize(
-+      builder = AutoValue_AwsXrayAdaptiveSamplingConfig_ErrorCaptureLimit.Builder.class)
-+  public abstract static class ErrorCaptureLimit {
-+    @JsonProperty("errorTracesPerSecond")
-+    public abstract int getErrorTracesPerSecond();
++      builder = AutoValue_AwsXrayAdaptiveSamplingConfig_AnomalyCaptureLimit.Builder.class)
++  public abstract static class AnomalyCaptureLimit {
++    @JsonProperty("anomalyTracesPerSecond")
++    public abstract int getAnomalyTracesPerSecond();
 +
 +    public static Builder builder() {
-+      return new AutoValue_AwsXrayAdaptiveSamplingConfig_ErrorCaptureLimit.Builder();
++      return new AutoValue_AwsXrayAdaptiveSamplingConfig_AnomalyCaptureLimit.Builder();
 +    }
 +
 +    @AutoValue.Builder
 +    public abstract static class Builder {
-+      @JsonProperty("errorTracesPerSecond")
-+      public abstract Builder setErrorTracesPerSecond(int value);
++      @JsonProperty("anomalyTracesPerSecond")
++      public abstract Builder setAnomalyTracesPerSecond(int value);
 +
-+      public abstract ErrorCaptureLimit build();
++      public abstract AnomalyCaptureLimit build();
 +    }
 +  }
 +}
@@ -902,7 +902,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..1edf4c10 100644
+index 75977dc0..b86426dc 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,81 @@
@@ -1044,14 +1044,14 @@ index 75977dc0..1edf4c10 100644
 +
 +    // Initialize anomaly capture rate limiter
 +    if (this.adaptiveSamplingConfig != null
-+        && this.adaptiveSamplingConfig.getErrorCaptureLimit() == null) {
++        && this.adaptiveSamplingConfig.getAnomalyCaptureLimit() == null) {
 +      this.anomalyCaptureRateLimiter = new RateLimiter(1, 1, clock);
 +    } else if (adaptiveSamplingConfig != null
-+        && adaptiveSamplingConfig.getErrorCaptureLimit() != null) {
-+      int errorTracesPerSecond =
-+          adaptiveSamplingConfig.getErrorCaptureLimit().getErrorTracesPerSecond();
++        && adaptiveSamplingConfig.getAnomalyCaptureLimit() != null) {
++      int anomalyTracesPerSecond =
++          adaptiveSamplingConfig.getAnomalyCaptureLimit().getAnomalyTracesPerSecond();
 +      this.anomalyCaptureRateLimiter =
-+          new RateLimiter(errorTracesPerSecond, errorTracesPerSecond, clock);
++          new RateLimiter(anomalyTracesPerSecond, anomalyTracesPerSecond, clock);
 +    }
    }
 
@@ -1082,7 +1082,7 @@ index 75977dc0..1edf4c10 100644
 +        }
 +        String hashedRule = ruleToHashMap.getOrDefault(ruleToPropagate, ruleToPropagate);
 +        if (this.adaptiveSamplingConfig != null
-+            && this.adaptiveSamplingConfig.getErrorCaptureLimit() != null) {
++            && this.adaptiveSamplingConfig.getAnomalyCaptureLimit() != null) {
 +          // If the span is capturable based on local SDK config, add sampling rule attribute
 +          return AwsSamplingResult.create(
 +              result.getDecision(),
@@ -1107,10 +1107,10 @@ index 75977dc0..1edf4c10 100644
 +      this.adaptiveSamplingConfig = config;
 +
 +      // Initialize anomaly capture rate limiter if error capture limit is configured
-+      if (config.getErrorCaptureLimit() != null) {
-+        int errorTracesPerSecond = config.getErrorCaptureLimit().getErrorTracesPerSecond();
++      if (config.getAnomalyCaptureLimit() != null) {
++        int anomalyTracesPerSecond = config.getAnomalyCaptureLimit().getAnomalyTracesPerSecond();
 +        this.anomalyCaptureRateLimiter =
-+            new RateLimiter(errorTracesPerSecond, errorTracesPerSecond, clock);
++            new RateLimiter(anomalyTracesPerSecond, anomalyTracesPerSecond, clock);
 +      }
 +    }
 +  }
@@ -1138,7 +1138,7 @@ index 75977dc0..1edf4c10 100644
 +                && AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST.equals(
 +                    condition.getUsage()))
 +            || (shouldCaptureAnomalySpan
-+                && AwsXrayAdaptiveSamplingConfig.UsageType.ERROR_SPAN_CAPTURE.equals(
++                && AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE.equals(
 +                    condition.getUsage()))) {
 +          continue;
 +        }
@@ -1173,7 +1173,7 @@ index 75977dc0..1edf4c10 100644
 +              case SAMPLING_BOOST:
 +                shouldBoostSampling = true;
 +                break;
-+              case ERROR_SPAN_CAPTURE:
++              case ANOMALY_SPAN_CAPTURE:
 +                shouldCaptureAnomalySpan = true;
 +                break;
 +            }
@@ -2009,7 +2009,7 @@ index 6bb6e82a..6d71711b 100644
      return applier.shouldSample(
          Context.current(),
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index 1ca8df34..5830a083 100644
+index 1ca8df34..0464a304 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -5,17 +5,28 @@
@@ -2302,9 +2302,9 @@ index 1ca8df34..5830a083 100644
 +    AwsXrayAdaptiveSamplingConfig config =
 +        AwsXrayAdaptiveSamplingConfig.builder()
 +            .setVersion(1.0)
-+            .setErrorCaptureLimit(
-+                AwsXrayAdaptiveSamplingConfig.ErrorCaptureLimit.builder()
-+                    .setErrorTracesPerSecond(2)
++            .setAnomalyCaptureLimit(
++                AwsXrayAdaptiveSamplingConfig.AnomalyCaptureLimit.builder()
++                    .setAnomalyTracesPerSecond(2)
 +                    .build())
 +            .build();
 +
@@ -2542,9 +2542,9 @@ index 1ca8df34..5830a083 100644
 +    AwsXrayAdaptiveSamplingConfig config =
 +        AwsXrayAdaptiveSamplingConfig.builder()
 +            .setVersion(1.0)
-+            .setErrorCaptureLimit(
-+                AwsXrayAdaptiveSamplingConfig.ErrorCaptureLimit.builder()
-+                    .setErrorTracesPerSecond(2)
++            .setAnomalyCaptureLimit(
++                AwsXrayAdaptiveSamplingConfig.AnomalyCaptureLimit.builder()
++                    .setAnomalyTracesPerSecond(2)
 +                    .build())
 +            .setAnomalyConditions(
 +                Arrays.asList(
@@ -2686,9 +2686,9 @@ index 1ca8df34..5830a083 100644
 +    AwsXrayAdaptiveSamplingConfig config =
 +        AwsXrayAdaptiveSamplingConfig.builder()
 +            .setVersion(1.0)
-+            .setErrorCaptureLimit(
-+                AwsXrayAdaptiveSamplingConfig.ErrorCaptureLimit.builder()
-+                    .setErrorTracesPerSecond(2)
++            .setAnomalyCaptureLimit(
++                AwsXrayAdaptiveSamplingConfig.AnomalyCaptureLimit.builder()
++                    .setAnomalyTracesPerSecond(2)
 +                    .build())
 +            .setAnomalyConditions(
 +                Arrays.asList(
@@ -2754,15 +2754,15 @@ index 1ca8df34..5830a083 100644
 +    AwsXrayAdaptiveSamplingConfig config =
 +        AwsXrayAdaptiveSamplingConfig.builder()
 +            .setVersion(1.0)
-+            .setErrorCaptureLimit(
-+                AwsXrayAdaptiveSamplingConfig.ErrorCaptureLimit.builder()
-+                    .setErrorTracesPerSecond(2)
++            .setAnomalyCaptureLimit(
++                AwsXrayAdaptiveSamplingConfig.AnomalyCaptureLimit.builder()
++                    .setAnomalyTracesPerSecond(2)
 +                    .build())
 +            .setAnomalyConditions(
 +                Arrays.asList(
 +                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
 +                        .setHighLatencyMs(100L)
-+                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ERROR_SPAN_CAPTURE)
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE)
 +                        .build()))
 +            .build();
 +    XrayRulesSampler sampler =
@@ -2822,16 +2822,16 @@ index 1ca8df34..5830a083 100644
 +    AwsXrayAdaptiveSamplingConfig config =
 +        AwsXrayAdaptiveSamplingConfig.builder()
 +            .setVersion(1.0)
-+            .setErrorCaptureLimit(
-+                AwsXrayAdaptiveSamplingConfig.ErrorCaptureLimit.builder()
-+                    .setErrorTracesPerSecond(2)
++            .setAnomalyCaptureLimit(
++                AwsXrayAdaptiveSamplingConfig.AnomalyCaptureLimit.builder()
++                    .setAnomalyTracesPerSecond(2)
 +                    .build())
 +            .setAnomalyConditions(
 +                Arrays.asList(
 +                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
 +                        .setErrorCodeRegex("^456$")
 +                        .setHighLatencyMs(100L)
-+                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ERROR_SPAN_CAPTURE)
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE)
 +                        .build()))
 +            .build();
 +    XrayRulesSampler sampler =
@@ -2910,7 +2910,7 @@ index 1ca8df34..5830a083 100644
 +                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
 +                        .setOperations(Arrays.asList("GET /api1", "GET /api2"))
 +                        .setErrorCodeRegex("^500$")
-+                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ERROR_SPAN_CAPTURE)
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE)
 +                        .build()))
 +            .build();
 +    XrayRulesSampler sampler =

@@ -8,5 +8,5 @@ anomalyConditions:
     usage: both
   - errorCodeRegex: "^2\\d\\d$"
     usage: both
-errorCaptureLimit:
-  errorTracesPerSecond: 10
+anomalyCaptureLimit:
+  anomalyTracesPerSecond: 10
