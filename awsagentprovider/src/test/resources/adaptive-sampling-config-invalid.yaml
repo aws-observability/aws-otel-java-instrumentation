@@ -9,5 +9,5 @@ anomalyConditions:
   - errorCodeRegex: "^2\\d\\d$"
     operations: invalid part of config
     usage: both
-errorCaptureLimit:
-  errorTracesPerSecond: 10
+anomalyCaptureLimit:
+  anomalyTracesPerSecond: 10

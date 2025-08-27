@@ -80,10 +80,10 @@ index 00000000..41f22f90
 +}
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayAdaptiveSamplingConfig.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayAdaptiveSamplingConfig.java
 new file mode 100644
-index 00000000..8c2e8fe2
+index 00000000..dc5b7a01
 --- /dev/null
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayAdaptiveSamplingConfig.java
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,148 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -179,7 +179,8 @@ index 00000000..8c2e8fe2
 +  public enum UsageType {
 +    BOTH("both"),
 +    SAMPLING_BOOST("sampling-boost"),
-+    ANOMALY_SPAN_CAPTURE("anomaly-span-capture");
++    ANOMALY_TRACE_CAPTURE("anomaly-trace-capture"),
++    NEITHER("neither"); // Not meant to be used by customers
 +
 +    private final String value;
 +
@@ -200,6 +201,14 @@ index 00000000..8c2e8fe2
 +        }
 +      }
 +      throw new IllegalArgumentException("Invalid usage value: " + value);
++    }
++
++    public static boolean isUsedForBoost(UsageType usage) {
++      return BOTH.equals(usage) || SAMPLING_BOOST.equals(usage);
++    }
++
++    public static boolean isUsedForAnomalyTraceCapture(UsageType usage) {
++      return BOTH.equals(usage) || ANOMALY_TRACE_CAPTURE.equals(usage);
 +    }
 +  }
 +
@@ -902,10 +911,10 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..b86426dc 100644
+index 75977dc0..cb4a09b9 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-@@ -5,42 +5,81 @@
+@@ -5,42 +5,79 @@
 
  package io.opentelemetry.contrib.awsxray;
 
@@ -916,7 +925,6 @@ index 75977dc0..b86426dc 100644
 +import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.Attributes;
 +import io.opentelemetry.api.trace.Span;
-+import io.opentelemetry.api.trace.SpanContext;
  import io.opentelemetry.api.trace.SpanKind;
 +import io.opentelemetry.api.trace.StatusCode;
  import io.opentelemetry.context.Context;
@@ -971,8 +979,7 @@ index 75977dc0..b86426dc 100644
 +  private final Map<String, String> hashToRuleMap;
 +
 +  private final boolean adaptiveSamplingRuleExists;
-+  private final Cache<String, Boolean> anomalyTracesCache;
-+  private final Cache<String, Boolean> capturedTraceIdCache;
++  private final Cache<String, AwsXrayAdaptiveSamplingConfig.UsageType> traceUsageCache;
 +
 +  @Nullable private AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig;
 +  @Nullable private RateLimiter anomalyCaptureRateLimiter;
@@ -988,7 +995,7 @@ index 75977dc0..b86426dc 100644
      this(
          clientId,
          resource,
-@@ -49,8 +88,17 @@ final class XrayRulesSampler implements Sampler {
+@@ -49,8 +86,17 @@ final class XrayRulesSampler implements Sampler {
          rules.stream()
              // Lower priority value takes precedence so normal ascending sort.
              .sorted(Comparator.comparingInt(GetSamplingRulesResponse.SamplingRule::getPriority))
@@ -1008,7 +1015,7 @@ index 75977dc0..b86426dc 100644
    }
 
    private XrayRulesSampler(
-@@ -58,12 +106,46 @@ final class XrayRulesSampler implements Sampler {
+@@ -58,12 +104,40 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
        Clock clock,
        Sampler fallbackSampler,
@@ -1029,17 +1036,11 @@ index 75977dc0..b86426dc 100644
 +    }
 +    this.adaptiveSamplingRuleExists = adaptiveSamplingRuleExists;
 +    this.adaptiveSamplingConfig = adaptiveSamplingConfig;
-+    this.anomalyTracesCache =
++    this.traceUsageCache =
 +        Caffeine.newBuilder()
 +            .maximumSize(100_000)
 +            .ticker(clock::nanoTime)
 +            .expireAfterWrite(Duration.ofMinutes(10))
-+            .build();
-+    this.capturedTraceIdCache =
-+        Caffeine.newBuilder()
-+            .maximumSize(100_000)
-+            .ticker(clock::nanoTime)
-+            .expireAfterWrite(Duration.ofMinutes(1))
 +            .build();
 +
 +    // Initialize anomaly capture rate limiter
@@ -1056,7 +1057,7 @@ index 75977dc0..b86426dc 100644
    }
 
    @Override
-@@ -74,10 +156,36 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +148,36 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1095,7 +1096,7 @@ index 75977dc0..b86426dc 100644
        }
      }
 
-@@ -96,7 +204,164 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +196,185 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1116,7 +1117,7 @@ index 75977dc0..b86426dc 100644
 +  }
 +
 +  void adaptSampling(ReadableSpan span, SpanData spanData, Consumer<ReadableSpan> spanBatcher) {
-+    if (!adaptiveSamplingRuleExists) {
++    if (!adaptiveSamplingRuleExists && this.adaptiveSamplingConfig == null) {
 +      return;
 +    }
 +    Long statusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
@@ -1138,7 +1139,7 @@ index 75977dc0..b86426dc 100644
 +                && AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST.equals(
 +                    condition.getUsage()))
 +            || (shouldCaptureAnomalySpan
-+                && AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE.equals(
++                && AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE.equals(
 +                    condition.getUsage()))) {
 +          continue;
 +        }
@@ -1173,9 +1174,10 @@ index 75977dc0..b86426dc 100644
 +              case SAMPLING_BOOST:
 +                shouldBoostSampling = true;
 +                break;
-+              case ANOMALY_SPAN_CAPTURE:
++              case ANOMALY_TRACE_CAPTURE:
 +                shouldCaptureAnomalySpan = true;
 +                break;
++              default: // do nothing
 +            }
 +          } else {
 +            shouldBoostSampling = true;
@@ -1195,22 +1197,23 @@ index 75977dc0..b86426dc 100644
 +    }
 +
 +    String traceId = spanData.getTraceId();
-+    SpanContext parentContext = spanData.getParentSpanContext();
-+    boolean isLocalRootSpan =
-+        parentContext == null || !parentContext.isValid() || parentContext.isRemote();
++    AwsXrayAdaptiveSamplingConfig.UsageType existingUsage = traceUsageCache.getIfPresent(traceId);
++    boolean isNewTrace = existingUsage == null;
 +
 +    // Anomaly Capture
-+    if (capturedTraceIdCache.getIfPresent(traceId) != null
++    boolean isSpanCaptured = false;
++    if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForAnomalyTraceCapture(existingUsage)
 +        || (shouldCaptureAnomalySpan
 +            && !span.getSpanContext().isSampled()
 +            && anomalyCaptureRateLimiter != null
 +            && anomalyCaptureRateLimiter.trySpend(1))) {
-+      capturedTraceIdCache.put(traceId, true);
 +      spanBatcher.accept(span);
++      isSpanCaptured = true;
 +    }
 +
 +    // Sampling Boost
-+    if (shouldBoostSampling || isLocalRootSpan) {
++    boolean isCountedAsAnomalyForBoost = false;
++    if (shouldBoostSampling || isNewTrace) {
 +      String traceStateValue =
 +          span.getSpanContext()
 +              .getTraceState()
@@ -1244,16 +1247,35 @@ index 75977dc0..b86426dc 100644
 +      if (shouldBoostSampling
 +          && ruleToReportTo != null
 +          && ruleToReportTo.hasBoost()
-+          && this.anomalyTracesCache.getIfPresent(traceId) == null) {
-+        this.anomalyTracesCache.put(traceId, true);
++          && !AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
 +        ruleToReportTo.countAnomalyTrace(span);
++        isCountedAsAnomalyForBoost = true;
 +      }
-+      if (isLocalRootSpan) {
-+        if (ruleToReportTo != null && ruleToReportTo.hasBoost()) {
-+          ruleToReportTo.countTrace();
-+        }
-+        this.anomalyTracesCache.invalidate(traceId);
++      if (isNewTrace && ruleToReportTo != null && ruleToReportTo.hasBoost()) {
++        ruleToReportTo.countTrace();
 +      }
++    }
++
++    // Any interaction with a cache entry will reset the expiration timer of that entry
++    if (isSpanCaptured && isCountedAsAnomalyForBoost) {
++      this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++    } else if (isSpanCaptured) {
++      if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
++        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++      } else {
++        this.traceUsageCache.put(
++            traceId, AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE);
++      }
++    } else if (isCountedAsAnomalyForBoost) {
++      if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForAnomalyTraceCapture(existingUsage)) {
++        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++      } else {
++        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST);
++      }
++    } else if (existingUsage != null) {
++      this.traceUsageCache.put(traceId, existingUsage);
++    } else {
++      this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.NEITHER);
 +    }
 +  }
 +
@@ -1261,7 +1283,7 @@ index 75977dc0..b86426dc 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +380,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +393,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1280,7 +1302,7 @@ index 75977dc0..b86426dc 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +401,90 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +414,91 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
@@ -1368,8 +1390,9 @@ index 75977dc0..b86426dc 100644
 +  }
 +
 +  // For testing
-+  Cache<String, Boolean> getAnomalyTracesCache() {
-+    return anomalyTracesCache;
++  Cache<String, AwsXrayAdaptiveSamplingConfig.UsageType> getTraceUsageCache() {
++    traceUsageCache.cleanUp();
++    return traceUsageCache;
    }
  }
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
@@ -2009,7 +2032,7 @@ index 6bb6e82a..6d71711b 100644
      return applier.shouldSample(
          Context.current(),
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index 1ca8df34..0464a304 100644
+index 1ca8df34..72ec524b 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -5,17 +5,28 @@
@@ -2229,7 +2252,7 @@ index 1ca8df34..0464a304 100644
 
      // Minimum is batTarget, 5s from now
      assertThat(sampler.nextTargetFetchTimeNanos())
-@@ -169,6 +251,774 @@ class XrayRulesSamplerTest {
+@@ -169,6 +251,867 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
    }
 
@@ -2502,7 +2525,7 @@ index 1ca8df34..0464a304 100644
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
-+    assertThat(sampler.getAnomalyTracesCache().asMap().size()).isEqualTo(0);
++    assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(0);
 +  }
 +
 +  @Test
@@ -2602,18 +2625,18 @@ index 1ca8df34..0464a304 100644
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
 +
 +    // Mock trace coming from upstream service where it was sampled by cat-rule
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID4");
 +    when(readableSpanMock.getSpanContext())
 +        .thenReturn(
 +            SpanContext.create(
-+                "TRACE_ID",
++                "TRACE_ID4",
 +                "SPAN_ID",
 +                TraceFlags.getDefault(),
 +                TraceState.builder()
-+                    .put(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY, "cat-rule")
++                    .put(
++                        AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY,
++                        XrayRulesSampler.hashRuleName("cat-rule"))
 +                    .build()));
-+
-+    // When we adapt sampling, we should see this rule and report to it even though it doesn't
-+    // match
 +    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
 +
 +    // Ensure snapshot shows correctly saved statistics
@@ -2625,7 +2648,11 @@ index 1ca8df34..0464a304 100644
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
-+    assertThat(sampler.getAnomalyTracesCache().asMap().size()).isEqualTo(0);
++
++    // Assert the trace ID cache is filled with appropriate data and is cleared after TTL passes
++    assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(4);
++    clock.advance(Duration.ofMinutes(100));
++    assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(0);
 +  }
 +
 +  @Test
@@ -2762,7 +2789,7 @@ index 1ca8df34..0464a304 100644
 +                Arrays.asList(
 +                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
 +                        .setHighLatencyMs(100L)
-+                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE)
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE)
 +                        .build()))
 +            .build();
 +    XrayRulesSampler sampler =
@@ -2831,7 +2858,7 @@ index 1ca8df34..0464a304 100644
 +                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
 +                        .setErrorCodeRegex("^456$")
 +                        .setHighLatencyMs(100L)
-+                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE)
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE)
 +                        .build()))
 +            .build();
 +    XrayRulesSampler sampler =
@@ -2882,6 +2909,95 @@ index 1ca8df34..0464a304 100644
 +  }
 +
 +  @Test
++  void recordAndCaptureErrorBasedOnSeparateConditions() {
++    SamplingRule rule1 =
++        SamplingRule.create(
++            Collections.emptyMap(),
++            0.0,
++            "*",
++            "*",
++            1,
++            0,
++            "*",
++            "*",
++            "test-rule",
++            "*",
++            "*",
++            "*",
++            1,
++            SamplingRateBoost.create(1, 300));
++
++    TestClock clock = TestClock.create();
++    AwsXrayAdaptiveSamplingConfig config =
++        AwsXrayAdaptiveSamplingConfig.builder()
++            .setVersion(1.0)
++            .setAnomalyCaptureLimit(
++                AwsXrayAdaptiveSamplingConfig.AnomalyCaptureLimit.builder()
++                    .setAnomalyTracesPerSecond(10)
++                    .build())
++            .setAnomalyConditions(
++                Arrays.asList(
++                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
++                        .setErrorCodeRegex("^5\\d\\d$")
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST)
++                        .build(),
++                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
++                        .setErrorCodeRegex("^4\\d\\d$")
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE)
++                        .build()))
++            .build();
++    XrayRulesSampler sampler =
++        new XrayRulesSampler(
++            "CLIENT_ID",
++            Resource.getDefault(),
++            clock,
++            Sampler.alwaysOn(),
++            Arrays.asList(rule1),
++            config);
++
++    ReadableSpan readableSpanMock = mock(ReadableSpan.class);
++    when(readableSpanMock.getSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++
++    SpanData spanDataMock = mock(SpanData.class);
++    Attributes attributesMock = mock(Attributes.class);
++    when(spanDataMock.getAttributes()).thenReturn(attributesMock);
++    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID");
++    LongAdder exportCounter = new LongAdder();
++    Consumer<ReadableSpan> stubbedConsumer = x -> exportCounter.add(1);
++
++    // Boost condition triggered - count new trace + count anomaly
++    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(511L);
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(sampler.getTraceUsageCache().getIfPresent("TRACE_ID"))
++        .isEqualTo(AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(0L);
++
++    // Anomaly capture triggered - capture and update cache value
++    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(411L);
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(sampler.getTraceUsageCache().getIfPresent("TRACE_ID"))
++        .isEqualTo(AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++
++    // Boost condition triggered - capture span even though anomaly capture not included
++    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(511L);
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(sampler.getTraceUsageCache().getIfPresent("TRACE_ID"))
++        .isEqualTo(AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++
++    // Non-anomaly span - should still be captured since trace is anomalous overall
++    when(attributesMock.get(HTTP_RESPONSE_STATUS_CODE)).thenReturn(200L);
++    sampler.adaptSampling(readableSpanMock, spanDataMock, stubbedConsumer);
++    assertThat(sampler.getTraceUsageCache().getIfPresent("TRACE_ID"))
++        .isEqualTo(AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++    assertThat(exportCounter.sumThenReset()).isEqualTo(1L);
++  }
++
++  @Test
 +  void operationFilteringInAdaptSampling() {
 +    SamplingRule rule1 =
 +        SamplingRule.create(
@@ -2910,7 +3026,7 @@ index 1ca8df34..0464a304 100644
 +                    AwsXrayAdaptiveSamplingConfig.AnomalyConditions.builder()
 +                        .setOperations(Arrays.asList("GET /api1", "GET /api2"))
 +                        .setErrorCodeRegex("^500$")
-+                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_SPAN_CAPTURE)
++                        .setUsage(AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE)
 +                        .build()))
 +            .build();
 +    XrayRulesSampler sampler =
