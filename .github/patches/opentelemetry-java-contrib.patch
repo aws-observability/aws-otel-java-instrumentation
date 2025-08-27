@@ -911,7 +911,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..cb4a09b9 100644
+index 75977dc0..406941ba 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,79 @@
@@ -995,7 +995,7 @@ index 75977dc0..cb4a09b9 100644
      this(
          clientId,
          resource,
-@@ -49,8 +86,17 @@ final class XrayRulesSampler implements Sampler {
+@@ -49,8 +86,22 @@ final class XrayRulesSampler implements Sampler {
          rules.stream()
              // Lower priority value takes precedence so normal ascending sort.
              .sorted(Comparator.comparingInt(GetSamplingRulesResponse.SamplingRule::getPriority))
@@ -1011,11 +1011,16 @@ index 75977dc0..cb4a09b9 100644
 +            .toArray(SamplingRuleApplier[]::new),
 +        createRuleHashMaps(rules),
 +        rules.stream().anyMatch(r -> r.getSamplingRateBoost() != null),
-+        adaptiveSamplingConfig);
++        adaptiveSamplingConfig,
++        Caffeine.newBuilder()
++            .maximumSize(100_000)
++            .ticker(clock::nanoTime)
++            .expireAfterWrite(Duration.ofMinutes(10))
++            .build());
    }
 
    private XrayRulesSampler(
-@@ -58,12 +104,40 @@ final class XrayRulesSampler implements Sampler {
+@@ -58,12 +109,36 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
        Clock clock,
        Sampler fallbackSampler,
@@ -1023,7 +1028,8 @@ index 75977dc0..cb4a09b9 100644
 +      SamplingRuleApplier[] ruleAppliers,
 +      Map<String, String> ruleToHashMap,
 +      boolean adaptiveSamplingRuleExists,
-+      @Nullable AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig) {
++      @Nullable AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig,
++      Cache<String, AwsXrayAdaptiveSamplingConfig.UsageType> traceUsageCache) {
      this.clientId = clientId;
      this.resource = resource;
      this.clock = clock;
@@ -1036,12 +1042,7 @@ index 75977dc0..cb4a09b9 100644
 +    }
 +    this.adaptiveSamplingRuleExists = adaptiveSamplingRuleExists;
 +    this.adaptiveSamplingConfig = adaptiveSamplingConfig;
-+    this.traceUsageCache =
-+        Caffeine.newBuilder()
-+            .maximumSize(100_000)
-+            .ticker(clock::nanoTime)
-+            .expireAfterWrite(Duration.ofMinutes(10))
-+            .build();
++    this.traceUsageCache = traceUsageCache;
 +
 +    // Initialize anomaly capture rate limiter
 +    if (this.adaptiveSamplingConfig != null
@@ -1057,7 +1058,7 @@ index 75977dc0..cb4a09b9 100644
    }
 
    @Override
-@@ -74,10 +148,36 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +149,36 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1096,7 +1097,7 @@ index 75977dc0..cb4a09b9 100644
        }
      }
 
-@@ -96,7 +196,185 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +197,185 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1283,7 +1284,7 @@ index 75977dc0..cb4a09b9 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +393,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +394,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1302,7 +1303,7 @@ index 75977dc0..cb4a09b9 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +414,91 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +415,92 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
@@ -1315,7 +1316,8 @@ index 75977dc0..cb4a09b9 100644
 +        newAppliers,
 +        ruleToHashMap,
 +        adaptiveSamplingRuleExists,
-+        adaptiveSamplingConfig);
++        adaptiveSamplingConfig,
++        traceUsageCache);
 +  }
 +
 +  static boolean isKeyPresent(SpanData span, AttributeKey<?> key) {
