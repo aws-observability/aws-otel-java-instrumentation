@@ -81,7 +81,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
     // Assert the configuration was parsed correctly
     assertThat(config).isNotNull();
     assertThat(config.getVersion()).isEqualTo(1);
-    assertThat(config.getErrorCaptureLimit().getErrorSpansPerSecond()).isEqualTo(10);
+    assertThat(config.getAnomalyCaptureLimit().getAnomalyTracesPerSecond()).isEqualTo(10);
   }
 
   @Test
