@@ -265,7 +265,7 @@ index 00000000..dc5b7a01
 +  }
 +}
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
-index ad9b72a2..b99d2a48 100644
+index ad9b72a2..7864f358 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
 @@ -9,16 +9,22 @@ import io.opentelemetry.api.common.Attributes;
@@ -292,9 +292,9 @@ index ad9b72a2..b99d2a48 100644
  import java.util.Iterator;
  import java.util.List;
 @@ -43,6 +49,9 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
- 
+
    private static final Logger logger = Logger.getLogger(AwsXrayRemoteSampler.class.getName());
- 
+
 +  // Default batch size to be same as OTel BSP default
 +  private static final int maxExportBatchSize = 512;
 +
@@ -304,7 +304,7 @@ index ad9b72a2..b99d2a48 100644
 @@ -59,6 +68,9 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
    @Nullable private volatile XrayRulesSampler internalXrayRulesSampler;
    private volatile Sampler sampler;
- 
+
 +  @Nullable private AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig;
 +  @Nullable private BatchSpanProcessor bsp;
 +
@@ -314,15 +314,15 @@ index ad9b72a2..b99d2a48 100644
 @@ -120,6 +132,40 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
      return "AwsXrayRemoteSampler{" + sampler.getDescription() + "}";
    }
- 
+
 +  public void setAdaptiveSamplingConfig(AwsXrayAdaptiveSamplingConfig config) {
 +    if (this.adaptiveSamplingConfig != null) {
 +      throw new IllegalStateException("Programming bug - Adaptive sampling config is already set");
 +    } else if (config != null && this.adaptiveSamplingConfig == null) {
 +      // Save here and also pass to XrayRulesSampler directly as it already exists
 +      this.adaptiveSamplingConfig = config;
-+      if (sampler instanceof XrayRulesSampler) {
-+        ((XrayRulesSampler) sampler).setAdaptiveSamplingConfig(config);
++      if (internalXrayRulesSampler != null) {
++        internalXrayRulesSampler.setAdaptiveSamplingConfig(config);
 +      }
 +    }
 +  }
@@ -344,8 +344,8 @@ index ad9b72a2..b99d2a48 100644
 +      throw new IllegalStateException(
 +          "Programming bug - BatchSpanProcessor is null while trying to adapt sampling");
 +    }
-+    if (sampler instanceof XrayRulesSampler) {
-+      ((XrayRulesSampler) sampler).adaptSampling(span, spanData, this.bsp::onEnd);
++    if (internalXrayRulesSampler != null) {
++      internalXrayRulesSampler.adaptSampling(span, spanData, this.bsp::onEnd);
 +    }
 +  }
 +
@@ -388,7 +388,7 @@ index ad9b72a2..b99d2a48 100644
            statistics.stream()
                .map(SamplingStatisticsDocument::getRuleName)
                .collect(Collectors.toSet());
- 
+
 -      GetSamplingTargetsResponse response =
 -          client.getSamplingTargets(GetSamplingTargetsRequest.create(statistics));
 +      GetSamplingTargetsRequest req = GetSamplingTargetsRequest.create(statistics, boostStatistics);
@@ -418,11 +418,11 @@ index dca930d5..01835dc2 100644
 +          version,
 +          samplingRateBoost);
      }
- 
+
      abstract Map<String, String> getAttributes();
 @@ -106,5 +108,23 @@ abstract class GetSamplingRulesResponse {
      abstract String getUrlPath();
- 
+
      abstract int getVersion();
 +
 +    @Nullable
@@ -451,7 +451,7 @@ index 7d1fb7b7..9404f73e 100644
 @@ -15,14 +15,20 @@ import java.util.List;
  @JsonSerialize(as = GetSamplingTargetsRequest.class)
  abstract class GetSamplingTargetsRequest {
- 
+
 -  static GetSamplingTargetsRequest create(List<SamplingStatisticsDocument> documents) {
 -    return new AutoValue_GetSamplingTargetsRequest(documents);
 +  static GetSamplingTargetsRequest create(
@@ -459,11 +459,11 @@ index 7d1fb7b7..9404f73e 100644
 +      List<SamplingBoostStatisticsDocument> boostDocuments) {
 +    return new AutoValue_GetSamplingTargetsRequest(documents, boostDocuments);
    }
- 
+
    // Limit of 25 items
    @JsonProperty("SamplingStatisticsDocuments")
    abstract List<SamplingStatisticsDocument> getDocuments();
- 
+
 +  // Limit of 25 items
 +  @JsonProperty("SamplingBoostStatisticsDocuments")
 +  abstract List<SamplingBoostStatisticsDocument> getBoostDocuments();
@@ -536,18 +536,18 @@ index c1e178f5..406f07e2 100644
 -        lastRuleModification, documents, unprocessedStatistics);
 +        lastRuleModification, documents, unprocessedStatistics, unprocessedBoostStatistics);
    }
- 
+
    abstract Date getLastRuleModification();
 @@ -30,6 +32,9 @@ abstract class GetSamplingTargetsResponse {
- 
+
    abstract List<UnprocessedStatistics> getUnprocessedStatistics();
- 
+
 +  @Nullable
 +  abstract List<UnprocessedStatistics> getUnprocessedBoostStatistics();
 +
    @AutoValue
    abstract static class SamplingTargetDocument {
- 
+
 @@ -39,9 +44,10 @@ abstract class GetSamplingTargetsResponse {
          @JsonProperty("Interval") @Nullable Integer intervalSecs,
          @JsonProperty("ReservoirQuota") @Nullable Integer reservoirQuota,
@@ -558,20 +558,20 @@ index c1e178f5..406f07e2 100644
 -          fixedRate, intervalSecs, reservoirQuota, reservoirQuotaTtl, ruleName);
 +          fixedRate, intervalSecs, reservoirQuota, reservoirQuotaTtl, samplingBoost, ruleName);
      }
- 
+
      abstract double getFixedRate();
 @@ -57,6 +63,9 @@ abstract class GetSamplingTargetsResponse {
      @Nullable
      abstract Date getReservoirQuotaTtl();
- 
+
 +    @Nullable
 +    abstract SamplingBoost getSamplingBoost();
 +
      abstract String getRuleName();
    }
- 
+
 @@ -78,4 +87,18 @@ abstract class GetSamplingTargetsResponse {
- 
+
      abstract String getRuleName();
    }
 +
@@ -608,7 +608,7 @@ index 1d97c4ae..6462c7f3 100644
  import io.opentelemetry.sdk.trace.samplers.Sampler;
  import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
 @@ -76,12 +79,20 @@ final class SamplingRuleApplier {
- 
+
    private final String clientId;
    private final String ruleName;
 +  private final String serviceName;
@@ -618,7 +618,7 @@ index 1d97c4ae..6462c7f3 100644
 +  private final double fixedRate;
    private final Sampler fixedRateSampler;
    private final boolean borrowing;
- 
+
 +  // Adaptive sampling related configs
 +  private final boolean hasBoost;
 +  private final double boostedFixedRate;
@@ -629,9 +629,9 @@ index 1d97c4ae..6462c7f3 100644
    private final Matcher urlPathMatcher;
    private final Matcher serviceNameMatcher;
 @@ -94,7 +105,11 @@ final class SamplingRuleApplier {
- 
+
    private final long nextSnapshotTimeNanos;
- 
+
 -  SamplingRuleApplier(String clientId, GetSamplingRulesResponse.SamplingRule rule, Clock clock) {
 +  SamplingRuleApplier(
 +      String clientId,
@@ -644,12 +644,12 @@ index 1d97c4ae..6462c7f3 100644
 @@ -108,6 +123,8 @@ final class SamplingRuleApplier {
      }
      this.ruleName = ruleName;
- 
+
 +    this.serviceName = serviceName == null ? "default" : serviceName;
 +
      // We don't have a SamplingTarget so are ready to report a snapshot right away.
      nextSnapshotTimeNanos = clock.nanoTime();
- 
+
 @@ -124,7 +141,15 @@ final class SamplingRuleApplier {
        reservoirSampler = Sampler.alwaysOff();
        borrowing = false;
@@ -664,7 +664,7 @@ index 1d97c4ae..6462c7f3 100644
 +    boostedFixedRate = fixedRate;
 +    boostedFixedRateSampler = createFixedRate(fixedRate);
 +    boostEndTimeNanos = clock.nanoTime();
- 
+
      if (rule.getAttributes().isEmpty()) {
        attributeMatchers = Collections.emptyMap();
 @@ -147,11 +172,16 @@ final class SamplingRuleApplier {
@@ -707,7 +707,7 @@ index 1d97c4ae..6462c7f3 100644
      this.nextSnapshotTimeNanos = nextSnapshotTimeNanos;
 +    this.boostedFixedRateSampler = createFixedRate(this.boostedFixedRate);
    }
- 
+
    @SuppressWarnings("deprecation") // TODO
 @@ -273,45 +309,84 @@ final class SamplingRuleApplier {
        statistics.sampled.increment();
@@ -731,7 +731,7 @@ index 1d97c4ae..6462c7f3 100644
      }
      return result;
    }
- 
+
 +  void countTrace() {
 +    statistics.traces.increment();
 +  }
@@ -789,11 +789,11 @@ index 1d97c4ae..6462c7f3 100644
 +            .build();
 +    return new SamplingRuleStatisticsSnapshot(samplingStatistics, boostDoc);
    }
- 
+
    long getNextSnapshotTimeNanos() {
      return nextSnapshotTimeNanos;
    }
- 
+
 -  SamplingRuleApplier withTarget(SamplingTargetDocument target, Date now) {
 +  // currentNanoTime is passed in to ensure all uses of withTarget are used with the same baseline
 +  // time reference
@@ -832,7 +832,7 @@ index 1d97c4ae..6462c7f3 100644
 +                    .toNanos();
 +      }
 +    }
- 
+
      return new SamplingRuleApplier(
          clientId,
          ruleName,
@@ -869,7 +869,7 @@ index 1d97c4ae..6462c7f3 100644
 @@ -364,6 +464,15 @@ final class SamplingRuleApplier {
      return ruleName;
    }
- 
+
 +  // For testing
 +  String getServiceName() {
 +    return serviceName;
@@ -914,13 +914,13 @@ index 1d97c4ae..6462c7f3 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..96cd61a0 100644
+index 75977dc0..9620ba2b 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,79 @@
- 
+
  package io.opentelemetry.contrib.awsxray;
- 
+
 +import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 +import static io.opentelemetry.semconv.ServiceAttributes.SERVICE_NAME;
 +
@@ -957,11 +957,11 @@ index 75977dc0..96cd61a0 100644
  import java.util.logging.Logger;
  import java.util.stream.Collectors;
 +import javax.annotation.Nullable;
- 
+
  final class XrayRulesSampler implements Sampler {
- 
+
    private static final Logger logger = Logger.getLogger(XrayRulesSampler.class.getName());
- 
+
 +  public static final AttributeKey<String> AWS_XRAY_SAMPLING_RULE =
 +      AttributeKey.stringKey("aws.xray.sampling_rule");
 +
@@ -986,7 +986,7 @@ index 75977dc0..96cd61a0 100644
 +
 +  @Nullable private AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig;
 +  @Nullable private RateLimiter anomalyCaptureRateLimiter;
- 
+
    XrayRulesSampler(
        String clientId,
        Resource resource,
@@ -1018,7 +1018,7 @@ index 75977dc0..96cd61a0 100644
 +            .expireAfterWrite(Duration.ofMinutes(10))
 +            .build());
    }
- 
+
    private XrayRulesSampler(
 @@ -58,12 +106,36 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
@@ -1056,7 +1056,7 @@ index 75977dc0..96cd61a0 100644
 +          new RateLimiter(anomalyTracesPerSecond, anomalyTracesPerSecond, clock);
 +    }
    }
- 
+
    @Override
 @@ -74,10 +146,36 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
@@ -1096,11 +1096,11 @@ index 75977dc0..96cd61a0 100644
 +        return AwsSamplingResult.create(result.getDecision(), result.getAttributes(), hashedRule);
        }
      }
- 
-@@ -96,7 +194,185 @@ final class XrayRulesSampler implements Sampler {
+
+@@ -96,7 +194,184 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
- 
+
 -  List<GetSamplingTargetsRequest.SamplingStatisticsDocument> snapshot(Date now) {
 +  void setAdaptiveSamplingConfig(AwsXrayAdaptiveSamplingConfig config) {
 +    if (this.adaptiveSamplingConfig != null) {
@@ -1244,7 +1244,6 @@ index 75977dc0..96cd61a0 100644
 +          ruleToReportTo = matchedRule;
 +        }
 +      }
-+
 +      if (shouldBoostSampling
 +          && ruleToReportTo != null
 +          && ruleToReportTo.hasBoost()
@@ -1284,7 +1283,7 @@ index 75977dc0..96cd61a0 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +391,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +390,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1303,7 +1302,7 @@ index 75977dc0..96cd61a0 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +412,92 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +411,92 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
