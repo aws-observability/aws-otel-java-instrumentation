@@ -15,7 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,6 +36,7 @@ import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.resources.Resource;
@@ -76,6 +77,7 @@ class AwsSpanMetricsProcessorTest {
   private LongHistogram faultHistogramMock;
   private DoubleHistogram latencyHistogramMock;
   private MetricAttributeGenerator generatorMock;
+  private AwsXrayRemoteSampler samplerMock;
   private AwsSpanMetricsProcessor awsSpanMetricsProcessor;
 
   // Mock forceFlush function that returns success when invoked similar
@@ -90,6 +92,7 @@ class AwsSpanMetricsProcessorTest {
     faultHistogramMock = mock(LongHistogram.class);
     latencyHistogramMock = mock(DoubleHistogram.class);
     generatorMock = mock(MetricAttributeGenerator.class);
+    samplerMock = mock(AwsXrayRemoteSampler.class);
 
     awsSpanMetricsProcessor =
         AwsSpanMetricsProcessor.create(
@@ -98,6 +101,7 @@ class AwsSpanMetricsProcessorTest {
             latencyHistogramMock,
             generatorMock,
             testResource,
+            samplerMock,
             this::forceFlushAction);
   }
 

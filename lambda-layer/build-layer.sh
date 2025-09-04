@@ -29,13 +29,8 @@ git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.g
 pushd opentelemetry-java-instrumentation
 git checkout v${otel_instrumentation_version} -b tag-v${otel_instrumentation_version}
 
-# There is another patch in the .github/patches directory for other changes. We should apply them too for consistency.
-patch -p1 < "$SOURCEDIR"/../.github/patches/opentelemetry-java-instrumentation.patch
-
 # This patch is for Lambda related context propagation
 patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
-
-patch -p1 < "$SOURCEDIR"/patches/StreamHandlerInstrumentation.patch
 
 ./gradlew publishToMavenLocal
 popd

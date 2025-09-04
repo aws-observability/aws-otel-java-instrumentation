@@ -15,16 +15,17 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_REQUEST_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_TARGET;
-import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
-import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
-import static io.opentelemetry.semconv.SemanticAttributes.RPC_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.URL_PATH;
+import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.AWS_LAMBDA_FUNCTION_NAME_CONFIG;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.isLambdaEnvironment;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE;
@@ -38,6 +39,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.io.IOException;
 import java.io.InputStream;
@@ -68,6 +70,10 @@ final class AwsSpanProcessingUtil {
       Pattern.compile("^(?:" + String.join("|", getDialectKeywords()) + ")\\b");
 
   private static final String SQL_DIALECT_KEYWORDS_JSON = "configuration/sql_dialect_keywords.json";
+
+  static final AttributeKey<String> OTEL_SCOPE_NAME = AttributeKey.stringKey("otel.scope.name");
+  static final String LAMBDA_SCOPE_PREFIX = "io.opentelemetry.aws-lambda-";
+  static final String SERVLET_SCOPE_PREFIX = "io.opentelemetry.servlet-";
 
   static List<String> getDialectKeywords() {
     try (InputStream jsonFile =
@@ -107,6 +113,10 @@ final class AwsSpanProcessingUtil {
       String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
       if (operationOverride != null) {
         return operationOverride;
+      }
+      String op = generateIngressOperation(span);
+      if (!op.equals(UNKNOWN_OPERATION)) {
+        return op;
       }
       return getFunctionNameFromEnv() + "/FunctionHandler";
     }
@@ -153,6 +163,23 @@ final class AwsSpanProcessingUtil {
     return span.getAttributes().get(key) != null;
   }
 
+  static <T> boolean isKeyPresentWithFallback(
+      SpanData span, AttributeKey<T> key, AttributeKey<T> fallbackKey) {
+    if (span.getAttributes().get(key) != null) {
+      return true;
+    }
+    return isKeyPresent(span, fallbackKey);
+  }
+
+  static <T> T getKeyValueWithFallback(
+      SpanData span, AttributeKey<T> key, AttributeKey<T> fallbackKey) {
+    T value = span.getAttributes().get(key);
+    if (value != null) {
+      return value;
+    }
+    return span.getAttributes().get(fallbackKey);
+  }
+
   static boolean isAwsSDKSpan(SpanData span) {
     // https://opentelemetry.io/docs/specs/otel/trace/semantic_conventions/instrumentation/aws-sdk/#common-attributes
     return "aws-api".equals(span.getAttributes().get(RPC_SYSTEM));
@@ -170,7 +197,8 @@ final class AwsSpanProcessingUtil {
   }
 
   static boolean isConsumerProcessSpan(SpanData spanData) {
-    String messagingOperation = spanData.getAttributes().get(MESSAGING_OPERATION);
+    String messagingOperation =
+        getKeyValueWithFallback(spanData, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
     return SpanKind.CONSUMER.equals(spanData.getKind()) && PROCESS.equals(messagingOperation);
   }
 
@@ -192,7 +220,8 @@ final class AwsSpanProcessingUtil {
   private static boolean isSqsReceiveMessageConsumerSpan(SpanData spanData) {
     String spanName = spanData.getName();
     SpanKind spanKind = spanData.getKind();
-    String messagingOperation = spanData.getAttributes().get(MESSAGING_OPERATION);
+    String messagingOperation =
+        getKeyValueWithFallback(spanData, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
     InstrumentationScopeInfo instrumentationScopeInfo = spanData.getInstrumentationScopeInfo();
 
     return SQS_RECEIVE_MESSAGE_SPAN_NAME.equalsIgnoreCase(spanName)
@@ -269,5 +298,31 @@ final class AwsSpanProcessingUtil {
     return isKeyPresent(span, DB_SYSTEM)
         || isKeyPresent(span, DB_OPERATION)
         || isKeyPresent(span, DB_STATEMENT);
+  }
+
+  static boolean isLambdaServerSpan(ReadableSpan span) {
+    String scopeName = null;
+    if (span != null
+        && span.toSpanData() != null
+        && span.toSpanData().getInstrumentationScopeInfo() != null) {
+      scopeName = span.toSpanData().getInstrumentationScopeInfo().getName();
+    }
+
+    return scopeName != null
+        && scopeName.startsWith(LAMBDA_SCOPE_PREFIX)
+        && SpanKind.SERVER == span.getKind();
+  }
+
+  static boolean isServletServerSpan(ReadableSpan span) {
+    String scopeName = null;
+    if (span != null
+        && span.toSpanData() != null
+        && span.toSpanData().getInstrumentationScopeInfo() != null) {
+      scopeName = span.toSpanData().getInstrumentationScopeInfo().getName();
+    }
+
+    return scopeName != null
+        && scopeName.startsWith(SERVLET_SCOPE_PREFIX)
+        && SpanKind.SERVER == span.getKind();
   }
 }

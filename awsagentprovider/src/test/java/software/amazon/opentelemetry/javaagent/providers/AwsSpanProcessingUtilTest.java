@@ -15,10 +15,16 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.*;
-import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
-import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.RECEIVE;
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.RECEIVE;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Answers.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -33,6 +39,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -363,8 +370,24 @@ public class AwsSpanProcessingUtilTest {
   }
 
   @Test
+  public void testIsConsumerProcessSpanFalse_with_MESSAGING_OPERATION_TYPE() {
+    when(attributesMock.get(MESSAGING_OPERATION_TYPE)).thenReturn(RECEIVE);
+    when(attributesMock.get(MESSAGING_OPERATION)).thenReturn(PROCESS);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
+    assertThat(AwsSpanProcessingUtil.isConsumerProcessSpan(spanDataMock)).isFalse();
+  }
+
+  @Test
   public void testIsConsumerProcessSpanTrue() {
     when(attributesMock.get(MESSAGING_OPERATION)).thenReturn(PROCESS);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
+    assertThat(AwsSpanProcessingUtil.isConsumerProcessSpan(spanDataMock)).isTrue();
+  }
+
+  @Test
+  public void testIsConsumerProcessSpanTrue_with_MESSAGING_OPERATION_TYPE() {
+    when(attributesMock.get(MESSAGING_OPERATION_TYPE)).thenReturn(PROCESS);
+    when(attributesMock.get(MESSAGING_OPERATION)).thenReturn(RECEIVE);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     assertThat(AwsSpanProcessingUtil.isConsumerProcessSpan(spanDataMock)).isTrue();
   }
@@ -434,6 +457,26 @@ public class AwsSpanProcessingUtilTest {
   }
 
   @Test
+  public void
+      testNoMetricAttributesForAwsSdkSqsConsumerProcessSpan_with_MESSAGING_OPERATION_TYPE() {
+    InstrumentationScopeInfo instrumentationScopeInfo = mock(InstrumentationScopeInfo.class);
+    when(instrumentationScopeInfo.getName()).thenReturn("io.opentelemetry.aws-sdk-2.2");
+    when(spanDataMock.getInstrumentationScopeInfo()).thenReturn(instrumentationScopeInfo);
+    when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
+    when(spanDataMock.getName()).thenReturn("Sqs.ReceiveMessage");
+    when(attributesMock.get(MESSAGING_OPERATION_TYPE)).thenReturn(PROCESS);
+
+    assertThat(AwsSpanProcessingUtil.shouldGenerateServiceMetricAttributes(spanDataMock)).isFalse();
+    assertThat(AwsSpanProcessingUtil.shouldGenerateDependencyMetricAttributes(spanDataMock))
+        .isFalse();
+
+    when(attributesMock.get(MESSAGING_OPERATION_TYPE)).thenReturn(RECEIVE);
+    assertThat(AwsSpanProcessingUtil.shouldGenerateServiceMetricAttributes(spanDataMock)).isTrue();
+    assertThat(AwsSpanProcessingUtil.shouldGenerateDependencyMetricAttributes(spanDataMock))
+        .isTrue();
+  }
+
+  @Test
   public void testSqlDialectKeywordsOrder() {
     List<String> keywords = getDialectKeywords();
     int prevKeywordLength = Integer.MAX_VALUE;
@@ -450,5 +493,159 @@ public class AwsSpanProcessingUtilTest {
     for (String keyword : keywords) {
       assertThat(MAX_KEYWORD_LENGTH >= keyword.length());
     }
+  }
+
+  @Test
+  public void testIsKeyPresentWithFallback_NewKeyPresent() {
+    when(attributesMock.get(MESSAGING_OPERATION_TYPE)).thenReturn("publish");
+    assertThat(
+            AwsSpanProcessingUtil.isKeyPresentWithFallback(
+                spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
+        .isTrue();
+  }
+
+  @Test
+  public void testIsKeyPresentWithFallback_DeprecatedKeyPresent() {
+    when(attributesMock.get(MESSAGING_OPERATION)).thenReturn("publish");
+    assertThat(
+            AwsSpanProcessingUtil.isKeyPresentWithFallback(
+                spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
+        .isTrue();
+  }
+
+  @Test
+  public void testIsKeyPresentWithFallback_BothKeysAbsent() {
+    assertThat(
+            AwsSpanProcessingUtil.isKeyPresentWithFallback(
+                spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
+        .isFalse();
+  }
+
+  @Test
+  public void testGetKeyValueWithFallback_NewKeyPresent() {
+    when(attributesMock.get(MESSAGING_OPERATION_TYPE)).thenReturn("send");
+    when(attributesMock.get(MESSAGING_OPERATION)).thenReturn("publish");
+    assertThat(
+            AwsSpanProcessingUtil.getKeyValueWithFallback(
+                spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
+        .isEqualTo("send");
+  }
+
+  @Test
+  public void testGetKeyValueWithFallback_DeprecatedKeyPresent() {
+    when(attributesMock.get(MESSAGING_OPERATION)).thenReturn("publish");
+    assertThat(
+            AwsSpanProcessingUtil.getKeyValueWithFallback(
+                spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
+        .isEqualTo("publish");
+  }
+
+  @Test
+  public void testGetKeyValueWithFallback_BothKeysAbsent() {
+    assertThat(
+            AwsSpanProcessingUtil.getKeyValueWithFallback(
+                spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
+        .isNull();
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withLambdaScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-lib-1.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertTrue(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withNonLambdaScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName())
+        .thenReturn("org.abc." + AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-lib-3.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withNullScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(null);
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withNonServerSpanKind() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-core-1.0");
+    when(span.getKind()).thenReturn(SpanKind.CLIENT);
+
+    assertFalse(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withServletScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.SERVLET_SCOPE_PREFIX + "-3.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertTrue(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withNonServletScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-2.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withNullScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(null);
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withNonServerSpanKind() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.SERVLET_SCOPE_PREFIX + "-5.0");
+    when(span.getKind()).thenReturn(SpanKind.CLIENT);
+
+    assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
   }
 }
