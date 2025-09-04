@@ -57,27 +57,3 @@ if [[ -f "$OTEL_JAVA_CONTRIB_PATCH" ]]; then
 else
   echo "Skipping patching opentelemetry-java-contrib"
 fi
-
-
-# Patching opentelemetry-java-instrumentation
-OTEL_JAVA_INSTRUMENTATION_PATCH=".github/patches/opentelemetry-java-instrumentation.patch"
-if [[ -f "$OTEL_JAVA_INSTRUMENTATION_PATCH" ]]; then
-  echo "Patching opentelemetry-java-instrumentation"
-  git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
-  cd opentelemetry-java-instrumentation
-
-  echo "Checking out tag ${OTEL_JAVA_INSTRUMENTATION_VERSION}"
-  git checkout ${OTEL_JAVA_INSTRUMENTATION_VERSION} -b tag-${OTEL_JAVA_INSTRUMENTATION_VERSION}
-  patch -p1 < "../${OTEL_JAVA_INSTRUMENTATION_PATCH}"
-  git commit -a -m "ADOT Patch release"
-
-  echo "Building patched opentelemetry-java-instrumentation"
-  ./gradlew clean assemble
-  ./gradlew publishToMavenLocal
-  cd -
-
-  echo "Cleaning up opentelemetry-java-instrumentation"
-  rm -rf opentelemetry-java-instrumentation
-else
-  echo "Skipping patching opentelemetry-java-instrumentation"
-fi
