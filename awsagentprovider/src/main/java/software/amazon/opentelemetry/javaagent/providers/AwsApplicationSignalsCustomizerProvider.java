@@ -15,9 +15,14 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
-import io.opentelemetry.contrib.awsxray.AlwaysRecordSampler;
+import io.opentelemetry.contrib.awsxray.AwsXrayAdaptiveSamplingConfig;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
 import io.opentelemetry.contrib.awsxray.ResourceHolder;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
@@ -42,6 +47,11 @@ import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -142,10 +152,15 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG =
       "otel.exporter.otlp.logs.compression";
 
+  private static final String AWS_XRAY_ADAPTIVE_SAMPLING_CONFIG =
+      "aws.xray.adaptive.sampling.config";
+
   // UDP packet can be upto 64KB. To limit the packet size, we limit the exported batch size.
   // This is a bit of a magic number, as there is no simple way to tell how many spans can make a
   // 64KB batch since spans can vary in size.
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
+
+  private Sampler sampler;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -281,6 +296,27 @@ public final class AwsApplicationSignalsCustomizerProvider
   }
 
   private Sampler customizeSampler(Sampler sampler, ConfigProperties configProps) {
+    if (sampler instanceof AwsXrayRemoteSampler) {
+      String config = configProps.getString(AWS_XRAY_ADAPTIVE_SAMPLING_CONFIG);
+      AwsXrayAdaptiveSamplingConfig parsedConfig = null;
+
+      try {
+        parsedConfig = parseConfigString(config);
+      } catch (Exception e) {
+        logger.log(
+            Level.WARNING, "Failed to parse adaptive sampling configuration: {0}", e.getMessage());
+      }
+
+      if (parsedConfig != null) {
+        try {
+          ((AwsXrayRemoteSampler) sampler).setAdaptiveSamplingConfig(parsedConfig);
+        } catch (Exception e) {
+          logger.log(
+              Level.WARNING, "Error processing adaptive sampling config: {0}", e.getMessage());
+        }
+      }
+      this.sampler = sampler;
+    }
     if (isApplicationSignalsEnabled(configProps)) {
       return AlwaysRecordSampler.create(sampler);
     }
@@ -344,10 +380,13 @@ public final class AwsApplicationSignalsCustomizerProvider
               .build();
 
       // Construct and set application signals metrics processor
-      SpanProcessor spanMetricsProcessor =
+      AwsSpanMetricsProcessorBuilder awsSpanMetricsProcessorBuilder =
           AwsSpanMetricsProcessorBuilder.create(
-                  meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush)
-              .build();
+              meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush);
+      if (this.sampler != null) {
+        awsSpanMetricsProcessorBuilder.setSampler(this.sampler);
+      }
+      SpanProcessor spanMetricsProcessor = awsSpanMetricsProcessorBuilder.build();
       tracerProviderBuilder.addSpanProcessor(spanMetricsProcessor);
     }
     return tracerProviderBuilder;
@@ -423,11 +462,14 @@ public final class AwsApplicationSignalsCustomizerProvider
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
-      return AwsMetricAttributesSpanExporterBuilder.create(
-              spanExporter, ResourceHolder.getResource())
-          .build();
+      spanExporter =
+          AwsMetricAttributesSpanExporterBuilder.create(spanExporter, ResourceHolder.getResource())
+              .build();
     }
 
+    if (this.sampler instanceof AwsXrayRemoteSampler) {
+      ((AwsXrayRemoteSampler) this.sampler).setSpanExporter(spanExporter);
+    }
     return spanExporter;
   }
 
@@ -465,6 +507,44 @@ public final class AwsApplicationSignalsCustomizerProvider
     }
 
     return logsExporter;
+  }
+
+  static AwsXrayAdaptiveSamplingConfig parseConfigString(String config)
+      throws JsonProcessingException {
+    if (config == null) {
+      return null;
+    }
+
+    // Check if the config is a file path and the file exists
+    Path path = Paths.get(config);
+    if (Files.exists(path)) {
+      try {
+        config = String.join("\n", Files.readAllLines(path, StandardCharsets.UTF_8));
+      } catch (IOException e) {
+        throw new IllegalArgumentException(
+            "Failed to read adaptive sampling configuration file: " + e.getMessage(), e);
+      }
+    }
+
+    ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+    Map<String, Object> configMap =
+        yamlMapper.readValue(config, new TypeReference<Map<String, Object>>() {});
+
+    Object versionObj = configMap.get("version");
+    if (versionObj == null) {
+      throw new IllegalArgumentException(
+          "Missing required 'version' field in adaptive sampling configuration");
+    }
+
+    double version = ((Number) versionObj).doubleValue();
+    if (version >= 2L) {
+      throw new IllegalArgumentException(
+          "Incompatible adaptive sampling config version: "
+              + version
+              + ". This version of the AWS X-Ray remote sampler only supports versions strictly below 2.0.");
+    }
+
+    return yamlMapper.readValue(config, AwsXrayAdaptiveSamplingConfig.class);
   }
 
   private enum ApplicationSignalsExporterProvider {
