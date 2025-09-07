@@ -51,8 +51,8 @@ jobs:
         run: |
           export XRAY_UDP_SPAN_EXPORTER_VERSION=${{ steps.build-udp-exporter.outputs.xrayUdpSpanExporterVersion }}
           echo "Running Sample App against X-Ray UDP Span Exporter version: $XRAY_UDP_SPAN_EXPORTER_VERSION"
-          gradle build
-          gradle bootRun &
+          ../../gradlew build
+          ../../gradlew bootRun &
           sleep 5
 
       - name: Call Sample App Endpoint
