@@ -18,7 +18,8 @@ env:
   PRIVATE_REPOSITORY: 020628701572.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java
   PRIVATE_REGISTRY: 020628701572.dkr.ecr.us-west-2.amazonaws.com
   ARTIFACT_NAME: aws-opentelemetry-agent.jar
-  COMMERCIAL_REGIONS: us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1, ap-southeast-5, ap-southeast-7, mx-central-1, ca-west-1, cn-north-1, cn-northwest-1
+  # Legacy list of commercial regions to deploy to. New regions should NOT be added here, and instead should be added to the `aws_region` default input to the workflow.
+  LEGACY_COMMERCIAL_REGIONS: us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1
   LAYER_NAME: AWSOpenTelemetryDistroJava
 
 permissions:
@@ -226,21 +227,21 @@ jobs:
     steps:
       - name: role arn
         env:
-          COMMERCIAL_REGIONS: ${{ env.COMMERCIAL_REGIONS }}
+          LEGACY_COMMERCIAL_REGIONS: ${{ env.LEGACY_COMMERCIAL_REGIONS }}
         run: |
-          COMMERCIAL_REGIONS_ARRAY=(${COMMERCIAL_REGIONS//,/ })
+          LEGACY_COMMERCIAL_REGIONS_ARRAY=(${LEGACY_COMMERCIAL_REGIONS//,/ })
           FOUND=false
-          for REGION in "${COMMERCIAL_REGIONS_ARRAY[@]}"; do
+          for REGION in "${LEGACY_COMMERCIAL_REGIONS_ARRAY[@]}"; do
             if [[ "$REGION" == "${{ matrix.aws_region }}" ]]; then
               FOUND=true
               break
             fi
           done
           if [ "$FOUND" = true ]; then
-            echo "Found ${{ matrix.aws_region }} in COMMERCIAL_REGIONS"
+            echo "Found ${{ matrix.aws_region }} in LEGACY_COMMERCIAL_REGIONS"
             SECRET_KEY="LAMBDA_LAYER_RELEASE"
           else
-            echo "Not found ${{ matrix.aws_region }} in COMMERCIAL_REGIONS"
+            echo "Not found ${{ matrix.aws_region }} in LEGACY_COMMERCIAL_REGIONS"
             SECRET_KEY="${{ matrix.aws_region }}_LAMBDA_LAYER_RELEASE"
           fi
           SECRET_KEY=${SECRET_KEY//-/_}
