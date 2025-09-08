@@ -23,7 +23,7 @@ jobs:
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: temurin
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: temurin
@@ -192,7 +192,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version: 23
           distribution: 'temurin'
@@ -232,7 +232,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: 'temurin'
@@ -256,6 +256,7 @@ jobs:
           aws s3 cp ./build/distributions/aws-opentelemetry-java-layer.zip s3://adot-main-build-staging-jar/adot-java-lambda-layer-${{ github.run_id }}.zip
 
   application-signals-e2e-test:
+    name: "Application Signals E2E Test"
     needs: [build, application-signals-lambda-layer-build]
     uses: ./.github/workflows/application-signals-e2e-test.yml
     secrets: inherit
