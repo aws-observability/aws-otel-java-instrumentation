@@ -15,36 +15,43 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.SemanticAttributes.DB_CONNECTION_STRING;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_NAME;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_OPERATION;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_STATEMENT;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.DB_USER;
-import static io.opentelemetry.semconv.SemanticAttributes.FAAS_INVOKED_NAME;
-import static io.opentelemetry.semconv.SemanticAttributes.FAAS_TRIGGER;
-import static io.opentelemetry.semconv.SemanticAttributes.GRAPHQL_OPERATION_TYPE;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_REQUEST_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_STATUS_CODE;
-import static io.opentelemetry.semconv.SemanticAttributes.HTTP_URL;
-import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_OPERATION;
-import static io.opentelemetry.semconv.SemanticAttributes.MESSAGING_SYSTEM;
-import static io.opentelemetry.semconv.SemanticAttributes.NETWORK_PEER_ADDRESS;
-import static io.opentelemetry.semconv.SemanticAttributes.NETWORK_PEER_PORT;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_PEER_NAME;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_PEER_PORT;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_SOCK_PEER_ADDR;
-import static io.opentelemetry.semconv.SemanticAttributes.NET_SOCK_PEER_PORT;
-import static io.opentelemetry.semconv.SemanticAttributes.PEER_SERVICE;
-import static io.opentelemetry.semconv.SemanticAttributes.RPC_METHOD;
-import static io.opentelemetry.semconv.SemanticAttributes.RPC_SERVICE;
-import static io.opentelemetry.semconv.SemanticAttributes.SERVER_ADDRESS;
-import static io.opentelemetry.semconv.SemanticAttributes.SERVER_PORT;
-import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_ADDRESS;
-import static io.opentelemetry.semconv.SemanticAttributes.SERVER_SOCKET_PORT;
-import static io.opentelemetry.semconv.SemanticAttributes.URL_FULL;
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
+import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_ADDRESS;
+import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_PORT;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_PORT;
+import static io.opentelemetry.semconv.UrlAttributes.URL_FULL;
+// These DB keys have been deprecated:
+// https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv-incubating/src/main/java/io/opentelemetry/semconv/incubating/DbIncubatingAttributes.java#L322-L327
+// They have been replaced with new keys:
+// https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv/src/main/java/io/opentelemetry/semconv/DbAttributes.java#L77
+// TODO: Supporting new keys. Cannot do this now as new keys are not available in OTel Agent 2.11.
+// TODO: Delete deprecated keys once they no longer exist in binding version of the upstream code.
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_USER;
+import static io.opentelemetry.semconv.incubating.FaasIncubatingAttributes.FAAS_INVOKED_NAME;
+import static io.opentelemetry.semconv.incubating.FaasIncubatingAttributes.FAAS_TRIGGER;
+import static io.opentelemetry.semconv.incubating.GraphqlIncubatingAttributes.GRAPHQL_OPERATION_TYPE;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_STATUS_CODE;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_URL;
+// https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv-incubating/src/main/java/io/opentelemetry/semconv/incubating/MessagingIncubatingAttributes.java#L236-L242
+// Deprecated, use {@code messaging.operation.type} instead.
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_SYSTEM;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_NAME;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_PORT;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_SOCK_PEER_ADDR;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_SOCK_PEER_PORT;
+import static io.opentelemetry.semconv.incubating.PeerIncubatingAttributes.PEER_SERVICE;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_METHOD;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
@@ -89,6 +96,7 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresentWithFallback;
 
 import com.amazonaws.arn.Arn;
 import io.opentelemetry.api.common.AttributeKey;
@@ -99,8 +107,6 @@ import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.data.EventData;
 import io.opentelemetry.sdk.trace.data.ExceptionEventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.semconv.ResourceAttributes;
-import io.opentelemetry.semconv.SemanticAttributes;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -126,7 +132,6 @@ import javax.annotation.Nullable;
  * represent "outgoing" traffic, and {@link SpanKind#INTERNAL} spans are ignored.
  */
 final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
-
   private static final Logger logger =
       Logger.getLogger(AwsMetricAttributeGenerator.class.getName());
 
@@ -289,9 +294,11 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     } else if (isKeyPresent(span, FAAS_INVOKED_NAME) || isKeyPresent(span, FAAS_TRIGGER)) {
       remoteService = getRemoteService(span, FAAS_INVOKED_NAME);
       remoteOperation = getRemoteOperation(span, FAAS_TRIGGER);
-    } else if (isKeyPresent(span, MESSAGING_SYSTEM) || isKeyPresent(span, MESSAGING_OPERATION)) {
+    } else if (isKeyPresent(span, MESSAGING_SYSTEM)
+        || isKeyPresentWithFallback(span, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION)) {
       remoteService = getRemoteService(span, MESSAGING_SYSTEM);
-      remoteOperation = getRemoteOperation(span, MESSAGING_OPERATION);
+      remoteOperation =
+          getRemoteOperationWithFallback(span, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
     } else if (isKeyPresent(span, GRAPHQL_OPERATION_TYPE)) {
       remoteService = GRAPHQL;
       remoteOperation = getRemoteOperation(span, GRAPHQL_OPERATION_TYPE);
@@ -768,7 +775,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * {address} attribute is retrieved in priority order:
    * - {@link SemanticAttributes#SERVER_ADDRESS},
    * - {@link SemanticAttributes#NET_PEER_NAME},
-   * - {@link SemanticAttributes#SERVER_SOCKET_ADDRESS}
+   * - {@link SemanticAttributes#NETWORK_PEER_ADDRESS}
    * - {@link SemanticAttributes#DB_CONNECTION_STRING}-Hostname
    * </pre>
    *
@@ -776,7 +783,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * {port} attribute is retrieved in priority order:
    * - {@link SemanticAttributes#SERVER_PORT},
    * - {@link SemanticAttributes#NET_PEER_PORT},
-   * - {@link SemanticAttributes#SERVER_SOCKET_PORT}
+   * - {@link SemanticAttributes#NETWORK_PEER_PORT}
    * - {@link SemanticAttributes#DB_CONNECTION_STRING}-Port
    * </pre>
    *
@@ -795,9 +802,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       String networkPeerAddress = span.getAttributes().get(NET_PEER_NAME);
       Long networkPeerPort = span.getAttributes().get(NET_PEER_PORT);
       dbConnection = buildDbConnection(networkPeerAddress, networkPeerPort);
-    } else if (isKeyPresent(span, SERVER_SOCKET_ADDRESS)) {
-      String serverSocketAddress = span.getAttributes().get(SERVER_SOCKET_ADDRESS);
-      Long serverSocketPort = span.getAttributes().get(SERVER_SOCKET_PORT);
+    } else if (isKeyPresent(span, NETWORK_PEER_ADDRESS)) {
+      String serverSocketAddress = span.getAttributes().get(NETWORK_PEER_ADDRESS);
+      Long serverSocketPort = span.getAttributes().get(NETWORK_PEER_PORT);
       dbConnection = buildDbConnection(serverSocketAddress, serverSocketPort);
     } else if (isKeyPresent(span, DB_CONNECTION_STRING)) {
       String connectionString = span.getAttributes().get(DB_CONNECTION_STRING);
@@ -948,6 +955,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteOperation = UNKNOWN_REMOTE_OPERATION;
     }
     return remoteOperation;
+  }
+
+  static String getRemoteOperationWithFallback(
+      SpanData span, AttributeKey<String> remoteOpKey, AttributeKey<String> remoteOpFallbackKey) {
+    String remoteOp = span.getAttributes().get(remoteOpKey);
+    if (remoteOp == null) {
+      return getRemoteOperation(span, remoteOpFallbackKey);
+    }
+    return remoteOp;
   }
 
   /**

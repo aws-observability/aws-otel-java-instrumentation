@@ -27,8 +27,8 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "2.11.0-adot1"
-val otelSnapshotVersion = "2.12.0"
+val otelVersion = "2.18.1"
+val otelSnapshotVersion = "2.19.0"
 val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
 val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
@@ -40,6 +40,10 @@ val dependencyBoms = listOf(
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
   "io.grpc:grpc-bom:1.59.1",
+  // netty-bom is a fix for CVE-2025-58056 (https://github.com/advisories/GHSA-fghv-69vj-qj49).
+  // Remove once https://github.com/aws/aws-sdk-java-v2/pull/6398 and https://github.com/aws/aws-sdk-java/pull/3192
+  // are both merged and released, and we update the corresponding dependencies.
+  "io.netty:netty-bom:4.1.126.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
   "org.junit:junit-bom:5.10.1",
@@ -73,8 +77,8 @@ val dependencyLists = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.12.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.39.0-adot1",
-  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.39.0-alpha",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.48.0-adot1",
+  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.48.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
   "io.opentelemetry:opentelemetry-extension-aws:1.20.1",

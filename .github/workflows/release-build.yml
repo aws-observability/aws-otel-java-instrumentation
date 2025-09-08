@@ -24,12 +24,30 @@ jobs:
     environment: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+
+      - name: Check main build status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOW_ID=$(gh api repos/${{ github.repository }}/actions/workflows --jq '.workflows[] | select(.name=="Java Agent Main Build") | .id')
+          LATEST_RUN=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs --jq '[.workflow_runs[] | select(.head_branch=="${{ github.ref_name }}")] | sort_by(.created_at) | .[-1] | {conclusion, status}')
+          STATUS=$(echo "$LATEST_RUN" | jq -r '.status')
+          CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
+          
+          if [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ]; then
+            echo "Main build is still running (status: $STATUS). Cannot proceed with release."
+            exit 1
+          elif [ "$CONCLUSION" != "success" ]; then
+            echo "Latest main build on branch ${{ github.ref_name }} conclusion: $CONCLUSION"
+            exit 1
+          fi
+          echo "Main build succeeded, proceeding with release"
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: 'temurin'
-      - uses: gradle/wrapper-validation-action@v1
+      - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies

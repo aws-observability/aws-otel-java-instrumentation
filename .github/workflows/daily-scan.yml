@@ -8,8 +8,10 @@
 name: Daily scan
 
 on:
-  schedule:
-    - cron: '0 18 * * *' # scheduled to run at 18:00 UTC every day
+  schedule: # scheduled to run at 14:00, 20:00, 02:00 UTC every day
+    - cron: '0 14 * * *' # 6:00/7:00   PST/PDT (14:00 UTC)
+    - cron: '0 20 * * *' # 12:00/13:00 PST/PDT (20:00 UTC)
+    - cron: '0 02 * * *' # 18:00/19:00 PST/PDT (02:00 UTC)
   workflow_dispatch: # be able to run the workflow on demand
 
 env:
@@ -24,14 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo for dependency scan
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Java for dependency scan
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: 'temurin'
 
       - name: Configure AWS credentials for dependency scan
@@ -41,7 +43,7 @@ jobs:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Get NVD API key for dependency scan
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
         id: nvd_api_key
         with:
           secret-ids: ${{ secrets.NVD_API_KEY_SECRET_ARN }}
@@ -76,6 +78,17 @@ jobs:
         if: ${{ steps.dep_scan.outcome != 'success' }}
         run: less dependency-check-report.html
 
+      - name: Configure AWS credentials for image scan
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Login to Public ECR
+        uses: docker/login-action@v3
+        with:
+          registry: public.ecr.aws
+
       - name: Perform high image scan on v1
         if: always()
         id: high_scan_v1
@@ -83,6 +96,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'CRITICAL,HIGH'
+          logout: 'false'
 
       - name: Perform low image scan on v1
         if: always()
@@ -91,22 +105,25 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'MEDIUM,LOW,UNKNOWN'
+          logout: 'false'
 
       - name: Perform high image scan on v2
         if: always()
         id: high_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.4"
           severity: 'CRITICAL,HIGH'
+          logout: 'false'
 
       - name: Perform low image scan on v2
         if: always()
         id: low_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.4"
           severity: 'MEDIUM,LOW,UNKNOWN'
+          logout: 'false'
 
       - name: Configure AWS Credentials for emitting metrics
         if: always()
