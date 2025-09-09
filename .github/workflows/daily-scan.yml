@@ -37,7 +37,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Configure AWS credentials for dependency scan
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
@@ -79,7 +79,7 @@ jobs:
         run: less dependency-check-report.html
 
       - name: Configure AWS credentials for image scan
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
@@ -127,7 +127,7 @@ jobs:
 
       - name: Configure AWS Credentials for emitting metrics
         if: always()
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
           aws-region:  ${{ env.AWS_DEFAULT_REGION }}

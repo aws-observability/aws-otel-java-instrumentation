@@ -87,7 +87,7 @@ jobs:
           SECRET_KEY=${SECRET_KEY//-/_}
           echo "SECRET_KEY=${SECRET_KEY}" >> $GITHUB_ENV
 
-      - uses: aws-actions/configure-aws-credentials@v4.0.2
+      - uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets[env.SECRET_KEY] }}
           role-duration-seconds: 1200
