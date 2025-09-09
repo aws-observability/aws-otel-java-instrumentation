@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
@@ -73,7 +73,7 @@ jobs:
           parse-json-secrets: true
 
       - name: Setup Git
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}

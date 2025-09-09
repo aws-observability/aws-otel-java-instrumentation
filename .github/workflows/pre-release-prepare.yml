@@ -39,7 +39,7 @@ jobs:
           parse-json-secrets: true
 
       - name: Checkout main branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           ref: 'main'
           token: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
