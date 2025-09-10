@@ -60,10 +60,10 @@ public abstract class JMXMetricsContractTestBase extends ContractTestBase {
   protected long getThreshold(String metricName) {
     long threshold = 0;
     switch (metricName) {
-        // If maximum memory size is undefined, then value is -1
-        // https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/MemoryUsage.html#getMax()
-        // Thread count can be negative when excutor is null
-        // https://github.com/apache/tomcat/blob/1afe41491f0e56ec0a776db5ff84607f87ce6640/java/org/apache/tomcat/util/net/AbstractEndpoint.java#L1204
+      // If maximum memory size is undefined, then value is -1
+      // https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/MemoryUsage.html#getMax()
+      // Thread count can be negative when excutor is null
+      // https://github.com/apache/tomcat/blob/1afe41491f0e56ec0a776db5ff84607f87ce6640/java/org/apache/tomcat/util/net/AbstractEndpoint.java#L1204
       case JMXMetricsConstants.TOMCAT_THREADS:
         threshold = -2;
         break;
