@@ -23,7 +23,7 @@ jobs:
           cache: 'gradle'
 
       - name: Configure AWS credentials for Testing Tracing
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.XRAY_UDP_EXPORTER_TEST_ROLE }}
           aws-region: 'us-east-1'

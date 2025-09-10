@@ -59,7 +59,7 @@ jobs:
     needs: check-version
     steps:
       - name: Configure AWS credentials for BOT secrets
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_SECRETS_MANAGER }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
