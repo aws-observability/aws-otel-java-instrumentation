@@ -8,6 +8,37 @@ env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
 
 jobs:
+  changelog-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check CHANGELOG
+        run: |
+          # Check if PR is from bot
+          if [[ "${{ github.event.pull_request.user.login }}" == "aws-application-signals-bot" ]]; then
+            echo "Skipping: PR from aws-application-signals-bot"
+            exit 0
+          fi
+          
+          # Check for Skip Changelog label
+          if echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]' | grep -q "Skip Changelog"; then
+            echo "Skip Changelog label found - check passed"
+            exit 0
+          fi
+          
+          # Fetch base branch and check for CHANGELOG modifications
+          git fetch origin ${{ github.base_ref }}
+          if git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -q "CHANGELOG.md"; then
+            echo "CHANGELOG.md entry found - check passed"
+            exit 0
+          fi
+          
+          echo "It looks like you didn't add an entry to CHANGELOG.md. If this change affects the SDK behavior, please update CHANGELOG.md and link this PR in your entry. If this PR does not need a CHANGELOG entry, you can add the 'Skip Changelog' label to this PR."
+          exit 1
+
   testpatch:
     name: Test patches applied to dependencies
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
