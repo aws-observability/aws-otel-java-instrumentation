@@ -1,3 +1,52 @@
+diff --git a/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java b/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java
+index 2d8de301..54e26e12 100644
+--- a/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java
++++ b/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java
+@@ -68,6 +68,9 @@ public final class AwsXrayPropagator implements TextMapPropagator {
+   private static final char IS_SAMPLED = '1';
+   private static final char NOT_SAMPLED = '0';
+
++  // Copied from AwsSamplingResult in aws-xray extension
++  private static final String AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY = "xrsr";
++
+   private static final List<String> FIELDS = Collections.singletonList(TRACE_HEADER_KEY);
+
+   private static final AwsXrayPropagator INSTANCE = new AwsXrayPropagator();
+@@ -127,6 +130,16 @@ public final class AwsXrayPropagator implements TextMapPropagator {
+         .append(samplingFlag);
+
+     Baggage baggage = Baggage.fromContext(context);
++    // Get sampling rule from trace state and inject into baggage
++    // This is a back up in case the next service does not have trace state propagation
++    String ruleFromTraceState =
++        spanContext.getTraceState().get(AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
++    if (ruleFromTraceState != null) {
++      baggage =
++          baggage.toBuilder()
++              .put(AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY, ruleFromTraceState)
++              .build();
++    }
+     // Truncate baggage to 256 chars per X-Ray spec.
+     baggage.forEach(
+         new BiConsumer<String, BaggageEntry>() {
+@@ -236,13 +249,15 @@ public final class AwsXrayPropagator implements TextMapPropagator {
+     if (spanId == null || traceId == null) {
+       logger.finest("Both traceId and spanId are required to extract a valid span context. ");
+     }
+-
++    SpanContext upstreamSpanContext = Span.fromContext(context).getSpanContext();
+     SpanContext spanContext =
+         SpanContext.createFromRemoteParent(
+             StringUtils.padLeft(traceId, TraceId.getLength()),
+             spanId,
+             isSampled ? TraceFlags.getSampled() : TraceFlags.getDefault(),
+-            TraceState.getDefault());
++            upstreamSpanContext.isValid()
++                ? upstreamSpanContext.getTraceState()
++                : TraceState.getDefault());
+     if (spanContext.isValid()) {
+       context = context.with(Span.wrap(spanContext));
+     }
 diff --git a/aws-xray/build.gradle.kts b/aws-xray/build.gradle.kts
 index ccec9d52..fddbad18 100644
 --- a/aws-xray/build.gradle.kts
@@ -20,10 +69,10 @@ index ccec9d52..fddbad18 100644
    testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java
 new file mode 100644
-index 00000000..41f22f90
+index 00000000..4aed8959
 --- /dev/null
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsSamplingResult.java
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,56 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -35,6 +84,7 @@ index 00000000..41f22f90
 +import io.opentelemetry.api.trace.TraceState;
 +import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
 +import io.opentelemetry.sdk.trace.samplers.SamplingResult;
++import javax.annotation.Nullable;
 +
 +final class AwsSamplingResult implements SamplingResult {
 +
@@ -44,17 +94,17 @@ index 00000000..41f22f90
 +
 +  private final SamplingDecision decision;
 +  private final Attributes attributes;
-+  private final String samplingRuleName;
++  @Nullable private final String samplingRuleName;
 +
 +  private AwsSamplingResult(
-+      SamplingDecision decision, Attributes attributes, String samplingRuleName) {
++      SamplingDecision decision, Attributes attributes, @Nullable String samplingRuleName) {
 +    this.decision = decision;
 +    this.attributes = attributes;
 +    this.samplingRuleName = samplingRuleName;
 +  }
 +
 +  static AwsSamplingResult create(
-+      SamplingDecision decision, Attributes attributes, String samplingRuleName) {
++      SamplingDecision decision, Attributes attributes, @Nullable String samplingRuleName) {
 +    return new AwsSamplingResult(decision, attributes, samplingRuleName);
 +  }
 +
@@ -70,7 +120,8 @@ index 00000000..41f22f90
 +
 +  @Override
 +  public TraceState getUpdatedTraceState(TraceState parentTraceState) {
-+    if (parentTraceState.get(AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY) == null) {
++    if (parentTraceState.get(AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY) == null
++        && this.samplingRuleName != null) {
 +      return parentTraceState.toBuilder()
 +          .put(AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY, samplingRuleName)
 +          .build();
@@ -911,10 +962,10 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..406941ba 100644
+index 75977dc0..a605bfdc 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-@@ -5,42 +5,79 @@
+@@ -5,42 +5,81 @@
 
  package io.opentelemetry.contrib.awsxray;
 
@@ -922,9 +973,11 @@ index 75977dc0..406941ba 100644
 +
 +import com.github.benmanes.caffeine.cache.Cache;
 +import com.github.benmanes.caffeine.cache.Caffeine;
++import io.opentelemetry.api.baggage.Baggage;
 +import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.Attributes;
 +import io.opentelemetry.api.trace.Span;
++import io.opentelemetry.api.trace.SpanContext;
  import io.opentelemetry.api.trace.SpanKind;
 +import io.opentelemetry.api.trace.StatusCode;
  import io.opentelemetry.context.Context;
@@ -995,7 +1048,7 @@ index 75977dc0..406941ba 100644
      this(
          clientId,
          resource,
-@@ -49,8 +86,22 @@ final class XrayRulesSampler implements Sampler {
+@@ -49,8 +88,22 @@ final class XrayRulesSampler implements Sampler {
          rules.stream()
              // Lower priority value takes precedence so normal ascending sort.
              .sorted(Comparator.comparingInt(GetSamplingRulesResponse.SamplingRule::getPriority))
@@ -1020,7 +1073,7 @@ index 75977dc0..406941ba 100644
    }
 
    private XrayRulesSampler(
-@@ -58,12 +109,36 @@ final class XrayRulesSampler implements Sampler {
+@@ -58,12 +111,36 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
        Clock clock,
        Sampler fallbackSampler,
@@ -1058,15 +1111,22 @@ index 75977dc0..406941ba 100644
    }
 
    @Override
-@@ -74,10 +149,36 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +151,44 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
++    SpanContext parentSpanContext = Span.fromContext(parentContext).getSpanContext();
 +    String upstreamMatchedRule =
-+        Span.fromContext(parentContext)
-+            .getSpanContext()
++        parentSpanContext
 +            .getTraceState()
 +            .get(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
++    if (upstreamMatchedRule == null) {
++      Baggage b = Baggage.fromContext(parentContext);
++      upstreamMatchedRule =
++          b != null
++              ? b.getEntryValue(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY)
++              : null;
++    }
      for (SamplingRuleApplier applier : ruleAppliers) {
        if (applier.matches(attributes, resource)) {
 -        return applier.shouldSample(
@@ -1077,27 +1137,28 @@ index 75977dc0..406941ba 100644
 +        // If the trace state has a sampling rule reference, propagate it
 +        // Otherwise, encode and propagate the matched sampling rule using AwsSamplingResult
 +        String ruleToPropagate;
++        boolean isFromUpstream = parentSpanContext.isValid();
 +        if (upstreamMatchedRule != null) {
 +          ruleToPropagate = hashToRuleMap.getOrDefault(upstreamMatchedRule, applier.getRuleName());
++        } else if (isFromUpstream) {
++          ruleToPropagate = null;
 +        } else {
 +          ruleToPropagate = applier.getRuleName();
 +        }
 +        String hashedRule = ruleToHashMap.getOrDefault(ruleToPropagate, ruleToPropagate);
-+        if (this.adaptiveSamplingConfig != null
-+            && this.adaptiveSamplingConfig.getAnomalyCaptureLimit() != null) {
-+          // If the span is capturable based on local SDK config, add sampling rule attribute
-+          return AwsSamplingResult.create(
-+              result.getDecision(),
-+              result.getAttributes().toBuilder()
-+                  .put(AWS_XRAY_SAMPLING_RULE.getKey(), ruleToPropagate)
-+                  .build(),
-+              hashedRule);
-+        }
-+        return AwsSamplingResult.create(result.getDecision(), result.getAttributes(), hashedRule);
++
++        return AwsSamplingResult.create(
++            result.getDecision(),
++            result.getAttributes().toBuilder()
++                .put(
++                    AWS_XRAY_SAMPLING_RULE.getKey(),
++                    ruleToPropagate != null ? ruleToPropagate : "UNKNOWN")
++                .build(),
++            hashedRule);
        }
      }
 
-@@ -96,7 +197,185 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +207,97 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1113,6 +1174,8 @@ index 75977dc0..406941ba 100644
 +        int anomalyTracesPerSecond = config.getAnomalyCaptureLimit().getAnomalyTracesPerSecond();
 +        this.anomalyCaptureRateLimiter =
 +            new RateLimiter(anomalyTracesPerSecond, anomalyTracesPerSecond, clock);
++      } else {
++        this.anomalyCaptureRateLimiter = new RateLimiter(1, 1, clock);
 +      }
 +    }
 +  }
@@ -1121,15 +1184,124 @@ index 75977dc0..406941ba 100644
 +    if (!adaptiveSamplingRuleExists && this.adaptiveSamplingConfig == null) {
 +      return;
 +    }
-+    Long statusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
 +
++    AnomalyDetectionResult result = isAnomaly(span, spanData);
++    boolean shouldBoostSampling = result.shouldBoostSampling();
++    boolean shouldCaptureAnomalySpan = result.shouldCaptureAnomalySpan();
++
++    String traceId = spanData.getTraceId();
++    AwsXrayAdaptiveSamplingConfig.UsageType existingUsage = traceUsageCache.getIfPresent(traceId);
++    boolean isNewTrace = existingUsage == null;
++
++    // Anomaly Capture
++    boolean isSpanCaptured = false;
++    if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForAnomalyTraceCapture(existingUsage)
++        || (shouldCaptureAnomalySpan
++            && !span.getSpanContext().isSampled()
++            && anomalyCaptureRateLimiter != null
++            && anomalyCaptureRateLimiter.trySpend(1))) {
++      spanBatcher.accept(span);
++      isSpanCaptured = true;
++    }
++
++    // Sampling Boost
++    boolean isCountedAsAnomalyForBoost = false;
++    if (shouldBoostSampling || isNewTrace) {
++      String traceStateValue =
++          span.getSpanContext()
++              .getTraceState()
++              .get(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
++      String upstreamRuleName =
++          traceStateValue != null
++              ? hashToRuleMap.getOrDefault(traceStateValue, traceStateValue)
++              : traceStateValue;
++      SamplingRuleApplier ruleToReportTo = null;
++      SamplingRuleApplier matchedRule = null;
++      for (SamplingRuleApplier applier : ruleAppliers) {
++        // Rule propagated from when sampling decision was made, otherwise the matched rule
++        if (applier.getRuleName().equals(upstreamRuleName)) {
++          ruleToReportTo = applier;
++          break;
++        }
++        if (applier.matches(spanData.getAttributes(), resource)) {
++          matchedRule = applier;
++        }
++      }
++      if (ruleToReportTo == null) {
++        if (matchedRule == null) {
++          logger.log(
++              Level.FINE,
++              "No sampling rule matched the request. This is a bug in either the OpenTelemetry SDK or X-Ray.");
++        } else if (!span.getParentSpanContext().isValid()) {
++          // Span is not from an upstream service, so we should boost the matched rule
++          ruleToReportTo = matchedRule;
++        }
++      }
++
++      if (shouldBoostSampling
++          && ruleToReportTo != null
++          && ruleToReportTo.hasBoost()
++          && !AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
++        ruleToReportTo.countAnomalyTrace(span);
++        isCountedAsAnomalyForBoost = true;
++      }
++      if (isNewTrace && ruleToReportTo != null && ruleToReportTo.hasBoost()) {
++        ruleToReportTo.countTrace();
++      }
++    }
++
++    updateTraceUsageCache(traceId, isSpanCaptured, isCountedAsAnomalyForBoost);
++  }
++
++  List<SamplingRuleApplier.SamplingRuleStatisticsSnapshot> snapshot(Date now) {
+     return Arrays.stream(ruleAppliers)
+         .map(rule -> rule.snapshot(now))
+         .filter(Objects::nonNull)
+@@ -115,15 +316,16 @@ final class XrayRulesSampler implements Sampler {
+       Map<String, SamplingTargetDocument> ruleTargets,
+       Set<String> requestedTargetRuleNames,
+       Date now) {
++    long currentNanoTime = clock.nanoTime();
+     long defaultNextSnapshotTimeNanos =
+-        clock.nanoTime() + AwsXrayRemoteSampler.DEFAULT_TARGET_INTERVAL_NANOS;
++        currentNanoTime + AwsXrayRemoteSampler.DEFAULT_TARGET_INTERVAL_NANOS;
+     SamplingRuleApplier[] newAppliers =
+         Arrays.stream(ruleAppliers)
+             .map(
+                 rule -> {
+                   SamplingTargetDocument target = ruleTargets.get(rule.getRuleName());
+                   if (target != null) {
+-                    return rule.withTarget(target, now);
++                    return rule.withTarget(target, now, currentNanoTime);
+                   }
+                   if (requestedTargetRuleNames.contains(rule.getRuleName())) {
+                     // In practice X-Ray should return a target for any rule we requested but
+@@ -135,6 +337,216 @@ final class XrayRulesSampler implements Sampler {
+                   return rule;
+                 })
+             .toArray(SamplingRuleApplier[]::new);
+-    return new XrayRulesSampler(clientId, resource, clock, fallbackSampler, newAppliers);
++    return new XrayRulesSampler(
++        clientId,
++        resource,
++        clock,
++        fallbackSampler,
++        newAppliers,
++        ruleToHashMap,
++        adaptiveSamplingRuleExists,
++        adaptiveSamplingConfig,
++        traceUsageCache);
++  }
++
++  private AnomalyDetectionResult isAnomaly(ReadableSpan span, SpanData spanData) {
 +    boolean shouldBoostSampling = false;
 +    boolean shouldCaptureAnomalySpan = false;
++    Long statusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
 +
 +    List<AwsXrayAdaptiveSamplingConfig.AnomalyConditions> anomalyConditions =
 +        adaptiveSamplingConfig != null ? adaptiveSamplingConfig.getAnomalyConditions() : null;
 +    // Empty list -> no conditions will apply and we will not do anything
-+    if (anomalyConditions != null && !anomalyConditions.isEmpty()) {
++    if (anomalyConditions != null) {
 +      String operation = spanData.getAttributes().get(AwsAttributeKeys.AWS_LOCAL_OPERATION);
 +      if (operation == null) {
 +        operation = generateIngressOperation(spanData);
@@ -1197,127 +1369,7 @@ index 75977dc0..406941ba 100644
 +      shouldCaptureAnomalySpan = true;
 +    }
 +
-+    String traceId = spanData.getTraceId();
-+    AwsXrayAdaptiveSamplingConfig.UsageType existingUsage = traceUsageCache.getIfPresent(traceId);
-+    boolean isNewTrace = existingUsage == null;
-+
-+    // Anomaly Capture
-+    boolean isSpanCaptured = false;
-+    if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForAnomalyTraceCapture(existingUsage)
-+        || (shouldCaptureAnomalySpan
-+            && !span.getSpanContext().isSampled()
-+            && anomalyCaptureRateLimiter != null
-+            && anomalyCaptureRateLimiter.trySpend(1))) {
-+      spanBatcher.accept(span);
-+      isSpanCaptured = true;
-+    }
-+
-+    // Sampling Boost
-+    boolean isCountedAsAnomalyForBoost = false;
-+    if (shouldBoostSampling || isNewTrace) {
-+      String traceStateValue =
-+          span.getSpanContext()
-+              .getTraceState()
-+              .get(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
-+      String ruleNameForBoostStats =
-+          traceStateValue != null
-+              ? hashToRuleMap.getOrDefault(traceStateValue, traceStateValue)
-+              : traceStateValue;
-+      SamplingRuleApplier ruleToReportTo = null;
-+      SamplingRuleApplier matchedRule = null;
-+      for (SamplingRuleApplier applier : ruleAppliers) {
-+        // Rule propagated from when sampling decision was made, otherwise the matched rule
-+        if (applier.getRuleName().equals(ruleNameForBoostStats)) {
-+          ruleToReportTo = applier;
-+          break;
-+        }
-+        if (applier.matches(spanData.getAttributes(), resource)) {
-+          matchedRule = applier;
-+        }
-+      }
-+      if (ruleToReportTo == null) {
-+        if (matchedRule == null) {
-+          logger.log(
-+              Level.FINE,
-+              "No sampling rule matched the request. This is a bug in either the OpenTelemetry SDK or X-Ray.");
-+        } else {
-+          ruleToReportTo = matchedRule;
-+        }
-+      }
-+
-+      if (shouldBoostSampling
-+          && ruleToReportTo != null
-+          && ruleToReportTo.hasBoost()
-+          && !AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
-+        ruleToReportTo.countAnomalyTrace(span);
-+        isCountedAsAnomalyForBoost = true;
-+      }
-+      if (isNewTrace && ruleToReportTo != null && ruleToReportTo.hasBoost()) {
-+        ruleToReportTo.countTrace();
-+      }
-+    }
-+
-+    // Any interaction with a cache entry will reset the expiration timer of that entry
-+    if (isSpanCaptured && isCountedAsAnomalyForBoost) {
-+      this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
-+    } else if (isSpanCaptured) {
-+      if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
-+        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
-+      } else {
-+        this.traceUsageCache.put(
-+            traceId, AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE);
-+      }
-+    } else if (isCountedAsAnomalyForBoost) {
-+      if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForAnomalyTraceCapture(existingUsage)) {
-+        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
-+      } else {
-+        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST);
-+      }
-+    } else if (existingUsage != null) {
-+      this.traceUsageCache.put(traceId, existingUsage);
-+    } else {
-+      this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.NEITHER);
-+    }
-+  }
-+
-+  List<SamplingRuleApplier.SamplingRuleStatisticsSnapshot> snapshot(Date now) {
-     return Arrays.stream(ruleAppliers)
-         .map(rule -> rule.snapshot(now))
-         .filter(Objects::nonNull)
-@@ -115,15 +394,16 @@ final class XrayRulesSampler implements Sampler {
-       Map<String, SamplingTargetDocument> ruleTargets,
-       Set<String> requestedTargetRuleNames,
-       Date now) {
-+    long currentNanoTime = clock.nanoTime();
-     long defaultNextSnapshotTimeNanos =
--        clock.nanoTime() + AwsXrayRemoteSampler.DEFAULT_TARGET_INTERVAL_NANOS;
-+        currentNanoTime + AwsXrayRemoteSampler.DEFAULT_TARGET_INTERVAL_NANOS;
-     SamplingRuleApplier[] newAppliers =
-         Arrays.stream(ruleAppliers)
-             .map(
-                 rule -> {
-                   SamplingTargetDocument target = ruleTargets.get(rule.getRuleName());
-                   if (target != null) {
--                    return rule.withTarget(target, now);
-+                    return rule.withTarget(target, now, currentNanoTime);
-                   }
-                   if (requestedTargetRuleNames.contains(rule.getRuleName())) {
-                     // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +415,92 @@ final class XrayRulesSampler implements Sampler {
-                   return rule;
-                 })
-             .toArray(SamplingRuleApplier[]::new);
--    return new XrayRulesSampler(clientId, resource, clock, fallbackSampler, newAppliers);
-+    return new XrayRulesSampler(
-+        clientId,
-+        resource,
-+        clock,
-+        fallbackSampler,
-+        newAppliers,
-+        ruleToHashMap,
-+        adaptiveSamplingRuleExists,
-+        adaptiveSamplingConfig,
-+        traceUsageCache);
++    return new AnomalyDetectionResult(shouldBoostSampling, shouldCaptureAnomalySpan);
 +  }
 +
 +  static boolean isKeyPresent(SpanData span, AttributeKey<?> key) {
@@ -1361,6 +1413,33 @@ index 75977dc0..406941ba 100644
 +    return "/";
 +  }
 +
++  private void updateTraceUsageCache(
++      String traceId, boolean isSpanCaptured, boolean isCountedAsAnomalyForBoost) {
++    AwsXrayAdaptiveSamplingConfig.UsageType existingUsage = traceUsageCache.getIfPresent(traceId);
++
++    // Any interaction with a cache entry will reset the expiration timer of that entry
++    if (isSpanCaptured && isCountedAsAnomalyForBoost) {
++      this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++    } else if (isSpanCaptured) {
++      if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
++        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++      } else {
++        this.traceUsageCache.put(
++            traceId, AwsXrayAdaptiveSamplingConfig.UsageType.ANOMALY_TRACE_CAPTURE);
++      }
++    } else if (isCountedAsAnomalyForBoost) {
++      if (AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForAnomalyTraceCapture(existingUsage)) {
++        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.BOTH);
++      } else {
++        this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.SAMPLING_BOOST);
++      }
++    } else if (existingUsage != null) {
++      this.traceUsageCache.put(traceId, existingUsage);
++    } else {
++      this.traceUsageCache.put(traceId, AwsXrayAdaptiveSamplingConfig.UsageType.NEITHER);
++    }
++  }
++
 +  private static Map<String, String> createRuleHashMaps(
 +      List<GetSamplingRulesResponse.SamplingRule> rules) {
 +    Map<String, String> ruleToHashMap = new HashMap<>();
@@ -1395,6 +1474,24 @@ index 75977dc0..406941ba 100644
 +  Cache<String, AwsXrayAdaptiveSamplingConfig.UsageType> getTraceUsageCache() {
 +    traceUsageCache.cleanUp();
 +    return traceUsageCache;
++  }
++
++  private static class AnomalyDetectionResult {
++    private final boolean shouldBoostSampling;
++    private final boolean shouldCaptureAnomalySpan;
++
++    public AnomalyDetectionResult(boolean shouldBoostSampling, boolean shouldCaptureAnomalySpan) {
++      this.shouldBoostSampling = shouldBoostSampling;
++      this.shouldCaptureAnomalySpan = shouldCaptureAnomalySpan;
++    }
++
++    boolean shouldBoostSampling() {
++      return shouldBoostSampling;
++    }
++
++    boolean shouldCaptureAnomalySpan() {
++      return shouldCaptureAnomalySpan;
++    }
    }
  }
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
@@ -2034,7 +2131,7 @@ index 6bb6e82a..6d71711b 100644
      return applier.shouldSample(
          Context.current(),
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index 1ca8df34..72ec524b 100644
+index 1ca8df34..14ebdbda 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -5,17 +5,28 @@
@@ -2127,7 +2224,7 @@ index 1ca8df34..72ec524b 100644
 
      TestClock clock = TestClock.create();
      XrayRulesSampler sampler =
-@@ -103,22 +124,58 @@ class XrayRulesSamplerTest {
+@@ -103,22 +124,72 @@ class XrayRulesSamplerTest {
              Resource.getDefault(),
              clock,
              Sampler.alwaysOn(),
@@ -2141,7 +2238,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.RECORD_AND_SAMPLE,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("cat-rule")));
      assertThat(doSample(sampler, "cat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
@@ -2149,7 +2248,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.RECORD_AND_SAMPLE,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("cat-rule")));
      assertThat(doSample(sampler, "dog-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
@@ -2157,7 +2258,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.RECORD_AND_SAMPLE,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "dog-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
@@ -2165,7 +2268,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.DROP,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "bat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
@@ -2173,7 +2278,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.RECORD_AND_SAMPLE,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("bat-rule")));
      assertThat(doSample(sampler, "bat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
@@ -2181,7 +2288,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.RECORD_AND_SAMPLE,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("bat-rule")));
      assertThat(doSample(sampler, "unknown"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
@@ -2189,12 +2298,14 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.DROP,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("default-rule")));
 
      Instant now = Instant.ofEpochSecond(0, clock.now());
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
-@@ -128,10 +185,10 @@ class XrayRulesSamplerTest {
+@@ -128,10 +199,10 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
 
      SamplingTargetDocument catTarget =
@@ -2207,7 +2318,7 @@ index 1ca8df34..72ec524b 100644
 
      clock.advance(Duration.ofSeconds(10));
      now = Instant.ofEpochSecond(0, clock.now());
-@@ -145,16 +202,41 @@ class XrayRulesSamplerTest {
+@@ -145,16 +216,51 @@ class XrayRulesSamplerTest {
                  .collect(Collectors.toSet()),
              Date.from(now));
      assertThat(doSample(sampler, "dog-service"))
@@ -2216,7 +2327,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.RECORD_AND_SAMPLE,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "dog-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
@@ -2224,7 +2337,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.DROP,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("dog-rule")));
      assertThat(doSample(sampler, "unknown"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
@@ -2232,7 +2347,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.DROP,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("default-rule")));
      // Targets overridden to always drop.
      assertThat(doSample(sampler, "cat-service"))
@@ -2241,7 +2358,9 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.DROP,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("cat-rule")));
      assertThat(doSample(sampler, "bat-service"))
 -        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
@@ -2249,12 +2368,14 @@ index 1ca8df34..72ec524b 100644
 +        .isEqualTo(
 +            AwsSamplingResult.create(
 +                SamplingDecision.DROP,
-+                Attributes.empty(),
++                Attributes.builder()
++                    .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .build(),
 +                XrayRulesSampler.hashRuleName("bat-rule")));
 
      // Minimum is batTarget, 5s from now
      assertThat(sampler.nextTargetFetchTimeNanos())
-@@ -169,6 +251,867 @@ class XrayRulesSamplerTest {
+@@ -169,6 +275,891 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
    }
 
@@ -2596,6 +2717,10 @@ index 1ca8df34..72ec524b 100644
 +        .thenReturn(
 +            SpanContext.create(
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++    when(readableSpanMock.getParentSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
 +    SpanData spanDataMock = mock(SpanData.class);
 +    Attributes attributesMock = mock(Attributes.class);
 +    when(spanDataMock.getAttributes()).thenReturn(attributesMock);
@@ -2740,6 +2865,10 @@ index 1ca8df34..72ec524b 100644
 +        .thenReturn(
 +            SpanContext.create(
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++    when(readableSpanMock.getParentSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
 +    when(readableSpanMock.getAttribute(any())).thenReturn("test-operation");
 +    when(readableSpanMock.getLatencyNanos()).thenReturn(1L);
 +
@@ -2805,6 +2934,10 @@ index 1ca8df34..72ec524b 100644
 +
 +    ReadableSpan readableSpanMock = mock(ReadableSpan.class);
 +    when(readableSpanMock.getSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++    when(readableSpanMock.getParentSpanContext())
 +        .thenReturn(
 +            SpanContext.create(
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
@@ -2874,6 +3007,10 @@ index 1ca8df34..72ec524b 100644
 +
 +    ReadableSpan readableSpanMock = mock(ReadableSpan.class);
 +    when(readableSpanMock.getSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++    when(readableSpanMock.getParentSpanContext())
 +        .thenReturn(
 +            SpanContext.create(
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
@@ -2962,6 +3099,10 @@ index 1ca8df34..72ec524b 100644
 +        .thenReturn(
 +            SpanContext.create(
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++    when(readableSpanMock.getParentSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
 +
 +    SpanData spanDataMock = mock(SpanData.class);
 +    Attributes attributesMock = mock(Attributes.class);
@@ -3042,6 +3183,10 @@ index 1ca8df34..72ec524b 100644
 +
 +    ReadableSpan readableSpanMock = mock(ReadableSpan.class);
 +    when(readableSpanMock.getSpanContext())
++        .thenReturn(
++            SpanContext.create(
++                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
++    when(readableSpanMock.getParentSpanContext())
 +        .thenReturn(
 +            SpanContext.create(
 +                "TRACE_ID", "SPAN_ID", TraceFlags.getDefault(), TraceState.getDefault()));
