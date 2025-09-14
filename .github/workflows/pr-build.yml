@@ -17,15 +17,20 @@ jobs:
           
       - name: Check CHANGELOG
         run: |
-          # Check if PR is from bot
+          # Check if PR is from workflows bot or dependabot
           if [[ "${{ github.event.pull_request.user.login }}" == "aws-application-signals-bot" ]]; then
-            echo "Skipping: PR from aws-application-signals-bot"
+            echo "Skipping check: PR from aws-application-signals-bot"
+            exit 0
+          fi
+          
+          if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+            echo "Skipping check: PR from dependabot"
             exit 0
           fi
           
           # Check for Skip Changelog label
-          if echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]' | grep -q "Skip Changelog"; then
-            echo "Skip Changelog label found - check passed"
+          if echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]' | grep -q "skip changelog"; then
+            echo "Skipping check: Skip Changelog label found"
             exit 0
           fi
           
