@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 > **Note:** This CHANGELOG was created starting after version 2.11.4. Earlier changes are not documented here.
 
 For any change that affects end users of this package, please add an entry under the **Unreleased** section. Briefly summarize the change and provide the link to the PR. Example:
+
 - add SigV4 authentication for HTTP exporter
   ([#1019](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1019))
 
