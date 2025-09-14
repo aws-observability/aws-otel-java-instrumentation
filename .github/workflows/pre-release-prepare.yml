@@ -97,7 +97,6 @@ jobs:
       - name: Update CHANGELOG for release
         if: github.event.inputs.is_patch != 'true'
         run: |
-          # Replace "## Unreleased" with "## ${VERSION} - $(date +%Y-%m-%d)" for new releases
           sed -i "s/## Unreleased/## Unreleased\n\n## v${VERSION} - $(date +%Y-%m-%d)/" CHANGELOG.md
           git add CHANGELOG.md
           git commit -m "Update CHANGELOG for version ${VERSION}"
