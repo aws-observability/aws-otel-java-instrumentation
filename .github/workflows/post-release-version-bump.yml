@@ -6,6 +6,10 @@ on:
       version:
         description: 'Version number (e.g., 1.0.1)'
         required: true
+    is_patch:
+        description: 'Is this a patch? (true or false)'
+        required: true
+        default: 'false'
 
 env:
   AWS_DEFAULT_REGION: us-east-1
@@ -100,8 +104,19 @@ jobs:
           sed -i'' -e "s/val adotVersion = \".*\"/val adotVersion = \"${DEV_VERSION}\"/" version.gradle.kts
           VERSION="${{ github.event.inputs.version }}"
           sed -i'' -e 's/adot-autoinstrumentation-java:v2.*"/adot-autoinstrumentation-java:v'$VERSION'"/' .github/workflows/daily-scan.yml
+
+          # for patch releases, avoid merge conflict by manually resolving CHANGELOG with main
+          if [[ "${{ github.event.inputs.is_patch }}" == "true" ]]; then            
+            git fetch origin main
+            git show origin/main:CHANGELOG.md | sed -n '/## Unreleased/,/^## v[0-9]/p' | sed '$d' | tail -n +2 | sed '/^$/d' > /tmp/unreleased_content.txt
+                        
+            # Insert the content right after the existing "## Unreleased" header
+            sed -i '/## Unreleased/r /tmp/unreleased_content.txt' CHANGELOG.md
+          fi
+
           git add version.gradle.kts
           git add .github/workflows/daily-scan.yml
+          git add CHANGELOG.md
           git commit -m "Prepare main for next development cycle: Update version to $DEV_VERSION"
           git push --set-upstream origin "prepare-main-for-next-dev-cycle-${VERSION}"
 
