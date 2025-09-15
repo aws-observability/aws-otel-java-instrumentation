@@ -962,7 +962,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..a605bfdc 100644
+index 75977dc0..fae13433 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,81 @@
@@ -1111,7 +1111,7 @@ index 75977dc0..a605bfdc 100644
    }
 
    @Override
-@@ -74,10 +151,44 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +151,43 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1137,15 +1137,14 @@ index 75977dc0..a605bfdc 100644
 +        // If the trace state has a sampling rule reference, propagate it
 +        // Otherwise, encode and propagate the matched sampling rule using AwsSamplingResult
 +        String ruleToPropagate;
-+        boolean isFromUpstream = parentSpanContext.isValid();
 +        if (upstreamMatchedRule != null) {
-+          ruleToPropagate = hashToRuleMap.getOrDefault(upstreamMatchedRule, applier.getRuleName());
-+        } else if (isFromUpstream) {
++          ruleToPropagate = hashToRuleMap.getOrDefault(upstreamMatchedRule, null);
++        } else if (parentSpanContext.isValid()) {
 +          ruleToPropagate = null;
 +        } else {
 +          ruleToPropagate = applier.getRuleName();
 +        }
-+        String hashedRule = ruleToHashMap.getOrDefault(ruleToPropagate, ruleToPropagate);
++        String hashedRule = ruleToHashMap.getOrDefault(ruleToPropagate, upstreamMatchedRule);
 +
 +        return AwsSamplingResult.create(
 +            result.getDecision(),
@@ -1158,7 +1157,7 @@ index 75977dc0..a605bfdc 100644
        }
      }
 
-@@ -96,7 +207,97 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +206,97 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1257,7 +1256,7 @@ index 75977dc0..a605bfdc 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +316,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +315,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1276,7 +1275,7 @@ index 75977dc0..a605bfdc 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +337,216 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +336,216 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
