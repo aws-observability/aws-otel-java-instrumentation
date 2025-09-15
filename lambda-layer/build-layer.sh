@@ -2,39 +2,7 @@
 set -e
 
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
-
-## Get ADOT version
-echo "Info: Getting ADOT Version"
-pushd "$SOURCEDIR"/..
-version=$(./gradlew -q printVersion)
-echo "Found ADOT Version: ${version}"
-popd
-
-## Get OTel version
-echo "Info: Getting OTEL Version"
 file="$SOURCEDIR/../.github/patches/versions"
-otel_instrumentation_version=$(awk -F'=v' '/OTEL_JAVA_INSTRUMENTATION_VERSION/ {print $2}' "$file")
-echo "Found OTEL Version: ${otel_instrumentation_version}"
-# Exit if the version is empty or null
-if [[ -z "$otel_instrumentation_version" ]]; then
-  echo "Error: Version could not be found in ${file}."
-  exit 1
-fi
-
-
-## Clone and Patch the OpenTelemetry Java Instrumentation Repository
-echo "Info: Cloning and Patching OpenTelemetry Java Instrumentation Repository"
-git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
-pushd opentelemetry-java-instrumentation
-git checkout v${otel_instrumentation_version} -b tag-v${otel_instrumentation_version}
-
-# This patch is for Lambda related context propagation
-patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
-
-./gradlew publishToMavenLocal
-popd
-rm -rf opentelemetry-java-instrumentation
 
 contrib_version=$(awk -F'=v' '/OTEL_JAVA_CONTRIB_VERSION/ {print $2}' "$file")
 if [[ -n "$contrib_version" ]]; then
@@ -52,6 +20,33 @@ if [[ -n "$contrib_version" ]]; then
   popd
   rm -rf opentelemetry-java-contrib
 fi
+
+## Get OTel version
+echo "Info: Getting OTEL Version"
+version=$(awk -F'=v' '/OTEL_JAVA_INSTRUMENTATION_VERSION/ {print $2}' "$file")
+echo "Found OTEL Version: ${version}"
+# Exit if the version is empty or null
+if [[ -z "$version" ]]; then
+  echo "Error: Version could not be found in ${file}."
+  exit 1
+fi
+
+
+## Clone and Patch the OpenTelemetry Java Instrumentation Repository
+echo "Info: Cloning and Patching OpenTelemetry Java Instrumentation Repository"
+git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
+pushd opentelemetry-java-instrumentation
+git checkout v${version} -b tag-v${version}
+
+# There is another patch in the .github/patches directory for other changes. We should apply them too for consistency.
+patch -p1 < "$SOURCEDIR"/../.github/patches/opentelemetry-java-instrumentation.patch
+
+# This patch is for Lambda related context propagation
+patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
+
+./gradlew publishToMavenLocal
+popd
+rm -rf opentelemetry-java-instrumentation
 
 ## Build the ADOT Java from current source
 echo "Info: Building ADOT Java from current source"

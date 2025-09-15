@@ -49,6 +49,9 @@ runs:
         if [[ -f .github/patches/opentelemetry-java.patch ]]; then
           echo 'patch_otel_java=true' >> $GITHUB_ENV
         fi
+        if [[ -f .github/patches/opentelemetry-java-instrumentation.patch ]]; then
+            echo 'patch_otel_java_instrumentation=true' >> $GITHUB_ENV
+        fi
         if [[ -f .github/patches/opentelemetry-java-contrib.patch ]]; then
             echo 'patch_otel_java_contrib=true' >> $GITHUB_ENV
         fi
@@ -96,4 +99,23 @@ runs:
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
       if: ${{ env.patch_otel_java_contrib == 'true' }}
+      shell: bash
+
+    - name: Build opentelemetry-java-instrumentation with tests
+      uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
+      with:
+        arguments: check -x spotlessCheck publishToMavenLocal
+        build-root-directory: opentelemetry-java-instrumentation
+
+    - name: Build opentelemetry java instrumentation
+      uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests == 'false' }}
+      with:
+        arguments: publishToMavenLocal
+        build-root-directory: opentelemetry-java-instrumentation
+
+    - name: cleanup opentelmetry-java-instrumentation
+      run: rm -rf opentelemetry-java-instrumentation
+      if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
