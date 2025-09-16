@@ -15,6 +15,7 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.DbAttributes.DB_SYSTEM_NAME;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_ADDRESS;
@@ -1791,5 +1792,35 @@ class AwsMetricAttributeGeneratorTest {
 
     assertThat(attributeMap.get(SERVICE_METRIC)).isEqualTo(serviceAttributes);
     assertThat(attributeMap.get(DEPENDENCY_METRIC)).isEqualTo(dependencyAttributes);
+  }
+
+  @Test
+  public void testGetRemoteServiceWithFallback_PrimaryKeyPresent() {
+    mockAttribute(DB_SYSTEM_NAME, "mysql");
+    mockAttribute(DB_SYSTEM, "postgresql");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteServiceWithFallback(
+            spanDataMock, DB_SYSTEM_NAME, DB_SYSTEM);
+
+    assertThat(result).isEqualTo("mysql");
+  }
+
+  @Test
+  public void testGetRemoteServiceWithFallback_FallbackKeyPresent() {
+    mockAttribute(DB_SYSTEM, "postgresql");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteServiceWithFallback(
+            spanDataMock, DB_SYSTEM_NAME, DB_SYSTEM);
+
+    assertThat(result).isEqualTo("postgresql");
+  }
+
+  @Test
+  public void testGetRemoteServiceWithFallback_BothKeysAbsent() {
+    String result =
+        AwsMetricAttributeGenerator.getRemoteServiceWithFallback(
+            spanDataMock, DB_SYSTEM_NAME, DB_SYSTEM);
+
+    assertThat(result).isEqualTo(UNKNOWN_REMOTE_SERVICE);
   }
 }

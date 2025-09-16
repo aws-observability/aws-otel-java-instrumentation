@@ -18,7 +18,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_STATUS_CODE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getKeyValueWithFallback;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
@@ -152,12 +152,8 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   // possible except for the throttle
   // https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/awsxrayexporter/internal/translator/cause.go#L121-L160
   private void recordErrorOrFault(SpanData spanData, Attributes attributes) {
-    Long httpStatusCode = null;
-    if (isKeyPresent(spanData, HTTP_RESPONSE_STATUS_CODE)) {
-      httpStatusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
-    } else if (isKeyPresent(spanData, HTTP_STATUS_CODE)) {
-      httpStatusCode = spanData.getAttributes().get(HTTP_STATUS_CODE);
-    }
+    Long httpStatusCode =
+        getKeyValueWithFallback(spanData, HTTP_RESPONSE_STATUS_CODE, HTTP_STATUS_CODE);
     StatusCode statusCode = spanData.getStatus().getStatusCode();
 
     if (httpStatusCode == null) {
