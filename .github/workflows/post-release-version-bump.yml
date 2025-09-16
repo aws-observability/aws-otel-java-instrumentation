@@ -106,12 +106,13 @@ jobs:
           sed -i'' -e 's/adot-autoinstrumentation-java:v2.*"/adot-autoinstrumentation-java:v'$VERSION'"/' .github/workflows/daily-scan.yml
 
           # for patch releases, avoid merge conflict by manually resolving CHANGELOG with main
-          if [[ "${{ github.event.inputs.is_patch }}" == "true" ]]; then            
+          if [[ "${{ github.event.inputs.is_patch }}" == "true" ]]; then
+            # Copy the patch release entries
+            sed -n "/^## v${VERSION}/,/^## v[0-9]/p" CHANGELOG.md | sed '$d' > /tmp/patch_release_section.txt
             git fetch origin main
-            git show origin/main:CHANGELOG.md | sed -n '/## Unreleased/,/^## v[0-9]/p' | sed '$d' | tail -n +2 | sed '/^$/d' > /tmp/unreleased_content.txt
-                        
-            # Insert the content right after the existing "## Unreleased" header
-            sed -i '/## Unreleased/r /tmp/unreleased_content.txt' CHANGELOG.md
+            git show origin/main:CHANGELOG.md > CHANGELOG.md
+            # Insert the patch release entries after Unreleased
+            awk -i inplace '/^## v[0-9]/ && !inserted { system("cat /tmp/patch_release_section.txt"); inserted=1 } {print}' CHANGELOG.md
           fi
 
           git add version.gradle.kts
@@ -133,3 +134,13 @@ jobs:
           By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice." \
                        --head prepare-main-for-next-dev-cycle-${VERSION} \
                        --base main
+
+      - name: Force our CHANGELOG to override merge conflicts
+        run: |
+          git merge origin/main || true
+          git checkout --ours CHANGELOG.md
+          git add CHANGELOG.md
+          if ! git diff --quiet --cached; then
+            git commit -m "Force our CHANGELOG to override merge conflicts"
+            git push origin "prepare-main-for-next-dev-cycle-${VERSION}"
+          fi
