@@ -100,7 +100,7 @@ jobs:
 
       - name: Update version to next development version in main
         run: |
-          DEV_VERSION="${{ github.event.inputs.version }}.dev0"
+          DEV_VERSION="${{ github.event.inputs.version }}.SNAPSHOT"
           sed -i'' -e "s/val adotVersion = \".*\"/val adotVersion = \"${DEV_VERSION}\"/" version.gradle.kts
           VERSION="${{ github.event.inputs.version }}"
           sed -i'' -e 's/adot-autoinstrumentation-java:v2.*"/adot-autoinstrumentation-java:v'$VERSION'"/' .github/workflows/daily-scan.yml
@@ -125,7 +125,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
         run: |
-          DEV_VERSION="${{ github.event.inputs.version }}.dev0"
+          DEV_VERSION="${{ github.event.inputs.version }}.SNAPSHOT"
           gh pr create --title "Post release $VERSION: Update version to $DEV_VERSION" \
                        --body "This PR prepares the main branch for the next development cycle by updating the version to $DEV_VERSION and updating the image version to be scanned to the latest released.
           
