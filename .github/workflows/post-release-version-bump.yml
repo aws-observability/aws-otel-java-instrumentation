@@ -6,6 +6,10 @@ on:
       version:
         description: 'Version number (e.g., 1.0.1)'
         required: true
+    is_patch:
+        description: 'Is this a patch? (true or false)'
+        required: true
+        default: 'false'
 
 env:
   AWS_DEFAULT_REGION: us-east-1
@@ -100,8 +104,20 @@ jobs:
           sed -i'' -e "s/val adotVersion = \".*\"/val adotVersion = \"${DEV_VERSION}\"/" version.gradle.kts
           VERSION="${{ github.event.inputs.version }}"
           sed -i'' -e 's/adot-autoinstrumentation-java:v2.*"/adot-autoinstrumentation-java:v'$VERSION'"/' .github/workflows/daily-scan.yml
+
+          # for patch releases, avoid merge conflict by manually resolving CHANGELOG with main
+          if [[ "${{ github.event.inputs.is_patch }}" == "true" ]]; then
+            # Copy the patch release entries
+            sed -n "/^## v${VERSION}/,/^## v[0-9]/p" CHANGELOG.md | sed '$d' > /tmp/patch_release_section.txt
+            git fetch origin main
+            git show origin/main:CHANGELOG.md > CHANGELOG.md
+            # Insert the patch release entries after Unreleased
+            awk -i inplace '/^## v[0-9]/ && !inserted { system("cat /tmp/patch_release_section.txt"); inserted=1 } {print}' CHANGELOG.md
+          fi
+
           git add version.gradle.kts
           git add .github/workflows/daily-scan.yml
+          git add CHANGELOG.md
           git commit -m "Prepare main for next development cycle: Update version to $DEV_VERSION"
           git push --set-upstream origin "prepare-main-for-next-dev-cycle-${VERSION}"
 
@@ -118,3 +134,13 @@ jobs:
           By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice." \
                        --head prepare-main-for-next-dev-cycle-${VERSION} \
                        --base main
+
+      - name: Force our CHANGELOG to override merge conflicts
+        run: |
+          git merge origin/main || true
+          git checkout --ours CHANGELOG.md
+          git add CHANGELOG.md
+          if ! git diff --quiet --cached; then
+            git commit -m "Force our CHANGELOG to override merge conflicts"
+            git push origin "prepare-main-for-next-dev-cycle-${VERSION}"
+          fi
