@@ -1,12 +1,3 @@
-diff --git a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
-index 66f37ff602..11ce1fe90a 100644
---- a/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
-+++ b/docs/apidiffs/current_vs_latest/opentelemetry-instrumentation-api.txt
-@@ -1,2 +1,2 @@
--Comparing source compatibility of opentelemetry-instrumentation-api-2.18.1.jar against opentelemetry-instrumentation-api-2.17.1.jar
-+Comparing source compatibility of opentelemetry-instrumentation-api-2.18.1-adot-lambda1.jar against opentelemetry-instrumentation-api-2.20.0.jar
- No changes.
-\ No newline at end of file
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
 index 93071e04d2..add9f64276 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
@@ -156,7 +147,7 @@ index 9341bf6f79..f719c1ea93 100644
  }
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
 new file mode 100644
-index 0000000000..95b99303a8
+index 0000000000..e711558e05
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
 @@ -0,0 +1,68 @@
@@ -191,7 +182,7 @@ index 0000000000..95b99303a8
 +      com.amazonaws.services.lambda.runtime.Context lambdaContext) {
 +    Map<String, String> mergedHeaders = lowercaseMap(headers);
 +    String parentTraceHeader = getTraceHeader(lambdaContext);
-+    if (parentTraceHeader != null && !mergedHeaders.containsKey(AWS_TRACE_HEADER_PROPAGATOR_KEY)) {
++    if (parentTraceHeader != null) {
 +      mergedHeaders.put(AWS_TRACE_HEADER_PROPAGATOR_KEY, parentTraceHeader);
 +    }
 +    return instrumenter.extract(mergedHeaders, MapGetter.INSTANCE);
