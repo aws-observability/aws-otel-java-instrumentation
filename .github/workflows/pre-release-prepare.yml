@@ -94,6 +94,14 @@ jobs:
           git commit -am "Update version to ${VERSION}"
           git push origin "v${VERSION}_release"
 
+      - name: Update CHANGELOG for release
+        if: github.event.inputs.is_patch != 'true'
+        run: |
+          sed -i "s/## Unreleased/## Unreleased\n\n## v${VERSION} - $(date +%Y-%m-%d)/" CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "Update CHANGELOG for version ${VERSION}"
+          git push origin "v${VERSION}_release"
+
       - name: Create pull request against the release branch
         env:
           GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
