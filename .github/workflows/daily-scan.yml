@@ -37,7 +37,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Configure AWS credentials for dependency scan
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #5.0.0
         with:
           role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
