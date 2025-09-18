@@ -234,10 +234,10 @@ index cb19d1e568..12ed174bb2 100644
      assertThat(spanContext.getSpanId()).isEqualTo("00f067aa0ba902b7");
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java
 new file mode 100644
-index 0000000000..dc1fdeb302
+index 0000000000..76fc823a65
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java
-@@ -0,0 +1,310 @@
+@@ -0,0 +1,337 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -468,6 +468,33 @@ index 0000000000..dc1fdeb302
 +    assertThat(spanContext.isValid()).isTrue();
 +    assertThat(spanContext.getSpanId()).isEqualTo("0000000000000123");
 +    assertThat(spanContext.getTraceId()).isEqualTo("4fd0b6131f19f39af59518d127b0cafe");
++  }
++
++  @Test
++  void shouldPreferLambdaContextOverHttp() {
++    // given
++    Map<String, String> headers =
++        ImmutableMap.of(
++            "X-b3-traceId",
++            "4fd0b6131f19f39af59518d127b0cafe",
++            "x-b3-spanid",
++            "0000000000000123",
++            "X-B3-Sampled",
++            "true");
++    Context mockLambdaContextWithXrayTraceId = mock(Context.class);
++    when(mockLambdaContextWithXrayTraceId.getXrayTraceId())
++        .thenReturn("Root=1-8a3c60f7-d188f8fa79d48a391a778fa6;Parent=0000000000000456;Sampled=1");
++
++    // when
++    io.opentelemetry.context.Context context =
++        ParentContextExtractor.extract(
++            headers, INSTRUMENTER_WITH_B3_XRAY_PROPAGATORS, mockLambdaContextWithXrayTraceId);
++    // then
++    Span span = Span.fromContext(context);
++    SpanContext spanContext = span.getSpanContext();
++    assertThat(spanContext.isValid()).isTrue();
++    assertThat(spanContext.getSpanId()).isEqualTo("0000000000000456");
++    assertThat(spanContext.getTraceId()).isEqualTo("8a3c60f7d188f8fa79d48a391a778fa6");
 +  }
 +
 +  @Test
