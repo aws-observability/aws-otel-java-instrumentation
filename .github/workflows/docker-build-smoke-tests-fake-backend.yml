@@ -49,7 +49,8 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Build and push docker image
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-        with:
-          arguments: :smoke-tests:fakebackend:jib
+
+      - name: Build and push docker image
+        run: ./gradlew :smoke-tests:fakebackend:jib

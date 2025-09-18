@@ -52,10 +52,11 @@ jobs:
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
 
-      - name: Build JAR
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-        with:
-          arguments: assemble -PlocalDocker=true
+
+      - name: Build JAR
+        run: ./gradlew assemble -PlocalDocker=true
 
       # See http://jeremylong.github.io/DependencyCheck/dependency-check-cli/ for installation explanation
       - name: Install and run dependency scan

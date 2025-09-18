@@ -89,10 +89,11 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Build snapshot with Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-        with:
-          arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
+
+      - name: Build snapshot with Gradle
+        run: ./gradlew build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -221,10 +222,11 @@ jobs:
       - name: Pull base image of Contract Tests Sample Apps
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
-      - name: Build snapshot with Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
-        with:
-          arguments: contractTests -PlocalDocker=true
+
+      - name: Build snapshot with Gradle
+        run: contractTests -PlocalDocker=true
 
   application-signals-lambda-layer-build:
     runs-on: ubuntu-latest

@@ -72,8 +72,9 @@ jobs:
 
       - name: Build and push Sample-Apps without Auto-Instrumentation Agent
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
-        with:
-          arguments: jibBuildWithoutAgent
+
+      - name: Build and push Sample-Apps with Auto-Instrumentation Agent
+        run: jibBuildWithoutAgent
         env:
           COMMIT_HASH: ${{ inputs.image_tag }}
 
