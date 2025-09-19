@@ -129,6 +129,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
        name: Build with Gradle with Integration tests
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: ./gradlew build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
 
       - name: Build and Test UDP exporter
@@ -146,9 +147,9 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-        if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Run contract tests
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: ./gradlew contractTests -PlocalDocker=true -i
 
       - name: Set up Java version for image build
@@ -199,9 +200,9 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-        if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         
       - name: Build with Gradle  
+        if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         run: ./gradlew build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
 
