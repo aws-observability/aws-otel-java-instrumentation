@@ -21,6 +21,7 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.Data;
 import io.opentelemetry.sdk.metrics.data.ExponentialHistogramData;
 import io.opentelemetry.sdk.metrics.data.ExponentialHistogramPointData;
 import io.opentelemetry.sdk.metrics.data.GaugeData;
@@ -57,20 +58,21 @@ public abstract class BaseEmfExporter implements MetricExporter {
       Map<String, List<MetricRecord>> groupedMetrics = new HashMap<>();
 
       for (MetricData metric : metricsData) {
-        if (metric.getData() == null || metric.getData().getPoints().isEmpty()) {
+        Data<? extends PointData> metricData = metric.getData();
+        if (metricData == null || metricData.getPoints().isEmpty()) {
           continue;
         }
 
-        for (PointData point : metric.getData().getPoints()) {
+        for (PointData point : metricData.getPoints()) {
           MetricRecord record = null;
 
-          if (metric.getData() instanceof GaugeData || metric.getData() instanceof SumData) {
+          if (metricData instanceof GaugeData || metricData instanceof SumData) {
             record = MetricRecord.convertGaugeAndSum(metric, point);
           }
-          if (metric.getData() instanceof HistogramData && point instanceof HistogramPointData) {
+          if (metricData instanceof HistogramData && point instanceof HistogramPointData) {
             record = MetricRecord.convertHistogram(metric, (HistogramPointData) point);
           }
-          if (metric.getData() instanceof ExponentialHistogramData
+          if (metricData instanceof ExponentialHistogramData
               && point instanceof ExponentialHistogramPointData) {
             record =
                 MetricRecord.convertExponentialHistogram(
@@ -78,8 +80,7 @@ public abstract class BaseEmfExporter implements MetricExporter {
           }
 
           if (record == null) {
-            logger.fine(
-                "Unsupported metric data type: " + metric.getData().getClass().getSimpleName());
+            logger.fine("Unsupported metric data type: " + metricData.getClass().getSimpleName());
             continue;
           }
 
@@ -116,6 +117,34 @@ public abstract class BaseEmfExporter implements MetricExporter {
     }
   }
 
+  @Override
+  public abstract CompletableResultCode flush();
+
+  @Override
+  public abstract CompletableResultCode shutdown();
+
+  @Override
+  public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
+    return AggregationTemporality.DELTA;
+  }
+
+  @Override
+  public Aggregation getDefaultAggregation(InstrumentType instrumentType) {
+    if (instrumentType == InstrumentType.HISTOGRAM) {
+      return Aggregation.base2ExponentialBucketHistogram();
+    }
+    return Aggregation.defaultAggregation();
+  }
+
+  /**
+   * Export a log event.
+   *
+   * <p>This method must be implemented by subclasses to define where the EMF logs are sent.
+   *
+   * @param logEvent The log event to send
+   */
+  protected abstract void emit(Map<String, Object> logEvent);
+
   private String groupByAttributesAndTimestamp(MetricRecord record) {
     // Java doesn't have built-in, hashable tuples, so we
     // concatenate the attributes key and timestamp into a single string to create a unique
@@ -134,33 +163,4 @@ public abstract class BaseEmfExporter implements MetricExporter {
     attributes.forEach((key, value) -> sortedAttrs.put(key.getKey(), value));
     return sortedAttrs.toString();
   }
-
-  @Override
-  public abstract CompletableResultCode flush();
-
-  @Override
-  public abstract CompletableResultCode shutdown();
-
-  @Override
-  public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
-    // Set up temporality preference default to DELTA for all instrument types
-    return AggregationTemporality.DELTA;
-  }
-
-  @Override
-  public Aggregation getDefaultAggregation(InstrumentType instrumentType) {
-    if (instrumentType == InstrumentType.HISTOGRAM) {
-      return Aggregation.base2ExponentialBucketHistogram();
-    }
-    return Aggregation.defaultAggregation();
-  }
-
-  /**
-   * Send a log event to the destination (CloudWatch Logs, console, etc.).
-   *
-   * <p>This method must be implemented by subclasses to define where the EMF logs are sent.
-   *
-   * @param logEvent The log event to send
-   */
-  protected abstract void emit(Map<String, Object> logEvent);
 }

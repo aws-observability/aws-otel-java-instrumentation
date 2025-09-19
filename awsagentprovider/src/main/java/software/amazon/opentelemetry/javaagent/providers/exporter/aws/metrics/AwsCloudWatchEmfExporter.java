@@ -117,9 +117,9 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
     // None of the log events in the batch can be more than 2 hours in the future
     private static final long CW_EVENT_TIMESTAMP_LIMIT_FUTURE = 2 * 60 * 60 * 1000L;
 
+    private CloudWatchLogsClient logsClient;
     private final String logGroupName;
     private final String logStreamName;
-    private CloudWatchLogsClient logsClient;
     private LogEventBatch eventBatch;
 
     /**
@@ -187,6 +187,115 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
         logger.fine("Log stream " + this.logStreamName + " already exists");
       } catch (AwsServiceException e) {
         logger.severe("Failed to create log stream " + this.logStreamName + ": " + e.getMessage());
+        throw e;
+      }
+    }
+
+    private void sendLogEvent(Map<String, Object> logEvent) {
+      try {
+        if (!isValidLogEvent(logEvent)) {
+          return;
+        }
+
+        String message = (String) logEvent.get("message");
+        Long timestamp = (Long) logEvent.get("timestamp");
+        int eventSize = message.length() + CW_PER_EVENT_HEADER_BYTES;
+
+        if (eventBatch == null) {
+          eventBatch = new LogEventBatch();
+        }
+
+        LogEventBatch currentBatch = eventBatch;
+
+        if (willEventBatchExceedLimit(currentBatch, eventSize)
+            || !isBatchActive(currentBatch, timestamp)) {
+          sendLogBatch(currentBatch.getLogEvents());
+          eventBatch = new LogEventBatch();
+          currentBatch = eventBatch;
+        }
+
+        currentBatch.addEvent(message, timestamp, eventSize);
+
+      } catch (Exception error) {
+        logger.severe("Failed to process log event: " + error.getMessage());
+        throw new RuntimeException(error);
+      }
+    }
+
+    private void flushPendingEvents() {
+      if (eventBatch != null && !eventBatch.getLogEvents().isEmpty()) {
+        LogEventBatch currentBatch = eventBatch;
+        sendLogBatch(currentBatch.getLogEvents());
+        eventBatch = new LogEventBatch();
+      }
+      logger.fine("CloudWatchLogClient flushed the buffered log events");
+    }
+
+    /**
+     * Send a batch of log events to CloudWatch Logs. Creates log group and stream if they don't
+     * exist.
+     *
+     * @param batch The event batch to send
+     */
+    private void sendLogBatch(List<InputLogEvent> batch) {
+      if (batch.isEmpty()) {
+        return;
+      }
+      batch.sort(Comparator.comparing(InputLogEvent::timestamp));
+
+      PutLogEventsRequest request =
+          PutLogEventsRequest.builder()
+              .logGroupName(this.logGroupName)
+              .logStreamName(this.logStreamName)
+              .logEvents(batch)
+              .build();
+
+      long startTime = System.currentTimeMillis();
+
+      try {
+        this.getLogsClient().putLogEvents(request);
+
+        long elapsedMs = System.currentTimeMillis() - startTime;
+        int batchSizeKB =
+            batch.stream().mapToInt(logEvent -> logEvent.message().length()).sum() / 1024;
+
+        logger.fine(
+            "Successfully sent "
+                + batch.size()
+                + " log events ("
+                + batchSizeKB
+                + " KB) in "
+                + elapsedMs
+                + " ms");
+
+      } catch (ResourceNotFoundException e) {
+        logger.info("Log group or stream not found, creating resources and retrying");
+        try {
+          createLogGroupIfNeeded();
+          createLogStreamIfNeeded();
+
+          // Retry the PutLogEvents call
+          this.getLogsClient().putLogEvents(request);
+
+          long elapsedMs = System.currentTimeMillis() - startTime;
+          int batchSizeKB =
+              batch.stream().mapToInt(logEvent -> logEvent.message().length()).sum() / 1024;
+          logger.fine(
+              "Successfully sent "
+                  + batch.size()
+                  + " log events ("
+                  + batchSizeKB
+                  + " KB) in "
+                  + elapsedMs
+                  + " ms after creating resources");
+
+        } catch (AwsServiceException retryError) {
+          logger.severe(
+              "Failed to send log events after creating resources: " + retryError.getMessage());
+          throw retryError;
+        }
+      } catch (AwsServiceException e) {
+        logger.severe("Failed to send log events: " + e.getMessage());
         throw e;
       }
     }
@@ -289,116 +398,6 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
     }
 
     /**
-     * Send a batch of log events to CloudWatch Logs. Creates log group and stream lazily if they
-     * don't exist.
-     *
-     * @param batch The event batch to send
-     */
-    private void sendLogBatch(List<InputLogEvent> batch) {
-      if (batch.isEmpty()) {
-        return;
-      }
-      batch.sort(Comparator.comparing(InputLogEvent::timestamp));
-
-      PutLogEventsRequest request =
-          PutLogEventsRequest.builder()
-              .logGroupName(this.logGroupName)
-              .logStreamName(this.logStreamName)
-              .logEvents(batch)
-              .build();
-
-      long startTime = System.currentTimeMillis();
-
-      try {
-        this.getLogsClient().putLogEvents(request);
-
-        long elapsedMs = System.currentTimeMillis() - startTime;
-        int batchSizeKB =
-            batch.stream().mapToInt(logEvent -> logEvent.message().length()).sum() / 1024;
-
-        logger.fine(
-            "Successfully sent "
-                + batch.size()
-                + " log events ("
-                + batchSizeKB
-                + " KB) in "
-                + elapsedMs
-                + " ms");
-
-      } catch (ResourceNotFoundException e) {
-        logger.info("Log group or stream not found, creating resources and retrying");
-        try {
-          createLogGroupIfNeeded();
-          createLogStreamIfNeeded();
-
-          // Retry the PutLogEvents call
-          this.getLogsClient().putLogEvents(request);
-
-          long elapsedMs = System.currentTimeMillis() - startTime;
-          int batchSizeKB =
-              batch.stream().mapToInt(logEvent -> logEvent.message().length()).sum() / 1024;
-          logger.fine(
-              "Successfully sent "
-                  + batch.size()
-                  + " log events ("
-                  + batchSizeKB
-                  + " KB) in "
-                  + elapsedMs
-                  + " ms after creating resources");
-
-        } catch (AwsServiceException retryError) {
-          logger.severe(
-              "Failed to send log events after creating resources: " + retryError.getMessage());
-          throw retryError;
-        }
-      } catch (AwsServiceException e) {
-        logger.severe("Failed to send log events: " + e.getMessage());
-        throw e;
-      }
-    }
-
-    public void sendLogEvent(Map<String, Object> logEvent) {
-      try {
-        if (!isValidLogEvent(logEvent)) {
-          return;
-        }
-
-        String message = (String) logEvent.get("message");
-        Long timestamp = (Long) logEvent.get("timestamp");
-        int eventSize = message.length() + CW_PER_EVENT_HEADER_BYTES;
-
-        if (eventBatch == null) {
-          eventBatch = new LogEventBatch();
-        }
-
-        LogEventBatch currentBatch = eventBatch;
-
-        if (willEventBatchExceedLimit(currentBatch, eventSize)
-            || !isBatchActive(currentBatch, timestamp)) {
-          sendLogBatch(currentBatch.getLogEvents());
-          eventBatch = new LogEventBatch();
-          currentBatch = eventBatch;
-        }
-
-        currentBatch.addEvent(message, timestamp, eventSize);
-
-      } catch (Exception error) {
-        logger.severe("Failed to process log event: " + error.getMessage());
-        throw new RuntimeException(error);
-      }
-    }
-
-    public boolean flushPendingEvents() {
-      if (eventBatch != null && !eventBatch.getLogEvents().isEmpty()) {
-        LogEventBatch currentBatch = eventBatch;
-        sendLogBatch(currentBatch.getLogEvents());
-        eventBatch = new LogEventBatch();
-      }
-      logger.fine("CloudWatchLogClient flushed the buffered log events");
-      return true;
-    }
-
-    /**
      * Container for a batch of CloudWatch log events with metadata.
      *
      * <p>Tracks the log events, total byte size, and timestamps for efficient batching and
@@ -411,7 +410,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
       private long maxTimestampMs = 0;
       private final long createdTimestampMs = System.currentTimeMillis();
 
-      public void addEvent(String message, Long timestamp, int eventSize) {
+      private void addEvent(String message, Long timestamp, int eventSize) {
         if (timestamp == null) {
           timestamp = System.currentTimeMillis();
         }
@@ -430,35 +429,35 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
         }
       }
 
-      public List<InputLogEvent> getLogEvents() {
+      private List<InputLogEvent> getLogEvents() {
         return logEvents;
       }
 
-      public int getByteTotal() {
+      private int getByteTotal() {
         return byteTotal;
       }
 
-      public long getMinTimestampMs() {
+      private long getMinTimestampMs() {
         return minTimestampMs;
       }
 
-      public long getMaxTimestampMs() {
+      private long getMaxTimestampMs() {
         return maxTimestampMs;
       }
 
-      public long getCreatedTimestampMs() {
+      private long getCreatedTimestampMs() {
         return createdTimestampMs;
       }
 
-      public boolean isEmpty() {
+      private boolean isEmpty() {
         return logEvents.isEmpty();
       }
 
-      public int size() {
+      private int size() {
         return logEvents.size();
       }
 
-      public void clear() {
+      private void clear() {
         logEvents.clear();
         byteTotal = 0;
         minTimestampMs = 0;
