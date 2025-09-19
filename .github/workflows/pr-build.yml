@@ -126,7 +126,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-        if: ${{ matrix.os == 'ubuntu-latest' }}
 
        name: Build with Gradle with Integration tests
         if: ${{ matrix.os == 'ubuntu-latest' }}
