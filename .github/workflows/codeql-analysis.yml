@@ -23,11 +23,11 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@16df4fbc19aea13d921737861d6c622bf3cefe23 #v3.30.3
       with:
         languages: java
 
@@ -37,7 +37,7 @@ jobs:
         distribution: temurin
 
     - name: Cache local Maven repository
-      uses: actions/cache@v3
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
       with:
         path: |
           ~/.m2/repository/io/opentelemetry/
@@ -50,12 +50,13 @@ jobs:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
         gpg_password: ${{ secrets.GPG_PASSPHRASE }}
         
-    - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+    - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
+      
     - name: Manually build to avoid autobuild failures
-      uses: gradle/gradle-build-action@v3
-      with:
-        arguments: build
+      run: ./gradlew build
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@16df4fbc19aea13d921737861d6c622bf3cefe23 #v3.30.3
