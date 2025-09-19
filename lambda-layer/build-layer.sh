@@ -4,13 +4,20 @@ set -e
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 
+## Get ADOT version
+echo "Info: Getting ADOT Version"
+pushd "$SOURCEDIR"/..
+version=$(./gradlew -q printVersion)
+echo "Found ADOT Version: ${version}"
+popd
+
 ## Get OTel version
 echo "Info: Getting OTEL Version"
 file="$SOURCEDIR/../.github/patches/versions"
-version=$(awk -F'=v' '/OTEL_JAVA_INSTRUMENTATION_VERSION/ {print $2}' "$file")
-echo "Found OTEL Version: ${version}"
+otel_instrumentation_version=$(awk -F'=v' '/OTEL_JAVA_INSTRUMENTATION_VERSION/ {print $2}' "$file")
+echo "Found OTEL Version: ${otel_instrumentation_version}"
 # Exit if the version is empty or null
-if [[ -z "$version" ]]; then
+if [[ -z "$otel_instrumentation_version" ]]; then
   echo "Error: Version could not be found in ${file}."
   exit 1
 fi
@@ -20,12 +27,10 @@ fi
 echo "Info: Cloning and Patching OpenTelemetry Java Instrumentation Repository"
 git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
 pushd opentelemetry-java-instrumentation
-git checkout v${version} -b tag-v${version}
+git checkout v${otel_instrumentation_version} -b tag-v${otel_instrumentation_version}
 
 # This patch is for Lambda related context propagation
 patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
-
-patch -p1 < "$SOURCEDIR"/patches/StreamHandlerInstrumentation.patch
 
 ./gradlew publishToMavenLocal
 popd
@@ -58,7 +63,7 @@ popd
 
 ## Build ADOT Lambda Java SDK Layer Code
 echo "Info: Building ADOT Lambda Java SDK Layer Code"
-./gradlew build -PotelVersion=${version}
+./gradlew build -PotelVersion=${otel_instrumentation_version} -Pversion=${version}
 
 
 ## Copy ADOT Java Agent downloaded using Gradle task and bundle it with the Lambda handler script

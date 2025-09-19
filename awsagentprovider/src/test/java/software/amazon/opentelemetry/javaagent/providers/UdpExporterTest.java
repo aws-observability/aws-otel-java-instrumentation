@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -36,8 +37,10 @@ public class UdpExporterTest {
   public void testUdpExporterWithDefaults() {
     OtlpUdpSpanExporter exporter = new OtlpUdpSpanExporterBuilder().build();
     UdpSender sender = exporter.getSender();
-    assertThat(sender.getEndpoint().getHostName())
-        .isEqualTo("localhost"); // getHostName implicitly converts 127.0.0.1 to localhost
+    String senderEndpointHostName = sender.getEndpoint().getHostName();
+    // getHostName may or may not convert 127.0.0.1 to localhost
+    assertTrue(
+        senderEndpointHostName.equals("localhost") || senderEndpointHostName.equals("127.0.0.1"));
     assertThat(sender.getEndpoint().getPort()).isEqualTo(2000);
     assertThat(exporter.getPayloadPrefix()).endsWith("T1S");
   }

@@ -41,4 +41,6 @@ dependencies {
   testImplementation("com.amazonaws:aws-java-sdk-sns:1.11.106")
   testImplementation("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
   testImplementation("com.amazonaws:aws-java-sdk-secretsmanager:1.11.309")
+
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
