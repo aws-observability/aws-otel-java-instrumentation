@@ -12,3 +12,6 @@ For any change that affects end users of this package, please add an entry under
 If your change does not need a CHANGELOG entry, add the "skip changelog" label to your PR.
 
 ## Unreleased
+
+- fix: Remove spring-boot as agent dependency
+  ([#1204](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1204))

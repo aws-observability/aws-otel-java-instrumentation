@@ -7,8 +7,9 @@ plugins {
 }
 
 dependencies {
-  implementation("org.springframework.boot:spring-boot-starter-web")
-  implementation("org.springframework.boot:spring-boot-starter")
+  implementation("org.springframework.boot:spring-boot-dependencies:2.7.17")
+  implementation("org.springframework.boot:spring-boot-starter-web:2.7.17")
+  implementation("org.springframework.boot:spring-boot-starter:2.7.17")
   implementation("com.squareup.okhttp3:okhttp")
   implementation("software.amazon.awssdk:s3")
   implementation("software.amazon.awssdk:sts")
