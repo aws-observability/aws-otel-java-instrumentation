@@ -10,8 +10,8 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter")
   implementation("com.squareup.okhttp3:okhttp")
-  implementation("software.amazon.awssdk:s3")
-  implementation("software.amazon.awssdk:sts")
+  implementation("software.amazon.awssdk:s3:2.33.11")
+  implementation("software.amazon.awssdk:sts:2.33.11")
   implementation("io.opentelemetry:opentelemetry-api")
 }
 
