@@ -60,19 +60,21 @@ runs:
               env.patch_otel_java_contrib == 'true' }}
       shell: bash
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
+     
     - name: Build opentelemetry-java with tests
-      uses: gradle/gradle-build-action@v2
       if: ${{ env.patch_otel_java == 'true' && inputs.run_tests != 'false' }}
-      with:
-        arguments: build publishToMavenLocal
-        build-root-directory: opentelemetry-java
+      build-root-directory: opentelemetry-java
+      run: ./gradlew build publishToMavenLocal
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
+      
     - name: Build opentelemetry-java
-      uses: gradle/gradle-build-action@v2
       if: ${{ env.patch_otel_java == 'true' && inputs.run_tests == 'false' }}
-      with:
-        arguments: publishToMavenLocal
-        build-root-directory: opentelemetry-java
+      working-directory: opentelemetry-java
+      run: ./gradlew publishToMavenLocal
 
     - name: cleanup opentelemetry-java
       run: rm -rf opentelemetry-java
@@ -80,18 +82,20 @@ runs:
       shell: bash
 
     - name: Build opentelemetry-java-contrib with tests
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
+    
+    - name: Build opentelemetry-java-contrib without tests
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
-      with:
-        arguments: build publishToMavenLocal
-        build-root-directory: opentelemetry-java-contrib
+      build-root-directory: opentelemetry-java-contrib
+      run: ./gradlew build publishToMavenLocal
 
     - name: Build opentelemetry-java-contrib
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
+
+    - name: Build opentelemetry-java-contrib
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests == 'false' }}
-      with:
-        arguments: publishToMavenLocal
-        build-root-directory: opentelemetry-java-contrib
+      build-root-directory: opentelemetry-java-contrib
+      run: ./gradlew publishToMavenLocal
 
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
