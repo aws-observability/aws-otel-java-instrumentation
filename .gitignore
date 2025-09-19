@@ -52,3 +52,5 @@ tools/cp-utility/target
 **/.classpath
 **/.settings
 **/bin
+
+.vscode

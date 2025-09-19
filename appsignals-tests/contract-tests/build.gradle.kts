@@ -53,7 +53,7 @@ dependencies {
   testImplementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
   testImplementation("org.testcontainers:localstack")
   testImplementation("software.amazon.awssdk:s3")
-  testImplementation("software.amazon.awssdk:sts")
+  testImplementation("software.amazon.awssdk:sts:2.33.11")
   testImplementation(kotlin("test"))
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
   testImplementation("org.testcontainers:kafka:1.19.3")

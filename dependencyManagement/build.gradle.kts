@@ -40,16 +40,12 @@ val dependencyBoms = listOf(
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
   "io.grpc:grpc-bom:1.59.1",
-  // netty-bom is a fix for CVE-2025-58056 (https://github.com/advisories/GHSA-fghv-69vj-qj49).
-  // Remove once https://github.com/aws/aws-sdk-java-v2/pull/6398 and https://github.com/aws/aws-sdk-java/pull/3192
-  // are both merged and released, and we update the corresponding dependencies.
-  "io.netty:netty-bom:4.1.126.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
   "org.junit:junit-bom:5.10.1",
-  "org.springframework.boot:spring-boot-dependencies:2.7.17",
+  // "org.springframework.boot:spring-boot-dependencies:2.7.17",
   "org.testcontainers:testcontainers-bom:1.19.3",
-  "software.amazon.awssdk:bom:2.30.17",
+  // "software.amazon.awssdk:bom:2.33.10",
 )
 
 val dependencySets = listOf(
@@ -103,6 +99,13 @@ dependencies {
     for (dependency in dependencyLists) {
       api(dependency)
     }
+
+    api("software.amazon.awssdk:auth:2.33.11")
+    api("software.amazon.awssdk:aws-core:2.33.11")
+    api("software.amazon.awssdk:http-auth-aws:2.33.11")
+    api("software.amazon.awssdk:aws-json-protocol:2.33.11")
+    api("software.amazon.awssdk:s3:2.33.11")
+    // api("software.amazon.awssdk:sts:2.33.11")
   }
 }
 
