@@ -209,7 +209,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
 
         if (willEventBatchExceedLimit(currentBatch, eventSize)
             || !isBatchActive(currentBatch, timestamp)) {
-          sendLogBatch(currentBatch.getLogEvents());
+          this.sendLogBatch(currentBatch.getLogEvents());
           eventBatch = new LogEventBatch();
           currentBatch = eventBatch;
         }
@@ -225,7 +225,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
     private void flushPendingEvents() {
       if (eventBatch != null && !eventBatch.getLogEvents().isEmpty()) {
         LogEventBatch currentBatch = eventBatch;
-        sendLogBatch(currentBatch.getLogEvents());
+        this.sendLogBatch(currentBatch.getLogEvents());
         eventBatch = new LogEventBatch();
       }
       logger.fine("CloudWatchLogClient flushed the buffered log events");
