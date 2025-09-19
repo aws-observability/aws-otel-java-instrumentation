@@ -60,7 +60,8 @@ runs:
     - name: Clone and patch repositories
       run: .github/scripts/patch.sh
       if: ${{ env.patch_otel_java == 'true' ||
-              env.patch_otel_java_contrib == 'true' }}
+              env.patch_otel_java_contrib == 'true' ||
+              env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
 
     - name: Build opentelemetry-java with tests
