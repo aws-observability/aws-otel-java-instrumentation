@@ -13,5 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+### Enhancements
 - add CloudWatch EMF metrics exporter
   ([#1209](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1209))
+- Support X-Ray Trace Id extraction from Lambda Context object, and respect user-configured OTEL_PROPAGATORS in AWS Lamdba instrumentation
+  ([#1191](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1191))

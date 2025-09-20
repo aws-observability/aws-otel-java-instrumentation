@@ -206,10 +206,13 @@ jobs:
           done
           echo "}" >> ../layer_cdk
           cat ../layer_cdk
-      - name: download layer.zip
+      - name: download aws-opentelemetry-java-layer.zip
         uses: actions/download-artifact@v5
         with:
-          name: layer.zip
+          name: aws-opentelemetry-java-layer.zip
+      - name: rename to layer.zip
+        run: |
+          mv aws-opentelemetry-java-layer.zip layer.zip
       - name: Get commit hash
         id: commit
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
