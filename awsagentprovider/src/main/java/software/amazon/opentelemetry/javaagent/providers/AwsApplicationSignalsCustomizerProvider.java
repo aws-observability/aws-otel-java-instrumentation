@@ -210,11 +210,11 @@ public final class AwsApplicationSignalsCustomizerProvider
     boolean isLambdaEnvironment = isLambdaEnvironment();
 
     // Check if awsemf was specified and remove it from OTEL_METRICS_EXPORTER
-    String filteredExporters =
+    Optional<String> filteredExporters =
         AwsApplicationSignalsConfigUtils.removeEmfExporterIfEnabled(configProps);
-    if (filteredExporters != null) {
+    if (filteredExporters.isPresent()) {
       this.isEmfExporterEnabled = true;
-      propsOverride.put(OTEL_METRICS_EXPORTER, filteredExporters);
+      propsOverride.put(OTEL_METRICS_EXPORTER, filteredExporters.get());
     }
 
     // Enable AWS Resource Providers

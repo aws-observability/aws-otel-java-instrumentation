@@ -24,11 +24,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.*;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.BaseEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.LogEventEmitter;
 
 /**
  * OpenTelemetry metrics exporter for CloudWatch EMF format.
@@ -42,7 +44,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.Bas
 public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
   private static final Logger logger = Logger.getLogger(AwsCloudWatchEmfExporter.class.getName());
 
-  private final CloudWatchLogsClientWrapper logsClientWrapper;
+  private final LogEventEmitter emitter;
 
   /**
    * Initialize the CloudWatch EMF exporter.
@@ -50,18 +52,24 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
    * @param namespace CloudWatch namespace for metrics (default: "default")
    * @param logGroupName CloudWatch log group name
    * @param logStreamName CloudWatch log stream name (auto-generated if null)
-   * @param awsRegion AWS region (auto-detected if null)
+   * @param awsRegion AWS region
    */
   public AwsCloudWatchEmfExporter(
       String namespace, String logGroupName, String logStreamName, String awsRegion) {
     super(namespace);
-    this.logsClientWrapper =
-        new CloudWatchLogsClientWrapper(logGroupName, logStreamName, awsRegion);
+    this.emitter = new CloudWatchLogsClientWrapper(logGroupName, logStreamName, awsRegion);
+  }
+
+  public AwsCloudWatchEmfExporter(String namespace, LogEventEmitter emitter) {
+    super(namespace);
+    this.emitter = emitter;
   }
 
   @Override
   public CompletableResultCode flush() {
-    this.logsClientWrapper.flushPendingEvents();
+    if (emitter instanceof CloudWatchLogsClientWrapper) {
+      ((CloudWatchLogsClientWrapper) emitter).flushPendingEvents();
+    }
     logger.fine("AwsCloudWatchEmfExporter force flushes the buffered metrics");
     return CompletableResultCode.ofSuccess();
   }
@@ -75,7 +83,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
 
   @Override
   protected void emit(Map<String, Object> logEvent) {
-    this.logsClientWrapper.sendLogEvent(logEvent);
+    this.emitter.emit(logEvent);
   }
 
   private static StandardRetryStrategy createExponentialBackoffRetryStrategy() {
@@ -100,7 +108,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
    * <p>This class handles the batching logic and CloudWatch Logs API interactions for sending EMF
    * logs efficiently while respecting CloudWatch Logs constraints.
    */
-  private static class CloudWatchLogsClientWrapper {
+  private static class CloudWatchLogsClientWrapper implements LogEventEmitter {
     private static final Logger logger = Logger.getLogger(AwsCloudWatchEmfExporter.class.getName());
 
     // Constants for CloudWatch Logs limits
@@ -110,7 +118,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
     private static final int CW_MAX_REQUEST_EVENT_COUNT = 10000;
     private static final int CW_PER_EVENT_HEADER_BYTES = 26;
     private static final long BATCH_FLUSH_INTERVAL = 60 * 1000; // 60 seconds
-    private static final int CW_MAX_REQUEST_PAYLOAD_BYTES = 1 * 1024 * 1024; // 1MB
+    private static final int CW_MAX_REQUEST_PAYLOAD_BYTES = 1024 * 1024; // 1MB
     private static final String CW_TRUNCATED_SUFFIX = "[Truncated...]";
     // None of the log events in the batch can be older than 14 days
     private static final long CW_EVENT_TIMESTAMP_LIMIT_PAST = 14 * 24 * 60 * 60 * 1000L;
@@ -120,6 +128,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
     private CloudWatchLogsClient logsClient;
     private final String logGroupName;
     private final String logStreamName;
+    private final String awsRegion;
     private LogEventBatch eventBatch;
 
     /**
@@ -127,12 +136,13 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
      *
      * @param logGroupName CloudWatch log group name
      * @param logStreamName CloudWatch log stream name (auto-generated if null)
-     * @param awsRegion AWS region (auto-detected if null)
+     * @param awsRegion AWS region
      */
-    public CloudWatchLogsClientWrapper(
+    private CloudWatchLogsClientWrapper(
         String logGroupName, String logStreamName, String awsRegion) {
       this.logGroupName = logGroupName;
       this.logStreamName = logStreamName != null ? logStreamName : generateLogStreamName();
+      this.awsRegion = awsRegion;
     }
 
     private CloudWatchLogsClient getLogsClient() {
@@ -145,6 +155,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
             CloudWatchLogsClient.builder()
                 .overrideConfiguration(
                     config -> config.retryStrategy(createExponentialBackoffRetryStrategy()).build())
+                .region(Region.of(this.awsRegion))
                 .build();
       }
       return this.logsClient;
@@ -191,7 +202,8 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
       }
     }
 
-    private void sendLogEvent(Map<String, Object> logEvent) {
+    @Override
+    public void emit(Map<String, Object> logEvent) {
       try {
         if (!isValidLogEvent(logEvent)) {
           return;

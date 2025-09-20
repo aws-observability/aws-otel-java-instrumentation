@@ -32,14 +32,14 @@ public final class AwsApplicationSignalsConfigUtils {
    * Removes "awsemf" from OTEL_METRICS_EXPORTER if present.
    *
    * @param configProps the configuration properties
-   * @return string with "awsemf" removed if the original OTEL_METRICS_EXPORTER contains "awsemf",
-   *     otherwise null if "awsemf" is not found
+   * @return Optional containing string with "awsemf" removed if the original OTEL_METRICS_EXPORTER
+   *     contains "awsemf", otherwise empty Optional if "awsemf" is not found
    */
-  static String removeEmfExporterIfEnabled(ConfigProperties configProps) {
+  static Optional<String> removeEmfExporterIfEnabled(ConfigProperties configProps) {
     String metricExporters = configProps.getString(OTEL_METRICS_EXPORTER);
 
     if (metricExporters == null || !metricExporters.contains("awsemf")) {
-      return null;
+      return Optional.empty();
     }
 
     String[] exporters = metricExporters.split(",");
@@ -49,7 +49,10 @@ public final class AwsApplicationSignalsConfigUtils {
             .filter(exp -> !exp.equals("awsemf"))
             .collect(java.util.stream.Collectors.toList());
 
-    return filtered.isEmpty() ? "" : String.join(",", filtered);
+    // Return empty string instead of "none" because upstream will not call
+    // customizeMetricExporter if OTEL_METRICS_EXPORTER is set to "none" as it assumes
+    // no metrics exporter is configured
+    return Optional.of(filtered.isEmpty() ? "" : String.join(",", filtered));
   }
 
   /**
