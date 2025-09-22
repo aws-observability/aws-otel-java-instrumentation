@@ -209,7 +209,10 @@ jobs:
       - name: download layer.zip
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
-          name: layer.zip
+          name: aws-opentelemetry-java-layer.zip
+      - name: rename to layer.zip
+        run: |
+          mv aws-opentelemetry-java-layer.zip layer.zip
       - name: Get commit hash
         id: commit
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
