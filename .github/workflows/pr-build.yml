@@ -1,6 +1,12 @@
 name: PR Build
 on:
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
     branches:
       - main
       - "release/v*"
@@ -8,13 +14,49 @@ env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
 
 jobs:
+  changelog-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check CHANGELOG
+        run: |
+          # Check if PR is from workflows bot or dependabot
+          if [[ "${{ github.event.pull_request.user.login }}" == "aws-application-signals-bot" ]]; then
+            echo "Skipping check: PR from aws-application-signals-bot"
+            exit 0
+          fi
+          
+          if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+            echo "Skipping check: PR from dependabot"
+            exit 0
+          fi
+          
+          # Check for skip changelog label
+          if echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]' | grep -q "skip changelog"; then
+            echo "Skipping check: skip changelog label found"
+            exit 0
+          fi
+          
+          # Fetch base branch and check for CHANGELOG modifications
+          git fetch origin ${{ github.base_ref }}
+          if git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -q "CHANGELOG.md"; then
+            echo "CHANGELOG.md entry found - check passed"
+            exit 0
+          fi
+          
+          echo "It looks like you didn't add an entry to CHANGELOG.md. If this change affects the SDK behavior, please update CHANGELOG.md and link this PR in your entry. If this PR does not need a CHANGELOG entry, you can add the 'Skip Changelog' label to this PR."
+          exit 1
+
   testpatch:
     name: Test patches applied to dependencies
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: temurin
@@ -31,7 +73,7 @@ jobs:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-test-cache-pnpm-modules
 
-      - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
       - uses: ./.github/actions/patch-dependencies
         with:
@@ -56,12 +98,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: temurin
 
-      - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
         # Cleanup directories before proceeding with setup
       - name: Clean up old installations
@@ -93,7 +135,7 @@ jobs:
           ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
 
       - name: Set up Java version for tests
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version: 23
           distribution: temurin
@@ -109,7 +151,7 @@ jobs:
           arguments: contractTests -PlocalDocker=true -i
 
       - name: Set up Java version for image build
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: temurin
@@ -168,7 +210,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Java
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
           distribution: temurin
