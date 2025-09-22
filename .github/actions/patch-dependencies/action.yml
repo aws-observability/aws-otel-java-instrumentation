@@ -66,7 +66,8 @@ runs:
      
     - name: Build opentelemetry-java with tests
       if: ${{ env.patch_otel_java == 'true' && inputs.run_tests != 'false' }}
-      build-root-directory: opentelemetry-java
+      with:
+        working-directory: opentelemetry-java
       run: ./gradlew build publishToMavenLocal
 
     - name: Setup Gradle
@@ -88,7 +89,8 @@ runs:
     
     - name: Build opentelemetry-java-contrib without tests
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
-      build-root-directory: opentelemetry-java-contrib
+      with:
+        working-directory: opentelemetry-java-contrib
       run: ./gradlew build publishToMavenLocal
 
     - name: Build opentelemetry-java-contrib
@@ -97,7 +99,8 @@ runs:
 
     - name: Build opentelemetry-java-contrib
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests == 'false' }}
-      build-root-directory: opentelemetry-java-contrib
+      with:
+        working-directory: opentelemetry-java-contrib
       run: ./gradlew publishToMavenLocal
 
     - name: cleanup opentelemetry-java-contrib
