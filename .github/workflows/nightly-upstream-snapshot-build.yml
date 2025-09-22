@@ -59,11 +59,10 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-      
       - name: Build snapshot with Gradle
-        run: ./gradlew build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
+        uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1
+        with:
+          arguments: build --stacktrace -PenableCoverage=true -PtestUpstreamSnapshots=true
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -153,11 +152,10 @@ jobs:
       - name: Pull base image of Contract Tests Sample Apps
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-
-      - name: Build snapshot with Gradle  
-        run: ./gradlew contractTests -PtestUpstreamSnapshots=true -PlocalDocker=true
+      - name: Build snapshot with Gradle
+        uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1 #v3.5.0
+        with:
+          arguments: contractTests -PtestUpstreamSnapshots=true -PlocalDocker=true
 
   # AppSignals specific e2e tests
   appsignals-e2e-test:

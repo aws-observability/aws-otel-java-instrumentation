@@ -64,11 +64,10 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-      
       - name: Build and push agent and testing docker images with Gradle
-        run: ./gradlew jib
+        uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1
+        with:
+          arguments: jib
         env:
           COMMIT_HASH: ${{ inputs.image_tag }}
 
