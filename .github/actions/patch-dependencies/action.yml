@@ -79,7 +79,7 @@ runs:
       if: ${{ env.patch_otel_java == 'true' }}
       shell: bash
 
-   - name: Build opentelemetry-java-contrib with tests
+    - name: Build opentelemetry-java-contrib with tests
       uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
       with:
