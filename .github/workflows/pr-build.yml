@@ -125,7 +125,7 @@ jobs:
         if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
 
       - name: Build with Gradle with Integration tests
-        uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
@@ -145,7 +145,7 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
       - name: Run contract tests
-        uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1 #v3.5.0
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: contractTests -PlocalDocker=true -i
@@ -197,7 +197,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build with Gradle
-        uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1 #v3.5.0
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         with:
           arguments: build --stacktrace -PenableCoverage=true

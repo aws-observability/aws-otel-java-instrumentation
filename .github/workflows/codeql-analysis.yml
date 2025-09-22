@@ -53,7 +53,7 @@ jobs:
     - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
     - name: Manually build to avoid autobuild failures
-      uses: gradle/actions/setup-gradle@ac2d340dc04d9e1113182899e983b5400c17cda1 #v3.5.0
+      uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
       with:
         arguments: build
 
