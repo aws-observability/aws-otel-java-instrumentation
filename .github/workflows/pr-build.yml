@@ -14,7 +14,7 @@ env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
 
 jobs:
-  changelog-check:
+  static-code-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +22,7 @@ jobs:
           fetch-depth: 0
           
       - name: Check CHANGELOG
+        if: always()
         run: |
           # Check if PR is from workflows bot or dependabot
           if [[ "${{ github.event.pull_request.user.login }}" == "aws-application-signals-bot" ]]; then
@@ -49,6 +50,24 @@ jobs:
           
           echo "It looks like you didn't add an entry to CHANGELOG.md. If this change affects the SDK behavior, please update CHANGELOG.md and link this PR in your entry. If this PR does not need a CHANGELOG entry, you can add the 'Skip Changelog' label to this PR."
           exit 1
+
+      - name: Check for versioned GitHub actions
+        if: always()
+        run: |
+          # Get changed GitHub workflow/action files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -E "^\.github/(workflows|actions)/.*\.ya?ml$" || true)
+          
+          if [ -n "$CHANGED_FILES" ]; then
+            # Check for any versioned actions, excluding comments and this validation script
+            VIOLATIONS=$(grep -Hn "uses:.*@v" $CHANGED_FILES | grep -v "grep.*uses:.*@v" | grep -v "#.*@v" || true)
+            if [ -n "$VIOLATIONS" ]; then
+              echo "Found versioned GitHub actions. Use commit SHAs instead:"
+              echo "$VIOLATIONS"
+              exit 1
+            fi
+          fi
+          
+          echo "No versioned actions found in changed files"
 
   testpatch:
     name: Test patches applied to dependencies
