@@ -99,6 +99,13 @@ jobs:
     secrets: inherit
     with:
       caller-workflow-name: 'main-build'
+
+  java-ec2-adaptive-sampling-test:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adaptive-sampling-test.yml@main
+    secrets: inherit
+    with:
+      caller-workflow-name: 'main-build'
   #
   # DOCKER DISTRIBUTION LANGUAGE VERSION COVERAGE
   # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
