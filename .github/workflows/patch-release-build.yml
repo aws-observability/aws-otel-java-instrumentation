@@ -136,6 +136,7 @@ jobs:
           tags: |
             public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
 
+      - name: Build and Publish release with Gradle
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
           arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
