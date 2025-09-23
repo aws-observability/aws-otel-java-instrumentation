@@ -950,9 +950,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   static String getRemoteServiceWithFallback(
       SpanData span, AttributeKey<String> remoteServiceKey, AttributeKey<String> remoteServiceFallbackKey) {
-    String remoteService = span.getAttributes().get(remoteSvcKey);
+    String remoteService = span.getAttributes().get(remoteServiceKey);
     if (remoteService == null) {
-      return getRemoteService(span, remoteSvcFallbackKey);
+      return getRemoteService(span, remoteServiceFallbackKey);
     }
     return remoteService;
   }
