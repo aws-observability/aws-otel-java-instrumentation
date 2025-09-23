@@ -1,4 +1,4 @@
-# AWS Distro for OpenTelemetry - Instrumentation for Java
+# AWS Distro for OpenTelemetry - Instrumentation for Java 
 
 ## Introduction
 
