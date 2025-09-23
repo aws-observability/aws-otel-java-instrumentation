@@ -206,7 +206,7 @@ jobs:
           done
           echo "}" >> ../layer_cdk
           cat ../layer_cdk
-      - name: download layer.zip
+      - name: download aws-opentelemetry-java-layer.zip
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
           name: aws-opentelemetry-java-layer.zip
