@@ -63,7 +63,7 @@ jobs:
         run: |
           echo "TEST_DURATION_MINUTES=${{ github.event.inputs.test_duration_minutes || env.DEFAULT_TEST_DURATION_MINUTES }}" | tee --append $GITHUB_ENV;
       - name: Clone This Repo @ ${{ env.TARGET_SHA }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ env.TARGET_SHA }}
 
@@ -98,7 +98,7 @@ jobs:
     # MARK: - Run Performance Tests
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           role-duration-seconds: 21600 # 6 Hours
@@ -110,7 +110,7 @@ jobs:
           aws ecr-public get-login-password |
           docker login --username AWS --password-stdin public.ecr.aws
       - name: Build Sample App locally directly to the Docker daemon
-        uses: burrunan/gradle-cache-action@v3
+        uses: burrunan/gradle-cache-action@4a07779efc8120348ea6dfd35314bc30a586eb0f #v3.0.1
         with:
           arguments: jibDockerBuild
         env:
@@ -210,7 +210,7 @@ jobs:
           git checkout main;
           [[ $HAS_RESULTS_ALREADY == true ]]
       - name: Graph and Report Performance Test Averages result
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b #v1.20.7
         continue-on-error: true
         id: check-failure-after-performance-tests
         with:
@@ -230,7 +230,7 @@ jobs:
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: soak-tests/per-commit-overall-results
       - name: Publish Issue if failed DURING Performance Tests
-        uses: JasonEtco/create-an-issue@v2
+        uses: JasonEtco/create-an-issue@1b14a70e4d8dc185e5cc76d3bec9eab20257b2c5 # v2.9.2
         if: ${{ github.event_name == 'schedule' &&
           steps.check-failure-during-performance-tests.outcome == 'failure' }}
         env:
@@ -241,7 +241,7 @@ jobs:
           filename: .github/auto-issue-templates/failure-during-soak_tests.md
           update_existing: true
       - name: Publish Issue if failed AFTER Performance Tests
-        uses: JasonEtco/create-an-issue@v2
+        uses: JasonEtco/create-an-issue@1b14a70e4d8dc185e5cc76d3bec9eab20257b2c5 #v2.9.2
         if: ${{ github.event_name == 'schedule' &&
           steps.check-failure-after-performance-tests.outcome == 'failure' }}
         env:
