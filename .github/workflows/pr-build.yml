@@ -240,7 +240,7 @@ jobs:
 
   all-pr-checks-pass:
     runs-on: ubuntu-latest
-    needs: [changelog-check, testpatch, build, build-lambda]
+    needs: [static-code-checks, testpatch, build, build-lambda]
     if: always()
     steps:
       - name: Checkout to get workflow file
