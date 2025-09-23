@@ -238,3 +238,37 @@ jobs:
         working-directory: lambda-layer
         run: ./build-layer.sh
 
+  all-pr-checks-pass:
+    runs-on: ubuntu-latest
+    needs: [changelog-check, testpatch, build, build-lambda]
+    if: always()
+    steps:
+      - name: Checkout to get workflow file
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+
+      - name: Check all jobs succeeded and none missing
+        run: |
+          # Check if all needed jobs succeeded
+          results='${{ toJSON(needs) }}'
+          if echo "$results" | jq -r '.[] | .result' | grep -v success; then
+            echo "Some jobs failed"
+            exit 1
+          fi
+          
+          # Extract all job names from workflow (excluding this gate job)
+          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/pr-build.yml | grep -v "all-pr-checks-pass" | sort)
+          
+          # Extract job names from needs array
+          needed_jobs='${{ toJSON(needs) }}'
+          needs_list=$(echo "$needed_jobs" | jq -r 'keys[]' | sort)
+          
+          # Check if any jobs are missing from needs
+          missing_jobs=$(comm -23 <(echo "$all_jobs") <(echo "$needs_list"))
+          if [ -n "$missing_jobs" ]; then
+            echo "ERROR: Jobs missing from needs array in all-pr-checks-pass:"
+            echo "$missing_jobs"
+            echo "Please add these jobs to the needs array of all-pr-checks-pass"
+            exit 1
+          fi
+          
+          echo "All checks passed and no jobs missing from gate!"

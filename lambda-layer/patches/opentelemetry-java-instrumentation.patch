@@ -618,8 +618,8 @@ index 023d04703c..b267166804 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.18.1"
--val alphaVersion = "2.18.1-alpha"
+-val stableVersion = "2.18.1-adot1"
+-val alphaVersion = "2.18.1-adot1-alpha"
 +val stableVersion = "2.18.1-adot-lambda1"
 +val alphaVersion = "2.18.1-adot-lambda1-alpha"
  
