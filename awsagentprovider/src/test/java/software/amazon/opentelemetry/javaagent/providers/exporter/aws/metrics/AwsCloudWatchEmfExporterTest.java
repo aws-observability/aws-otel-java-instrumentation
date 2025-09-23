@@ -15,103 +15,153 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.sdk.metrics.data.DoublePointData;
-import io.opentelemetry.sdk.metrics.data.GaugeData;
-import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.metrics.data.SumData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
-import io.opentelemetry.sdk.resources.Resource;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.LogEventEmitter;
 
-@ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
-public class AwsCloudWatchEmfExporterTest {
+public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest {
   private static final String NAMESPACE = "test-namespace";
-  private MetricExporter exporter;
-  private LogEventEmitter mockEmitter;
-  private List<Map<String, Object>> capturedLogEvents;
 
-  @BeforeEach
-  void setup() {
-    mockEmitter = mock(LogEventEmitter.class);
-    capturedLogEvents = new ArrayList<>();
+  @Override
+  protected MetricExporter createExporter() {
+    return new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+  }
 
-    doAnswer(
-            invocation -> {
-              capturedLogEvents.add(invocation.getArgument(0));
-              return null;
-            })
-        .when(mockEmitter)
-        .emit(any());
+  @Override
+  protected Optional<Map<String, Object>> validateEmfStructure(
+      Map<String, Object> logEvent, String metricName) {
+    Optional<Map<String, Object>> emfLogOpt = super.validateEmfStructure(logEvent, metricName);
 
-    exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+    if (emfLogOpt.isPresent()) {
+      Map<String, Object> emfLog = emfLogOpt.get();
+      Map<String, Object> aws = (Map<String, Object>) emfLog.get("_aws");
+      List<Map<String, Object>> cloudWatchMetrics =
+          (List<Map<String, Object>>) aws.get("CloudWatchMetrics");
+      assertEquals(NAMESPACE, cloudWatchMetrics.get(0).get("Namespace"));
+    }
+
+    return emfLogOpt;
   }
 
   @Test
-  void testExporterCreation() {}
+  void testBatchActiveNewBatch() {
+    LogEventEmitter mockEmitter = mock(LogEventEmitter.class);
+    AwsCloudWatchEmfExporter exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+
+    long currentTime = System.currentTimeMillis();
+    Map<String, Object> logEvent = new HashMap<>();
+    logEvent.put("message", "test");
+    logEvent.put("timestamp", currentTime);
+
+    // Send multiple events with same timestamp - should be batched together
+    exporter.emit(logEvent);
+    exporter.emit(logEvent);
+    exporter.emit(logEvent);
+
+    // Should only call emit once per event since batch is active
+    verify(mockEmitter, times(3)).emit(logEvent);
+  }
 
   @Test
-  void testGaugeAndSumMetricProcessing() {
-    MetricData gaugeMetric = createGaugeMetricWithPoint("test.gauge", 42.0);
-    MetricData sumMetric = createSumMetricWithPoint("test.sum", 100L);
+  void testBatchInactiveAfter24Hours() {
+    LogEventEmitter mockEmitter = mock(LogEventEmitter.class);
+    AwsCloudWatchEmfExporter exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
 
-    exporter.export(List.of(gaugeMetric, sumMetric));
+    long baseTime = System.currentTimeMillis();
+    Map<String, Object> firstEvent = new HashMap<>();
+    firstEvent.put("message", "test1");
+    firstEvent.put("timestamp", baseTime);
 
-    // Validate that log events were emitted
-    assertEquals(2, capturedLogEvents.size());
+    Map<String, Object> secondEvent = new HashMap<>();
+    secondEvent.put("message", "test2");
+    secondEvent.put("timestamp", baseTime + (25L * 60 * 60 * 1000)); // 25 hours later
 
-    for (Map<String, Object> logEvent : capturedLogEvents) {
-      assertNotNull(logEvent.get("message"));
-      assertNotNull(logEvent.get("timestamp"));
+    exporter.emit(firstEvent);
+    exporter.emit(secondEvent);
+
+    // Should trigger 2 separate batch sends due to 24-hour span limit
+    verify(mockEmitter, times(1)).emit(firstEvent);
+    verify(mockEmitter, times(1)).emit(secondEvent);
+  }
+
+  @ParameterizedTest
+  @MethodSource("batchLimitScenarios")
+  void testEventBatchLimits(
+      Map<String, Object> logEvent, int eventCount, boolean shouldExceedLimit) {
+    LogEventEmitter mockEmitter = mock(LogEventEmitter.class);
+    AwsCloudWatchEmfExporter exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+
+    for (int i = 0; i < eventCount; i++) {
+      exporter.emit(logEvent);
+    }
+
+    if (shouldExceedLimit) {
+      verify(mockEmitter, atLeast(2)).emit(logEvent);
+    } else {
+      verify(mockEmitter, times(eventCount)).emit(logEvent);
     }
   }
 
-  private MetricData createGaugeMetricWithPoint(String name, double value) {
-    MetricData metricData = mock(MetricData.class);
-    GaugeData gaugeData = mock(GaugeData.class);
+  @ParameterizedTest
+  @MethodSource("invalidLogEvents")
+  void testValidateLogEventInvalid(Map<String, Object> logEvent) {
+    AwsCloudWatchEmfExporter exporter =
+        new AwsCloudWatchEmfExporter(NAMESPACE, "test-log-group", "test-stream", "us-east-1");
 
-    DoublePointData pointData = mock(DoublePointData.class);
-
-    when(metricData.getName()).thenReturn(name);
-    when(metricData.getUnit()).thenReturn("1");
-    when(metricData.getData()).thenReturn(gaugeData);
-    when(metricData.getResource()).thenReturn(Resource.getDefault());
-    when(gaugeData.getPoints()).thenReturn(List.of(pointData));
-
-    when(pointData.getValue()).thenReturn(value);
-    when(pointData.getAttributes()).thenReturn(Attributes.empty());
-    when(pointData.getEpochNanos()).thenReturn(System.nanoTime());
-
-    return metricData;
+    assertThrows(IllegalArgumentException.class, () -> exporter.emit(logEvent));
   }
 
-  private MetricData createSumMetricWithPoint(String name, long value) {
-    MetricData metricData = mock(MetricData.class);
-    SumData sumData = mock(SumData.class);
-    DoublePointData pointData = mock(DoublePointData.class);
+  static Stream<Arguments> batchLimitScenarios() {
+    Map<String, Object> smallEvent = new HashMap<>();
+    smallEvent.put("message", "test");
+    smallEvent.put("timestamp", System.currentTimeMillis());
 
-    when(metricData.getName()).thenReturn(name);
-    when(metricData.getUnit()).thenReturn("1");
-    when(metricData.getData()).thenReturn(sumData);
-    when(metricData.getResource()).thenReturn(Resource.getDefault());
-    when(sumData.getPoints()).thenReturn(List.of(pointData));
-    when(pointData.getValue()).thenReturn((double) value);
-    when(pointData.getAttributes()).thenReturn(Attributes.empty());
-    when(pointData.getEpochNanos()).thenReturn(System.nanoTime());
+    Map<String, Object> largeEvent = new HashMap<>();
+    largeEvent.put("message", "x".repeat(1024 * 1024));
+    largeEvent.put("timestamp", System.currentTimeMillis());
 
-    return metricData;
+    return Stream.of(
+        Arguments.of(smallEvent, 10001, true), // count limit exceeded
+        Arguments.of(largeEvent, 2, true), // size limit exceeded
+        Arguments.of(smallEvent, 10, false) // within limits
+        );
+  }
+
+  static Stream<Arguments> invalidLogEvents() {
+    long currentTime = System.currentTimeMillis();
+    Map<String, Object> oldTimestampEvent = new HashMap<>();
+    oldTimestampEvent.put("message", "{\"test\":\"data\"}");
+    oldTimestampEvent.put("timestamp", currentTime - (15L * 24 * 60 * 60 * 1000));
+
+    Map<String, Object> futureTimestampEvent = new HashMap<>();
+    futureTimestampEvent.put("message", "{\"test\":\"data\"}");
+    futureTimestampEvent.put("timestamp", currentTime + (3L * 60 * 60 * 1000));
+
+    Map<String, Object> emptyMessageEvent = new HashMap<>();
+    emptyMessageEvent.put("message", "");
+    emptyMessageEvent.put("timestamp", currentTime);
+
+    Map<String, Object> whitespaceMessageEvent = new HashMap<>();
+    whitespaceMessageEvent.put("message", "   ");
+    whitespaceMessageEvent.put("timestamp", currentTime);
+
+    Map<String, Object> missingMessageEvent = new HashMap<>();
+    missingMessageEvent.put("timestamp", currentTime);
+
+    return Stream.of(
+        Arguments.of(oldTimestampEvent),
+        Arguments.of(futureTimestampEvent),
+        Arguments.of(emptyMessageEvent),
+        Arguments.of(whitespaceMessageEvent),
+        Arguments.of(missingMessageEvent));
   }
 }

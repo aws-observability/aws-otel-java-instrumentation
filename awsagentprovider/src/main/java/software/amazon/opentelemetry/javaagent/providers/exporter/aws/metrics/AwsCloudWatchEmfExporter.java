@@ -106,7 +106,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
    * CloudWatch Logs client for batching and sending log events.
    *
    * <p>This class handles the batching logic and CloudWatch Logs API interactions for sending EMF
-   * logs efficiently while respecting CloudWatch Logs constraints.
+   * logs while respecting CloudWatch Logs constraints.
    */
   private static class CloudWatchLogsClientWrapper implements LogEventEmitter {
     private static final Logger logger = Logger.getLogger(AwsCloudWatchEmfExporter.class.getName());
@@ -206,7 +206,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
     public void emit(Map<String, Object> logEvent) {
       try {
         if (!isValidLogEvent(logEvent)) {
-          return;
+          throw new IllegalArgumentException("Log event validation failed");
         }
 
         String message = (String) logEvent.get("message");
@@ -230,7 +230,7 @@ public class AwsCloudWatchEmfExporter extends BaseEmfExporter {
 
       } catch (Exception error) {
         logger.severe("Failed to process log event: " + error.getMessage());
-        throw new RuntimeException(error);
+        throw error;
       }
     }
 
