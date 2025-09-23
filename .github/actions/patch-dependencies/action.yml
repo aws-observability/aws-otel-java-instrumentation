@@ -49,6 +49,9 @@ runs:
         if [[ -f .github/patches/opentelemetry-java.patch ]]; then
           echo 'patch_otel_java=true' >> $GITHUB_ENV
         fi
+        if [[ -f .github/patches/opentelemetry-java-instrumentation.patch ]]; then
+            echo 'patch_otel_java_instrumentation=true' >> $GITHUB_ENV
+        fi
         if [[ -f .github/patches/opentelemetry-java-contrib.patch ]]; then
             echo 'patch_otel_java_contrib=true' >> $GITHUB_ENV
         fi
@@ -57,21 +60,22 @@ runs:
     - name: Clone and patch repositories
       run: .github/scripts/patch.sh
       if: ${{ env.patch_otel_java == 'true' ||
-              env.patch_otel_java_contrib == 'true' }}
+              env.patch_otel_java_contrib == 'true' ||
+              env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
 
     - name: Build opentelemetry-java with tests
       uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
       if: ${{ env.patch_otel_java == 'true' && inputs.run_tests != 'false' }}
       with:
-        arguments: build publishToMavenLocal
+        arguments: build publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java
 
     - name: Build opentelemetry-java
       uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
       if: ${{ env.patch_otel_java == 'true' && inputs.run_tests == 'false' }}
       with:
-        arguments: publishToMavenLocal
+        arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java
 
     - name: cleanup opentelemetry-java
@@ -83,17 +87,36 @@ runs:
       uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
       with:
-        arguments: build publishToMavenLocal
+        arguments: build publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-contrib
 
     - name: Build opentelemetry-java-contrib
       uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
       if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests == 'false' }}
       with:
-        arguments: publishToMavenLocal
+        arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-contrib
 
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
       if: ${{ env.patch_otel_java_contrib == 'true' }}
+      shell: bash
+
+    - name: Build opentelemetry-java-instrumentation with tests
+      uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
+      with:
+        arguments: check -x spotlessCheck publishToMavenLocal --scan --no-daemon
+        build-root-directory: opentelemetry-java-instrumentation
+
+    - name: Build opentelemetry java instrumentation
+      uses: gradle/gradle-build-action@v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests == 'false' }}
+      with:
+        arguments: publishToMavenLocal --scan --no-daemon
+        build-root-directory: opentelemetry-java-instrumentation
+
+    - name: cleanup opentelmetry-java-instrumentation
+      run: rm -rf opentelemetry-java-instrumentation
+      if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
