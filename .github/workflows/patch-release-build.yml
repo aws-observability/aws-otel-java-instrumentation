@@ -37,14 +37,14 @@ jobs:
         name: Check out release branch
         # Will fail if there is no release branch yet or succeed otherwise
         continue-on-error: true
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           ref: ${{ steps.parse-release-branch.outputs.release-branch-name }}
       - id: checkout-release-tag
         name: Check out release tag
         # If there is already a release branch, the previous step succeeds and we don't run this or the next one.
         if: ${{ steps.checkout-release-branch.outcome == 'failure' }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           ref: ${{ steps.parse-release-branch.outputs.release-tag-name }}
       - name: Create release branch
@@ -57,7 +57,7 @@ jobs:
     needs: prepare-release-branch
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release-branch-name }}
 
@@ -66,12 +66,12 @@ jobs:
           java-version: 17
           distribution: 'temurin'
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
@@ -88,33 +88,32 @@ jobs:
               # Trim whitespaces and cherrypick
               echo $word | sed 's/ *$//g' | sed 's/^ *//g' | git cherry-pick --stdin
           done
-
       - name: Build release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
           arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #3.6.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
         with:
           driver-opts: image=moby/buildkit:v0.15.1
 
       - name: Build image for testing
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -128,7 +127,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -138,7 +137,7 @@ jobs:
             public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
 
       - name: Build and Publish release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
           arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:
