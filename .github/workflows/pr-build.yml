@@ -17,7 +17,7 @@ jobs:
   static-code-checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
           
@@ -73,7 +73,7 @@ jobs:
     name: Test patches applied to dependencies
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -81,13 +81,13 @@ jobs:
           distribution: temurin
       # vaadin 14 tests fail with node 18
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 16
 
       # vaadin tests use pnpm
       - name: Cache pnpm modules
-        uses: actions/cache@v3
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-test-cache-pnpm-modules
@@ -115,7 +115,7 @@ jobs:
           # https://github.com/open-telemetry/opentelemetry-java/issues/4560
           - os: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') && 'windows-latest' || '' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -133,7 +133,7 @@ jobs:
 
         # cache local patch outputs
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
@@ -144,7 +144,7 @@ jobs:
         if: ${{ matrix.os != 'windows-latest' }} # Skip patch on windows as it is not possible to build opentelemetry-java on windows
 
       - name: Build with Gradle with Integration tests
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: build integrationTests --stacktrace -PenableCoverage=true -PlocalDocker=true
@@ -164,7 +164,7 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
       - name: Run contract tests
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           arguments: contractTests -PlocalDocker=true -i
@@ -182,17 +182,17 @@ jobs:
           echo "ADOT_JAVA_VERSION=$(./gradlew printVersion -q )" >> $GITHUB_ENV
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #3.6.0
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
         with:
           driver-opts: image=moby/buildkit:v0.15.1
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Build image for testing
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           push: false
@@ -216,17 +216,17 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.ADOT_JAVA_VERSION }}"
 
       - name: Build with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         if: ${{ matrix.os != 'ubuntu-latest' && (hashFiles('.github/patches/opentelemetry-java*.patch') == '' || matrix.os != 'windows-latest' ) }} # build on windows as well unless a patch exists
         with:
           arguments: build --stacktrace -PenableCoverage=true
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
 
   build-lambda:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - name: Setup Java
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
