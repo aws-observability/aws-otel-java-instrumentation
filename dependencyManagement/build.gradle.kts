@@ -27,7 +27,7 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "2.18.1"
+val otelVersion = "2.18.1-adot1"
 val otelSnapshotVersion = "2.19.0"
 val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
 val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"

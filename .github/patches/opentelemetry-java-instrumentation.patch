@@ -1,0 +1,28 @@
+diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
+index 98def282f8..65fd6a8a13 100644
+--- a/dependencyManagement/build.gradle.kts
++++ b/dependencyManagement/build.gradle.kts
+@@ -104,7 +104,7 @@ val DEPENDENCIES = listOf(
+   "io.netty:netty:3.10.6.Final",
+   "io.opentelemetry.contrib:opentelemetry-azure-resources:${otelContribVersion}",
+   "io.opentelemetry.contrib:opentelemetry-aws-resources:${otelContribVersion}",
+-  "io.opentelemetry.contrib:opentelemetry-aws-xray-propagator:${otelContribVersion}",
++  "io.opentelemetry.contrib:opentelemetry-aws-xray-propagator:1.48.0-alpha-adot1",
+   "io.opentelemetry.contrib:opentelemetry-gcp-resources:${otelContribVersion}",
+   "io.opentelemetry.contrib:opentelemetry-cloudfoundry-resources:${otelContribVersion}",
+   "io.opentelemetry.contrib:opentelemetry-baggage-processor:${otelContribVersion}",
+diff --git a/version.gradle.kts b/version.gradle.kts
+index 023d04703c..ec9690086c 100644
+--- a/version.gradle.kts
++++ b/version.gradle.kts
+@@ -1,5 +1,5 @@
+-val stableVersion = "2.18.1"
+-val alphaVersion = "2.18.1-alpha"
++val stableVersion = "2.18.1-adot1"
++val alphaVersion = "2.18.1-adot1-alpha"
+ 
+ allprojects {
+   if (findProperty("otel.stable") != "true") {
+-- 
+2.45.1
+
