@@ -18,6 +18,6 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 - Add CloudWatch EMF metrics exporter for Java Agent and Lambda environment
   ([#1209](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1209))
 - Support X-Ray Trace Id extraction from Lambda Context object, and respect user-configured OTEL_PROPAGATORS in AWS Lamdba instrumentation
-  ([#1191](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1191))
+  ([#1191](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1191)) ([#1218](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1218))
 - Adaptive Sampling improvements: Ensure propagation of sampling rule across services and AWS accounts. Remove unnecessary B3 propagator.
   ([#1201](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1201))
