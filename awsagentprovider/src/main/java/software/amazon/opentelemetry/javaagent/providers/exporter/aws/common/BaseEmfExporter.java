@@ -38,13 +38,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Logger;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
-public abstract class BaseEmfExporter implements MetricExporter {
+public abstract class BaseEmfExporter<T> implements MetricExporter {
   private static final Logger logger = Logger.getLogger(BaseEmfExporter.class.getName());
   private final String namespace;
+  protected final LogEventEmitter<T> emitter;
 
-  protected BaseEmfExporter(String namespace) {
+  protected BaseEmfExporter(String namespace, LogEventEmitter<T> emitter) {
     this.namespace = namespace != null ? namespace : "default";
+    this.emitter = emitter;
   }
 
   @Override
@@ -80,7 +83,9 @@ public abstract class BaseEmfExporter implements MetricExporter {
           }
 
           if (record == null) {
-            logger.fine("Unsupported metric data type: " + metricData.getClass().getSimpleName());
+            logger.fine(
+                String.format(
+                    "Unsupported metric data type: %s", metricData.getClass().getSimpleName()));
             continue;
           }
 
@@ -102,17 +107,16 @@ public abstract class BaseEmfExporter implements MetricExporter {
                   this.namespace,
                   firstRecord.getTimestamp());
 
-          // Create log event with message and timestamp like Python implementation
           Map<String, Object> logEvent = new HashMap<>();
           logEvent.put("message", new ObjectMapper().writeValueAsString(emfLog));
           logEvent.put("timestamp", firstRecord.getTimestamp());
-          this.emit(logEvent);
+          this.emitter.emit(logEvent);
         }
       }
 
       return CompletableResultCode.ofSuccess();
     } catch (Exception e) {
-      logger.severe("Failed to export metrics: " + e.getMessage());
+      logger.severe(String.format("Failed to export metrics: %s", e.getMessage()));
       return CompletableResultCode.ofFailure();
     }
   }
@@ -136,17 +140,8 @@ public abstract class BaseEmfExporter implements MetricExporter {
     return Aggregation.defaultAggregation();
   }
 
-  /**
-   * Export a log event.
-   *
-   * <p>This method must be implemented by subclasses to define where the EMF logs are sent.
-   *
-   * @param logEvent The log event to send
-   */
-  protected abstract void emit(Map<String, Object> logEvent);
-
   private String groupByAttributesAndTimestamp(MetricRecord record) {
-    // Java doesn't have built-in, hashable tuples, so we
+    // Java doesn't have built-in, hash-able tuples, so we
     // concatenate the attributes key and timestamp into a single string to create a unique
     // grouping key for the HashMap.
     String attrsKey = getAttributesKey(record.getAttributes());

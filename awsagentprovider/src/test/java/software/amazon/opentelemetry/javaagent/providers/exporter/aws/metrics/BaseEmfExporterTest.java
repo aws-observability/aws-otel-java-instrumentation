@@ -35,39 +35,38 @@ import io.opentelemetry.sdk.metrics.data.PointData;
 import io.opentelemetry.sdk.metrics.data.SumData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.resources.Resource;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.LogEventEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-public abstract class BaseEmfExporterTest {
+public abstract class BaseEmfExporterTest<T> {
   private static final double PRECISION_TOLERANCE = 0.00001;
   private static final Random RANDOM = new Random();
   private static long timestampCounter = System.nanoTime();
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private MetricData metricData;
+  static final String NAMESPACE = "test-namespace";
   List<Map<String, Object>> capturedLogEvents;
   MetricExporter exporter;
-  LogEventEmitter mockEmitter;
+  LogEventEmitter<T> mockEmitter;
+
+  abstract LogEventEmitter<T> createEmitter();
 
   abstract MetricExporter createExporter();
 
   @BeforeEach
   void setup() {
-    mockEmitter = mock(LogEventEmitter.class);
     capturedLogEvents = new ArrayList<>();
+    mockEmitter = createEmitter();
+    exporter = createExporter();
+    metricData = mock(MetricData.class);
 
     doAnswer(
             invocation -> {
@@ -76,9 +75,6 @@ public abstract class BaseEmfExporterTest {
             })
         .when(mockEmitter)
         .emit(any());
-
-    exporter = createExporter();
-    metricData = mock(MetricData.class);
   }
 
   @Test
@@ -332,6 +328,13 @@ public abstract class BaseEmfExporterTest {
       fail("Failed to parse JSON message: " + e.getMessage());
       return Optional.empty();
     }
+  }
+
+  protected Map<String, Object> createLogEvent(String message, long timestamp) {
+    Map<String, Object> logEvent = new HashMap<>();
+    logEvent.put("message", message);
+    logEvent.put("timestamp", timestamp);
+    return logEvent;
   }
 
   private List<Number> generateRandomNumbers(int count) {

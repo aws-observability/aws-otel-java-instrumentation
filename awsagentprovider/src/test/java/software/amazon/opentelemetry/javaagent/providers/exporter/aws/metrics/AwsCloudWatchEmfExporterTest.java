@@ -15,30 +15,67 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
+import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.util.*;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.LogEventEmitter;
+import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.CreateLogGroupRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.CreateLogStreamRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.PutLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.ResourceAlreadyExistsException;
+import software.amazon.awssdk.services.cloudwatchlogs.model.ResourceNotFoundException;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.CloudWatchLogsClientEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
-public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest {
-  private static final String NAMESPACE = "test-namespace";
+public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatchLogsClient> {
+  private static final String LOG_GROUP_NAME = "test-log-group";
+  private static final String LOG_STREAM_NAME = "test-stream";
+  private static final String REGION = "us-east-1";
+
+  private AwsCloudWatchEmfExporter mockExporter;
+  private CloudWatchLogsClientEmitter testMockEmitter;
+  private CloudWatchLogsClient mockClient;
+  private CloudWatchLogsClientEmitter wrapper;
+  private long currentTime;
+
+  @BeforeEach
+  void setUp() {
+    super.setup();
+    this.currentTime = System.currentTimeMillis();
+    this.testMockEmitter = mock(CloudWatchLogsClientEmitter.class);
+    this.mockExporter = new AwsCloudWatchEmfExporter(NAMESPACE, this.testMockEmitter);
+    this.mockClient = mock(CloudWatchLogsClient.class);
+    this.wrapper = spy(new CloudWatchLogsClientEmitter(LOG_GROUP_NAME, LOG_STREAM_NAME, REGION));
+    doReturn(this.mockClient).when(this.wrapper).getEmitter();
+  }
+
+  @Override
+  protected LogEventEmitter<CloudWatchLogsClient> createEmitter() {
+    return mock(CloudWatchLogsClientEmitter.class);
+  }
 
   @Override
   protected MetricExporter createExporter() {
-    return new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+    return new AwsCloudWatchEmfExporter(NAMESPACE, this.mockEmitter);
   }
 
   @Override
   protected Optional<Map<String, Object>> validateEmfStructure(
       Map<String, Object> logEvent, String metricName) {
+
     Optional<Map<String, Object>> emfLogOpt = super.validateEmfStructure(logEvent, metricName);
 
     if (emfLogOpt.isPresent()) {
@@ -53,71 +90,194 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest {
   }
 
   @Test
+  void testShutdown() {
+    AwsCloudWatchEmfExporter spyExporter = spy(this.mockExporter);
+    doNothing().when(this.testMockEmitter).flushEvents();
+
+    CompletableResultCode result = spyExporter.shutdown();
+
+    assertTrue(result.isSuccess());
+    verify(spyExporter).flush();
+  }
+
+  @Test
+  void testLogEventBatch() {
+    long laterTime = this.currentTime + 1000;
+
+    this.wrapper.emit(createLogEvent("first message", this.currentTime));
+    this.wrapper.emit(createLogEvent("second message", laterTime));
+
+    // Verify both events are batched together before flush
+    verify(this.mockClient, never()).putLogEvents(any(PutLogEventsRequest.class));
+
+    this.wrapper.flushEvents();
+
+    ArgumentCaptor<PutLogEventsRequest> requestCaptor =
+        ArgumentCaptor.forClass(PutLogEventsRequest.class);
+    verify(this.mockClient).putLogEvents(requestCaptor.capture());
+
+    PutLogEventsRequest request = requestCaptor.getValue();
+    assertEquals(2, request.logEvents().size());
+    assertEquals("first message", request.logEvents().get(0).message());
+    assertEquals("second message", request.logEvents().get(1).message());
+    assertEquals(this.currentTime, request.logEvents().get(0).timestamp());
+    assertEquals(laterTime, request.logEvents().get(1).timestamp());
+  }
+
+  @Test
+  void testLogEventsSortedByTimestamp() {
+    ArgumentCaptor<PutLogEventsRequest> requestCaptor =
+        ArgumentCaptor.forClass(PutLogEventsRequest.class);
+
+    // Add events in non-chronological order
+    this.wrapper.emit(createLogEvent("third", this.currentTime + 2000));
+    this.wrapper.emit(createLogEvent("first", this.currentTime));
+    this.wrapper.emit(createLogEvent("second", this.currentTime + 1000));
+    this.wrapper.flushEvents();
+
+    // Verify putLogEvents was called with sorted events
+    verify(this.mockClient).putLogEvents(requestCaptor.capture());
+    PutLogEventsRequest request = requestCaptor.getValue();
+
+    assertEquals(3, request.logEvents().size());
+    assertEquals("first", request.logEvents().get(0).message());
+    assertEquals("second", request.logEvents().get(1).message());
+    assertEquals("third", request.logEvents().get(2).message());
+  }
+
+  @Test
+  void testCreateLogStreamIfNeededAlreadyExists() {
+    when(this.mockClient.putLogEvents(any(PutLogEventsRequest.class)))
+        .thenThrow(ResourceNotFoundException.builder().build())
+        .thenReturn(null);
+    when(this.mockClient.createLogStream(any(CreateLogStreamRequest.class)))
+        .thenThrow(ResourceAlreadyExistsException.builder().build());
+
+    // Should make a call to create a Log Stream if it does not exist.
+    assertDoesNotThrow(
+        () -> {
+          this.wrapper.emit(createLogEvent("test", this.currentTime));
+          this.wrapper.flushEvents();
+        });
+
+    verify(this.mockClient).createLogStream(any(CreateLogStreamRequest.class));
+  }
+
+  @Test
+  void testCreateLogGroupIfNeededAlreadyExists() {
+    when(this.mockClient.putLogEvents(any(PutLogEventsRequest.class)))
+        .thenThrow(ResourceNotFoundException.builder().build())
+        .thenReturn(null);
+    when(this.mockClient.createLogGroup(any(CreateLogGroupRequest.class)))
+        .thenThrow(ResourceAlreadyExistsException.builder().build());
+
+    // Should make a call to create a Log Group if it does not exist.
+    assertDoesNotThrow(
+        () -> {
+          this.wrapper.emit(createLogEvent("test", this.currentTime));
+          this.wrapper.flushEvents();
+        });
+
+    verify(this.mockClient).createLogGroup(any(CreateLogGroupRequest.class));
+  }
+
+  @Test
   void testBatchActiveNewBatch() {
-    LogEventEmitter mockEmitter = mock(LogEventEmitter.class);
-    AwsCloudWatchEmfExporter exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+    Map<String, Object> logEvent = createLogEvent("test", this.currentTime);
 
-    long currentTime = System.currentTimeMillis();
-    Map<String, Object> logEvent = new HashMap<>();
-    logEvent.put("message", "test");
-    logEvent.put("timestamp", currentTime);
-
-    // Send multiple events with same timestamp - should be batched together
-    exporter.emit(logEvent);
-    exporter.emit(logEvent);
-    exporter.emit(logEvent);
+    // Should batch multiple events with the same timestamp together
+    this.wrapper.emit(logEvent);
+    this.wrapper.emit(logEvent);
+    this.wrapper.emit(logEvent);
 
     // Should only call emit once per event since batch is active
-    verify(mockEmitter, times(3)).emit(logEvent);
+    verify(this.wrapper, times(3)).emit(logEvent);
+  }
+
+  @Test
+  void testSendLogEventForceBatchSend() {
+    // Send events up to the limit (should all be batched)
+    for (int i = 0; i < 10000; i++) {
+      this.wrapper.emit(createLogEvent("test message " + i, this.currentTime));
+    }
+
+    // At this point, no batch should have been sent yet
+    verify(this.mockClient, never()).putLogEvents(any(PutLogEventsRequest.class));
+
+    // Send one more event and should trigger batch send due to count limit
+    this.wrapper.emit(createLogEvent("final message", this.currentTime));
+
+    verify(this.mockClient, times(1)).putLogEvents(any(PutLogEventsRequest.class));
+  }
+
+  @Test
+  void testLogEventBatchClear() {
+    this.wrapper.emit(createLogEvent("test", this.currentTime));
+
+    this.wrapper.flushEvents();
+    verify(this.mockClient, times(1)).putLogEvents(any(PutLogEventsRequest.class));
+
+    // Add another event after flush - should create new batch
+    this.wrapper.emit(createLogEvent("new test", this.currentTime + 1000));
+
+    // Flush again - should send the new event
+    this.wrapper.flushEvents();
+    verify(this.mockClient, times(2)).putLogEvents(any(PutLogEventsRequest.class));
+  }
+
+  @Test
+  void testBatch24HourBoundaryEdgeCases() {
+    long baseTime = this.currentTime - (25L * 60 * 60 * 1000); // 25 hours ago
+
+    this.wrapper.emit(createLogEvent("first", baseTime));
+
+    // Should still batch the events together at exactly 24 hours
+    long exactly24Hours = baseTime + (24L * 60 * 60 * 1000);
+    this.wrapper.emit(createLogEvent("boundary", exactly24Hours));
+
+    // Should still be batched - no putLogEvents call yet
+    verify(this.mockClient, never()).putLogEvents(any(PutLogEventsRequest.class));
+
+    // Add event just over 24 hour boundary (should trigger new batch)
+    long over24Hours = baseTime + (24L * 60 * 60 * 1000 + 1);
+    this.wrapper.emit(createLogEvent("over", over24Hours));
+
+    verify(this.mockClient, times(1)).putLogEvents(any(PutLogEventsRequest.class));
   }
 
   @Test
   void testBatchInactiveAfter24Hours() {
-    LogEventEmitter mockEmitter = mock(LogEventEmitter.class);
-    AwsCloudWatchEmfExporter exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
+    long futureTime = this.currentTime + (25L * 60 * 60 * 1000); // 25 hours later
+    Map<String, Object> firstEvent = createLogEvent("test1", this.currentTime);
+    Map<String, Object> secondEvent = createLogEvent("test2", futureTime);
 
-    long baseTime = System.currentTimeMillis();
-    Map<String, Object> firstEvent = new HashMap<>();
-    firstEvent.put("message", "test1");
-    firstEvent.put("timestamp", baseTime);
-
-    Map<String, Object> secondEvent = new HashMap<>();
-    secondEvent.put("message", "test2");
-    secondEvent.put("timestamp", baseTime + (25L * 60 * 60 * 1000)); // 25 hours later
-
-    exporter.emit(firstEvent);
-    exporter.emit(secondEvent);
+    this.testMockEmitter.emit(firstEvent);
+    this.testMockEmitter.emit(secondEvent);
 
     // Should trigger 2 separate batch sends due to 24-hour span limit
-    verify(mockEmitter, times(1)).emit(firstEvent);
-    verify(mockEmitter, times(1)).emit(secondEvent);
+    verify(this.testMockEmitter, times(1)).emit(firstEvent);
+    verify(this.testMockEmitter, times(1)).emit(secondEvent);
   }
 
   @ParameterizedTest
   @MethodSource("batchLimitScenarios")
   void testEventBatchLimits(
       Map<String, Object> logEvent, int eventCount, boolean shouldExceedLimit) {
-    LogEventEmitter mockEmitter = mock(LogEventEmitter.class);
-    AwsCloudWatchEmfExporter exporter = new AwsCloudWatchEmfExporter(NAMESPACE, mockEmitter);
-
     for (int i = 0; i < eventCount; i++) {
-      exporter.emit(logEvent);
+      this.testMockEmitter.emit(logEvent);
     }
 
     if (shouldExceedLimit) {
-      verify(mockEmitter, atLeast(2)).emit(logEvent);
+      verify(this.testMockEmitter, atLeast(2)).emit(logEvent);
     } else {
-      verify(mockEmitter, times(eventCount)).emit(logEvent);
+      verify(this.testMockEmitter, times(eventCount)).emit(logEvent);
     }
   }
 
   @ParameterizedTest
   @MethodSource("invalidLogEvents")
   void testValidateLogEventInvalid(Map<String, Object> logEvent) {
-    AwsCloudWatchEmfExporter exporter =
-        new AwsCloudWatchEmfExporter(NAMESPACE, "test-log-group", "test-stream", "us-east-1");
-
-    assertThrows(IllegalArgumentException.class, () -> exporter.emit(logEvent));
+    assertThrows(IllegalArgumentException.class, () -> this.wrapper.emit(logEvent));
   }
 
   static Stream<Arguments> batchLimitScenarios() {

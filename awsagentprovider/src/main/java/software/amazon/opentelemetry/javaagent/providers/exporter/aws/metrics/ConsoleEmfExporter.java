@@ -16,12 +16,14 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics;
 
 import io.opentelemetry.sdk.common.CompletableResultCode;
-import java.util.Map;
+import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.BaseEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.ConsoleEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
-public class ConsoleEmfExporter extends BaseEmfExporter {
+public class ConsoleEmfExporter extends BaseEmfExporter<PrintStream> {
   private static final Logger logger = Logger.getLogger(ConsoleEmfExporter.class.getName());
 
   /**
@@ -30,11 +32,22 @@ public class ConsoleEmfExporter extends BaseEmfExporter {
    * @param namespace CloudWatch namespace for metrics (defaults to "default")
    */
   public ConsoleEmfExporter(String namespace) {
-    super(namespace);
+    super(namespace, new ConsoleEmitter());
+  }
+
+  /**
+   * Initialize the Console EMF exporter with custom emitter for testing.
+   *
+   * @param namespace CloudWatch namespace for metrics
+   * @param emitter Custom emitter
+   */
+  public ConsoleEmfExporter(String namespace, LogEventEmitter<PrintStream> emitter) {
+    super(namespace, emitter);
   }
 
   @Override
   public CompletableResultCode flush() {
+    this.emitter.flushEvents();
     logger.log(
         Level.FINE,
         "ConsoleEmfExporter force_flush called - no buffering to flush for console output");
@@ -45,35 +58,5 @@ public class ConsoleEmfExporter extends BaseEmfExporter {
   public CompletableResultCode shutdown() {
     logger.log(Level.FINE, "ConsoleEmfExporter shutdown called");
     return CompletableResultCode.ofSuccess();
-  }
-
-  /**
-   * Send a log event message to stdout for console output.
-   *
-   * <p>This method writes the EMF log message to stdout, making it easy to capture and redirect the
-   * output for processing or debugging purposes.
-   *
-   * @param logEvent The log event dictionary containing 'message' and 'timestamp' keys, where
-   *     'message' is the JSON-serialized EMF log
-   */
-  @Override
-  protected void emit(Map<String, Object> logEvent) {
-    try {
-      Object messageObj = logEvent.get("message");
-      String message = messageObj != null ? messageObj.toString() : "";
-      if (message.isEmpty()) {
-        logger.log(Level.WARNING, "Empty message in log event: " + logEvent);
-        return;
-      }
-      System.out.println(message);
-      System.out.flush();
-    } catch (Exception error) {
-      logger.log(
-          Level.SEVERE,
-          "Failed to write EMF log to console. Log event: "
-              + logEvent
-              + ". Error: "
-              + error.getMessage());
-    }
   }
 }
