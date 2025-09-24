@@ -1,0 +1,70 @@
+name: Nightly Upstream Snapshot Build
+
+on:
+  schedule:
+    - cron: "21 3 * * *"
+  workflow_dispatch:
+
+env:
+  BRANCH_NAME: nightly-dependency-updates
+
+jobs:
+  update-and-create-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check_changes.outputs.has_changes }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Check if nightly branch already exists
+      run: |
+        if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+          echo "Branch $BRANCH_NAME already exists. Skipping run to avoid conflicts."
+          echo "Please merge or close the existing PR before the next nightly run."
+          exit 1
+        fi
+    
+    - name: Configure git and create branch
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git checkout -b "$BRANCH_NAME"
+    
+    - name: Set up Python
+      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c #v6.0.0
+      with:
+        python-version: '3.11'
+    
+    - name: Install Python dependencies
+      run: pip install requests
+    
+    - name: Update dependencies
+      run: python3 scripts/update_dependencies.py
+    
+    - name: Check for changes and create PR
+      id: check_changes
+      run: |
+        if git diff --quiet; then
+          echo "No dependency updates needed"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "Dependencies were updated"
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          
+          git add dependencyManagement/build.gradle.kts
+          git commit -m "chore: update OpenTelemetry dependencies to latest versions"
+          git push origin "$BRANCH_NAME"
+          
+          gh pr create \
+            --title "Nightly dependency update: OpenTelemetry packages to latest versions" \
+            --body "Automated update of OpenTelemetry dependencies to their latest available versions." \
+            --base main \
+            --head "$BRANCH_NAME"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
