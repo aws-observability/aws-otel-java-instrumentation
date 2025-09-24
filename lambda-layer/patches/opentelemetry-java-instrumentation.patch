@@ -25,10 +25,15 @@ index a6b89d253d..e62d30eddb 100644
        if (!functionInstrumenter().shouldStart(parentContext, otelInput)) {
          return;
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
-index df605add2f..b2f01d9d4d 100644
+index df605add2f..e16c736990 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
-@@ -9,7 +9,7 @@ dependencies {
+@@ -5,11 +5,12 @@ plugins {
+ dependencies {
+   compileOnly("io.opentelemetry:opentelemetry-sdk")
+   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
++  compileOnly(project(":muzzle"))
+ 
    compileOnly("com.google.auto.value:auto-value-annotations")
    annotationProcessor("com.google.auto.value:auto-value")
  
@@ -37,7 +42,7 @@ index df605add2f..b2f01d9d4d 100644
  
    // We do lightweight parsing of JSON to extract HTTP headers from requests for propagation.
    // This will be commonly needed even for users that don't use events, but luckily it's not too big.
-@@ -26,6 +26,7 @@ dependencies {
+@@ -26,6 +27,7 @@ dependencies {
  
    testImplementation(project(":instrumentation:aws-lambda:aws-lambda-core-1.0:testing"))
    testImplementation("uk.org.webcompere:system-stubs-jupiter")
@@ -147,10 +152,10 @@ index 9341bf6f79..f719c1ea93 100644
  }
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
 new file mode 100644
-index 0000000000..e711558e05
+index 0000000000..6349d1bb29
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,85 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -162,8 +167,10 @@ index 0000000000..e711558e05
 +
 +import io.opentelemetry.context.Context;
 +import io.opentelemetry.context.propagation.TextMapGetter;
++import io.opentelemetry.javaagent.tooling.muzzle.NoMuzzle;
 +import java.util.Locale;
 +import java.util.Map;
++import java.util.logging.Logger;
 +
 +/**
 + * This class is internal and is hence not for public use. Its APIs are unstable and can change at
@@ -171,10 +178,12 @@ index 0000000000..e711558e05
 + */
 +public final class ParentContextExtractor {
 +
++  private static final Logger logger = Logger.getLogger(ParentContextExtractor.class.getName());
 +  private static final String AWS_TRACE_HEADER_ENV_KEY = "_X_AMZN_TRACE_ID";
 +  private static final String AWS_TRACE_HEADER_PROP = "com.amazonaws.xray.traceHeader";
 +  // lower-case map getter used for extraction
 +  static final String AWS_TRACE_HEADER_PROPAGATOR_KEY = "x-amzn-trace-id";
++  static boolean getXrayTraceIdMethodExists = true;
 +
 +  static Context extract(
 +      Map<String, String> headers,
@@ -188,9 +197,22 @@ index 0000000000..e711558e05
 +    return instrumenter.extract(mergedHeaders, MapGetter.INSTANCE);
 +  }
 +
++  @NoMuzzle
 +  private static String getTraceHeader(
 +      com.amazonaws.services.lambda.runtime.Context lambdaContext) {
-+    String traceHeader = lambdaContext.getXrayTraceId();
++    String traceHeader = null;
++
++    // Lambda Core dependency that is actually used by Lambda Runtime may be on an older version
++    // that does not have the `getXrayTraceId` method. If `NoSuchMethodError` occurs, we do not
++    // attempt invoking `getXrayTraceId` again.
++    if (getXrayTraceIdMethodExists) {
++      try {
++        traceHeader = lambdaContext.getXrayTraceId();
++      } catch (NoSuchMethodError e) {
++        logger.fine("Failed to get X-Ray trace ID from lambdaContext: " + e);
++        getXrayTraceIdMethodExists = false;
++      }
++    }
 +    if (traceHeader != null && !traceHeader.isEmpty()) {
 +      return traceHeader;
 +    }
@@ -234,10 +256,10 @@ index cb19d1e568..12ed174bb2 100644
      assertThat(spanContext.getSpanId()).isEqualTo("00f067aa0ba902b7");
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java
 new file mode 100644
-index 0000000000..76fc823a65
+index 0000000000..4b0f354769
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,375 @@
 +/*
 + * Copyright The OpenTelemetry Authors
 + * SPDX-License-Identifier: Apache-2.0
@@ -247,6 +269,8 @@ index 0000000000..76fc823a65
 +
 +import static org.assertj.core.api.Assertions.assertThat;
 +import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.times;
++import static org.mockito.Mockito.verify;
 +import static org.mockito.Mockito.when;
 +
 +import com.amazonaws.services.lambda.runtime.Context;
@@ -574,6 +598,42 @@ index 0000000000..76fc823a65
 +    assertThat(spanContext.getSpanId()).isEqualTo("0000000000000789");
 +    assertThat(spanContext.getTraceId()).isEqualTo("8a3c60f7d188f8fa79d48a391a778fa7");
 +  }
++
++  @Test
++  void shouldFallbackToSystemPropertyWhenNoSuchMethodErrorThrown() {
++    // given
++    Map<String, String> headers = ImmutableMap.of();
++    Context mockLambdaContextWithNoSuchMethodError = mock(Context.class);
++    when(mockLambdaContextWithNoSuchMethodError.getXrayTraceId())
++        .thenThrow(new NoSuchMethodError("getXrayTraceId method not found"));
++    systemProperties.set(
++        "com.amazonaws.xray.traceHeader",
++        "Root=1-8a3c60f7-d188f8fa79d48a391a778fa7;Parent=0000000000000789;Sampled=1");
++
++    // Reset the static flag to ensure the method is attempted
++    ParentContextExtractor.getXrayTraceIdMethodExists = true;
++
++    // when - call extract
++    io.opentelemetry.context.Context context =
++        ParentContextExtractor.extract(
++            headers, INSTRUMENTER_WITH_B3_XRAY_PROPAGATORS, mockLambdaContextWithNoSuchMethodError);
++
++    // then
++    Span span = Span.fromContext(context);
++    SpanContext spanContext = span.getSpanContext();
++    assertThat(spanContext.isValid()).isTrue();
++    assertThat(spanContext.getSpanId()).isEqualTo("0000000000000789");
++    assertThat(spanContext.getTraceId()).isEqualTo("8a3c60f7d188f8fa79d48a391a778fa7");
++    // Verify getXrayTraceId was called only once
++    assertThat(ParentContextExtractor.getXrayTraceIdMethodExists).isFalse();
++    verify(mockLambdaContextWithNoSuchMethodError, times(1)).getXrayTraceId();
++
++    // when - call extract again
++    ParentContextExtractor.extract(
++        headers, INSTRUMENTER_WITH_B3_XRAY_PROPAGATORS, mockLambdaContextWithNoSuchMethodError);
++    // Verify the call count of getXrayTraceId is still 1
++    verify(mockLambdaContextWithNoSuchMethodError, times(1)).getXrayTraceId();
++  }
 +}
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
 index e059250807..1fa80c3735 100644
@@ -614,7 +674,7 @@ index 4cd11fc0c4..7b7d62755c 100644
    }
  
 diff --git a/version.gradle.kts b/version.gradle.kts
-index 7900c9a4d9..80383d7c22 100644
+index ec9690086c..b267166804 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
