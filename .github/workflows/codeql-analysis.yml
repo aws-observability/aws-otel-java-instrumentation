@@ -52,11 +52,10 @@ jobs:
         
     - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-      
     - name: Manually build to avoid autobuild failures
-      run: ./gradlew build
+      uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+      with:
+        arguments: build
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@16df4fbc19aea13d921737861d6c622bf3cefe23 #v3.30.3
