@@ -180,12 +180,12 @@ public final class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addMetricExporterCustomizer(this::customizeMetricExporter);
   }
 
-  private static Optional<String> getAwsRegionFromEnvironment() {
-    String region = System.getenv(AWS_REGION);
+  private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
+    String region = configProps.getString(AWS_REGION);
     if (region != null) {
       return Optional.of(region);
     }
-    return Optional.ofNullable(System.getenv(AWS_DEFAULT_REGION));
+    return Optional.ofNullable(configProps.getString(AWS_DEFAULT_REGION));
   }
 
   static boolean isLambdaEnvironment() {
@@ -205,7 +205,7 @@ public final class AwsApplicationSignalsCustomizerProvider
         && configProps.getBoolean(APPLICATION_SIGNALS_RUNTIME_ENABLED_CONFIG, true);
   }
 
-  private Map<String, String> customizeProperties(ConfigProperties configProps) {
+  Map<String, String> customizeProperties(ConfigProperties configProps) {
     Map<String, String> propsOverride = new HashMap<>();
     boolean isLambdaEnvironment = isLambdaEnvironment();
 
@@ -537,7 +537,8 @@ public final class AwsApplicationSignalsCustomizerProvider
       Map<String, String> headers =
           AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
-      Optional<String> awsRegion = getAwsRegionFromEnvironment();
+      Optional<String> awsRegion = getAwsRegionFromConfig(configProps);
+
       if (awsRegion.isPresent()) {
         if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
             && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)
