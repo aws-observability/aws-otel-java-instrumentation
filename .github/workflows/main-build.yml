@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - "release/v*"
+      - nightly-dependency-updates
   workflow_dispatch: # be able to run the workflow on demand
 env:
   AWS_DEFAULT_REGION: us-east-1
@@ -268,7 +269,7 @@ jobs:
     name: "Publish Main Build Status"
     needs: [ build, e2e-test, contract-tests, application-signals-lambda-layer-build, application-signals-e2e-test ]
     runs-on: ubuntu-latest
-    if: always()
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
     steps:
       - name: Configure AWS Credentials for emitting metrics
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
