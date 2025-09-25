@@ -23,7 +23,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emi
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
 /**
- * Metrics exporter for CloudWatch EMF format.
+ * EMF metrics exporter for sending data directly to CloudWatch Logs.
  *
  * <p>This exporter converts OTel metrics into CloudWatch EMF logs which are then sent to CloudWatch
  * Logs. CloudWatch Logs automatically extracts the metrics from the EMF logs.

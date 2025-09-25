@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/** A log event emitter that prints Log Events to Standard Out. */
 public class ConsoleEmitter implements LogEventEmitter<PrintStream> {
   private static final Logger logger = Logger.getLogger(ConsoleEmitter.class.getName());
   private final PrintStream emitter;

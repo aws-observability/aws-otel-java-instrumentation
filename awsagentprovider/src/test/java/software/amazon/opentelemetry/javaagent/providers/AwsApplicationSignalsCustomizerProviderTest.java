@@ -571,11 +571,11 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "otlp",
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
-            "AWS_REGION",
+            AWS_REGION,
             "us-east-1");
 
     Map<String, String> missingHeaders =
-        Map.of(OTEL_METRICS_EXPORTER, "awsemf", "AWS_REGION", "us-east-1");
+        Map.of(OTEL_METRICS_EXPORTER, "awsemf", AWS_REGION, "us-east-1");
 
     Map<String, String> missingRegion =
         Map.of(
@@ -589,7 +589,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "awsemf",
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             "x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
-            "AWS_REGION",
+            AWS_REGION,
             "us-east-1");
 
     Map<String, String> missingLogStream =
@@ -598,7 +598,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "awsemf",
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             "x-aws-log-group=test-group,x-aws-metric-namespace=test-namespace",
-            "AWS_REGION",
+            AWS_REGION,
             "us-east-1");
 
     Map<String, String> missingNamespace =
@@ -607,7 +607,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "awsemf",
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             "x-aws-log-group=test-group,x-aws-log-stream=test-stream",
-            "AWS_REGION",
+            AWS_REGION,
             "us-east-1");
 
     args.add(wrongExporter);
@@ -629,7 +629,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "awsemf",
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
-            "AWS_REGION",
+            AWS_REGION,
             "us-east-1");
 
     Map<String, String> awsDefaultRegionConfig =
@@ -638,7 +638,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "awsemf",
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
-            "AWS_DEFAULT_REGION",
+            AWS_DEFAULT_REGION,
             "us-west-2");
 
     args.add(awsRegionConfig);

@@ -88,8 +88,8 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trace
 public final class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
   // https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html
-  static final String AWS_REGION = "AWS_REGION";
-  static final String AWS_DEFAULT_REGION = "AWS_DEFAULT_REGION";
+  static final String AWS_REGION = "aws.region";
+  static final String AWS_DEFAULT_REGION = "aws.default.region";
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
   static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
       "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";

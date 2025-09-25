@@ -18,7 +18,7 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.em
 import java.util.Map;
 
 /**
- * Generic interface for log emitters.
+ * Generic interface for log event emitters.
  *
  * @param <T> The type of the underlying emitter client
  */

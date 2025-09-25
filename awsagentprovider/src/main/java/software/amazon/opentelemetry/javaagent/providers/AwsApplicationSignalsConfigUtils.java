@@ -29,7 +29,9 @@ public final class AwsApplicationSignalsConfigUtils {
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
 
   /**
-   * Removes "awsemf" from OTEL_METRICS_EXPORTER if present.
+   * Removes "awsemf" from OTEL_METRICS_EXPORTER if present to prevent validation errors from OTel
+   * dependencies which would try to load metric exporters. We will contribute emf exporter to
+   * upstream for supporting OTel metrics in SDK
    *
    * @param configProps the configuration properties
    * @return Optional containing string with "awsemf" removed if the original OTEL_METRICS_EXPORTER

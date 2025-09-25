@@ -40,11 +40,20 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
+/**
+ * Base class for EMF metric exporters that converts OpenTelemetry metrics to CloudWatch EMF format.
+ */
 public abstract class BaseEmfExporter<T> implements MetricExporter {
   private static final Logger logger = Logger.getLogger(BaseEmfExporter.class.getName());
   private final String namespace;
   protected final LogEventEmitter<T> emitter;
 
+  /**
+   * Creates a new EMF exporter with the specified namespace and log emitter.
+   *
+   * @param namespace the CloudWatch metric namespace, defaults to "default" if null
+   * @param emitter the log event emitter for sending EMF logs
+   */
   protected BaseEmfExporter(String namespace, LogEventEmitter<T> emitter) {
     this.namespace = namespace != null ? namespace : "default";
     this.emitter = emitter;

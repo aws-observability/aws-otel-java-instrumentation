@@ -24,16 +24,16 @@ import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.*;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 
 /**
- * CloudWatch Logs client for batching and sending log events.
+ * A log event emitter that sends Log Events to CloudWatch Logs.
  *
  * <p>This class handles the batching logic and CloudWatch Logs API interactions for sending EMF
  * logs while respecting CloudWatch Logs constraints.
  */
 public class CloudWatchLogsClientEmitter implements LogEventEmitter<CloudWatchLogsClient> {
-  private static final Logger logger = Logger.getLogger(AwsCloudWatchEmfExporter.class.getName());
+  private static final Logger logger =
+      Logger.getLogger(CloudWatchLogsClientEmitter.class.getName());
 
   // Constants for CloudWatch Logs limits
   // http://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html
@@ -344,8 +344,7 @@ public class CloudWatchLogsClientEmitter implements LogEventEmitter<CloudWatchLo
   /**
    * Container for a batch of CloudWatch log events with metadata.
    *
-   * <p>Tracks the log events, total byte size, and timestamps for efficient batching and
-   * validation.
+   * <p>Tracks the log events, total byte size, and timestamps for batching and validation.
    */
   private static class LogEventBatch {
     private final List<InputLogEvent> logEvents = new ArrayList<>();

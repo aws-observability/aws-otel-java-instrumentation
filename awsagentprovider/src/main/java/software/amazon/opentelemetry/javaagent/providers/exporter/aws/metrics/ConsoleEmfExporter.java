@@ -23,6 +23,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.Bas
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.ConsoleEmitter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
 
+/** EMF metrics exporter for printing data to Standard Out. */
 public class ConsoleEmfExporter extends BaseEmfExporter<PrintStream> {
   private static final Logger logger = Logger.getLogger(ConsoleEmfExporter.class.getName());
 
@@ -36,7 +37,7 @@ public class ConsoleEmfExporter extends BaseEmfExporter<PrintStream> {
   }
 
   /**
-   * Initialize the Console EMF exporter with custom emitter for testing.
+   * Initialize the Console EMF exporter with custom emitter.
    *
    * @param namespace CloudWatch namespace for metrics
    * @param emitter Custom emitter
