@@ -65,8 +65,9 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
 /**
@@ -514,7 +515,7 @@ public final class AwsApplicationSignalsCustomizerProvider
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
       try {
-        return OtlpAwsLogsExporterBuilder.create(
+        return OtlpAwsLogRecordExporterBuilder.create(
                 (OtlpHttpLogRecordExporter) logsExporter,
                 configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
             .setCompression(compression)
@@ -526,6 +527,13 @@ public final class AwsApplicationSignalsCustomizerProvider
             "Given LogsExporter is not an instance of OtlpHttpLogRecordExporter, please check that you have the correct environment variables: ",
             e);
       }
+    }
+    String logsExporterConfig = configProps.getString(OTEL_LOGS_EXPORTER);
+
+    if (isLambdaEnvironment()
+        && logsExporterConfig != null
+        && logsExporterConfig.equals("console")) {
+      return new CompactConsoleLogRecordExporter();
     }
 
     return logsExporter;
