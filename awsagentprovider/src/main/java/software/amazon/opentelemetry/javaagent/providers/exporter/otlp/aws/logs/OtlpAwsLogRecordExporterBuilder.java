@@ -20,35 +20,35 @@ import static java.util.Objects.requireNonNull;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
-public class OtlpAwsLogsExporterBuilder {
+public class OtlpAwsLogRecordExporterBuilder {
   private final OtlpHttpLogRecordExporter parentExporter;
   private final String endpoint;
   private String compression;
 
-  public static OtlpAwsLogsExporterBuilder create(
+  public static OtlpAwsLogRecordExporterBuilder create(
       OtlpHttpLogRecordExporter parentExporter, String endpoint) {
-    return new OtlpAwsLogsExporterBuilder(parentExporter, endpoint);
+    return new OtlpAwsLogRecordExporterBuilder(parentExporter, endpoint);
   }
 
-  public static OtlpAwsLogsExporter getDefault(String endpoint) {
-    return OtlpAwsLogsExporter.getDefault(endpoint);
+  public static OtlpAwsLogRecordExporter getDefault(String endpoint) {
+    return OtlpAwsLogRecordExporter.getDefault(endpoint);
   }
 
-  public OtlpAwsLogsExporterBuilder setCompression(String compression) {
+  public OtlpAwsLogRecordExporterBuilder setCompression(String compression) {
     this.compression = compression;
     return this;
   }
 
-  public OtlpAwsLogsExporter build() {
+  public OtlpAwsLogRecordExporter build() {
     CompressionMethod compression = CompressionMethod.NONE;
     if (this.compression != null && "gzip".equalsIgnoreCase(this.compression)) {
       compression = CompressionMethod.GZIP;
     }
 
-    return OtlpAwsLogsExporter.create(this.parentExporter, this.endpoint, compression);
+    return OtlpAwsLogRecordExporter.create(this.parentExporter, this.endpoint, compression);
   }
 
-  private OtlpAwsLogsExporterBuilder(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
+  private OtlpAwsLogRecordExporterBuilder(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
     this.parentExporter = requireNonNull(parentExporter, "Must set a parentExporter");
     this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
   }

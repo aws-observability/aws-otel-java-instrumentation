@@ -53,7 +53,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
 
 class AwsApplicationSignalsCustomizerProviderTest {
@@ -74,7 +74,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
         validSigv4Config,
         defaultHttpLogsExporter,
         this.provider::customizeLogsExporter,
-        OtlpAwsLogsExporter.class);
+        OtlpAwsLogRecordExporter.class);
   }
 
   @ParameterizedTest

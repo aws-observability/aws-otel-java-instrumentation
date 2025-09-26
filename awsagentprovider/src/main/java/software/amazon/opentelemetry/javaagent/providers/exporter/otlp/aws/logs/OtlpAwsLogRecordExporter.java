@@ -38,21 +38,21 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.commo
  * documentation: "<a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>">
  */
-public final class OtlpAwsLogsExporter extends BaseOtlpAwsExporter implements LogRecordExporter {
+public final class OtlpAwsLogRecordExporter extends BaseOtlpAwsExporter implements LogRecordExporter {
   private final OtlpHttpLogRecordExporterBuilder parentExporterBuilder;
   private final OtlpHttpLogRecordExporter parentExporter;
 
-  static OtlpAwsLogsExporter getDefault(String endpoint) {
-    return new OtlpAwsLogsExporter(
+  static OtlpAwsLogRecordExporter getDefault(String endpoint) {
+    return new OtlpAwsLogRecordExporter(
         OtlpHttpLogRecordExporter.getDefault(), endpoint, CompressionMethod.NONE);
   }
 
-  static OtlpAwsLogsExporter create(
+  static OtlpAwsLogRecordExporter create(
       OtlpHttpLogRecordExporter parent, String endpoint, CompressionMethod compression) {
-    return new OtlpAwsLogsExporter(parent, endpoint, compression);
+    return new OtlpAwsLogRecordExporter(parent, endpoint, compression);
   }
 
-  private OtlpAwsLogsExporter(
+  private OtlpAwsLogRecordExporter(
       OtlpHttpLogRecordExporter parentExporter, String endpoint, CompressionMethod compression) {
     super(endpoint, compression);
 
