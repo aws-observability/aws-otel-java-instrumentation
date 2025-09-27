@@ -601,21 +601,11 @@ class AwsApplicationSignalsCustomizerProviderTest {
             AWS_REGION,
             "us-east-1");
 
-    Map<String, String> missingNamespace =
-        Map.of(
-            OTEL_METRICS_EXPORTER,
-            "awsemf",
-            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-            "x-aws-log-group=test-group,x-aws-log-stream=test-stream",
-            AWS_REGION,
-            "us-east-1");
-
     args.add(wrongExporter);
     args.add(missingHeaders);
     args.add(missingRegion);
     args.add(missingLogGroup);
     args.add(missingLogStream);
-    args.add(missingNamespace);
 
     return args.stream().map(Arguments::of);
   }

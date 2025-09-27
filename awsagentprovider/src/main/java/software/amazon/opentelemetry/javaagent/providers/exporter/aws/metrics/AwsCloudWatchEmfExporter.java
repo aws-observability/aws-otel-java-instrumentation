@@ -18,9 +18,9 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import java.util.logging.Logger;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.BaseEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.CloudWatchLogsClientEmitter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.BaseEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.CloudWatchLogsClientEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 /**
  * EMF metrics exporter for sending data directly to CloudWatch Logs.

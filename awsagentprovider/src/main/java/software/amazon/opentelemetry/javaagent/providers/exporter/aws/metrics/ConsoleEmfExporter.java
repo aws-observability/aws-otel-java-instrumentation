@@ -19,9 +19,9 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.BaseEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.ConsoleEmitter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.BaseEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.ConsoleEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 /** EMF metrics exporter for printing data to Standard Out. */
 public class ConsoleEmfExporter extends BaseEmfExporter<PrintStream> {

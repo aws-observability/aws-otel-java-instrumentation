@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter;
+package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter;
 
 import java.time.Duration;
 import java.util.*;
