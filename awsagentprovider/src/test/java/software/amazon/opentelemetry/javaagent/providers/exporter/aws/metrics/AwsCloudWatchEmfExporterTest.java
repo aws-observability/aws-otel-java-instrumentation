@@ -37,8 +37,8 @@ import software.amazon.awssdk.services.cloudwatchlogs.model.CreateLogStreamReque
 import software.amazon.awssdk.services.cloudwatchlogs.model.PutLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.ResourceAlreadyExistsException;
 import software.amazon.awssdk.services.cloudwatchlogs.model.ResourceNotFoundException;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.CloudWatchLogsClientEmitter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.CloudWatchLogsClientEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatchLogsClient> {
   private static final String LOG_GROUP_NAME = "test-log-group";
@@ -70,23 +70,6 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
   @Override
   protected MetricExporter createExporter() {
     return new AwsCloudWatchEmfExporter(NAMESPACE, this.mockEmitter);
-  }
-
-  @Override
-  protected Optional<Map<String, Object>> validateEmfStructure(
-      Map<String, Object> logEvent, String metricName) {
-
-    Optional<Map<String, Object>> emfLogOpt = super.validateEmfStructure(logEvent, metricName);
-
-    if (emfLogOpt.isPresent()) {
-      Map<String, Object> emfLog = emfLogOpt.get();
-      Map<String, Object> aws = (Map<String, Object>) emfLog.get("_aws");
-      List<Map<String, Object>> cloudWatchMetrics =
-          (List<Map<String, Object>>) aws.get("CloudWatchMetrics");
-      assertEquals(NAMESPACE, cloudWatchMetrics.get(0).get("Namespace"));
-    }
-
-    return emfLogOpt;
   }
 
   @Test

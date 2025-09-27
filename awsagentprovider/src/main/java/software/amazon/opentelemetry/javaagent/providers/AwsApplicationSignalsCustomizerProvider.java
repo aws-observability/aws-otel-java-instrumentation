@@ -549,8 +549,7 @@ public final class AwsApplicationSignalsCustomizerProvider
 
       if (awsRegion.isPresent()) {
         if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
-            && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)
-            && headers.containsKey(AWS_EMF_METRICS_NAMESPACE)) {
+            && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
           String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
           String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
           String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);

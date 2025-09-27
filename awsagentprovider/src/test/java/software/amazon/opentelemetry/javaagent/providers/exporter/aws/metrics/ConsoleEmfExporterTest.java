@@ -27,8 +27,8 @@ import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.ConsoleEmitter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.ConsoleEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 public class ConsoleEmfExporterTest extends BaseEmfExporterTest<PrintStream> {
   private LogEventEmitter<PrintStream> testMockEmitter;

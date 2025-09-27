@@ -42,7 +42,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.common.emitter.LogEventEmitter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -318,6 +318,7 @@ public abstract class BaseEmfExporterTest<T> {
           (List<Map<String, Object>>) awsMetadata.get("CloudWatchMetrics");
       assertEquals(1, cloudWatchMetrics.size());
       Map<String, Object> metricGroup = cloudWatchMetrics.get(0);
+      assertEquals(NAMESPACE, metricGroup.get("Namespace"));
       List<Map<String, Object>> metrics = (List<Map<String, Object>>) metricGroup.get("Metrics");
       assertTrue(metrics.size() >= 1);
       boolean foundMetric = metrics.stream().anyMatch(m -> metricName.equals(m.get("Name")));
