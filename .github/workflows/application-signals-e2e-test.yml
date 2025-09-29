@@ -26,12 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #5.0.0
         with:
           role-to-assume: arn:aws:iam::${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ACCOUNT_ID }}:role/${{ secrets.APPLICATION_SIGNALS_E2E_TEST_ROLE_NAME }}
           aws-region: us-east-1
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #5.0.0
         with:
           name: aws-opentelemetry-agent.jar
 
@@ -83,19 +83,26 @@ jobs:
       java-version: '21'
       cpu-architecture: 'x86_64'
 
-  default-v22-amd64:
+  default-v23-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
-      java-version: '22'
+      java-version: '23'
       cpu-architecture: 'x86_64'
 
   java-ec2-adot-sigv4-test:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-sigv4-test.yml@main
+    secrets: inherit
+    with:
+      caller-workflow-name: 'main-build'
+
+  java-ec2-adaptive-sampling-test:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adaptive-sampling-test.yml@main
     secrets: inherit
     with:
       caller-workflow-name: 'main-build'
@@ -147,7 +154,7 @@ jobs:
       caller-workflow-name: 'main-build'
       java-version: '21'
 
-  eks-v22-amd64:
+  eks-v23-amd64:
     needs: eks-v21-amd64
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
@@ -156,7 +163,7 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
-      java-version: '22'
+      java-version: '23'
 
   #
   # PACKAGED DISTRIBUTION PLATFORM COVERAGE
@@ -229,7 +236,7 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    needs: [ eks-v22-amd64 ]
+    needs: [ eks-v23-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:

@@ -31,7 +31,7 @@ jobs:
     environment: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - name: Check main build status
         env:
@@ -54,7 +54,7 @@ jobs:
         with:
           java-version-file: .java-version
           distribution: 'temurin'
-      - uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
@@ -63,23 +63,23 @@ jobs:
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
       - name: Build release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
           arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
       - name: Upload SDK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar
@@ -104,7 +104,7 @@ jobs:
           echo "aws_regions_json=${MATRIX}" >> $GITHUB_OUTPUT
 
       - name: Checkout Repo @ SHA - ${{ github.sha }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -117,7 +117,7 @@ jobs:
           ./build-layer.sh
 
       - name: Upload layer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
         with:
           name: layer.zip
           path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
@@ -126,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-sdk, build-layer]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -141,54 +141,54 @@ jobs:
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
       # build the artifact again so that its in the output path expected for building the docker image.
       - name: Build release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
         with:
           arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
       - name: Configure AWS Credentials for public ECR
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
       - name: Configure AWS Credentials for Private ECR
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PRIVATE_ECR_REGION }}
 
       - name: Log in to AWS private ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: ${{ env.PRIVATE_REGISTRY }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #3.6.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
         with:
           driver-opts: image=moby/buildkit:v0.15.1
 
       - name: Build image for testing
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -202,7 +202,7 @@ jobs:
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           push: true
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
@@ -213,7 +213,7 @@ jobs:
             ${{ env.PRIVATE_REPOSITORY }}:v${{ github.event.inputs.version }}
 
       - name: Build and Publish release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
           arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
         env:
@@ -252,7 +252,7 @@ jobs:
           SECRET_KEY=${SECRET_KEY//-/_}
           echo "SECRET_KEY=${SECRET_KEY}" >> $GITHUB_ENV
 
-      - uses: aws-actions/configure-aws-credentials@v4.0.2
+      - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets[env.SECRET_KEY] }}
           role-duration-seconds: 1200
@@ -263,7 +263,7 @@ jobs:
           echo BUCKET_NAME=java-lambda-layer-${{ github.run_id }}-${{ matrix.aws_region }} | tee --append $GITHUB_ENV
 
       - name: download layer.zip
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
           name: layer.zip
 
@@ -304,7 +304,7 @@ jobs:
 
       - name: upload layer arn artifact
         if: ${{ success() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
         with:
           name: ${{ env.LAYER_NAME }}-${{ matrix.aws_region }}
           path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
@@ -321,10 +321,10 @@ jobs:
       layer-note: ${{ steps.layer-note.outputs.layer-note }}
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
-        uses: actions/checkout@v5
-      - uses: hashicorp/setup-terraform@v2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd #v3.1.2
       - name: download layerARNs
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
           pattern: ${{ env.LAYER_NAME }}-*
           path: ${{ env.LAYER_NAME }}
@@ -385,15 +385,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
       
       - name: Download SDK artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
           name: ${{ env.ARTIFACT_NAME }}
       
       - name: Download layer.zip artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
           name: layer.zip
 
