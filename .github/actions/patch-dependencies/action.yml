@@ -83,16 +83,16 @@ runs:
       if: ${{ env.patch_otel_java == 'true' }}
       shell: bash
 
-#    - name: Build opentelemetry-java-contrib with tests
-#      uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-#      if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
-#      with:
-#        arguments: build publishToMavenLocal --scan --no-daemon
-#        build-root-directory: opentelemetry-java-contrib
+    - name: Build opentelemetry-java-contrib with tests
+      uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
+      if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests != 'false' }}
+      with:
+        arguments: build publishToMavenLocal --scan --no-daemon
+        build-root-directory: opentelemetry-java-contrib
 
     - name: Build opentelemetry-java-contrib
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java_contrib == 'true' }}
+      if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests == 'false' }}
       with:
         arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-contrib
@@ -102,16 +102,16 @@ runs:
       if: ${{ env.patch_otel_java_contrib == 'true' }}
       shell: bash
 
-#    - name: Build opentelemetry-java-instrumentation with tests
-#      uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-#      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
-#      with:
-#        arguments: check -x spotlessCheck publishToMavenLocal --scan --no-daemon
-#        build-root-directory: opentelemetry-java-instrumentation
+    - name: Build opentelemetry-java-instrumentation with tests
+      uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
+      with:
+        arguments: check -x spotlessCheck publishToMavenLocal --scan --no-daemon
+        build-root-directory: opentelemetry-java-instrumentation
 
     - name: Build opentelemetry java instrumentation
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java_instrumentation == 'true' }}
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests == 'false' }}
       with:
         arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-instrumentation
