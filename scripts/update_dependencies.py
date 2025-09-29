@@ -23,6 +23,37 @@ def get_latest_instrumentation_version():
         print(f"Warning: Could not get latest instrumentation version: {request_error}")
         return None
 
+def get_latest_contrib_version():
+    """Get the latest version of opentelemetry-java-contrib from GitHub releases."""
+    try:
+        response = requests.get(
+            'https://api.github.com/repos/open-telemetry/opentelemetry-java-contrib/releases',
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        releases = response.json()
+        
+        # Find the latest stable release
+        for release in releases:
+            if release.get('prerelease', False):
+                continue  # Skip pre-releases
+            
+            tag_name = release['tag_name']
+            # Contrib releases are typically tagged as "v1.32.0"
+            version_match = re.match(r'^v?(\d+\.\d+\.\d+)$', tag_name)
+            if version_match:
+                version = version_match.group(1)
+                print(f"Found contrib version: {version}")
+                return version
+        
+        print("Warning: No stable contrib releases found")
+        return None
+        
+    except requests.RequestException as request_error:
+        print(f"Warning: Could not get latest contrib version: {request_error}")
+        return None
+
 def get_latest_maven_version(group_id, artifact_id):
     """Get the latest version of a Maven artifact from Maven Central."""
     try:
@@ -79,15 +110,35 @@ def update_gradle_file(file_path):
                         updated = True
                         print(f"Updated otelSnapshotVersion to {next_minor}")
         
-        # Update hardcoded OpenTelemetry versions in dependencyLists
-        opentelemetry_packages = [
+        # Get latest contrib version from GitHub
+        latest_contrib_version = get_latest_contrib_version()
+        
+        # Update contrib packages that are released together
+        contrib_packages = [
             ('io.opentelemetry.contrib', 'opentelemetry-aws-xray'),
             ('io.opentelemetry.contrib', 'opentelemetry-aws-resources'),
+        ]
+        
+        for group_id, artifact_id in contrib_packages:
+            if latest_contrib_version:
+                # Pattern to match the dependency line
+                pattern = rf'"{re.escape(group_id)}:{re.escape(artifact_id)}:[^"]*"'
+                replacement = f'"{group_id}:{artifact_id}:{latest_contrib_version}"'
+                
+                if re.search(pattern, content):
+                    new_content = re.sub(pattern, replacement, content)
+                    if new_content != content:
+                        content = new_content
+                        updated = True
+                        print(f"Updated {group_id}:{artifact_id} to {latest_contrib_version}")
+        
+        # Update remaining packages using Maven Central
+        other_packages = [
             ('io.opentelemetry', 'opentelemetry-extension-aws'),
             ('io.opentelemetry.proto', 'opentelemetry-proto'),
         ]
         
-        for group_id, artifact_id in opentelemetry_packages:
+        for group_id, artifact_id in other_packages:
             latest_version = get_latest_maven_version(group_id, artifact_id)
             if latest_version:
                 # Pattern to match the dependency line
