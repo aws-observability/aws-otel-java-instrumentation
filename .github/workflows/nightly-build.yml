@@ -41,7 +41,14 @@ jobs:
         python-version: '3.11'
     
     - name: Install Python dependencies
-      run: pip install requests
+      run: pip install requests packaging
+    
+    - name: Generate breaking changes summary
+      id: breaking_changes
+      run: |
+        echo "BREAKING_CHANGES<<EOF" >> $GITHUB_OUTPUT
+        python3 scripts/find_breaking_changes.py
+        echo "EOF" >> $GITHUB_OUTPUT
     
     - name: Update dependencies
       run: python3 scripts/update_dependencies.py
@@ -60,11 +67,25 @@ jobs:
           git commit -m "chore: update OpenTelemetry dependencies to latest versions"
           git push origin "$BRANCH_NAME"
           
+    - name: Create or update PR
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        PR_BODY="Automated update of OpenTelemetry dependencies to their latest available versions.
+
+        **Upstream releases with breaking changes:**
+        ${{ steps.breaking_changes.outputs.BREAKING_CHANGES }}"
+        
+        if gh pr view "$BRANCH_NAME" --json state --jq '.state' 2>/dev/null | grep -q "OPEN"; then
+          echo "Open PR already exists, updating description..."
+          gh pr edit "$BRANCH_NAME" --body "$PR_BODY"
+        else
+          echo "Creating new PR..."
           gh pr create \
             --title "Nightly dependency update: OpenTelemetry packages to latest versions" \
-            --body "Automated update of OpenTelemetry dependencies to their latest available versions." \
+            --body "$PR_BODY" \
             --base main \
             --head "$BRANCH_NAME"
+        fi
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
