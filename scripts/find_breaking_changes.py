@@ -46,8 +46,8 @@ def get_releases_with_breaking_changes(repo, current_version, new_version):
 
                     # Check if release notes have breaking changes as headers
                     body = release.get("body", "")
-                    breaking_header_pattern = r'^#+.*breaking changes'
-                    if re.search(breaking_header_pattern, body, re.IGNORECASE | re.MULTILINE):
+                    breaking_header_pattern = r'^\s*#+.*Breaking changes'
+                    if re.search(breaking_header_pattern, body, re.MULTILINE):
                         breaking_releases.append(
                             {
                                 "version": release_version,
@@ -95,23 +95,24 @@ def main():
         "opentelemetry-java-instrumentation", current_instrumentation_version, new_instrumentation_version
     )
 
-    # Generate breaking changes summary
-    breaking_changes_summary = []
+    # Output for GitHub Actions
+    breaking_info = ""
 
     if instrumentation_breaking:
-        breaking_changes_summary.append("**Breaking changes found in opentelemetry-java-instrumentation:**")
+        breaking_info += "**opentelemetry-java-instrumentation:**\n"
         for release in instrumentation_breaking:
-            breaking_changes_summary.append(f"- [{release['name']}]({release['url']})")
+            breaking_info += f"- [{release['name']}]({release['url']})\n"
 
-    # Always add contrib release link (no breaking changes detection needed)
+    # Add contrib release link only if we have a new contrib version
     if new_contrib_version:
-        breaking_changes_summary.append("**Check contrib releases:**")
-        breaking_changes_summary.append("- [opentelemetry-java-contrib releases](https://github.com/open-telemetry/opentelemetry-java-contrib/releases)")
+        breaking_info += "\n**Check contrib releases for potential breaking changes:**\n"
+        breaking_info += "- [opentelemetry-java-contrib releases](https://github.com/open-telemetry/opentelemetry-java-contrib/releases)\n"
 
-    if breaking_changes_summary:
-        print("\n" + "\n".join(breaking_changes_summary))
-    else:
-        print("\nNo breaking changes detected")
+    # Set GitHub output
+    import os
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
+            output_file.write(f"breaking_changes_info<<EOF\n{breaking_info}EOF\n")
 
 
 if __name__ == "__main__":

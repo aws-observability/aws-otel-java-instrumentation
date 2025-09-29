@@ -55,10 +55,7 @@ jobs:
     
     - name: Generate breaking changes summary
       id: breaking_changes
-      run: |
-        echo "BREAKING_CHANGES<<EOF" >> $GITHUB_OUTPUT
-        python3 scripts/find_breaking_changes.py
-        echo "EOF" >> $GITHUB_OUTPUT
+      run: python3 scripts/find_breaking_changes.py
     
     - name: Update dependencies
       run: python3 scripts/update_dependencies.py
@@ -84,7 +81,7 @@ jobs:
         PR_BODY="Automated update of OpenTelemetry dependencies to their latest available versions.
 
         **Upstream releases with breaking changes:**
-        ${{ steps.breaking_changes.outputs.BREAKING_CHANGES }}"
+        ${{ steps.breaking_changes.outputs.breaking_changes_info }}"
         
         if gh pr view "$BRANCH_NAME" --json state --jq '.state' 2>/dev/null | grep -q "OPEN"; then
           echo "Open PR already exists, updating description..."
