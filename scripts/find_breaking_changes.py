@@ -103,10 +103,8 @@ def main():
         for release in instrumentation_breaking:
             breaking_changes_summary.append(f"- [{release['name']}]({release['url']})")
 
-    # Always add contrib release link (no breaking changes detection needed)
-    if new_contrib_version:
-        breaking_changes_summary.append("**Check contrib releases:**")
-        breaking_changes_summary.append("- [opentelemetry-java-contrib releases](https://github.com/open-telemetry/opentelemetry-java-contrib/releases)")
+    breaking_changes_summary.append("**Check contrib releases for potential breaking changes:**")
+    breaking_changes_summary.append("- [opentelemetry-java-contrib releases](https://github.com/open-telemetry/opentelemetry-java-contrib/releases)")
 
     if breaking_changes_summary:
         print("\n" + "\n".join(breaking_changes_summary))
