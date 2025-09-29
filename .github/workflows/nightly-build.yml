@@ -63,7 +63,7 @@ jobs:
     - name: Update dependencies
       run: python3 scripts/update_dependencies.py
     
-    - name: Check for changes and create PR
+    - name: Check for changes and commit
       id: check_changes
       run: |
         if git diff --quiet; then
@@ -96,7 +96,6 @@ jobs:
             --body "$PR_BODY" \
             --base main \
             --head "$BRANCH_NAME"
-        fi
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
