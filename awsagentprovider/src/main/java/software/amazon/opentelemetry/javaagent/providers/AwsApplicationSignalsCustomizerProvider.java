@@ -66,6 +66,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
@@ -540,16 +541,21 @@ public final class AwsApplicationSignalsCustomizerProvider
       Optional<String> awsRegion = getAwsRegionFromConfig(configProps);
 
       if (awsRegion.isPresent()) {
+        String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
+
         if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
             && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
-          String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
           String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
           String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
           return new AwsCloudWatchEmfExporter(namespace, logGroup, logStream, awsRegion.get());
         }
+        if (isLambdaEnvironment()) {
+          return new ConsoleEmfExporter(namespace);
+        }
         logger.warning(
             String.format(
-                "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s, %s, and %s",
+                "Improper EMF Exporter configuration: Please configure the environment variable %s to have values for %s, %s, and %s",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS,
                 AWS_OTLP_LOGS_GROUP_HEADER,
                 AWS_OTLP_LOGS_STREAM_HEADER,
                 AWS_EMF_METRICS_NAMESPACE));
@@ -557,7 +563,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       } else {
         logger.warning(
             String.format(
-                "Improper configuration: AWS region not found in environment variables please set %s or %s",
+                "Improper EMF Exporter configuration: AWS region not found in environment variables please set %s or %s",
                 AWS_REGION, AWS_DEFAULT_REGION));
       }
     }
