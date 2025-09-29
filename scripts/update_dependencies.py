@@ -37,10 +37,9 @@ def get_latest_contrib_version():
         # Find the latest stable release
         for release in releases:
             if release.get('prerelease', False):
-                continue  # Skip pre-releases
+                continue
             
             tag_name = release['tag_name']
-            # Contrib releases are typically tagged as "v1.32.0"
             version_match = re.match(r'^v?(\d+\.\d+\.\d+)$', tag_name)
             if version_match:
                 version = version_match.group(1)
@@ -113,7 +112,6 @@ def update_gradle_file(file_path):
         # Get latest contrib version from GitHub
         latest_contrib_version = get_latest_contrib_version()
         
-        # Update contrib packages that are released together
         contrib_packages = [
             ('io.opentelemetry.contrib', 'opentelemetry-aws-xray'),
             ('io.opentelemetry.contrib', 'opentelemetry-aws-resources'),

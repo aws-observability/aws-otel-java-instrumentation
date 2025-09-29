@@ -57,7 +57,6 @@ def get_releases_with_breaking_changes(repo, current_version, new_version):
                             }
                         )
             except (ValueError, KeyError):
-                # Skip releases with invalid version formats or missing data
                 continue
 
         return breaking_releases
@@ -103,12 +102,10 @@ def main():
         for release in instrumentation_breaking:
             breaking_info += f"- [{release['name']}]({release['url']})\n"
 
-    # Add contrib release link only if we have a new contrib version
     if new_contrib_version:
         breaking_info += "\n**Check contrib releases for potential breaking changes:**\n"
         breaking_info += "- [opentelemetry-java-contrib releases](https://github.com/open-telemetry/opentelemetry-java-contrib/releases)\n"
 
-    # Set GitHub output
     import os
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
