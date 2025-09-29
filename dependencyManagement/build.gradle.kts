@@ -46,7 +46,7 @@ val dependencyBoms = listOf(
   "io.netty:netty-bom:4.1.126.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
-  "org.junit:junit-bom:5.13.4",
+  "org.junit:junit-bom:5.10.1",
   "org.springframework.boot:spring-boot-dependencies:2.7.17",
   "org.testcontainers:testcontainers-bom:1.19.3",
   "software.amazon.awssdk:bom:2.30.17",
