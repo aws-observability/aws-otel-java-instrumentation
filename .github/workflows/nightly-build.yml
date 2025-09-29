@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "21 3 * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - zhaez/nightly-build
 
 permissions:
   contents: write
