@@ -98,9 +98,18 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build-and-test:
+    needs: update-and-create-pr
+    if: needs.update-and-create-pr.outputs.has_changes == 'true'
+    uses: ./.github/workflows/main-build.yml
+    secrets: inherit
+    with:
+      caller-workflow-name: nightly-build
+      ref: nightly-dependency-updates
+
   publish-nightly-build-status:
     name: "Publish Nightly Build Status"
-    needs: [update-and-create-pr]
+    needs: [update-and-create-pr, build-and-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -112,9 +121,12 @@ jobs:
 
       - name: Publish nightly build status
         run: |
-          # For now, just publish success since we don't have build validation yet
-          value="${{ needs.update-and-create-pr.result == 'success' && '0.0' || '1.0'}}"
-          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Failure \
-            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly_build \
-            --value $value
+          if [[ "${{ needs.build-and-test.result }}" == "skipped" ]]; then
+            echo "Build was skipped (no changes), not publishing metric"
+          else
+            value="${{ needs.build-and-test.result == 'success' && '0.0' || '1.0'}}"
+            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+              --metric-name Failure \
+              --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly_build \
+              --value $value
+          fi

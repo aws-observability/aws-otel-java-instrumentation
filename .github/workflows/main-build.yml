@@ -1,5 +1,15 @@
 name: Java Agent Main Build
 on:
+  workflow_call:
+    inputs:
+      caller-workflow-name:
+        required: true
+        type: string
+      ref:
+        description: 'The branch, tag or SHA to checkout'
+        required: false
+        type: string
+        default: ''
   push:
     branches:
       - main
@@ -24,6 +34,8 @@ jobs:
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version-file: .java-version
@@ -58,6 +70,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version-file: .java-version
@@ -193,6 +206,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version: 23
@@ -233,6 +247,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version-file: .java-version
