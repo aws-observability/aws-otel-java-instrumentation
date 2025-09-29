@@ -5,7 +5,13 @@ on:
     - cron: "21 3 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
 env:
+  AWS_DEFAULT_REGION: us-east-1
   BRANCH_NAME: nightly-dependency-updates
 
 jobs:
@@ -21,19 +27,20 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Check if nightly branch already exists
-      run: |
-        if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-          echo "Branch $BRANCH_NAME already exists. Skipping run to avoid conflicts."
-          echo "Please merge or close the existing PR before the next nightly run."
-          exit 1
-        fi
-    
-    - name: Configure git and create branch
+    - name: Configure git
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git checkout -b "$BRANCH_NAME"
+    
+    - name: Check out dependency update branch
+      run: |
+        if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+          echo "Branch $BRANCH_NAME already exists, checking out..."
+          git checkout "$BRANCH_NAME"
+        else
+          echo "Branch $BRANCH_NAME does not exist, creating new branch..."
+          git checkout -b "$BRANCH_NAME"
+        fi
     
     - name: Set up Python
       uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c #v6.0.0
@@ -66,7 +73,8 @@ jobs:
           git add dependencyManagement/build.gradle.kts
           git commit -m "chore: update OpenTelemetry dependencies to latest versions"
           git push origin "$BRANCH_NAME"
-          
+        fi
+    
     - name: Create or update PR
       if: steps.check_changes.outputs.has_changes == 'true'
       run: |
@@ -89,3 +97,24 @@ jobs:
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-nightly-build-status:
+    name: "Publish Nightly Build Status"
+    needs: [update-and-create-pr]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Configure AWS Credentials for emitting metrics
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
+        with:
+          role-to-assume: ${{ secrets.MONITORING_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Publish nightly build status
+        run: |
+          # For now, just publish success since we don't have build validation yet
+          value="${{ needs.update-and-create-pr.result == 'success' && '0.0' || '1.0'}}"
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Failure \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly_build \
+            --value $value
