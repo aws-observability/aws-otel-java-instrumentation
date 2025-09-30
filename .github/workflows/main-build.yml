@@ -40,7 +40,7 @@ jobs:
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-test-cache-pnpm-modules
-      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
+      - uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 #v4.4.4
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
@@ -77,7 +77,7 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
-      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
+      - uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 #v4.4.4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
@@ -91,7 +91,7 @@ jobs:
           registry: public.ecr.aws
 
       - name: Build snapshot with Gradle
-        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 #v4.4.4
         with:
           arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
@@ -197,7 +197,7 @@ jobs:
         with:
           java-version: 23
           distribution: 'temurin'
-      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
+      - uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 #v4.4.4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
@@ -223,7 +223,7 @@ jobs:
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
       - name: Build snapshot with Gradle
-        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 #v4.4.4
         with:
           arguments: contractTests -PlocalDocker=true
 
