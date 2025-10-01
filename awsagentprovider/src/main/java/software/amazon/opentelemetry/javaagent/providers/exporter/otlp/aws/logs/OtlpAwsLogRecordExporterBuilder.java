@@ -48,7 +48,8 @@ public class OtlpAwsLogRecordExporterBuilder {
     return OtlpAwsLogRecordExporter.create(this.parentExporter, this.endpoint, compression);
   }
 
-  private OtlpAwsLogRecordExporterBuilder(OtlpHttpLogRecordExporter parentExporter, String endpoint) {
+  private OtlpAwsLogRecordExporterBuilder(
+      OtlpHttpLogRecordExporter parentExporter, String endpoint) {
     this.parentExporter = requireNonNull(parentExporter, "Must set a parentExporter");
     this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
   }

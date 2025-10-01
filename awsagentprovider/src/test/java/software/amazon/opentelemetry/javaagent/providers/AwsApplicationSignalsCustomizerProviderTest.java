@@ -52,6 +52,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
@@ -106,6 +107,15 @@ class AwsApplicationSignalsCustomizerProviderTest {
           this.provider::customizeSpanExporter,
           OtlpHttpSpanExporter.class);
     }
+  }
+
+  @Test
+  void testLambdaEnvironmentUsesCompactLogsExporter() {
+    customizeExporterTest(
+        Map.of(OTEL_LOGS_EXPORTER, "console", AWS_LAMBDA_FUNCTION_NAME_CONFIG, "test-function"),
+        defaultHttpLogsExporter,
+        this.provider::customizeLogsExporter,
+        CompactConsoleLogRecordExporter.class);
   }
 
   @ParameterizedTest

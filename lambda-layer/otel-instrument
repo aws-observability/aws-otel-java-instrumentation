@@ -21,8 +21,8 @@ export OTEL_AWS_APPLICATION_SIGNALS_RUNTIME_ENABLED=false
 export OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-"otlp"}
 
 # Disable metrics and logs export by default if not specified
-export OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-"none"}
-export OTEL_LOGS_EXPORTER=${OTEL_LOGS_EXPORTER:-"none"}
+export OTEL_METRICS_EXPORTER=${OTEL_METRICS_EXPORTER:-"awsemf"}
+export OTEL_LOGS_EXPORTER=${OTEL_LOGS_EXPORTER:-"console"}
 
 # Enable Application Signals by default if not specified
 export OTEL_AWS_APPLICATION_SIGNALS_ENABLED=${OTEL_AWS_APPLICATION_SIGNALS_ENABLED:-"true"}

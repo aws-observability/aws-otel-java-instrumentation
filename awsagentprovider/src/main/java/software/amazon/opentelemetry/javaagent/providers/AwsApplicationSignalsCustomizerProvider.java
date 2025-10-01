@@ -67,6 +67,7 @@ import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
@@ -91,7 +92,10 @@ public final class AwsApplicationSignalsCustomizerProvider
   // https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html
   static final String AWS_REGION = "aws.region";
   static final String AWS_DEFAULT_REGION = "aws.default.region";
+  // TODO: We should clean up and get rid of using AWS_LAMBDA_FUNCTION_NAME and default to
+  // upstream config property implementation.
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+  static final String AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG = "aws.lambda.function.name";
   static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
       "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
 
@@ -187,6 +191,10 @@ public final class AwsApplicationSignalsCustomizerProvider
       return Optional.of(region);
     }
     return Optional.ofNullable(configProps.getString(AWS_DEFAULT_REGION));
+  }
+
+  static boolean isLambdaEnvironment(ConfigProperties props) {
+    return props.getString(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
   }
 
   static boolean isLambdaEnvironment() {
@@ -530,9 +538,10 @@ public final class AwsApplicationSignalsCustomizerProvider
     }
     String logsExporterConfig = configProps.getString(OTEL_LOGS_EXPORTER);
 
-    if (isLambdaEnvironment()
+    if (isLambdaEnvironment(configProps)
         && logsExporterConfig != null
         && logsExporterConfig.equals("console")) {
+      logger.info("INSIDE COMPACT CONSOLE LOG RECORD FUNCTION");
       return new CompactConsoleLogRecordExporter();
     }
 
@@ -541,19 +550,25 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   MetricExporter customizeMetricExporter(
       MetricExporter metricExporter, ConfigProperties configProps) {
+
     if (isEmfExporterEnabled) {
       Map<String, String> headers =
           AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
       Optional<String> awsRegion = getAwsRegionFromConfig(configProps);
+      String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
 
       if (awsRegion.isPresent()) {
         if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
             && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
-          String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
           String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
           String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
           return new AwsCloudWatchEmfExporter(namespace, logGroup, logStream, awsRegion.get());
+        }
+
+        if (isLambdaEnvironment(configProps)) {
+          logger.info("INSIDE LAMBDA FUNCTION");
+          return new ConsoleEmfExporter(namespace);
         }
         logger.warning(
             String.format(
