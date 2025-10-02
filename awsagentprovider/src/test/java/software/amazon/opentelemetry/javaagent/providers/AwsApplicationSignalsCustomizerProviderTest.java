@@ -324,23 +324,23 @@ class AwsApplicationSignalsCustomizerProviderTest {
         OtlpHttpMetricExporter.class);
   }
 
-  //  @ParameterizedTest
-  //  @MethodSource("invalidConsoleEmfConfigProvider")
-  //  void testLambdaShouldNotUseCloudWatchEmfExporterIfConfigIsIncorrect(
-  //      Map<String, String> invalidEmfConfig) {
-  //    Map<String, String> lambdaCloudWatchEmfConfig = new HashMap<>(invalidEmfConfig);
-  //    lambdaCloudWatchEmfConfig.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
-  //
-  //    DefaultConfigProperties configProps =
-  //        DefaultConfigProperties.createFromMap(lambdaCloudWatchEmfConfig);
-  //    this.provider.customizeProperties(configProps);
-  //
-  //    customizeExporterTest(
-  //        lambdaCloudWatchEmfConfig,
-  //        defaultHttpMetricsExporter,
-  //        this.provider::customizeMetricExporter,
-  //        OtlpHttpMetricExporter.class);
-  //  }
+  @ParameterizedTest
+  @MethodSource("invalidLambdaCloudWatchEmfConfigProvider")
+  void testLambdaShouldNotUseCloudWatchEmfExporterIfConfigIsIncorrect(
+      Map<String, String> invalidEmfConfig) {
+    Map<String, String> lambdaCloudWatchEmfConfig = new HashMap<>(invalidEmfConfig);
+    lambdaCloudWatchEmfConfig.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+
+    DefaultConfigProperties configProps =
+        DefaultConfigProperties.createFromMap(lambdaCloudWatchEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        lambdaCloudWatchEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        OtlpHttpMetricExporter.class);
+  }
 
   @Test
   void setAdaptiveSamplingConfigFromString_validConfig() throws JsonProcessingException {
@@ -771,6 +771,19 @@ class AwsApplicationSignalsCustomizerProviderTest {
         Arguments.of(
             Map.of(
                 OTEL_METRICS_EXPORTER, "awsemf",
+                AWS_REGION, "us-east-1")),
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "awsemf",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace")));
+  }
+
+  static Stream<Arguments> invalidLambdaCloudWatchEmfConfigProvider() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "otlp",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace",
                 AWS_REGION, "us-east-1")),
         Arguments.of(
             Map.of(

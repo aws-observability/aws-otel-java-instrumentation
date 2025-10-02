@@ -566,7 +566,6 @@ public final class AwsApplicationSignalsCustomizerProvider
         }
 
         if (isLambdaEnvironment(configProps)) {
-          logger.info("INSIDE LAMBDA FUNCTION");
           return new ConsoleEmfExporter(namespace);
         }
         logger.warning(
