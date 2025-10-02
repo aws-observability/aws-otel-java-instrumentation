@@ -194,7 +194,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   }
 
   static boolean isLambdaEnvironment(ConfigProperties props) {
-    return props.getString(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
+    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
   }
 
   static boolean isLambdaEnvironment() {
@@ -541,7 +541,6 @@ public final class AwsApplicationSignalsCustomizerProvider
     if (isLambdaEnvironment(configProps)
         && logsExporterConfig != null
         && logsExporterConfig.equals("console")) {
-      logger.info("INSIDE COMPACT CONSOLE LOG RECORD FUNCTION");
       return new CompactConsoleLogRecordExporter();
     }
 
