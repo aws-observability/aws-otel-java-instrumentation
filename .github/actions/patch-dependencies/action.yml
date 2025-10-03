@@ -116,16 +116,14 @@ runs:
       if: ${{ env.patch_otel_java == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA BUILD FAILURE DEBUG ==="
+        echo "=== OPENTELEMETRY-JAVA ERRORS ONLY ==="
         cd opentelemetry-java || exit 1
-        echo "Directory contents:"
-        ls -la
-        echo "=== GRADLE BUILD LOGS ==="
-        find . -name "*.log" -type f | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && tail -50 "{}"'
-        echo "=== GRADLE DAEMON LOGS ==="
-        find ~/.gradle/daemon -name "*.log" -type f | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && tail -20 "{}"'
+        echo "=== CRITICAL ERRORS ==="
+        find . -name "*.log" -exec grep -l "FAILED\|ERROR\|Exception\|BUILD FAILED" {} \; | head -3 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 3 -B 1 "FAILED\|ERROR\|Exception\|BUILD FAILED" "{}" | head -20'
+        echo "=== COMPILATION FAILURES ==="
+        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol" {} \; | head -2 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 2 "compilation failed\|cannot find symbol" "{}" | head -15'
         echo "=== BUILD SCAN URL ==="
-        grep -r "https://gradle.com/s/" . || echo "No build scan URL found"
+        grep -r "https://gradle.com/s/" . | head -1 || echo "No build scan URL found"
 
     - name: cleanup opentelemetry-java
       run: rm -rf opentelemetry-java
@@ -150,19 +148,16 @@ runs:
       if: ${{ env.patch_otel_java_contrib == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA-CONTRIB BUILD FAILURE DEBUG ==="
+        echo "=== OPENTELEMETRY-JAVA-CONTRIB ERRORS ONLY ==="
         cd opentelemetry-java-contrib || exit 1
-        echo "Directory contents:"
-        ls -la
-        echo "=== GRADLE BUILD LOGS ==="
-        find . -name "*.log" -type f | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && tail -50 "{}"'
-        echo "=== TEST FAILURE REPORTS ==="
-        find . -path "*/build/reports/tests/*/index.html" | head -5 | xargs -I {} dirname {} | xargs -I {} find {} -name "*.html" | head -10
-        find . -name "TEST-*.xml" | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 5 "failure\|error" "{}"'
+        echo "=== CRITICAL ERRORS ==="
+        find . -name "*.log" -exec grep -l "FAILED\|ERROR\|Exception\|BUILD FAILED" {} \; | head -3 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 3 -B 1 "FAILED\|ERROR\|Exception\|BUILD FAILED" "{}" | head -20'
+        echo "=== TEST FAILURES ==="
+        find . -name "TEST-*.xml" | head -3 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 3 -B 1 "failure\|error" "{}" | head -10'
         echo "=== COMPILATION ERRORS ==="
-        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol\|package does not exist" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "compilation failed\|cannot find symbol\|package does not exist" "{}"'
+        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol" {} \; | head -2 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 2 "compilation failed\|cannot find symbol" "{}" | head -15'
         echo "=== BUILD SCAN URL ==="
-        grep -r "https://gradle.com/s/" . || echo "No build scan URL found"
+        grep -r "https://gradle.com/s/" . | head -1 || echo "No build scan URL found"
 
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
@@ -180,20 +175,16 @@ runs:
       if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION BUILD FAILURE DEBUG ==="
+        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION ERRORS ONLY ==="
         cd opentelemetry-java-instrumentation || exit 1
-        echo "Directory contents:"
-        ls -la
-        echo "=== GRADLE BUILD LOGS ==="
-        find . -name "*.log" -type f | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && tail -50 "{}"'
-        echo "=== DEPENDENCY RESOLUTION ERRORS ==="
-        find . -name "*.log" -exec grep -l "Could not resolve\|Could not find\|dependency.*failed" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "Could not resolve\|Could not find\|dependency.*failed" "{}"'
+        echo "=== CRITICAL ERRORS ==="
+        find . -name "*.log" -exec grep -l "FAILED\|ERROR\|Exception\|BUILD FAILED" {} \; | head -3 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 3 -B 1 "FAILED\|ERROR\|Exception\|BUILD FAILED" "{}" | head -20'
+        echo "=== DEPENDENCY ERRORS ==="
+        find . -name "*.log" -exec grep -l "Could not resolve\|Could not find" {} \; | head -2 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 2 "Could not resolve\|Could not find" "{}" | head -15'
         echo "=== COMPILATION ERRORS ==="
-        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol\|package does not exist" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "compilation failed\|cannot find symbol\|package does not exist" "{}"'
-        echo "=== MAVEN LOCAL CONTENTS ==="
-        ls -la ~/.m2/repository/io/opentelemetry/ || echo "No opentelemetry artifacts in maven local"
+        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol" {} \; | head -2 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 2 "compilation failed\|cannot find symbol" "{}" | head -15'
         echo "=== BUILD SCAN URL ==="
-        grep -r "https://gradle.com/s/" . || echo "No build scan URL found"
+        grep -r "https://gradle.com/s/" . | head -1 || echo "No build scan URL found"
 
     - name: cleanup opentelmetry-java-instrumentation
       run: rm -rf opentelemetry-java-instrumentation
