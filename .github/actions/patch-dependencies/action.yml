@@ -104,7 +104,7 @@ runs:
 
     - name: Build opentelemetry-java-instrumentation with tests
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'true' }}
+      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
       with:
         arguments: check -x spotlessCheck publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-instrumentation
