@@ -46,19 +46,53 @@ runs:
 
     - name: check patches
       run: |
+        echo "=== CHECKING FOR PATCH FILES ==="
+        ls -la .github/patches/ || echo "No patches directory found"
+        
         if [[ -f .github/patches/opentelemetry-java.patch ]]; then
           echo 'patch_otel_java=true' >> $GITHUB_ENV
+          echo "Found opentelemetry-java.patch"
+          wc -l .github/patches/opentelemetry-java.patch
+        else
+          echo "No opentelemetry-java.patch found"
         fi
+        
         if [[ -f .github/patches/opentelemetry-java-instrumentation.patch ]]; then
             echo 'patch_otel_java_instrumentation=true' >> $GITHUB_ENV
+            echo "Found opentelemetry-java-instrumentation.patch"
+            wc -l .github/patches/opentelemetry-java-instrumentation.patch
+        else
+            echo "No opentelemetry-java-instrumentation.patch found"
         fi
+        
         if [[ -f .github/patches/opentelemetry-java-contrib.patch ]]; then
             echo 'patch_otel_java_contrib=true' >> $GITHUB_ENV
+            echo "Found opentelemetry-java-contrib.patch"
+            wc -l .github/patches/opentelemetry-java-contrib.patch
+        else
+            echo "No opentelemetry-java-contrib.patch found"
         fi
       shell: bash
 
     - name: Clone and patch repositories
-      run: .github/scripts/patch.sh
+      run: |
+        echo "=== RUNNING PATCH SCRIPT ==="
+        echo "Environment variables:"
+        echo "patch_otel_java: $patch_otel_java"
+        echo "patch_otel_java_contrib: $patch_otel_java_contrib"
+        echo "patch_otel_java_instrumentation: $patch_otel_java_instrumentation"
+        
+        echo "=== CHECKING PATCH SCRIPT ==="
+        ls -la .github/scripts/patch.sh
+        head -20 .github/scripts/patch.sh
+        
+        echo "=== EXECUTING PATCH SCRIPT ==="
+        set -x
+        .github/scripts/patch.sh
+        set +x
+        
+        echo "=== POST-PATCH DIRECTORY LISTING ==="
+        ls -la .
       if: ${{ env.patch_otel_java == 'true' ||
               env.patch_otel_java_contrib == 'true' ||
               env.patch_otel_java_instrumentation == 'true' }}
@@ -73,10 +107,25 @@ runs:
 
     - name: Build opentelemetry-java
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java == 'true' && inputs.run_tests == 'true' }}
+      if: ${{ env.patch_otel_java == 'true' }}
       with:
         arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java
+        
+    - name: Debug opentelemetry-java build failures
+      if: ${{ env.patch_otel_java == 'true' }}
+      shell: bash
+      run: |
+        echo "=== OPENTELEMETRY-JAVA BUILD FAILURE DEBUG ==="
+        cd opentelemetry-java || exit 1
+        echo "Directory contents:"
+        ls -la
+        echo "=== GRADLE BUILD LOGS ==="
+        find . -name "*.log" -type f | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && tail -50 "{}"'
+        echo "=== GRADLE DAEMON LOGS ==="
+        find ~/.gradle/daemon -name "*.log" -type f | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && tail -20 "{}"'
+        echo "=== BUILD SCAN URL ==="
+        grep -r "https://gradle.com/s/" . || echo "No build scan URL found"
 
     - name: cleanup opentelemetry-java
       run: rm -rf opentelemetry-java
@@ -92,59 +141,59 @@ runs:
 
     - name: Build opentelemetry-java-contrib
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java_contrib == 'true' && inputs.run_tests == 'true' }}
+      if: ${{ env.patch_otel_java_contrib == 'true' }}
       with:
         arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-contrib
-
-    - name: Show opentelemetry-java-contrib build failures
-      if: ${{ failure() && env.patch_otel_java_contrib == 'true' }}
+        
+    - name: Debug opentelemetry-java-contrib build failures
+      if: ${{ env.patch_otel_java_contrib == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA-CONTRIB BUILD FAILURES ==="
-        cd opentelemetry-java-contrib
-        find . -name "*.log" -exec grep -l "FAILED\|ERROR\|Exception" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 5 "FAILED\|ERROR\|Exception" "{}"'
-        echo "=== GRADLE BUILD SCAN URL ==="
-        grep -o "https://gradle.com/s/[a-zA-Z0-9]*" build.log || echo "No build scan URL found"
+        echo "=== OPENTELEMETRY-JAVA-CONTRIB BUILD FAILURE DEBUG ==="
+        cd opentelemetry-java-contrib || exit 1
+        echo "Directory contents:"
+        ls -la
+        echo "=== GRADLE BUILD LOGS ==="
+        find . -name "*.log" -type f | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && tail -50 "{}"'
+        echo "=== TEST FAILURE REPORTS ==="
+        find . -path "*/build/reports/tests/*/index.html" | head -5 | xargs -I {} dirname {} | xargs -I {} find {} -name "*.html" | head -10
+        find . -name "TEST-*.xml" | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 5 "failure\|error" "{}"'
+        echo "=== COMPILATION ERRORS ==="
+        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol\|package does not exist" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "compilation failed\|cannot find symbol\|package does not exist" "{}"'
+        echo "=== BUILD SCAN URL ==="
+        grep -r "https://gradle.com/s/" . || echo "No build scan URL found"
 
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
       if: ${{ env.patch_otel_java_contrib == 'true' }}
       shell: bash
 
-    - name: Build opentelemetry-java-instrumentation with tests
+    - name: Build opentelemetry-java-instrumentation
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
-      with:
-        arguments: check -x spotlessCheck publishToMavenLocal --scan --no-daemon
-        build-root-directory: opentelemetry-java-instrumentation
-
-    - name: Show opentelemetry-java-instrumentation build failures
-      if: ${{ failure() && env.patch_otel_java_instrumentation == 'true' }}
-      shell: bash
-      run: |
-        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION BUILD FAILURES ==="
-        cd opentelemetry-java-instrumentation
-        find . -name "*.log" -exec grep -l "FAILED\|ERROR\|Exception" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 5 "FAILED\|ERROR\|Exception" "{}"'
-        echo "=== GRADLE BUILD SCAN URL ==="
-        grep -o "https://gradle.com/s/[a-zA-Z0-9]*" build.log || echo "No build scan URL found"
-
-    - name: Build opentelemetry java instrumentation
-      uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests == 'true' }}
+      if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       with:
         arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-instrumentation
-
-    - name: Show opentelemetry java instrumentation build failures
-      if: ${{ failure() && env.patch_otel_java_instrumentation == 'true' }}
+        
+    - name: Debug opentelemetry-java-instrumentation build failures
+      if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION BUILD FAILURES ==="
-        cd opentelemetry-java-instrumentation
-        find . -name "*.log" -exec grep -l "FAILED\|ERROR\|Exception" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 5 -B 5 "FAILED\|ERROR\|Exception" "{}"'
-        echo "=== GRADLE BUILD SCAN URL ==="
-        grep -o "https://gradle.com/s/[a-zA-Z0-9]*" build.log || echo "No build scan URL found"
+        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION BUILD FAILURE DEBUG ==="
+        cd opentelemetry-java-instrumentation || exit 1
+        echo "Directory contents:"
+        ls -la
+        echo "=== GRADLE BUILD LOGS ==="
+        find . -name "*.log" -type f | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && tail -50 "{}"'
+        echo "=== DEPENDENCY RESOLUTION ERRORS ==="
+        find . -name "*.log" -exec grep -l "Could not resolve\|Could not find\|dependency.*failed" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "Could not resolve\|Could not find\|dependency.*failed" "{}"'
+        echo "=== COMPILATION ERRORS ==="
+        find . -name "*.log" -exec grep -l "compilation failed\|cannot find symbol\|package does not exist" {} \; | head -5 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "compilation failed\|cannot find symbol\|package does not exist" "{}"'
+        echo "=== MAVEN LOCAL CONTENTS ==="
+        ls -la ~/.m2/repository/io/opentelemetry/ || echo "No opentelemetry artifacts in maven local"
+        echo "=== BUILD SCAN URL ==="
+        grep -r "https://gradle.com/s/" . || echo "No build scan URL found"
 
     - name: cleanup opentelmetry-java-instrumentation
       run: rm -rf opentelemetry-java-instrumentation
