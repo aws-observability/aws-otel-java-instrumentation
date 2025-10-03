@@ -570,7 +570,7 @@ public final class AwsApplicationSignalsCustomizerProvider
         }
         logger.warning(
             String.format(
-                "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s, %s, and %s",
+                "Improper EMF Exporter configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s, %s, and %s",
                 AWS_OTLP_LOGS_GROUP_HEADER,
                 AWS_OTLP_LOGS_STREAM_HEADER,
                 AWS_EMF_METRICS_NAMESPACE));
@@ -578,7 +578,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       } else {
         logger.warning(
             String.format(
-                "Improper configuration: AWS region not found in environment variables please set %s or %s",
+                "Improper EMF Exporter configuration: AWS region not found in environment variables please set %s or %s",
                 AWS_REGION, AWS_DEFAULT_REGION));
       }
     }
