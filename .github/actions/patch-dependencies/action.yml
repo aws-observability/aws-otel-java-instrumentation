@@ -143,9 +143,14 @@ runs:
       if: ${{ env.patch_otel_java_contrib == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA-CONTRIB LAST 15000 LINES ==="
+        echo "=== OPENTELEMETRY-JAVA-CONTRIB DEBUG INFO ==="
         cd opentelemetry-java-contrib || exit 1
-        find . -name "*.log" -type f | head -1 | xargs -I {} tail -15000 "{}" || echo "No log files found"
+        echo "=== BUILD DIRECTORIES ==="
+        find . -name "build" -type d | head -5
+        echo "=== GRADLE LOGS ==="
+        find ~/.gradle -name "*.log" -type f 2>/dev/null | head -3 | xargs -I {} sh -c 'echo "=== {} ===" && tail -100 "{}"' || echo "No gradle logs found"
+        echo "=== BUILD REPORTS ==="
+        find . -path "*/build/reports" -type d | head -3 | xargs -I {} find {} -name "*.html" | head -5 || echo "No build reports found"
 
     - name: cleanup opentelemetry-java-contrib
       run: rm -rf opentelemetry-java-contrib
@@ -163,9 +168,14 @@ runs:
       if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       shell: bash
       run: |
-        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION LAST 15000 LINES ==="
+        echo "=== OPENTELEMETRY-JAVA-INSTRUMENTATION DEBUG INFO ==="
         cd opentelemetry-java-instrumentation || exit 1
-        find . -name "*.log" -type f | head -1 | xargs -I {} tail -15000 "{}" || echo "No log files found"
+        echo "=== BUILD DIRECTORIES ==="
+        find . -name "build" -type d | head -5
+        echo "=== GRADLE LOGS ==="
+        find ~/.gradle -name "*.log" -type f 2>/dev/null | head -3 | xargs -I {} sh -c 'echo "=== {} ===" && tail -100 "{}"' || echo "No gradle logs found"
+        echo "=== BUILD REPORTS ==="
+        find . -path "*/build/reports" -type d | head -3 | xargs -I {} find {} -name "*.html" | head -5 || echo "No build reports found"
 
     - name: cleanup opentelmetry-java-instrumentation
       run: rm -rf opentelemetry-java-instrumentation
