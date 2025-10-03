@@ -109,7 +109,7 @@ runs:
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
       if: ${{ env.patch_otel_java == 'true' }}
       with:
-        arguments: publishToMavenLocal --scan --no-daemon
+        arguments: build publishToMavenLocal --scan --no-daemon --quiet
         build-root-directory: opentelemetry-java
         
     - name: Debug opentelemetry-java build failures
@@ -136,7 +136,7 @@ runs:
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
       if: ${{ env.patch_otel_java_contrib == 'true' }}
       with:
-        arguments: publishToMavenLocal --scan --no-daemon
+        arguments: build publishToMavenLocal --scan --no-daemon --quiet
         build-root-directory: opentelemetry-java-contrib
         
     - name: Debug opentelemetry-java-contrib build failures
@@ -161,7 +161,7 @@ runs:
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
       if: ${{ env.patch_otel_java_instrumentation == 'true' }}
       with:
-        arguments: publishToMavenLocal --scan --no-daemon
+        arguments: build publishToMavenLocal --scan --no-daemon --quiet
         build-root-directory: opentelemetry-java-instrumentation
         
     - name: Debug opentelemetry-java-instrumentation build failures
