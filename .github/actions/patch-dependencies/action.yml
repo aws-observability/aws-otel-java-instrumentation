@@ -106,18 +106,8 @@ runs:
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
       if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' }}
       with:
-        arguments: check -x spotlessCheck -Dcheckstyle.skip=true publishToMavenLocal --scan --no-daemon --continue
+        arguments: check -x spotlessCheck -Dcheckstyle.skip=true publishToMavenLocal --scan --no-daemon --fail-fast -q
         build-root-directory: opentelemetry-java-instrumentation
-        
-    - name: Show test failures
-      if: ${{ failure() && env.patch_otel_java_instrumentation == 'true' }}
-      shell: bash
-      run: |
-        echo "=== TEST FAILURE DETAILS ==="
-        cd opentelemetry-java-instrumentation || exit 1
-        find . -name "TEST-*.xml" -path "*/test-results/*" | head -10 | xargs -I {} sh -c 'echo "=== {} ===" && grep -A 10 -B 5 "<failure\|<error" "{}"' || echo "No test XML files found"
-        echo "=== FAILED TEST SUMMARY ==="
-        find . -name "*.html" -path "*/reports/tests/*" | head -5 | xargs -I {} dirname {} | xargs -I {} find {} -name "*.html" | head -10 || echo "No test reports found"
 
     - name: Build opentelemetry java instrumentation
       uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
