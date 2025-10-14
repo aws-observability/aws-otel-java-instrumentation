@@ -15,9 +15,11 @@ diff --git a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/
 index 1234567890..abcdef1234 100644
 --- a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
 +++ b/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
-@@ -21,7 +21,6 @@ public class TomcatIntegrationTest extends TargetSystemTest {
+@@ -20,8 +20,8 @@ public class TomcatIntegrationTest extends TargetSystemTest {
+ 
    @ParameterizedTest
    @CsvSource({
++    // TODO: Remove this patch after we no longer depend on 2.18.1 of opentelemetry-java-instrumentation.
      "tomcat:10.0, https://tomcat.apache.org/tomcat-10.0-doc/appdev/sample/sample.war",
 -    "tomcat:9.0, https://tomcat.apache.org/tomcat-9.0-doc/appdev/sample/sample.war"
    })
@@ -37,4 +39,3 @@ index 023d04703c..ec9690086c 100644
    if (findProperty("otel.stable") != "true") {
 -- 
 2.45.1
-
