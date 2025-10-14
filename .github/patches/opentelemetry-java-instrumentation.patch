@@ -11,6 +11,20 @@ index 98def282f8..65fd6a8a13 100644
    "io.opentelemetry.contrib:opentelemetry-gcp-resources:${otelContribVersion}",
    "io.opentelemetry.contrib:opentelemetry-cloudfoundry-resources:${otelContribVersion}",
    "io.opentelemetry.contrib:opentelemetry-baggage-processor:${otelContribVersion}",
+diff --git a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java b/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
+index 1234567890..abcdef1234 100644
+--- a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
++++ b/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
+@@ -49,6 +49,9 @@ public class TomcatIntegrationTest extends TargetSystemTest {
+     target.execInContainer(
+         "curl", sampleWebApplicationUrl, "-o", "/usr/local/tomcat/webapps/ROOT.war");
+ 
++    // Wait for deployment and session metrics registration, fixes issue with missing metrics in Tomcat 9.0
++    Thread.sleep(10000);
++
+     verifyMetrics(createMetricsVerifier());
+   }
+ 
 diff --git a/version.gradle.kts b/version.gradle.kts
 index 023d04703c..ec9690086c 100644
 --- a/version.gradle.kts
