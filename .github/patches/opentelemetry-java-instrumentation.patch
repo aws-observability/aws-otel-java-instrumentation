@@ -15,16 +15,14 @@ diff --git a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/
 index 1234567890..abcdef1234 100644
 --- a/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
 +++ b/instrumentation/jmx-metrics/library/src/test/java/io/opentelemetry/instrumentation/jmx/rules/TomcatIntegrationTest.java
-@@ -49,6 +49,9 @@ public class TomcatIntegrationTest extends TargetSystemTest {
-     target.execInContainer(
-         "curl", sampleWebApplicationUrl, "-o", "/usr/local/tomcat/webapps/ROOT.war");
- 
-+    // Wait for deployment and session metrics registration, fixes issue with missing metrics in Tomcat 9.0
-+    Thread.sleep(10000);
-+
-     verifyMetrics(createMetricsVerifier());
-   }
- 
+@@ -21,7 +21,6 @@ public class TomcatIntegrationTest extends TargetSystemTest {
+   @ParameterizedTest
+   @CsvSource({
+     "tomcat:10.0, https://tomcat.apache.org/tomcat-10.0-doc/appdev/sample/sample.war",
+-    "tomcat:9.0, https://tomcat.apache.org/tomcat-9.0-doc/appdev/sample/sample.war"
+   })
+   void testCollectedMetrics(String dockerImageName, String sampleWebApplicationUrl)
+       throws Exception {
 diff --git a/version.gradle.kts b/version.gradle.kts
 index 023d04703c..ec9690086c 100644
 --- a/version.gradle.kts
