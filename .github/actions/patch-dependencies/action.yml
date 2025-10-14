@@ -116,16 +116,6 @@ runs:
         arguments: publishToMavenLocal --scan --no-daemon
         build-root-directory: opentelemetry-java-instrumentation
 
-    - name: Save JMX metrics test reports
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 #v4.4.3
-      if: ${{ env.patch_otel_java_instrumentation == 'true' && inputs.run_tests != 'false' && always() }}
-      with:
-        name: jmx-metrics-test-reports
-        path: |
-          opentelemetry-java-instrumentation/instrumentation/jmx-metrics/library/build/reports/tests/test/
-          opentelemetry-java-instrumentation/instrumentation/jmx-metrics/library/build/test-results/test/
-        retention-days: 7
-
     - name: cleanup opentelmetry-java-instrumentation
       run: rm -rf opentelemetry-java-instrumentation
       if: ${{ env.patch_otel_java_instrumentation == 'true' }}
