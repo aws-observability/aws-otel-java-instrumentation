@@ -9,7 +9,7 @@ name: Daily scan
 
 on:
   schedule: # scheduled to run every 6 hours
-    - cron: '10 */6 * * **' #  “At minute 10 past every 6th hour.” 
+    - cron: '10 */6 * * *' #  “At minute 10 past every 6th hour.”
   workflow_dispatch: # be able to run the workflow on demand
 
 env:
