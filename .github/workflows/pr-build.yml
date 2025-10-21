@@ -13,6 +13,9 @@ on:
 env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
 
+permissions:
+  contents: read
+
 jobs:
   static-code-checks:
     runs-on: ubuntu-latest
