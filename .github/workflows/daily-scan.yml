@@ -8,10 +8,8 @@
 name: Daily scan
 
 on:
-  schedule: # scheduled to run at 14:00, 20:00, 02:00 UTC every day
-    - cron: '0 14 * * *' # 6:00/7:00   PST/PDT (14:00 UTC)
-    - cron: '0 20 * * *' # 12:00/13:00 PST/PDT (20:00 UTC)
-    - cron: '0 02 * * *' # 18:00/19:00 PST/PDT (02:00 UTC)
+  schedule: # scheduled to run every 6 hours
+    - cron: '10 */6 * * *' #  “At minute 10 past every 6th hour.”
   workflow_dispatch: # be able to run the workflow on demand
 
 env:
@@ -52,11 +50,10 @@ jobs:
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-
       - name: Build JAR
-        run: ./gradlew assemble -PlocalDocker=true
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: assemble -PlocalDocker=true
 
       # See http://jeremylong.github.io/DependencyCheck/dependency-check-cli/ for installation explanation
       - name: Install and run dependency scan
