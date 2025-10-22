@@ -353,7 +353,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    */
   private static String generateRemoteOperation(SpanData span) {
     String remoteOperation = UNKNOWN_REMOTE_OPERATION;
-    if (isKeyPresent(span, URL_FULL) || isKeyPresent(span, HTTP_URL)) {
+    if (isKeyPresentWithFallback(span, URL_FULL, HTTP_URL)) {
       String httpUrl = getKeyValueWithFallback(span, URL_FULL, HTTP_URL);
       try {
         URL url;
@@ -949,7 +949,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   }
 
   static String getRemoteServiceWithFallback(
-      SpanData span, AttributeKey<String> remoteServiceKey, AttributeKey<String> remoteServiceFallbackKey) {
+      SpanData span,
+      AttributeKey<String> remoteServiceKey,
+      AttributeKey<String> remoteServiceFallbackKey) {
     String remoteService = span.getAttributes().get(remoteServiceKey);
     if (remoteService == null) {
       return getRemoteService(span, remoteServiceFallbackKey);
