@@ -74,8 +74,10 @@ jobs:
     steps:
       - name: Set up regions matrix
         id: set-matrix
+        env:
+          AWS_REGIONS: ${{ github.event.inputs.aws_region }}
         run: |
-          IFS=',' read -ra REGIONS <<< "${{ github.event.inputs.aws_region }}"
+          IFS=',' read -ra REGIONS <<< "$AWS_REGIONS"
           MATRIX="["
           for region in "${REGIONS[@]}"; do
             trimmed_region=$(echo "$region" | xargs)
@@ -180,8 +182,10 @@ jobs:
           load: true
 
       - name: Test docker image
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "$VERSION"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
@@ -380,8 +384,10 @@ jobs:
           name: layer.zip
 
       - name: Rename artifacts
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          cp "aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
+          cp "aws-opentelemetry-agent-$VERSION.jar" ${{ env.ARTIFACT_NAME }}
           cp aws-opentelemetry-java-layer.zip layer.zip
 
       # Publish to GitHub releases
@@ -389,25 +395,46 @@ jobs:
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event.inputs.version }}
         run: |
           # Extract versions from dependency files
           OTEL_INSTRUMENTATION_VERSION=$(grep "val otelVersion" dependencyManagement/build.gradle.kts | sed 's/.*= "\([^"]*\)".*/\1/')
           OTEL_CONTRIB_VERSION=$(grep "io.opentelemetry.contrib:opentelemetry-aws-xray" dependencyManagement/build.gradle.kts | sed 's/.*:\([^"]*\)".*/\1/')
 
+          # Extract CHANGELOG entries for this version
+          CHANGELOG_ENTRIES=$(python3 -c "
+          import re, os
+          version = os.environ['VERSION']
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
+          version_pattern = rf'## v{re.escape(version)}.*?\n(.*?)(?=\n## |\Z)'
+          version_match = re.search(version_pattern, content, re.DOTALL)
+          if version_match:
+              entries = version_match.group(1).strip()
+              if entries:
+                  print(entries)
+          ")
+
           # Create release notes
           cat > release_notes.md << EOF
-          This release contains updates of the following upstream components:
+          $(if [ -n "$CHANGELOG_ENTRIES" ]; then echo "## What's Changed"; echo "$CHANGELOG_ENTRIES"; echo ""; fi)
 
-          OpenTelemetry Java Contrib - $OTEL_CONTRIB_VERSION
-          Opentelemetry Instrumentation for Java - $OTEL_INSTRUMENTATION_VERSION
+          ## Upstream Components
 
-          This release also publishes to public ECR and Maven Central.
-          * See ADOT Java auto-instrumentation Docker image v${{ github.event.inputs.version }} in our public ECR repository:
+          - \`OpenTelemetry Java Contrib\` - $OTEL_CONTRIB_VERSION
+          - \`Opentelemetry Instrumentation for Java\` - $OTEL_INSTRUMENTATION_VERSION
+
+          ## Release Artifacts
+
+          This release publishes to public ECR and Maven Central.
+          * See ADOT Java auto-instrumentation Docker image v$VERSION in our public ECR repository:
           https://gallery.ecr.aws/aws-observability/adot-autoinstrumentation-java
-          * See version ${{ github.event.inputs.version }} in our Maven Central repository:
+          * See version $VERSION in our Maven Central repository:
           https://central.sonatype.com/artifact/software.amazon.opentelemetry/aws-opentelemetry-agent
 
-          This release also includes the AWS OpenTelemetry Lambda Layer for Java version ${{ github.event.inputs.version }}-$(echo $GITHUB_SHA | cut -c1-7).
+          ## Lambda Layer
+
+          This release includes the AWS OpenTelemetry Lambda Layer for Java version $VERSION-$(echo $GITHUB_SHA | cut -c1-7).
 
           Lambda Layer ARNs:
           ${{ needs.generate-lambda-release-note.outputs.layer-note }}
@@ -417,10 +444,10 @@ jobs:
           shasum -a 256 layer.zip > layer.zip.sha256
 
           gh release create --target "$GITHUB_REF_NAME" \
-             --title "Release v${{ github.event.inputs.version }}" \
+             --title "Release v$VERSION" \
              --notes-file release_notes.md \
              --draft \
-             "v${{ github.event.inputs.version }}" \
+             "v$VERSION" \
              ${{ env.ARTIFACT_NAME }} \
              ${{ env.ARTIFACT_NAME }}.sha256 \
              layer.zip \
