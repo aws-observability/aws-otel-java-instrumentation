@@ -15,6 +15,9 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.DbAttributes.DB_OPERATION_NAME;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_TEXT;
+import static io.opentelemetry.semconv.DbAttributes.DB_SYSTEM_NAME;
 import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
@@ -295,9 +298,9 @@ final class AwsSpanProcessingUtil {
 
   // Check if the current Span adheres to database semantic conventions
   static boolean isDBSpan(SpanData span) {
-    return isKeyPresent(span, DB_SYSTEM)
-        || isKeyPresent(span, DB_OPERATION)
-        || isKeyPresent(span, DB_STATEMENT);
+    return isKeyPresentWithFallback(span, DB_SYSTEM_NAME, DB_SYSTEM)
+        || isKeyPresentWithFallback(span, DB_OPERATION_NAME, DB_OPERATION)
+        || isKeyPresentWithFallback(span, DB_QUERY_TEXT, DB_STATEMENT);
   }
 
   static boolean isLambdaServerSpan(ReadableSpan span) {
