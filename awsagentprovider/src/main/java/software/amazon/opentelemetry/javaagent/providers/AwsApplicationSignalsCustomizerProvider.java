@@ -76,7 +76,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trace
  *   <li>Add SpanMetricsProcessor to create RED metrics.
  *   <li>Add AttributePropagatingSpanProcessor to propagate span attributes from parent to child
  *       spans.
- *   <li>Add AwsMetricAttributesSpanExporter to add more attributes to all spans.
+ *   <li>Add AwsAttributeGeneratingSpanProcessor to add more attributes to all spans.
  * </ul>
  *
  * <p>You can control when these customizations are applied using the property
@@ -337,6 +337,9 @@ public final class AwsApplicationSignalsCustomizerProvider
       // Construct and set local and remote attributes span processor
       tracerProviderBuilder.addSpanProcessor(
           AttributePropagatingSpanProcessorBuilder.create().build());
+      // Construct and set AWS Attribute Generating Span Processor
+      tracerProviderBuilder.addSpanProcessor(
+          AwsAttributeGeneratingSpanProcessorBuilder.create(ResourceHolder.getResource()).build());
 
       // If running on Lambda, we just need to export 100% spans and skip generating any Application
       // Signals metrics.
@@ -351,16 +354,9 @@ public final class AwsApplicationSignalsCustomizerProvider
                 .setEndpoint(tracesEndpoint)
                 .build();
 
-        // Wrap the udp exporter with the AwsMetricsAttributesSpanExporter to add Application
-        // Signals attributes to unsampled spans too
-        SpanExporter appSignalsSpanExporter =
-            AwsMetricAttributesSpanExporterBuilder.create(
-                    spanExporter, ResourceHolder.getResource())
-                .build();
-
         tracerProviderBuilder.addSpanProcessor(
             AwsUnsampledOnlySpanProcessorBuilder.create()
-                .setSpanExporter(appSignalsSpanExporter)
+                .setSpanExporter(spanExporter)
                 .setMaxExportBatchSize(LAMBDA_SPAN_EXPORT_BATCH_SIZE)
                 .build());
         return tracerProviderBuilder;
@@ -459,12 +455,6 @@ public final class AwsApplicationSignalsCustomizerProvider
             "Given SpanExporter is not an instance of OtlpHttpSpanExporter, please check that you have the correct environment variables: ",
             e);
       }
-    }
-
-    if (isApplicationSignalsEnabled(configProps)) {
-      spanExporter =
-          AwsMetricAttributesSpanExporterBuilder.create(spanExporter, ResourceHolder.getResource())
-              .build();
     }
 
     if (this.sampler instanceof AwsXrayRemoteSampler) {

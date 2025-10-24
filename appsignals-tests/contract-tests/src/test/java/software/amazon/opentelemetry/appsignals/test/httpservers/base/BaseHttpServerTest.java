@@ -52,7 +52,7 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 public abstract class BaseHttpServerTest extends ContractTestBase {
 
   /**
-   * Assert span attributes inserted by the AwsMetricAttributesSpanExporter
+   * Assert span attributes inserted by the AwsAttributeGeneratingSpanProcessor
    *
    * @param resourceScopeSpans list of spans that were exported by the application
    * @param method the http method that was used (GET, PUT, DELETE...)

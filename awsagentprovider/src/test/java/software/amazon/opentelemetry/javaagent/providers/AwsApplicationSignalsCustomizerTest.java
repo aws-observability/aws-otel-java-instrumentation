@@ -195,7 +195,7 @@ public class AwsApplicationSignalsCustomizerTest {
             "otlp"),
         defaultHttpSpanExporter,
         this.provider::customizeSpanExporter,
-        AwsMetricAttributesSpanExporter.class);
+        OtlpHttpSpanExporter.class);
   }
 
   @Test
@@ -212,7 +212,7 @@ public class AwsApplicationSignalsCustomizerTest {
             "otlp"),
         defaultHttpSpanExporter,
         this.provider::customizeSpanExporter,
-        AwsMetricAttributesSpanExporter.class);
+        OtlpAwsSpanExporter.class);
   }
 
   private static <Exporter> void customizeExporterTest(

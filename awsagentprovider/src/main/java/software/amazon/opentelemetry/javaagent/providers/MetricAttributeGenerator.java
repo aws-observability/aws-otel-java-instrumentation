@@ -23,7 +23,7 @@ import java.util.Map;
 /**
  * Metric attribute generator defines an interface for classes that can generate specific attributes
  * to be used by an {@link AwsSpanMetricsProcessor} to produce metrics and by {@link
- * AwsMetricAttributesSpanExporter} to wrap the original span.
+ * AwsAttributeGeneratingSpanProcessor} to update the original span.
  */
 public interface MetricAttributeGenerator {
   static final String SERVICE_METRIC = "Service";

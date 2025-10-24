@@ -19,43 +19,40 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.opentelemetry.sdk.resources.Resource;
-import io.opentelemetry.sdk.trace.export.SpanExporter;
 
-public class AwsMetricAttributesSpanExporterBuilder {
+public class AwsAttributeGeneratingSpanProcessorBuilder {
 
   // Defaults
   private static final MetricAttributeGenerator DEFAULT_GENERATOR =
       new AwsMetricAttributeGenerator();
 
   // Required builder elements
-  private final SpanExporter delegate;
   private final Resource resource;
 
   // Optional builder elements
   private MetricAttributeGenerator generator = DEFAULT_GENERATOR;
 
-  public static AwsMetricAttributesSpanExporterBuilder create(
-      SpanExporter delegate, Resource resource) {
-    return new AwsMetricAttributesSpanExporterBuilder(delegate, resource);
+  public static AwsAttributeGeneratingSpanProcessorBuilder create(Resource resource) {
+    return new AwsAttributeGeneratingSpanProcessorBuilder(resource);
   }
 
-  private AwsMetricAttributesSpanExporterBuilder(SpanExporter delegate, Resource resource) {
-    this.delegate = delegate;
+  private AwsAttributeGeneratingSpanProcessorBuilder(Resource resource) {
     this.resource = resource;
   }
 
   /**
-   * Sets the generator used to generate attributes used spancs exported by the exporter. If unset,
+   * Sets the generator used to generate attributes added to spans in the processor. If unset,
    * defaults to {@link #DEFAULT_GENERATOR}. Must not be null.
    */
   @CanIgnoreReturnValue
-  public AwsMetricAttributesSpanExporterBuilder setGenerator(MetricAttributeGenerator generator) {
+  public AwsAttributeGeneratingSpanProcessorBuilder setGenerator(
+      MetricAttributeGenerator generator) {
     requireNonNull(generator, "generator");
     this.generator = generator;
     return this;
   }
 
-  public AwsMetricAttributesSpanExporter build() {
-    return AwsMetricAttributesSpanExporter.create(delegate, generator, resource);
+  public AwsAttributeGeneratingSpanProcessor build() {
+    return AwsAttributeGeneratingSpanProcessor.create(generator, resource);
   }
 }
