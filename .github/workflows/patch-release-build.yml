@@ -118,7 +118,7 @@ jobs:
           push: false
           build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: ${{ env.TEST_TAG }}
           load: true
 
