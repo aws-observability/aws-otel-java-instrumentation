@@ -636,52 +636,53 @@ index 0000000000..4b0f354769
 +  }
 +}
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
-index e059250807..1fa80c3735 100644
+index 8be416cb29..9ca5fbe1d0 100644
 --- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
 +++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
 @@ -70,7 +70,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
        }
        input = AwsLambdaRequest.create(context, arg, headers);
        io.opentelemetry.context.Context parentContext =
--          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(input);
-+          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(input, context);
+-          AwsLambdaSingletons.functionInstrumenter().extract(input);
++          AwsLambdaSingletons.functionInstrumenter().extract(input, context);
  
-       if (!AwsLambdaInstrumentationHelper.functionInstrumenter()
-           .shouldStart(parentContext, input)) {
+       if (!AwsLambdaSingletons.functionInstrumenter().shouldStart(parentContext, input)) {
+         return;
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
-index fb5971016a..d31389e1c4 100644
+index 6219a2818b..2bb3072c88 100644
 --- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
 +++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
 @@ -62,7 +62,7 @@ public class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrum
        Map<String, String> headers = Collections.emptyMap();
        otelInput = AwsLambdaRequest.create(context, input, headers);
        io.opentelemetry.context.Context parentContext =
--          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(otelInput);
-+          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(otelInput, context);
+-          AwsLambdaSingletons.functionInstrumenter().extract(otelInput);
++          AwsLambdaSingletons.functionInstrumenter().extract(otelInput, context);
  
-       if (!AwsLambdaInstrumentationHelper.functionInstrumenter()
-           .shouldStart(parentContext, otelInput)) {
-diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-index 4cd11fc0c4..7b7d62755c 100644
---- a/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-+++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-@@ -34,7 +34,6 @@ public final class AwsLambdaSqsInstrumenterFactory {
-             "io.opentelemetry.aws-lambda-events-2.2",
-             message -> message.getEventSource() + " process")
+       if (!AwsLambdaSingletons.functionInstrumenter().shouldStart(parentContext, otelInput)) {
+         return;
+diff --git a/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java b/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
+index e4ce0be1a9..42885201c4 100644
+--- a/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
++++ b/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
+@@ -32,7 +32,6 @@ public final class AwsLambdaSqsInstrumenterFactory {
+     return Instrumenter.<SQSMessage, Void>builder(
+             openTelemetry, instrumentationName, message -> message.getEventSource() + " process")
          .addAttributesExtractor(new SqsMessageAttributesExtractor())
 -        .addSpanLinksExtractor(new SqsMessageSpanLinksExtractor())
          .buildInstrumenter(SpanKindExtractor.alwaysConsumer());
    }
- 
+
 diff --git a/version.gradle.kts b/version.gradle.kts
-index ec9690086c..b267166804 100644
+index 5e7f1c6775..8aefb73b5d 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.18.1-adot1"
--val alphaVersion = "2.18.1-adot1-alpha"
-+val stableVersion = "2.18.1-adot-lambda1"
-+val alphaVersion = "2.18.1-adot-lambda1-alpha"
+-val stableVersion = "2.20.1-adot1"
+-val alphaVersion = "2.20.1-adot1-alpha"
++val stableVersion = "2.20.1-adot-lambda1"
++val alphaVersion = "2.20.1-adot-lambda1-alpha"
  
  allprojects {
    if (findProperty("otel.stable") != "true") {
+
