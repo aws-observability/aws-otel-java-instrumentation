@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-rm -rf ~/.m2/repository/
-
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 file="$SOURCEDIR/../.github/patches/versions"
 
