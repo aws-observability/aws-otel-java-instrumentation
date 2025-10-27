@@ -4,18 +4,18 @@ index 35d6b70ed6..b6a305178e 100644
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaInstrumentationModule.java
 @@ -6,17 +6,18 @@
  package io.opentelemetry.javaagent.instrumentation.awslambdacore.v1_0;
-
+ 
  import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
 -import static java.util.Collections.singletonList;
  import static net.bytebuddy.matcher.ElementMatchers.not;
-
+ 
  import com.google.auto.service.AutoService;
  import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
  import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 +import java.util.Arrays;
  import java.util.List;
  import net.bytebuddy.matcher.ElementMatcher;
-
+ 
  @AutoService(InstrumentationModule.class)
  public class AwsLambdaInstrumentationModule extends InstrumentationModule {
 +
@@ -23,7 +23,7 @@ index 35d6b70ed6..b6a305178e 100644
      super("aws-lambda-core", "aws-lambda-core-1.0", "aws-lambda");
    }
 @@ -34,6 +35,8 @@ public class AwsLambdaInstrumentationModule extends InstrumentationModule {
-
+ 
    @Override
    public List<TypeInstrumentation> typeInstrumentations() {
 -    return singletonList(new AwsLambdaRequestHandlerInstrumentation());
@@ -32,9 +32,22 @@ index 35d6b70ed6..b6a305178e 100644
 +        new AwsLambdaRequestStreamHandlerInstrumentation());
    }
  }
+diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
+index 93071e04d2..add9f64276 100644
+--- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
++++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
+@@ -68,7 +68,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
+         @Advice.Local("otelContext") io.opentelemetry.context.Context otelContext,
+         @Advice.Local("otelScope") Scope otelScope) {
+       input = AwsLambdaRequest.create(context, arg, Collections.emptyMap());
+-      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(input);
++      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(input, context);
+ 
+       if (!functionInstrumenter().shouldStart(parentContext, input)) {
+         return;
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
 new file mode 100644
-index 0000000000..1c4ef1ac07
+index 0000000000..1a8fd8f986
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
 @@ -0,0 +1,98 @@
@@ -109,7 +122,7 @@ index 0000000000..1c4ef1ac07
 +        @Advice.Local("otelScope") Scope otelScope) {
 +
 +      otelInput = AwsLambdaRequest.create(context, input, Collections.emptyMap());
-+      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(otelInput);
++      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(otelInput, context);
 +
 +      if (!functionInstrumenter().shouldStart(parentContext, otelInput)) {
 +        return;
@@ -261,19 +274,19 @@ index 9e0e372241..2dd6051c23 100644
 +++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaInstrumentationModule.java
 @@ -6,11 +6,11 @@
  package io.opentelemetry.javaagent.instrumentation.awslambdaevents.v2_2;
-
+ 
  import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
 -import static java.util.Collections.singletonList;
-
+ 
  import com.google.auto.service.AutoService;
  import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
  import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 +import java.util.Arrays;
  import java.util.List;
  import net.bytebuddy.matcher.ElementMatcher;
-
+ 
 @@ -32,6 +32,8 @@ public class AwsLambdaInstrumentationModule extends InstrumentationModule {
-
+ 
    @Override
    public List<TypeInstrumentation> typeInstrumentations() {
 -    return singletonList(new AwsLambdaRequestHandlerInstrumentation());
@@ -282,9 +295,22 @@ index 9e0e372241..2dd6051c23 100644
 +        new AwsLambdaRequestStreamHandlerInstrumentation());
    }
  }
+diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
+index e059250807..1fa80c3735 100644
+--- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
++++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
+@@ -70,7 +70,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
+       }
+       input = AwsLambdaRequest.create(context, arg, headers);
+       io.opentelemetry.context.Context parentContext =
+-          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(input);
++          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(input, context);
+ 
+       if (!AwsLambdaInstrumentationHelper.functionInstrumenter()
+           .shouldStart(parentContext, input)) {
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
 new file mode 100644
-index 0000000000..f21a4a5526
+index 0000000000..ab6d9aa5ba
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
 @@ -0,0 +1,104 @@
@@ -353,7 +379,7 @@ index 0000000000..f21a4a5526
 +        @Advice.Local("otelMessageScope") Scope messageScope) {
 +      otelInput = AwsLambdaRequest.create(context, input, Collections.emptyMap());
 +      io.opentelemetry.context.Context parentContext =
-+          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(otelInput);
++          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(otelInput, context);
 +
 +      if (!AwsLambdaInstrumentationHelper.functionInstrumenter()
 +          .shouldStart(parentContext, otelInput)) {

@@ -1,31 +1,5 @@
-diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
-index 93071e04d2..add9f64276 100644
---- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
-+++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
-@@ -68,7 +68,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
-         @Advice.Local("otelContext") io.opentelemetry.context.Context otelContext,
-         @Advice.Local("otelScope") Scope otelScope) {
-       input = AwsLambdaRequest.create(context, arg, Collections.emptyMap());
--      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(input);
-+      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(input, context);
- 
-       if (!functionInstrumenter().shouldStart(parentContext, input)) {
-         return;
-diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
-index a6b89d253d..e62d30eddb 100644
---- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
-+++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
-@@ -69,7 +69,7 @@ public class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrum
-         @Advice.Local("otelScope") Scope otelScope) {
- 
-       otelInput = AwsLambdaRequest.create(context, input, Collections.emptyMap());
--      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(otelInput);
-+      io.opentelemetry.context.Context parentContext = functionInstrumenter().extract(otelInput, context);
- 
-       if (!functionInstrumenter().shouldStart(parentContext, otelInput)) {
-         return;
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
-index df605add2f..e16c736990 100644
+index 4fcb6700fd..e1a12093df 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
 @@ -5,11 +5,12 @@ plugins {
@@ -42,14 +16,6 @@ index df605add2f..e16c736990 100644
  
    // We do lightweight parsing of JSON to extract HTTP headers from requests for propagation.
    // This will be commonly needed even for users that don't use events, but luckily it's not too big.
-@@ -26,6 +27,7 @@ dependencies {
- 
-   testImplementation(project(":instrumentation:aws-lambda:aws-lambda-core-1.0:testing"))
-   testImplementation("uk.org.webcompere:system-stubs-jupiter")
-+  testImplementation("com.google.guava:guava")
- }
- 
- tasks.withType<Test>().configureEach {
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java
 index 873040f66e..b38648e8cf 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java
@@ -635,32 +601,6 @@ index 0000000000..4b0f354769
 +    verify(mockLambdaContextWithNoSuchMethodError, times(1)).getXrayTraceId();
 +  }
 +}
-diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
-index e059250807..1fa80c3735 100644
---- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
-+++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
-@@ -70,7 +70,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
-       }
-       input = AwsLambdaRequest.create(context, arg, headers);
-       io.opentelemetry.context.Context parentContext =
--          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(input);
-+          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(input, context);
- 
-       if (!AwsLambdaInstrumentationHelper.functionInstrumenter()
-           .shouldStart(parentContext, input)) {
-diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
-index fb5971016a..d31389e1c4 100644
---- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
-+++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
-@@ -62,7 +62,7 @@ public class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrum
-       Map<String, String> headers = Collections.emptyMap();
-       otelInput = AwsLambdaRequest.create(context, input, headers);
-       io.opentelemetry.context.Context parentContext =
--          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(otelInput);
-+          AwsLambdaInstrumentationHelper.functionInstrumenter().extract(otelInput, context);
- 
-       if (!AwsLambdaInstrumentationHelper.functionInstrumenter()
-           .shouldStart(parentContext, otelInput)) {
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
 index 4cd11fc0c4..7b7d62755c 100644
 --- a/instrumentation/aws-lambda/aws-lambda-events-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
@@ -672,9 +612,9 @@ index 4cd11fc0c4..7b7d62755c 100644
 -        .addSpanLinksExtractor(new SqsMessageSpanLinksExtractor())
          .buildInstrumenter(SpanKindExtractor.alwaysConsumer());
    }
- 
+
 diff --git a/version.gradle.kts b/version.gradle.kts
-index ec9690086c..b267166804 100644
+index 7900c9a4d9..80383d7c22 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
