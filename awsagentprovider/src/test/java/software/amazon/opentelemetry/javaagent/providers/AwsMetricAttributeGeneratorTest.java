@@ -15,9 +15,44 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
-import static io.opentelemetry.semconv.ResourceAttributes.SERVICE_NAME;
-import static io.opentelemetry.semconv.SemanticAttributes.*;
-import static io.opentelemetry.semconv.SemanticAttributes.MessagingOperationValues.PROCESS;
+import static io.opentelemetry.semconv.DbAttributes.DB_NAMESPACE;
+import static io.opentelemetry.semconv.DbAttributes.DB_OPERATION_NAME;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_TEXT;
+import static io.opentelemetry.semconv.DbAttributes.DB_SYSTEM_NAME;
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
+import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_ADDRESS;
+import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_PORT;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_PORT;
+import static io.opentelemetry.semconv.ServiceAttributes.SERVICE_NAME;
+import static io.opentelemetry.semconv.UrlAttributes.URL_FULL;
+import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_USER;
+import static io.opentelemetry.semconv.incubating.FaasIncubatingAttributes.FAAS_INVOKED_NAME;
+import static io.opentelemetry.semconv.incubating.FaasIncubatingAttributes.FAAS_INVOKED_PROVIDER;
+import static io.opentelemetry.semconv.incubating.FaasIncubatingAttributes.FAAS_TRIGGER;
+import static io.opentelemetry.semconv.incubating.GraphqlIncubatingAttributes.GRAPHQL_OPERATION_TYPE;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_URL;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_SYSTEM;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_NAME;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_PORT;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_SOCK_PEER_ADDR;
+import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_SOCK_PEER_PORT;
+import static io.opentelemetry.semconv.incubating.PeerIncubatingAttributes.PEER_SERVICE;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_METHOD;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SERVICE;
+import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -500,6 +535,8 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of various combinations of DB attributes, then remove them.
     validateAndRemoveRemoteAttributes(DB_SYSTEM, "DB system", DB_OPERATION, "DB operation");
+    validateAndRemoveRemoteAttributes(
+        DB_SYSTEM_NAME, "DB system name", DB_OPERATION_NAME, "DB operation name");
 
     // Validate db.operation not exist, but db.statement exist, where SpanAttributes.DB_STATEMENT is
     // invalid
@@ -509,12 +546,20 @@ class AwsMetricAttributeGeneratorTest {
     validateAndRemoveRemoteAttributes(
         DB_SYSTEM, "DB system", DB_OPERATION, UNKNOWN_REMOTE_OPERATION);
 
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    validateAndRemoveRemoteAttributes(
+        DB_SYSTEM_NAME, "DB system name", DB_OPERATION_NAME, UNKNOWN_REMOTE_OPERATION);
+
     // Validate both db.operation and db.statement not exist.
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_OPERATION, null);
     mockAttribute(DB_STATEMENT, null);
     validateAndRemoveRemoteAttributes(
         DB_SYSTEM, "DB system", DB_OPERATION, UNKNOWN_REMOTE_OPERATION);
+
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    validateAndRemoveRemoteAttributes(
+        DB_SYSTEM_NAME, "DB system name", DB_OPERATION_NAME, UNKNOWN_REMOTE_OPERATION);
 
     // Validate behaviour of various combinations of FAAS attributes, then remove them.
     validateAndRemoveRemoteAttributes(
@@ -675,12 +720,22 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_STATEMENT, "SELECT DB statement");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "SELECT");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "UPDATE DB statement");
+    validateExpectedRemoteAttributes("DB system name", "UPDATE");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 2: More than 1 valid keywords match, we want to pick the longest match
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "DROP VIEW DB statement");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "DROP VIEW");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "DROP TABLE myTable");
+    validateExpectedRemoteAttributes("DB system name", "DROP TABLE");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 3: More than 1 valid keywords match, but the other keywords is not
     // at the start of the SpanAttributes.DB_STATEMENT. We want to only pick start match
@@ -688,48 +743,90 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_STATEMENT, "SELECT data FROM domains");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "SELECT");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "UPDATE domains SET data = 'newdomain.com' WHERE id = 1");
+    validateExpectedRemoteAttributes("DB system name", "UPDATE");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 4: Have valid keywords，but it is not at the start of SpanAttributes.DB_STATEMENT
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "invalid SELECT DB statement");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "bad sql UPDATE domains SET data = 'newdomain.com' WHERE id = 1");
+    validateExpectedRemoteAttributes("DB system name", UNKNOWN_REMOTE_OPERATION);
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 5: Have valid keywords, match the longest word
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "UUID");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "UUID");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "COUNT");
+    validateExpectedRemoteAttributes("DB system name", "COUNT");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 6: Have valid keywords, match with first word
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "FROM SELECT *");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "FROM");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "COUNT SELECT *");
+    validateExpectedRemoteAttributes("DB system name", "COUNT");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 7: Have valid keyword, match with first word
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "SELECT FROM *");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "SELECT");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "SELECT COUNT(*) FROM domains");
+    validateExpectedRemoteAttributes("DB system name", "SELECT");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 8: Have valid keywords, match with upper case
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "seLeCt *");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "SELECT");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "upDate domains SET data = 'newdomain.com' WHERE id = 1");
+    validateExpectedRemoteAttributes("DB system name", "UPDATE");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 9: Both DB_OPERATION and DB_STATEMENT are set but the former takes precedence
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "SELECT FROM *");
     mockAttribute(DB_OPERATION, "DB operation");
     validateExpectedRemoteAttributes("DB system", "DB operation");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "INSERT INTO mytable VALUES ('newdomain.com')");
+    mockAttribute(DB_OPERATION_NAME, "DB operation name");
+    validateExpectedRemoteAttributes("DB system name", "DB operation name");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
+    mockAttribute(DB_OPERATION_NAME, null);
 
     // Case 10: Duplicate of case 1 with leading whitespace
     mockAttribute(DB_SYSTEM, "DB system");
     mockAttribute(DB_STATEMENT, "    SELECT DB statement");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "SELECT");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "      UPDATE DB statement");
+    validateExpectedRemoteAttributes("DB system name", "UPDATE");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
 
     // Case 11: Duplicate of case 2 with leading whitespace. Test if whitespace affects longest
     // match
@@ -737,6 +834,11 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_STATEMENT, "     DROP VIEW DB statement");
     mockAttribute(DB_OPERATION, null);
     validateExpectedRemoteAttributes("DB system", "DROP VIEW");
+    mockAttribute(DB_SYSTEM_NAME, "DB system name");
+    mockAttribute(DB_QUERY_TEXT, "      DROP TABLE tableFoo");
+    validateExpectedRemoteAttributes("DB system name", "DROP TABLE");
+    mockAttribute(DB_SYSTEM_NAME, null);
+    mockAttribute(DB_QUERY_TEXT, null);
   }
 
   @Test
@@ -1159,7 +1261,10 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(SERVER_ADDRESS, "abc.com");
     mockAttribute(SERVER_PORT, 3306L);
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace|abc.com|3306");
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(SERVER_ADDRESS, null);
     mockAttribute(SERVER_PORT, null);
 
@@ -1169,7 +1274,10 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(SERVER_ADDRESS, "abc.com");
     mockAttribute(SERVER_PORT, 3306L);
     validateRemoteResourceAttributes("DB::Connection", "db_name^|special|abc.com|3306");
+    mockAttribute(DB_NAMESPACE, "db_namespace|special");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace^|special|abc.com|3306");
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(SERVER_ADDRESS, null);
     mockAttribute(SERVER_PORT, null);
 
@@ -1179,7 +1287,10 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(SERVER_ADDRESS, "abc.com");
     mockAttribute(SERVER_PORT, 3306L);
     validateRemoteResourceAttributes("DB::Connection", "db_name^^special|abc.com|3306");
+    mockAttribute(DB_NAMESPACE, "db_namespace^special");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace^^special|abc.com|3306");
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(SERVER_ADDRESS, null);
     mockAttribute(SERVER_PORT, null);
 
@@ -1187,7 +1298,10 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_NAME, "db_name");
     mockAttribute(SERVER_ADDRESS, "abc.com");
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace|abc.com");
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(SERVER_ADDRESS, null);
 
     // Validate behaviour of SERVER_ADDRESS exist, then remove it.
@@ -1209,7 +1323,10 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_PEER_NAME, "abc.com");
     mockAttribute(NET_PEER_PORT, 3306L);
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace|abc.com|3306");
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(NET_PEER_NAME, null);
     mockAttribute(NET_PEER_PORT, null);
 
@@ -1217,7 +1334,10 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_NAME, "db_name");
     mockAttribute(NET_PEER_NAME, "abc.com");
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace|abc.com");
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(NET_PEER_NAME, null);
 
     // Validate behaviour of NET_PEER_NAME exist, then remove it.
@@ -1234,31 +1354,37 @@ class AwsMetricAttributeGeneratorTest {
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
     mockAttribute(NET_PEER_PORT, null);
 
-    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS and SERVER_SOCKET_PORT exist, then
+    // Validate behaviour of DB_NAME, NETWORK_PEER_ADDRESS and NETWORK_PEER_PORT exist, then
     // remove it.
     mockAttribute(DB_NAME, "db_name");
-    mockAttribute(SERVER_SOCKET_ADDRESS, "abc.com");
-    mockAttribute(SERVER_SOCKET_PORT, 3306L);
+    mockAttribute(NETWORK_PEER_ADDRESS, "abc.com");
+    mockAttribute(NETWORK_PEER_PORT, 3306L);
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace|abc.com|3306");
     mockAttribute(DB_NAME, null);
-    mockAttribute(SERVER_SOCKET_ADDRESS, null);
-    mockAttribute(SERVER_SOCKET_PORT, null);
+    mockAttribute(DB_NAMESPACE, null);
+    mockAttribute(NETWORK_PEER_ADDRESS, null);
+    mockAttribute(NETWORK_PEER_PORT, null);
 
-    // Validate behaviour of DB_NAME, SERVER_SOCKET_ADDRESS exist, then remove it.
+    // Validate behaviour of DB_NAME, NETWORK_PEER_ADDRESS exist, then remove it.
     mockAttribute(DB_NAME, "db_name");
-    mockAttribute(SERVER_SOCKET_ADDRESS, "abc.com");
+    mockAttribute(NETWORK_PEER_ADDRESS, "abc.com");
     validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com");
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes("DB::Connection", "db_namespace|abc.com");
     mockAttribute(DB_NAME, null);
-    mockAttribute(SERVER_SOCKET_ADDRESS, null);
+    mockAttribute(DB_NAMESPACE, null);
+    mockAttribute(NETWORK_PEER_ADDRESS, null);
 
-    // Validate behaviour of SERVER_SOCKET_PORT exist, then remove it.
-    mockAttribute(SERVER_SOCKET_PORT, 3306L);
+    // Validate behaviour of NETWORK_PEER_PORT exist, then remove it.
+    mockAttribute(NETWORK_PEER_PORT, 3306L);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
-    mockAttribute(SERVER_SOCKET_PORT, null);
+    mockAttribute(NETWORK_PEER_PORT, null);
 
     // Validate behaviour of only DB_NAME exist, then remove it.
     mockAttribute(DB_NAME, "db_name");
@@ -1267,7 +1393,15 @@ class AwsMetricAttributeGeneratorTest {
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
 
     // Validate behaviour of DB_NAME and DB_CONNECTION_STRING exist, then remove it.
     mockAttribute(DB_NAME, "db_name");
@@ -1276,7 +1410,14 @@ class AwsMetricAttributeGeneratorTest {
         "mysql://test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com:3306/petclinic");
     validateRemoteResourceAttributes(
         "DB::Connection", "db_name|test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com|3306");
+
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    validateRemoteResourceAttributes(
+        "DB::Connection",
+        "db_namespace|test-apm.cluster-cnrw3s3ddo7n.us-east-1.rds.amazonaws.com|3306");
+
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(DB_CONNECTION_STRING, null);
 
     // Validate behaviour of DB_CONNECTION_STRING exist, then remove it.
@@ -1300,7 +1441,15 @@ class AwsMetricAttributeGeneratorTest {
         GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+
+    mockAttribute(DB_NAMESPACE, "db_namespace");
+    actualAttributes =
+        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
+    assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
+
     mockAttribute(DB_NAME, null);
+    mockAttribute(DB_NAMESPACE, null);
     mockAttribute(DB_CONNECTION_STRING, null);
 
     mockAttribute(DB_SYSTEM, null);
@@ -1585,6 +1734,36 @@ class AwsMetricAttributeGeneratorTest {
   }
 
   @Test
+  public void testGetRemoteOperationWithFallback_NewKeyPresent() {
+    mockAttribute(MESSAGING_OPERATION_TYPE, "send");
+    mockAttribute(MESSAGING_OPERATION, "publish");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteOperationWithFallback(
+            spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
+
+    assertThat(result).isEqualTo("send");
+  }
+
+  @Test
+  public void testGetRemoteOperationWithFallback_DeprecatedKeyPresent() {
+    mockAttribute(MESSAGING_OPERATION, "publish");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteOperationWithFallback(
+            spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
+
+    assertThat(result).isEqualTo("publish");
+  }
+
+  @Test
+  public void testGetRemoteOperationWithFallback_BothKeysAbsent() {
+    String result =
+        AwsMetricAttributeGenerator.getRemoteOperationWithFallback(
+            spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
+
+    assertThat(result).isEqualTo(UNKNOWN_REMOTE_OPERATION);
+  }
+
+  @Test
   public void testNormalizeRemoteServiceName_NoNormalization() {
     String serviceName = "non aws service";
     mockAttribute(RPC_SERVICE, serviceName);
@@ -1730,5 +1909,35 @@ class AwsMetricAttributeGeneratorTest {
 
     assertThat(attributeMap.get(SERVICE_METRIC)).isEqualTo(serviceAttributes);
     assertThat(attributeMap.get(DEPENDENCY_METRIC)).isEqualTo(dependencyAttributes);
+  }
+
+  @Test
+  public void testGetRemoteServiceWithFallback_PrimaryKeyPresent() {
+    mockAttribute(DB_SYSTEM_NAME, "mysql");
+    mockAttribute(DB_SYSTEM, "postgresql");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteServiceWithFallback(
+            spanDataMock, DB_SYSTEM_NAME, DB_SYSTEM);
+
+    assertThat(result).isEqualTo("mysql");
+  }
+
+  @Test
+  public void testGetRemoteServiceWithFallback_FallbackKeyPresent() {
+    mockAttribute(DB_SYSTEM, "postgresql");
+    String result =
+        AwsMetricAttributeGenerator.getRemoteServiceWithFallback(
+            spanDataMock, DB_SYSTEM_NAME, DB_SYSTEM);
+
+    assertThat(result).isEqualTo("postgresql");
+  }
+
+  @Test
+  public void testGetRemoteServiceWithFallback_BothKeysAbsent() {
+    String result =
+        AwsMetricAttributeGenerator.getRemoteServiceWithFallback(
+            spanDataMock, DB_SYSTEM_NAME, DB_SYSTEM);
+
+    assertThat(result).isEqualTo(UNKNOWN_REMOTE_SERVICE);
   }
 }

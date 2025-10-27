@@ -44,8 +44,6 @@ patch -p1 < "$SOURCEDIR"/../.github/patches/opentelemetry-java-instrumentation.p
 # This patch is for Lambda related context propagation
 patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
 
-patch -p1 < "$SOURCEDIR"/patches/StreamHandlerInstrumentation.patch
-
 ./gradlew publishToMavenLocal
 popd
 rm -rf opentelemetry-java-instrumentation
@@ -60,7 +58,7 @@ popd
 
 ## Build ADOT Lambda Java SDK Layer Code
 echo "Info: Building ADOT Lambda Java SDK Layer Code"
-./gradlew build -PotelVersion=${version}
+./gradlew build -PotelVersion=${otel_instrumentation_version} -Pversion=${version}
 
 
 ## Copy ADOT Java Agent downloaded using Gradle task and bundle it with the Lambda handler script

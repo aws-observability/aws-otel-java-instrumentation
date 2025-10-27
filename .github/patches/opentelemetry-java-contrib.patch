@@ -1,10 +1,50 @@
+diff --git a/.github/renovate.json5 b/.github/renovate.json5
+index 4f7743a3..9e2082ed 100644
+--- a/.github/renovate.json5
++++ b/.github/renovate.json5
+@@ -176,5 +176,27 @@
+         'npx (?<depName>[^@]+)@(?<currentValue>[^\\s]+)',
+       ],
+     },
++    {
++      customType: 'regex',
++      datasourceTemplate: 'java-version',
++      managerFilePatterns: [
++        '.github/workflows/**',
++      ],
++      matchStrings: [
++        '(?<currentValue>\\d+) # renovate: datasource=java-version',
++      ],
++      depNameTemplate: 'java',
++      extractVersionTemplate: '^(?<version>\\d+)',
++    },
++    {
++      customType: 'regex',
++      datasourceTemplate: 'github-releases',
++      managerFilePatterns: [
++        '**/build.gradle.kts',
++      ],
++      matchStrings: [
++        '"https://github.com/(?<depName>[^/]+/[^/]+)/zipball/(?<currentValue>.+?)"',
++      ],
++    },
+   ],
+ }
 diff --git a/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java b/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java
-index 2d8de301..54e26e12 100644
+index 721d0144..dce2d2a3 100644
 --- a/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java
 +++ b/aws-xray-propagator/src/main/java/io/opentelemetry/contrib/awsxray/propagator/AwsXrayPropagator.java
-@@ -68,6 +68,9 @@ public final class AwsXrayPropagator implements TextMapPropagator {
-   private static final char IS_SAMPLED = '1';
-   private static final char NOT_SAMPLED = '0';
+@@ -9,6 +9,7 @@ import static io.opentelemetry.api.internal.OtelEncodingUtils.isValidBase16Strin
+
+ import io.opentelemetry.api.baggage.Baggage;
+ import io.opentelemetry.api.baggage.BaggageBuilder;
++import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
+ import io.opentelemetry.api.internal.StringUtils;
+ import io.opentelemetry.api.trace.Span;
+ import io.opentelemetry.api.trace.SpanContext;
+@@ -80,6 +81,9 @@ public final class AwsXrayPropagator implements TextMapPropagator {
+   private static final String INVALID_LINEAGE = "-1:11111111:0";
+   private static final int NUM_OF_LINEAGE_DELIMITERS = 2;
 
 +  // Copied from AwsSamplingResult in aws-xray extension
 +  private static final String AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY = "xrsr";
@@ -12,10 +52,10 @@ index 2d8de301..54e26e12 100644
    private static final List<String> FIELDS = Collections.singletonList(TRACE_HEADER_KEY);
 
    private static final AwsXrayPropagator INSTANCE = new AwsXrayPropagator();
-@@ -127,6 +130,16 @@ public final class AwsXrayPropagator implements TextMapPropagator {
-         .append(samplingFlag);
+@@ -140,6 +144,16 @@ public final class AwsXrayPropagator implements TextMapPropagator {
 
      Baggage baggage = Baggage.fromContext(context);
+     String lineageHeader = baggage.getEntryValue(LINEAGE_KEY);
 +    // Get sampling rule from trace state and inject into baggage
 +    // This is a back up in case the next service does not have trace state propagation
 +    String ruleFromTraceState =
@@ -26,14 +66,23 @@ index 2d8de301..54e26e12 100644
 +              .put(AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY, ruleFromTraceState)
 +              .build();
 +    }
-     // Truncate baggage to 256 chars per X-Ray spec.
-     baggage.forEach(
-         new BiConsumer<String, BaggageEntry>() {
-@@ -236,13 +249,15 @@ public final class AwsXrayPropagator implements TextMapPropagator {
-     if (spanId == null || traceId == null) {
+
+     if (lineageHeader != null) {
+       traceHeader
+@@ -152,6 +166,9 @@ public final class AwsXrayPropagator implements TextMapPropagator {
+     // add 256 character truncation
+     String truncatedTraceHeader = traceHeader.substring(0, Math.min(traceHeader.length(), 256));
+     setter.set(carrier, TRACE_HEADER_KEY, truncatedTraceHeader);
++
++    // Ensure baggage is propagated with any modifications
++    W3CBaggagePropagator.getInstance().inject(context.with(baggage), carrier, setter);
+   }
+
+   @Override
+@@ -245,12 +262,15 @@ public final class AwsXrayPropagator implements TextMapPropagator {
        logger.finest("Both traceId and spanId are required to extract a valid span context. ");
      }
--
+
 +    SpanContext upstreamSpanContext = Span.fromContext(context).getSpanContext();
      SpanContext spanContext =
          SpanContext.createFromRemoteParent(
@@ -44,11 +93,11 @@ index 2d8de301..54e26e12 100644
 +            upstreamSpanContext.isValid()
 +                ? upstreamSpanContext.getTraceState()
 +                : TraceState.getDefault());
+
      if (spanContext.isValid()) {
        context = context.with(Span.wrap(spanContext));
-     }
 diff --git a/aws-xray/build.gradle.kts b/aws-xray/build.gradle.kts
-index ccec9d52..fddbad18 100644
+index 54dabba7..d56b12bd 100644
 --- a/aws-xray/build.gradle.kts
 +++ b/aws-xray/build.gradle.kts
 @@ -11,6 +11,7 @@ dependencies {
@@ -58,8 +107,8 @@ index ccec9d52..fddbad18 100644
 +  implementation("io.opentelemetry.semconv:opentelemetry-semconv:1.32.0-alpha")
 
    implementation("com.squareup.okhttp3:okhttp")
-   implementation("io.opentelemetry:opentelemetry-semconv")
-@@ -24,6 +25,7 @@ dependencies {
+   implementation("io.opentelemetry.semconv:opentelemetry-semconv")
+@@ -25,6 +26,7 @@ dependencies {
 
    implementation("com.fasterxml.jackson.core:jackson-core")
    implementation("com.fasterxml.jackson.core:jackson-databind")
@@ -284,7 +333,7 @@ index 00000000..dc5b7a01
 +  }
 +}
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
-index 9b5a2e7e..31d5a293 100644
+index ad9b72a2..31d5a293 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
 @@ -9,16 +9,22 @@ import io.opentelemetry.api.common.Attributes;
@@ -320,8 +369,11 @@ index 9b5a2e7e..31d5a293 100644
    private final Resource resource;
    private final Clock clock;
    private final Sampler initialSampler;
-@@ -58,6 +67,9 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+@@ -56,9 +65,11 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+   @Nullable private volatile ScheduledFuture<?> pollFuture;
+   @Nullable private volatile ScheduledFuture<?> fetchTargetsFuture;
    @Nullable private volatile GetSamplingRulesResponse previousRulesResponse;
+-  @Nullable private volatile XrayRulesSampler internalXrayRulesSampler;
    private volatile Sampler sampler;
 
 +  @Nullable private AwsXrayAdaptiveSamplingConfig adaptiveSamplingConfig;
@@ -330,7 +382,7 @@ index 9b5a2e7e..31d5a293 100644
    /**
     * Returns a {@link AwsXrayRemoteSamplerBuilder} with the given {@link Resource}. This {@link
     * Resource} should be the same as what the OpenTelemetry SDK is configured with.
-@@ -119,6 +131,40 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+@@ -120,13 +131,47 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
      return "AwsXrayRemoteSampler{" + sampler.getDescription() + "}";
    }
 
@@ -371,18 +423,36 @@ index 9b5a2e7e..31d5a293 100644
    private void getAndUpdateSampler() {
      try {
        // No pagination support yet, or possibly ever.
-@@ -133,7 +179,8 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+       GetSamplingRulesResponse response =
+           client.getSamplingRules(GetSamplingRulesRequest.create(null));
+       if (!response.equals(previousRulesResponse)) {
+-        updateInternalSamplers(
++        sampler =
+             new XrayRulesSampler(
+                 clientId,
+                 resource,
+@@ -134,8 +179,8 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
                  initialSampler,
                  response.getSamplingRules().stream()
                      .map(SamplingRuleRecord::getRule)
--                    .collect(Collectors.toList()));
+-                    .collect(Collectors.toList())));
+-
 +                    .collect(Collectors.toList()),
 +                adaptiveSamplingConfig);
          previousRulesResponse = response;
          ScheduledFuture<?> existingFetchTargetsFuture = fetchTargetsFuture;
          if (existingFetchTargetsFuture != null) {
-@@ -177,14 +224,29 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
-     XrayRulesSampler xrayRulesSampler = (XrayRulesSampler) sampler;
+@@ -172,25 +217,41 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+   }
+
+   private void fetchTargets() {
+-    if (this.internalXrayRulesSampler == null) {
++    if (!(sampler instanceof XrayRulesSampler)) {
+       throw new IllegalStateException("Programming bug.");
+     }
+
+-    XrayRulesSampler xrayRulesSampler = this.internalXrayRulesSampler;
++    XrayRulesSampler xrayRulesSampler = (XrayRulesSampler) sampler;
      try {
        Date now = Date.from(Instant.ofEpochSecond(0, clock.now()));
 -      List<SamplingStatisticsDocument> statistics = xrayRulesSampler.snapshot(now);
@@ -414,6 +484,24 @@ index 9b5a2e7e..31d5a293 100644
        Map<String, SamplingTargetDocument> targets =
            response.getDocuments().stream()
                .collect(Collectors.toMap(SamplingTargetDocument::getRuleName, Function.identity()));
+-      updateInternalSamplers(xrayRulesSampler.withTargets(targets, requestedTargetRuleNames, now));
++      sampler =
++          xrayRulesSampler = xrayRulesSampler.withTargets(targets, requestedTargetRuleNames, now);
+     } catch (Throwable t) {
+       // Might be a transient API failure, try again after a default interval.
+       fetchTargetsFuture =
+@@ -226,11 +287,6 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+     return new String(clientIdChars);
+   }
+
+-  private void updateInternalSamplers(XrayRulesSampler xrayRulesSampler) {
+-    this.internalXrayRulesSampler = xrayRulesSampler;
+-    this.sampler = Sampler.parentBased(internalXrayRulesSampler);
+-  }
+-
+   // Visible for testing
+   XraySamplerClient getClient() {
+     return client;
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java
 index dca930d5..01835dc2 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java
@@ -608,11 +696,14 @@ index c1e178f5..406f07e2 100644
 +  }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
-index 1ef8abf5..328e63dd 100644
+index 1d97c4ae..dd369f5f 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
-@@ -9,10 +9,13 @@ import io.opentelemetry.api.common.AttributeKey;
+@@ -9,12 +9,16 @@ import static io.opentelemetry.semconv.ServiceAttributes.SERVICE_NAME;
+
+ import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.Attributes;
++import io.opentelemetry.api.trace.Span;
  import io.opentelemetry.api.trace.SpanKind;
  import io.opentelemetry.context.Context;
 +import io.opentelemetry.contrib.awsxray.GetSamplingTargetsRequest.SamplingBoostStatisticsDocument;
@@ -625,19 +716,7 @@ index 1ef8abf5..328e63dd 100644
  import io.opentelemetry.sdk.trace.data.LinkData;
  import io.opentelemetry.sdk.trace.samplers.Sampler;
  import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
-@@ -35,6 +38,11 @@ final class SamplingRuleApplier {
-
-   private static final Map<String, String> XRAY_CLOUD_PLATFORM;
-
-+  private static final AttributeKey<String> URL_PATH = AttributeKey.stringKey("url.path");
-+  private static final AttributeKey<String> URL_FULL = AttributeKey.stringKey("url.full");
-+  private static final AttributeKey<String> HTTP_REQUEST_METHOD =
-+      AttributeKey.stringKey("http.request.method");
-+
-   static {
-     Map<String, String> xrayCloudPlatform = new HashMap<>();
-     xrayCloudPlatform.put(ResourceAttributes.CloudPlatformValues.AWS_EC2, "AWS::EC2::Instance");
-@@ -50,12 +58,20 @@ final class SamplingRuleApplier {
+@@ -76,12 +80,20 @@ final class SamplingRuleApplier {
 
    private final String clientId;
    private final String ruleName;
@@ -658,7 +737,7 @@ index 1ef8abf5..328e63dd 100644
    private final Map<String, Matcher> attributeMatchers;
    private final Matcher urlPathMatcher;
    private final Matcher serviceNameMatcher;
-@@ -68,7 +84,11 @@ final class SamplingRuleApplier {
+@@ -94,7 +106,11 @@ final class SamplingRuleApplier {
 
    private final long nextSnapshotTimeNanos;
 
@@ -671,7 +750,7 @@ index 1ef8abf5..328e63dd 100644
      this.clientId = clientId;
      this.clock = clock;
      String ruleName = rule.getRuleName();
-@@ -82,6 +102,8 @@ final class SamplingRuleApplier {
+@@ -108,6 +124,8 @@ final class SamplingRuleApplier {
      }
      this.ruleName = ruleName;
 
@@ -680,7 +759,7 @@ index 1ef8abf5..328e63dd 100644
      // We don't have a SamplingTarget so are ready to report a snapshot right away.
      nextSnapshotTimeNanos = clock.nanoTime();
 
-@@ -98,7 +120,15 @@ final class SamplingRuleApplier {
+@@ -124,7 +142,15 @@ final class SamplingRuleApplier {
        reservoirSampler = Sampler.alwaysOff();
        borrowing = false;
      }
@@ -697,7 +776,7 @@ index 1ef8abf5..328e63dd 100644
 
      if (rule.getAttributes().isEmpty()) {
        attributeMatchers = Collections.emptyMap();
-@@ -121,11 +151,16 @@ final class SamplingRuleApplier {
+@@ -147,11 +173,16 @@ final class SamplingRuleApplier {
    private SamplingRuleApplier(
        String clientId,
        String ruleName,
@@ -714,7 +793,7 @@ index 1ef8abf5..328e63dd 100644
        Map<String, Matcher> attributeMatchers,
        Matcher urlPathMatcher,
        Matcher serviceNameMatcher,
-@@ -137,11 +172,16 @@ final class SamplingRuleApplier {
+@@ -163,11 +194,16 @@ final class SamplingRuleApplier {
        long nextSnapshotTimeNanos) {
      this.clientId = clientId;
      this.ruleName = ruleName;
@@ -731,7 +810,7 @@ index 1ef8abf5..328e63dd 100644
      this.attributeMatchers = attributeMatchers;
      this.urlPathMatcher = urlPathMatcher;
      this.serviceNameMatcher = serviceNameMatcher;
-@@ -151,6 +191,7 @@ final class SamplingRuleApplier {
+@@ -177,6 +213,7 @@ final class SamplingRuleApplier {
      this.resourceArnMatcher = resourceArnMatcher;
      this.statistics = statistics;
      this.nextSnapshotTimeNanos = nextSnapshotTimeNanos;
@@ -739,31 +818,40 @@ index 1ef8abf5..328e63dd 100644
    }
 
    @SuppressWarnings("deprecation") // TODO
-@@ -162,11 +203,14 @@ final class SamplingRuleApplier {
-     String host = null;
-
-     for (Map.Entry<AttributeKey<?>, Object> entry : attributes.asMap().entrySet()) {
--      if (entry.getKey().equals(SemanticAttributes.HTTP_TARGET)) {
-+      if (entry.getKey().equals(SemanticAttributes.HTTP_TARGET)
-+          || entry.getKey().equals(URL_PATH)) {
-         httpTarget = (String) entry.getValue();
--      } else if (entry.getKey().equals(SemanticAttributes.HTTP_URL)) {
-+      } else if (entry.getKey().equals(SemanticAttributes.HTTP_URL)
-+          || entry.getKey().equals(URL_FULL)) {
-         httpUrl = (String) entry.getValue();
--      } else if (entry.getKey().equals(SemanticAttributes.HTTP_METHOD)) {
-+      } else if (entry.getKey().equals(SemanticAttributes.HTTP_METHOD)
-+          || entry.getKey().equals(HTTP_REQUEST_METHOD)) {
-         httpMethod = (String) entry.getValue();
-       } else if (entry.getKey().equals(SemanticAttributes.NET_HOST_NAME)) {
-         host = (String) entry.getValue();
-@@ -237,45 +281,84 @@ final class SamplingRuleApplier {
-       statistics.sampled.increment();
+@@ -257,8 +294,13 @@ final class SamplingRuleApplier {
+       SpanKind spanKind,
+       Attributes attributes,
+       List<LinkData> parentLinks) {
++    // Only emit statistics for spans for which a sampling decision is being made actively
++    // i.e. The root span in a call chain
++    boolean shouldCount = !Span.fromContext(parentContext).getSpanContext().isValid();
+     // Incrementing requests first ensures sample / borrow rate are positive.
+-    statistics.requests.increment();
++    if (shouldCount) {
++      statistics.requests.increment();
++    }
+     boolean reservoirExpired = clock.nanoTime() >= reservoirEndTimeNanos;
+     SamplingResult result =
+         !reservoirExpired
+@@ -267,51 +309,92 @@ final class SamplingRuleApplier {
+             : SamplingResult.create(SamplingDecision.DROP);
+     if (result.getDecision() != SamplingDecision.DROP) {
+       // We use the result from the reservoir sampler if it worked.
+-      if (borrowing) {
+-        statistics.borrowed.increment();
++      if (shouldCount) {
++        if (borrowing) {
++          statistics.borrowed.increment();
++        }
++        statistics.sampled.increment();
+       }
+-      statistics.sampled.increment();
        return result;
      }
 -    result =
 -        fixedRateSampler.shouldSample(
 -            parentContext, traceId, name, spanKind, attributes, parentLinks);
+-    if (result.getDecision() != SamplingDecision.DROP) {
 +
 +    if (clock.nanoTime() < boostEndTimeNanos) {
 +      result =
@@ -774,7 +862,7 @@ index 1ef8abf5..328e63dd 100644
 +          fixedRateSampler.shouldSample(
 +              parentContext, traceId, name, spanKind, attributes, parentLinks);
 +    }
-     if (result.getDecision() != SamplingDecision.DROP) {
++    if (shouldCount && result.getDecision() != SamplingDecision.DROP) {
        statistics.sampled.increment();
      }
      return result;
@@ -859,7 +947,7 @@ index 1ef8abf5..328e63dd 100644
                + Duration.between(now.toInstant(), target.getReservoirQuotaTtl().toInstant())
                    .toNanos();
      }
-@@ -283,16 +366,36 @@ final class SamplingRuleApplier {
+@@ -319,16 +402,36 @@ final class SamplingRuleApplier {
          target.getIntervalSecs() != null
              ? TimeUnit.SECONDS.toNanos(target.getIntervalSecs())
              : AwsXrayRemoteSampler.DEFAULT_TARGET_INTERVAL_NANOS;
@@ -897,7 +985,7 @@ index 1ef8abf5..328e63dd 100644
          attributeMatchers,
          urlPathMatcher,
          serviceNameMatcher,
-@@ -308,11 +411,16 @@ final class SamplingRuleApplier {
+@@ -344,11 +447,16 @@ final class SamplingRuleApplier {
      return new SamplingRuleApplier(
          clientId,
          ruleName,
@@ -914,7 +1002,7 @@ index 1ef8abf5..328e63dd 100644
          attributeMatchers,
          urlPathMatcher,
          serviceNameMatcher,
-@@ -328,6 +436,15 @@ final class SamplingRuleApplier {
+@@ -364,6 +472,15 @@ final class SamplingRuleApplier {
      return ruleName;
    }
 
@@ -929,8 +1017,22 @@ index 1ef8abf5..328e63dd 100644
 +
    @Nullable
    private static String getArn(Attributes attributes, Resource resource) {
-     String arn = resource.getAttributes().get(ResourceAttributes.AWS_ECS_CONTAINER_ARN);
-@@ -479,5 +596,30 @@ final class SamplingRuleApplier {
+     String arn = resource.getAttributes().get(AWS_ECS_CONTAINER_ARN);
+@@ -500,11 +617,11 @@ final class SamplingRuleApplier {
+   }
+
+   private Sampler createRateLimited(int numPerSecond) {
+-    return new RateLimitingSampler(numPerSecond, clock);
++    return Sampler.parentBased(new RateLimitingSampler(numPerSecond, clock));
+   }
+
+   private static Sampler createFixedRate(double rate) {
+-    return Sampler.traceIdRatioBased(rate);
++    return Sampler.parentBased(Sampler.traceIdRatioBased(rate));
+   }
+
+   // We keep track of sampling requests and decisions to report to X-Ray to allow it to allocate
+@@ -515,5 +632,30 @@ final class SamplingRuleApplier {
      final LongAdder requests = new LongAdder();
      final LongAdder sampled = new LongAdder();
      final LongAdder borrowed = new LongAdder();
@@ -962,7 +1064,7 @@ index 1ef8abf5..328e63dd 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..fae13433 100644
+index 75977dc0..48bdeb0f 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,81 @@
@@ -970,6 +1072,7 @@ index 75977dc0..fae13433 100644
  package io.opentelemetry.contrib.awsxray;
 
 +import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
++import static io.opentelemetry.semconv.ServiceAttributes.SERVICE_NAME;
 +
 +import com.github.benmanes.caffeine.cache.Cache;
 +import com.github.benmanes.caffeine.cache.Caffeine;
@@ -989,7 +1092,6 @@ index 75977dc0..fae13433 100644
 +import io.opentelemetry.sdk.trace.data.SpanData;
  import io.opentelemetry.sdk.trace.samplers.Sampler;
  import io.opentelemetry.sdk.trace.samplers.SamplingResult;
-+import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
 +import java.nio.charset.StandardCharsets;
 +import java.security.MessageDigest;
 +import java.security.NoSuchAlgorithmException;
@@ -1048,7 +1150,7 @@ index 75977dc0..fae13433 100644
      this(
          clientId,
          resource,
-@@ -49,8 +88,22 @@ final class XrayRulesSampler implements Sampler {
+@@ -49,8 +88,19 @@ final class XrayRulesSampler implements Sampler {
          rules.stream()
              // Lower priority value takes precedence so normal ascending sort.
              .sorted(Comparator.comparingInt(GetSamplingRulesResponse.SamplingRule::getPriority))
@@ -1057,10 +1159,7 @@ index 75977dc0..fae13433 100644
 +            .map(
 +                rule ->
 +                    new SamplingRuleApplier(
-+                        clientId,
-+                        rule,
-+                        resource.getAttribute(ResourceAttributes.SERVICE_NAME),
-+                        clock))
++                        clientId, rule, resource.getAttribute(SERVICE_NAME), clock))
 +            .toArray(SamplingRuleApplier[]::new),
 +        createRuleHashMaps(rules),
 +        rules.stream().anyMatch(r -> r.getSamplingRateBoost() != null),
@@ -1073,7 +1172,7 @@ index 75977dc0..fae13433 100644
    }
 
    private XrayRulesSampler(
-@@ -58,12 +111,36 @@ final class XrayRulesSampler implements Sampler {
+@@ -58,12 +108,36 @@ final class XrayRulesSampler implements Sampler {
        Resource resource,
        Clock clock,
        Sampler fallbackSampler,
@@ -1111,7 +1210,7 @@ index 75977dc0..fae13433 100644
    }
 
    @Override
-@@ -74,10 +151,43 @@ final class XrayRulesSampler implements Sampler {
+@@ -74,10 +148,43 @@ final class XrayRulesSampler implements Sampler {
        SpanKind spanKind,
        Attributes attributes,
        List<LinkData> parentLinks) {
@@ -1157,7 +1256,7 @@ index 75977dc0..fae13433 100644
        }
      }
 
-@@ -96,7 +206,97 @@ final class XrayRulesSampler implements Sampler {
+@@ -96,7 +203,97 @@ final class XrayRulesSampler implements Sampler {
      return "XrayRulesSampler{" + Arrays.toString(ruleAppliers) + "}";
    }
 
@@ -1256,7 +1355,7 @@ index 75977dc0..fae13433 100644
      return Arrays.stream(ruleAppliers)
          .map(rule -> rule.snapshot(now))
          .filter(Objects::nonNull)
-@@ -115,15 +315,16 @@ final class XrayRulesSampler implements Sampler {
+@@ -115,15 +312,16 @@ final class XrayRulesSampler implements Sampler {
        Map<String, SamplingTargetDocument> ruleTargets,
        Set<String> requestedTargetRuleNames,
        Date now) {
@@ -1275,7 +1374,7 @@ index 75977dc0..fae13433 100644
                    }
                    if (requestedTargetRuleNames.contains(rule.getRuleName())) {
                      // In practice X-Ray should return a target for any rule we requested but
-@@ -135,6 +336,216 @@ final class XrayRulesSampler implements Sampler {
+@@ -135,6 +333,216 @@ final class XrayRulesSampler implements Sampler {
                    return rule;
                  })
              .toArray(SamplingRuleApplier[]::new);
@@ -1494,7 +1593,7 @@ index 75977dc0..fae13433 100644
    }
  }
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
-index 654a4d57..5af11a25 100644
+index 4e5cd13b..5af11a25 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
 @@ -7,7 +7,10 @@ package io.opentelemetry.contrib.awsxray;
@@ -1518,11 +1617,25 @@ index 654a4d57..5af11a25 100644
  import io.opentelemetry.sdk.trace.samplers.Sampler;
  import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
  import java.io.IOException;
-@@ -168,6 +174,32 @@ class AwsXrayRemoteSamplerTest {
-     }
+@@ -169,21 +175,28 @@ class AwsXrayRemoteSamplerTest {
    }
 
-+  @Test
+   @Test
+-  void parentBasedXraySamplerAfterDefaultSampler() {
+-    rulesResponse.set(RULE_RESPONSE_1);
+-    try (AwsXrayRemoteSampler samplerWithLongerPollingInterval =
+-        AwsXrayRemoteSampler.newBuilder(Resource.empty())
+-            .setInitialSampler(Sampler.alwaysOn())
+-            .setEndpoint(server.httpUri().toString())
+-            .setPollingInterval(Duration.ofMillis(5))
+-            .build()) {
+-      await()
+-          .pollDelay(Duration.ofMillis(10))
+-          .untilAsserted(
+-              () -> {
+-                assertThat(sampler.getDescription())
+-                    .startsWith("AwsXrayRemoteSampler{ParentBased{root:XrayRulesSampler{[");
+-              });
 +  void setAndResetSpanExporter() {
 +    try (AwsXrayRemoteSampler sampler = AwsXrayRemoteSampler.newBuilder(Resource.empty()).build()) {
 +      // Setting span exporter should only work once
@@ -1545,13 +1658,10 @@ index 654a4d57..5af11a25 100644
 +      sampler.setSpanExporter(mock(SpanExporter.class));
 +      assertThatCode(() -> sampler.adaptSampling(mock(ReadableSpan.class), mock(SpanData.class)))
 +          .doesNotThrowAnyException();
-+    }
-+  }
-+
-   // https://github.com/open-telemetry/opentelemetry-java-contrib/issues/376
-   @Test
-   void testJitterTruncation() {
-@@ -187,6 +219,16 @@ class AwsXrayRemoteSamplerTest {
+     }
+   }
+
+@@ -206,6 +219,16 @@ class AwsXrayRemoteSamplerTest {
      }
    }
 
@@ -1569,11 +1679,11 @@ index 654a4d57..5af11a25 100644
      return sampler
          .shouldSample(
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java
-index 6bb6e82a..6d71711b 100644
+index 920a5ffd..b7c21aa0 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java
-@@ -8,18 +8,25 @@ package io.opentelemetry.contrib.awsxray;
- import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
+@@ -15,18 +15,27 @@ import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_
+ import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_HOST_NAME;
  import static org.assertj.core.api.Assertions.assertThat;
  import static org.awaitility.Awaitility.await;
 +import static org.mockito.Mockito.mock;
@@ -1583,7 +1693,9 @@ index 6bb6e82a..6d71711b 100644
  import io.opentelemetry.api.common.AttributeKey;
  import io.opentelemetry.api.common.Attributes;
  import io.opentelemetry.api.common.AttributesBuilder;
++import io.opentelemetry.api.trace.Span;
 +import io.opentelemetry.api.trace.SpanContext;
++import io.opentelemetry.api.trace.SpanId;
  import io.opentelemetry.api.trace.SpanKind;
 +import io.opentelemetry.api.trace.TraceFlags;
  import io.opentelemetry.api.trace.TraceId;
@@ -1597,8 +1709,8 @@ index 6bb6e82a..6d71711b 100644
 +import io.opentelemetry.sdk.trace.ReadableSpan;
  import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
  import io.opentelemetry.sdk.trace.samplers.SamplingResult;
- import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
-@@ -28,6 +35,7 @@ import java.io.IOException;
+ import io.opentelemetry.semconv.HttpAttributes;
+@@ -37,6 +46,7 @@ import java.io.IOException;
  import java.io.UncheckedIOException;
  import java.time.Duration;
  import java.time.Instant;
@@ -1606,20 +1718,15 @@ index 6bb6e82a..6d71711b 100644
  import java.util.Collections;
  import java.util.Date;
  import java.util.concurrent.TimeUnit;
-@@ -41,6 +49,12 @@ class SamplingRuleApplierTest {
+@@ -50,6 +60,7 @@ class SamplingRuleApplierTest {
    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
    private static final String CLIENT_ID = "test-client-id";
 +  private static final String TEST_SERVICE_NAME = "test-service-name";
-+
-+  private static final AttributeKey<String> URL_PATH = AttributeKey.stringKey("url.path");
-+  private static final AttributeKey<String> URL_FULL = AttributeKey.stringKey("url.full");
-+  private static final AttributeKey<String> HTTP_REQUEST_METHOD =
-+      AttributeKey.stringKey("http.request.method");
 
    @Nested
    @SuppressWarnings("ClassCanBeStatic")
-@@ -48,7 +62,10 @@ class SamplingRuleApplierTest {
+@@ -57,7 +68,10 @@ class SamplingRuleApplierTest {
 
      private final SamplingRuleApplier applier =
          new SamplingRuleApplier(
@@ -1631,23 +1738,7 @@ index 6bb6e82a..6d71711b 100644
 
      private final Resource resource =
          Resource.builder()
-@@ -68,6 +85,15 @@ class SamplingRuleApplierTest {
-             .put(AttributeKey.longKey("speed"), 10)
-             .build();
-
-+    private final Attributes newSemCovAttributes =
-+        Attributes.builder()
-+            .put(HTTP_REQUEST_METHOD, "GET")
-+            .put(SemanticAttributes.NET_HOST_NAME, "opentelemetry.io")
-+            .put(URL_PATH, "/instrument-me")
-+            .put(AttributeKey.stringKey("animal"), "cat")
-+            .put(AttributeKey.longKey("speed"), 10)
-+            .build();
-+
-     // FixedRate set to 1.0 in rule and no reservoir
-     @Test
-     void fixedRateAlwaysSample() {
-@@ -75,7 +101,8 @@ class SamplingRuleApplierTest {
+@@ -91,7 +105,8 @@ class SamplingRuleApplierTest {
            .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
 
        Date now = new Date();
@@ -1657,7 +1748,7 @@ index 6bb6e82a..6d71711b 100644
        assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
        assertThat(statistics.getRuleName()).isEqualTo("Test");
        assertThat(statistics.getTimestamp()).isEqualTo(now);
-@@ -84,7 +111,7 @@ class SamplingRuleApplierTest {
+@@ -100,7 +115,7 @@ class SamplingRuleApplierTest {
        assertThat(statistics.getBorrowCount()).isEqualTo(0);
 
        // Reset
@@ -1666,7 +1757,7 @@ index 6bb6e82a..6d71711b 100644
        assertThat(statistics.getRequestCount()).isEqualTo(0);
        assertThat(statistics.getSampledCount()).isEqualTo(0);
        assertThat(statistics.getBorrowCount()).isEqualTo(0);
-@@ -92,7 +119,7 @@ class SamplingRuleApplierTest {
+@@ -108,7 +123,7 @@ class SamplingRuleApplierTest {
        doSample(applier);
        doSample(applier);
        now = new Date();
@@ -1675,78 +1766,7 @@ index 6bb6e82a..6d71711b 100644
        assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
        assertThat(statistics.getRuleName()).isEqualTo("Test");
        assertThat(statistics.getTimestamp()).isEqualTo(now);
-@@ -116,6 +143,21 @@ class SamplingRuleApplierTest {
-           .isTrue();
-     }
-
-+    @Test
-+    void matchesURLFullNewSemCov() {
-+      assertThat(applier.matches(newSemCovAttributes, resource)).isTrue();
-+
-+      // http.url works too
-+      assertThat(
-+              applier.matches(
-+                  attributes.toBuilder()
-+                      .remove(URL_FULL)
-+                      .put(URL_FULL, "scheme://host:port/instrument-me")
-+                      .build(),
-+                  resource))
-+          .isTrue();
-+    }
-+
-     @Test
-     void serviceNameNotMatch() {
-       assertThat(
-@@ -137,6 +179,13 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
-
-+    @Test
-+    void methodNewSemCovNotMatch() {
-+      Attributes attributes =
-+          this.newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "POST").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void hostNotMatch() {
-       // Replacing dot with character makes sure we're not accidentally treating dot as regex
-@@ -178,6 +227,34 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
-
-+    @Test
-+    void pathNewSemCovNotMatch() {
-+      Attributes attributes =
-+          this.newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-you").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes =
-+          this.newSemCovAttributes.toBuilder()
-+              .remove(URL_PATH)
-+              .put(URL_FULL, "scheme://host:port/instrument-you")
-+              .build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes =
-+          this.newSemCovAttributes.toBuilder()
-+              .remove(URL_PATH)
-+              .put(URL_FULL, "scheme://host:port")
-+              .build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+
-+      // Correct path, but we ignore anyways since the URL is malformed per spec, scheme is always
-+      // present.
-+      attributes =
-+          this.newSemCovAttributes.toBuilder()
-+              .remove(URL_PATH)
-+              .put(URL_FULL, "host:port/instrument-me")
-+              .build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void attributeNotMatch() {
-       Attributes attributes =
-@@ -223,7 +300,10 @@ class SamplingRuleApplierTest {
+@@ -283,7 +298,10 @@ class SamplingRuleApplierTest {
 
      private final SamplingRuleApplier applier =
          new SamplingRuleApplier(
@@ -1758,22 +1778,7 @@ index 6bb6e82a..6d71711b 100644
 
      private final Resource resource =
          Resource.builder()
-@@ -243,13 +323,23 @@ class SamplingRuleApplierTest {
-             .put(AttributeKey.longKey("speed"), 10)
-             .build();
-
-+    private final Attributes newSemCovAttributes =
-+        Attributes.builder()
-+            .put(HTTP_REQUEST_METHOD, "GET")
-+            .put(SemanticAttributes.NET_HOST_NAME, "opentelemetry.io")
-+            .put(URL_PATH, "/instrument-me?foo=bar&cat=meow")
-+            .put(AttributeKey.stringKey("animal"), "cat")
-+            .put(AttributeKey.longKey("speed"), 10)
-+            .build();
-+
-     // FixedRate set to 0.0 in rule and no reservoir
-     @Test
-     void fixedRateNeverSample() {
+@@ -316,7 +334,8 @@ class SamplingRuleApplierTest {
        assertThat(doSample(applier)).isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 
        Date now = new Date();
@@ -1783,7 +1788,7 @@ index 6bb6e82a..6d71711b 100644
        assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
        assertThat(statistics.getRuleName()).isEqualTo("Test");
        assertThat(statistics.getTimestamp()).isEqualTo(now);
-@@ -258,7 +348,7 @@ class SamplingRuleApplierTest {
+@@ -325,7 +344,7 @@ class SamplingRuleApplierTest {
        assertThat(statistics.getBorrowCount()).isEqualTo(0);
 
        // Reset
@@ -1792,7 +1797,7 @@ index 6bb6e82a..6d71711b 100644
        assertThat(statistics.getRequestCount()).isEqualTo(0);
        assertThat(statistics.getSampledCount()).isEqualTo(0);
        assertThat(statistics.getBorrowCount()).isEqualTo(0);
-@@ -266,7 +356,7 @@ class SamplingRuleApplierTest {
+@@ -333,7 +352,7 @@ class SamplingRuleApplierTest {
        doSample(applier);
        doSample(applier);
        now = new Date();
@@ -1801,64 +1806,7 @@ index 6bb6e82a..6d71711b 100644
        assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
        assertThat(statistics.getRuleName()).isEqualTo("Test");
        assertThat(statistics.getTimestamp()).isEqualTo(now);
-@@ -329,6 +419,26 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
-
-+    @Test
-+    void newSemCovMethodMatches() {
-+      Attributes attributes =
-+          this.newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "BADGETGOOD").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+      attributes = newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "BADGET").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+      attributes = newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "GETGET").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+    }
-+
-+    @Test
-+    void newSemCovMethodNotMatch() {
-+      Attributes attributes =
-+          newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "POST").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes = removeAttribute(newSemCovAttributes, HTTP_REQUEST_METHOD);
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void hostMatches() {
-       Attributes attributes =
-@@ -410,6 +520,29 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
-
-+    @Test
-+    void pathNewSemCovMatches() {
-+      Attributes attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-me?foo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+      // Deceptive question mark, it's actually a wildcard :-)
-+      attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-meafoo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+    }
-+
-+    @Test
-+    void pathNewSemCovNotMatch() {
-+      Attributes attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-mea?foo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "foo/instrument-meafoo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes = removeAttribute(newSemCovAttributes, URL_PATH);
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void attributeMatches() {
-       Attributes attributes =
-@@ -493,7 +626,10 @@ class SamplingRuleApplierTest {
+@@ -626,7 +645,10 @@ class SamplingRuleApplierTest {
 
      private final SamplingRuleApplier applier =
          new SamplingRuleApplier(
@@ -1870,7 +1818,7 @@ index 6bb6e82a..6d71711b 100644
 
      private final Resource resource =
          Resource.builder()
-@@ -553,7 +689,10 @@ class SamplingRuleApplierTest {
+@@ -677,7 +699,10 @@ class SamplingRuleApplierTest {
    void borrowing() {
      SamplingRuleApplier applier =
          new SamplingRuleApplier(
@@ -1882,7 +1830,7 @@ index 6bb6e82a..6d71711b 100644
 
      // Borrow
      assertThat(doSample(applier))
-@@ -564,7 +703,8 @@ class SamplingRuleApplierTest {
+@@ -688,7 +713,8 @@ class SamplingRuleApplierTest {
      assertThat(doSample(applier)).isEqualTo(SamplingResult.create(SamplingDecision.DROP));
 
      Date now = new Date();
@@ -1892,7 +1840,7 @@ index 6bb6e82a..6d71711b 100644
      assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
      assertThat(statistics.getRuleName()).isEqualTo("Test");
      assertThat(statistics.getTimestamp()).isEqualTo(now);
-@@ -573,7 +713,7 @@ class SamplingRuleApplierTest {
+@@ -697,7 +723,7 @@ class SamplingRuleApplierTest {
      assertThat(statistics.getBorrowCount()).isEqualTo(1);
 
      // Reset
@@ -1901,7 +1849,7 @@ index 6bb6e82a..6d71711b 100644
      assertThat(statistics.getRequestCount()).isEqualTo(0);
      assertThat(statistics.getSampledCount()).isEqualTo(0);
      assertThat(statistics.getBorrowCount()).isEqualTo(0);
-@@ -589,7 +729,7 @@ class SamplingRuleApplierTest {
+@@ -713,7 +739,7 @@ class SamplingRuleApplierTest {
              });
 
      now = new Date();
@@ -1910,7 +1858,50 @@ index 6bb6e82a..6d71711b 100644
      assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
      assertThat(statistics.getRuleName()).isEqualTo("Test");
      assertThat(statistics.getTimestamp()).isEqualTo(now);
-@@ -603,7 +743,7 @@ class SamplingRuleApplierTest {
+@@ -722,12 +748,50 @@ class SamplingRuleApplierTest {
+     assertThat(statistics.getBorrowCount()).isEqualTo(1);
+   }
+
++  @Test
++  void generateStatistics() {
++    SamplingRuleApplier applier =
++        new SamplingRuleApplier(
++            CLIENT_ID,
++            readSamplingRule("/sampling-rule-sample-all.json"),
++            TEST_SERVICE_NAME,
++            Clock.getDefault());
++
++    // Send a span for which the sampling decision hasn't been made yet
++    assertThat(doSample(applier))
++        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
++
++    // Send spans for which the sampling decision has already been made
++    // Send in different amounts to ensure statistics are generated for correct calls
++    assertThat(doSampleSpanWithValidContext(applier, /* isSampled= */ true))
++        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
++    assertThat(doSampleSpanWithValidContext(applier, /* isSampled= */ true))
++        .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
++    assertThat(doSampleSpanWithValidContext(applier, /* isSampled= */ false))
++        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
++    assertThat(doSampleSpanWithValidContext(applier, /* isSampled= */ false))
++        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
++    assertThat(doSampleSpanWithValidContext(applier, /* isSampled= */ false))
++        .isEqualTo(SamplingResult.create(SamplingDecision.DROP));
++
++    // Verify outgoing statistics
++    Date now = new Date();
++    GetSamplingTargetsRequest.SamplingStatisticsDocument statistics =
++        applier.snapshot(now).getStatisticsDocument();
++    assertThat(statistics.getClientId()).isEqualTo(CLIENT_ID);
++    assertThat(statistics.getRuleName()).isEqualTo("Test");
++    assertThat(statistics.getTimestamp()).isEqualTo(now);
++    assertThat(statistics.getRequestCount()).isEqualTo(1);
++    assertThat(statistics.getSampledCount()).isEqualTo(1);
++    assertThat(statistics.getBorrowCount()).isEqualTo(0);
++  }
++
+   @Test
+   void ruleWithTarget() {
      TestClock clock = TestClock.create();
      SamplingRuleApplier applier =
          new SamplingRuleApplier(
@@ -1919,7 +1910,7 @@ index 6bb6e82a..6d71711b 100644
      // No target yet, borrows from reservoir every second.
      assertThat(doSample(applier))
          .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
-@@ -622,8 +762,8 @@ class SamplingRuleApplierTest {
+@@ -746,8 +810,8 @@ class SamplingRuleApplierTest {
 
      // Got a target!
      SamplingTargetDocument target =
@@ -1930,7 +1921,7 @@ index 6bb6e82a..6d71711b 100644
      // Statistics not expired yet
      assertThat(applier.snapshot(Date.from(now))).isNull();
 
-@@ -662,7 +802,7 @@ class SamplingRuleApplierTest {
+@@ -786,7 +850,7 @@ class SamplingRuleApplierTest {
      TestClock clock = TestClock.create();
      SamplingRuleApplier applier =
          new SamplingRuleApplier(
@@ -1939,7 +1930,7 @@ index 6bb6e82a..6d71711b 100644
      // No target yet, borrows from reservoir every second.
      assertThat(doSample(applier))
          .isEqualTo(SamplingResult.create(SamplingDecision.RECORD_AND_SAMPLE));
-@@ -680,8 +820,8 @@ class SamplingRuleApplierTest {
+@@ -804,8 +868,8 @@ class SamplingRuleApplierTest {
      assertThat(applier.snapshot(Date.from(now.plus(Duration.ofMinutes(30))))).isNotNull();
 
      // Got a target!
@@ -1950,7 +1941,7 @@ index 6bb6e82a..6d71711b 100644
      // No reservoir, always use fixed rate (drop)
      assertThat(doSample(applier)).isEqualTo(SamplingResult.create(SamplingDecision.DROP));
      assertThat(doSample(applier)).isEqualTo(SamplingResult.create(SamplingDecision.DROP));
-@@ -691,12 +831,105 @@ class SamplingRuleApplierTest {
+@@ -815,12 +879,105 @@ class SamplingRuleApplierTest {
      assertThat(applier.snapshot(Date.from(now))).isNotNull();
    }
 
@@ -2057,7 +2048,7 @@ index 6bb6e82a..6d71711b 100644
 
      Instant now = Instant.ofEpochSecond(0, clock.now());
      assertThat(applier.snapshot(Date.from(now))).isNotNull();
-@@ -715,6 +948,71 @@ class SamplingRuleApplierTest {
+@@ -839,6 +996,71 @@ class SamplingRuleApplierTest {
      assertThat(doSample(applier)).isEqualTo(SamplingResult.create(SamplingDecision.DROP));
    }
 
@@ -2129,6 +2120,35 @@ index 6bb6e82a..6d71711b 100644
    private static SamplingResult doSample(SamplingRuleApplier applier) {
      return applier.shouldSample(
          Context.current(),
+@@ -849,6 +1071,28 @@ class SamplingRuleApplierTest {
+         Collections.emptyList());
+   }
+
++  private static SamplingResult doSampleSpanWithValidContext(
++      SamplingRuleApplier applier, boolean isSampled) {
++    String traceId = TraceId.fromLongs(1, 2);
++    Context parentContext =
++        Context.root()
++            .with(
++                Span.wrap(
++                    SpanContext.create(
++                        traceId,
++                        SpanId.fromLong(1L),
++                        isSampled ? TraceFlags.getSampled() : TraceFlags.getDefault(),
++                        TraceState.getDefault())));
++
++    return applier.shouldSample(
++        parentContext,
++        traceId,
++        SpanId.fromLong(2L),
++        SpanKind.CLIENT,
++        Attributes.empty(),
++        Collections.emptyList());
++  }
++
+   private static GetSamplingRulesResponse.SamplingRule readSamplingRule(String resourcePath) {
+     try {
+       return OBJECT_MAPPER.readValue(
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 index 1ca8df34..14ebdbda 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
@@ -3318,14 +3338,35 @@ index 00000000..32752d5e
 +    "speed": "0"
 +  }
 +}
+diff --git a/aws-xray/src/test/resources/sampling-rule-sample-all.json b/aws-xray/src/test/resources/sampling-rule-sample-all.json
+new file mode 100644
+index 00000000..4ba3013a
+--- /dev/null
++++ b/aws-xray/src/test/resources/sampling-rule-sample-all.json
+@@ -0,0 +1,15 @@
++{
++  "RuleName": "Test",
++  "RuleARN": "arn:aws:xray:us-east-1:595986152929:sampling-rule/Test",
++  "ResourceARN": "arn:aws:xray:us-east-1:595986152929:my-service",
++  "Priority": 1,
++  "FixedRate": 1.0,
++  "ReservoirSize": 0,
++  "ServiceName": "*",
++  "ServiceType": "*",
++  "Host": "*",
++  "HTTPMethod": "*",
++  "URLPath": "*",
++  "Version": 1,
++  "Attributes": {}
++}
 diff --git a/disk-buffering/build.gradle.kts b/disk-buffering/build.gradle.kts
-index 041d2e91..e3d60f46 100644
+index 8250c1bd..74a1a24c 100644
 --- a/disk-buffering/build.gradle.kts
 +++ b/disk-buffering/build.gradle.kts
-@@ -70,6 +70,10 @@ tasks.named<ShadowJar>("shadowJar") {
+@@ -77,6 +77,10 @@ tasks.named<ShadowJar>("shadowJar") {
    mustRunAfter("jar")
  }
-
+ 
 +tasks.withType<Test>().configureEach {
 +  dependsOn("shadowJar")
 +}
@@ -3333,18 +3374,94 @@ index 041d2e91..e3d60f46 100644
  // The javadoc from wire's generated classes has errors that make the task that generates the "javadoc" artifact to fail. This
  // makes the javadoc task to ignore those generated classes.
  tasks.withType(Javadoc::class.java) {
+diff --git a/jmx-metrics/src/integrationTest/java/io/opentelemetry/contrib/jmxmetrics/target_systems/KafkaIntegrationTest.java b/jmx-metrics/src/integrationTest/java/io/opentelemetry/contrib/jmxmetrics/target_systems/KafkaIntegrationTest.java
+index 4c2c9293..4dddd975 100644
+--- a/jmx-metrics/src/integrationTest/java/io/opentelemetry/contrib/jmxmetrics/target_systems/KafkaIntegrationTest.java
++++ b/jmx-metrics/src/integrationTest/java/io/opentelemetry/contrib/jmxmetrics/target_systems/KafkaIntegrationTest.java
+@@ -44,7 +44,7 @@ abstract class KafkaIntegrationTest extends AbstractIntegrationTest {
+ 
+   @Container
+   GenericContainer<?> kafka =
+-      new GenericContainer<>("bitnami/kafka:2.8.1")
++      new GenericContainer<>("bitnamilegacy/kafka:2.8.1")
+           .withNetwork(Network.SHARED)
+           .withEnv("KAFKA_CFG_ZOOKEEPER_CONNECT", "zookeeper:2181")
+           .withEnv("ALLOW_PLAINTEXT_LISTENER", "yes")
+@@ -80,7 +80,7 @@ abstract class KafkaIntegrationTest extends AbstractIntegrationTest {
+       };
+ 
+   protected GenericContainer<?> kafkaProducerContainer() {
+-    return new GenericContainer<>("bitnami/kafka:2.8.1")
++    return new GenericContainer<>("bitnamilegacy/kafka:2.8.1")
+         .withNetwork(Network.SHARED)
+         .withEnv("KAFKA_CFG_ZOOKEEPER_CONNECT", "zookeeper:2181")
+         .withEnv("ALLOW_PLAINTEXT_LISTENER", "yes")
+@@ -207,7 +207,7 @@ abstract class KafkaIntegrationTest extends AbstractIntegrationTest {
+ 
+     @Container
+     GenericContainer<?> consumer =
+-        new GenericContainer<>("bitnami/kafka:2.8.1")
++        new GenericContainer<>("bitnamilegacy/kafka:2.8.1")
+             .withNetwork(Network.SHARED)
+             .withEnv("KAFKA_CFG_ZOOKEEPER_CONNECT", "zookeeper:2181")
+             .withEnv("ALLOW_PLAINTEXT_LISTENER", "yes")
+diff --git a/jmx-scraper/src/integrationTest/java/io/opentelemetry/contrib/jmxscraper/target_systems/kafka/KafkaContainerFactory.java b/jmx-scraper/src/integrationTest/java/io/opentelemetry/contrib/jmxscraper/target_systems/kafka/KafkaContainerFactory.java
+index 8eb9432a..e46ed07b 100644
+--- a/jmx-scraper/src/integrationTest/java/io/opentelemetry/contrib/jmxscraper/target_systems/kafka/KafkaContainerFactory.java
++++ b/jmx-scraper/src/integrationTest/java/io/opentelemetry/contrib/jmxscraper/target_systems/kafka/KafkaContainerFactory.java
+@@ -12,7 +12,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
+ public class KafkaContainerFactory {
+   private static final int KAFKA_PORT = 9092;
+   private static final String KAFKA_BROKER = "kafka:" + KAFKA_PORT;
+-  private static final String KAFKA_DOCKER_IMAGE = "bitnami/kafka:2.8.1";
++  private static final String KAFKA_DOCKER_IMAGE = "bitnamilegacy/kafka:2.8.1";
+ 
+   private KafkaContainerFactory() {}
+ 
+diff --git a/opamp-client/build.gradle.kts b/opamp-client/build.gradle.kts
+index e41d1fff..84a1d559 100644
+--- a/opamp-client/build.gradle.kts
++++ b/opamp-client/build.gradle.kts
+@@ -1,6 +1,4 @@
+ import de.undercouch.gradle.tasks.download.DownloadExtension
+-import java.net.HttpURLConnection
+-import java.net.URL
+ 
+ plugins {
+   id("otel.java-conventions")
+@@ -50,19 +48,7 @@ abstract class DownloadOpampProtos @Inject constructor(
+ 
+   @TaskAction
+   fun execute() {
+-    // Get the latest release tag by following the redirect from GitHub's latest release URL
+-    val latestReleaseUrl = "https://github.com/open-telemetry/opamp-spec/releases/latest"
+-    val connection = URL(latestReleaseUrl).openConnection() as HttpURLConnection
+-    connection.instanceFollowRedirects = false
+-    connection.requestMethod = "HEAD"
+-
+-    val redirectLocation = connection.getHeaderField("Location")
+-    connection.disconnect()
+-
+-    // Extract tag from URL like: https://github.com/open-telemetry/opamp-spec/releases/tag/v0.12.0
+-    val latestTag = redirectLocation.substringAfterLast("/")
+-    // Download the source code for the latest release
+-    val zipUrl = "https://github.com/open-telemetry/opamp-spec/zipball/$latestTag"
++    val zipUrl = "https://github.com/open-telemetry/opamp-spec/zipball/v0.14.0"
+ 
+     download.run {
+       src(zipUrl)
 diff --git a/version.gradle.kts b/version.gradle.kts
-index acefcee9..329b524f 100644
+index f8358006..1f7c517f 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.39.0"
--val alphaVersion = "1.39.0-alpha"
-+val stableVersion = "1.39.0-adot1"
-+val alphaVersion = "1.39.0-alpha-adot1"
-
+-val stableVersion = "1.48.0"
+-val alphaVersion = "1.48.0-alpha"
++val stableVersion = "1.48.0-adot1"
++val alphaVersion = "1.48.0-alpha-adot1"
+ 
  allprojects {
    if (findProperty("otel.stable") != "true") {
---
+-- 
 2.45.1
 

@@ -11,6 +11,11 @@ inputs:
   severity:
     required: true
     description: "List of severities that will cause a failure"
+  logout:
+    required: true
+    description: |
+      Whether to logout of public AWS ECR. Set to 'true' for PR workflows to avoid potential call failures,
+      'false' for daily scans which has a higher bar for passing regularly and specifically wants to sign in.
 
 runs:
   using: "composite"
@@ -22,11 +27,12 @@ runs:
     # ensure we can make unauthenticated call. This is important for making the pr_build workflow run on
     # PRs created from forked repos.
     - name: Logout of public AWS ECR
+      if: inputs.logout == 'true'
       shell: bash
       run: docker logout public.ecr.aws
 
     - name: Run Trivy vulnerability scanner on image
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 #v0.33.1
       with:
         image-ref: ${{ inputs.image-ref }}
         severity: ${{ inputs.severity }}
