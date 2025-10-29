@@ -36,7 +36,10 @@ jobs:
           name: aws-opentelemetry-agent.jar
 
       - name: Upload main-build adot.jar to s3
-        run: aws s3 cp ./aws-opentelemetry-agent-*.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
+        run: |
+          # Extract artifact suffix using version.gradle.kts
+          VERSION=$(awk -F'"' '/val adotVersion = / {print $2}' version.gradle.kts)
+          aws s3 cp ./aws-opentelemetry-agent-$VERSION.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
 
   #
   # PACKAGED DISTRIBUTION LANGUAGE VERSION COVERAGE
