@@ -36,7 +36,7 @@ jobs:
           name: aws-opentelemetry-agent.jar
 
       - name: Upload main-build adot.jar to s3
-        run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
+        run: aws s3 cp ./aws-opentelemetry-agent-*.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
 
   #
   # PACKAGED DISTRIBUTION LANGUAGE VERSION COVERAGE
