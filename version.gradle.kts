@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-val adotVersion = "2.20.0"
+val adotVersion = "2.20.0-SNAPSHOT"
 
 allprojects {
   version = if (project.hasProperty("release.version")) {
