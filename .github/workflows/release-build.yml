@@ -205,16 +205,16 @@ jobs:
         shell: bash
         run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "$VERSION"
 
-      - name: Build and push image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
-        with:
-          push: true
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
-          context: .
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }}
-            ${{ env.PRIVATE_REPOSITORY }}:v${{ github.event.inputs.version }}
+      # - name: Build and push image
+      #   uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
+      #   with:
+      #     push: true
+      #     build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+      #     context: .
+      #     platforms: linux/amd64,linux/arm64
+      #     tags: |
+      #       ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }}
+      #       ${{ env.PRIVATE_REPOSITORY }}:v${{ github.event.inputs.version }}
 
       - name: Build and Publish release with Gradle
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
