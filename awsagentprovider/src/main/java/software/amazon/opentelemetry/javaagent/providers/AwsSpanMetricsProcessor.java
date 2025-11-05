@@ -18,19 +18,21 @@ package software.amazon.opentelemetry.javaagent.providers;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_STATUS_CODE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
-import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getKeyValueWithFallback;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.Immutable;
@@ -75,6 +77,8 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   private final Resource resource;
   private final Supplier<CompletableResultCode> forceFlushAction;
 
+  private Sampler sampler;
+
   /** Use {@link AwsSpanMetricsProcessorBuilder} to construct this processor. */
   static AwsSpanMetricsProcessor create(
       LongHistogram errorHistogram,
@@ -82,9 +86,16 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
       Resource resource,
+      Sampler sampler,
       Supplier<CompletableResultCode> forceFlushAction) {
     return new AwsSpanMetricsProcessor(
-        errorHistogram, faultHistogram, latencyHistogram, generator, resource, forceFlushAction);
+        errorHistogram,
+        faultHistogram,
+        latencyHistogram,
+        generator,
+        resource,
+        sampler,
+        forceFlushAction);
   }
 
   private AwsSpanMetricsProcessor(
@@ -93,12 +104,14 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       DoubleHistogram latencyHistogram,
       MetricAttributeGenerator generator,
       Resource resource,
+      Sampler sampler,
       Supplier<CompletableResultCode> forceFlushAction) {
     this.errorHistogram = errorHistogram;
     this.faultHistogram = faultHistogram;
     this.latencyHistogram = latencyHistogram;
     this.generator = generator;
     this.resource = resource;
+    this.sampler = sampler;
     this.forceFlushAction = forceFlushAction;
   }
 
@@ -125,6 +138,9 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
     for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
       recordMetrics(span, spanData, attribute.getValue());
     }
+    if (sampler != null) {
+      ((AwsXrayRemoteSampler) sampler).adaptSampling(span, spanData);
+    }
   }
 
   @Override
@@ -136,12 +152,8 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   // possible except for the throttle
   // https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/awsxrayexporter/internal/translator/cause.go#L121-L160
   private void recordErrorOrFault(SpanData spanData, Attributes attributes) {
-    Long httpStatusCode = null;
-    if (isKeyPresent(spanData, HTTP_RESPONSE_STATUS_CODE)) {
-      httpStatusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
-    } else if (isKeyPresent(spanData, HTTP_STATUS_CODE)) {
-      httpStatusCode = spanData.getAttributes().get(HTTP_STATUS_CODE);
-    }
+    Long httpStatusCode =
+        getKeyValueWithFallback(spanData, HTTP_RESPONSE_STATUS_CODE, HTTP_STATUS_CODE);
     StatusCode statusCode = spanData.getStatus().getStatusCode();
 
     if (httpStatusCode == null) {

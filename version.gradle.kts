@@ -13,17 +13,10 @@
  * permissions and limitations under the License.
  */
 
-plugins {
-  java
-  id("com.gradleup.shadow")
-}
+val adotVersion = "2.20.0-SNAPSHOT"
 
-base.archivesBaseName = "aws-instrumentation-log4j-2.13.2"
-
-dependencies {
-  compileOnly("io.opentelemetry:opentelemetry-api")
-  compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
-  compileOnly("net.bytebuddy:byte-buddy")
-
-  compileOnly("org.apache.logging.log4j:log4j-core:2.25.1")
+allprojects {
+  if (!project.hasProperty("release.version")) {
+    version = adotVersion
+  }
 }

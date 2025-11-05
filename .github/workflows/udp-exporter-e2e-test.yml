@@ -13,17 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
-          java-version: '17'
+          java-version-file: .java-version
           distribution: 'temurin'
           cache: 'gradle'
 
       - name: Configure AWS credentials for Testing Tracing
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: ${{ secrets.XRAY_UDP_EXPORTER_TEST_ROLE }}
           aws-region: 'us-east-1'
@@ -51,8 +51,8 @@ jobs:
         run: |
           export XRAY_UDP_SPAN_EXPORTER_VERSION=${{ steps.build-udp-exporter.outputs.xrayUdpSpanExporterVersion }}
           echo "Running Sample App against X-Ray UDP Span Exporter version: $XRAY_UDP_SPAN_EXPORTER_VERSION"
-          gradle build
-          gradle bootRun &
+          ../../gradlew build
+          ../../gradlew bootRun &
           sleep 5
 
       - name: Call Sample App Endpoint

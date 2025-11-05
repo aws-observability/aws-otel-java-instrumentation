@@ -15,6 +15,10 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.DbAttributes.DB_NAMESPACE;
+import static io.opentelemetry.semconv.DbAttributes.DB_OPERATION_NAME;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_TEXT;
+import static io.opentelemetry.semconv.DbAttributes.DB_SYSTEM_NAME;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_ADDRESS;
@@ -22,6 +26,11 @@ import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_PORT;
 import static io.opentelemetry.semconv.ServerAttributes.SERVER_ADDRESS;
 import static io.opentelemetry.semconv.ServerAttributes.SERVER_PORT;
 import static io.opentelemetry.semconv.UrlAttributes.URL_FULL;
+// These DB keys have been deprecated:
+// https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv-incubating/src/main/java/io/opentelemetry/semconv/incubating/DbIncubatingAttributes.java#L322-L327
+// They have been replaced with new keys:
+// https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv/src/main/java/io/opentelemetry/semconv/DbAttributes.java#L77
+// TODO: Delete deprecated keys once they no longer exist in binding version of the upstream code.
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
@@ -34,7 +43,10 @@ import static io.opentelemetry.semconv.incubating.GraphqlIncubatingAttributes.GR
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_STATUS_CODE;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_URL;
+// https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv-incubating/src/main/java/io/opentelemetry/semconv/incubating/MessagingIncubatingAttributes.java#L236-L242
+// Deprecated, use {@code messaging.operation.type} instead.
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
+import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_SYSTEM;
 import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_NAME;
 import static io.opentelemetry.semconv.incubating.NetIncubatingAttributes.NET_PEER_PORT;
@@ -84,9 +96,11 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getKeyValueWithFallback;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresentWithFallback;
 
 import com.amazonaws.arn.Arn;
 import io.opentelemetry.api.common.AttributeKey;
@@ -122,15 +136,6 @@ import javax.annotation.Nullable;
  * represent "outgoing" traffic, and {@link SpanKind#INTERNAL} spans are ignored.
  */
 final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
-  // ToDo: These two keys were deleted by upstream. Code need to be updated to capture the same
-  //  information by using new keys.
-  // https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.28.0/semconv/src/main/java/io/opentelemetry/semconv/SemanticAttributes.java#L3784-L3795
-  static final AttributeKey<String> SERVER_SOCKET_ADDRESS =
-      io.opentelemetry.api.common.AttributeKey.stringKey("server.socket.address");
-
-  static final AttributeKey<Long> SERVER_SOCKET_PORT =
-      io.opentelemetry.api.common.AttributeKey.longKey("server.socket.port");
-
   private static final Logger logger =
       Logger.getLogger(AwsMetricAttributeGenerator.class.getName());
 
@@ -284,18 +289,21 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
 
     } else if (isDBSpan(span)) {
-      remoteService = getRemoteService(span, DB_SYSTEM);
-      if (isKeyPresent(span, DB_OPERATION)) {
-        remoteOperation = getRemoteOperation(span, DB_OPERATION);
+      remoteService = getRemoteServiceWithFallback(span, DB_SYSTEM_NAME, DB_SYSTEM);
+      if (isKeyPresentWithFallback(span, DB_OPERATION_NAME, DB_OPERATION)) {
+        remoteOperation = getRemoteOperationWithFallback(span, DB_OPERATION_NAME, DB_OPERATION);
       } else {
-        remoteOperation = getDBStatementRemoteOperation(span, DB_STATEMENT);
+        String dbStatement = getKeyValueWithFallback(span, DB_QUERY_TEXT, DB_STATEMENT);
+        remoteOperation = getDBStatementRemoteOperation(span, dbStatement);
       }
     } else if (isKeyPresent(span, FAAS_INVOKED_NAME) || isKeyPresent(span, FAAS_TRIGGER)) {
       remoteService = getRemoteService(span, FAAS_INVOKED_NAME);
       remoteOperation = getRemoteOperation(span, FAAS_TRIGGER);
-    } else if (isKeyPresent(span, MESSAGING_SYSTEM) || isKeyPresent(span, MESSAGING_OPERATION)) {
+    } else if (isKeyPresent(span, MESSAGING_SYSTEM)
+        || isKeyPresentWithFallback(span, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION)) {
       remoteService = getRemoteService(span, MESSAGING_SYSTEM);
-      remoteOperation = getRemoteOperation(span, MESSAGING_OPERATION);
+      remoteOperation =
+          getRemoteOperationWithFallback(span, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION);
     } else if (isKeyPresent(span, GRAPHQL_OPERATION_TYPE)) {
       remoteService = GRAPHQL;
       remoteOperation = getRemoteOperation(span, GRAPHQL_OPERATION_TYPE);
@@ -345,11 +353,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    */
   private static String generateRemoteOperation(SpanData span) {
     String remoteOperation = UNKNOWN_REMOTE_OPERATION;
-    if (isKeyPresent(span, URL_FULL) || isKeyPresent(span, HTTP_URL)) {
-      String httpUrl =
-          isKeyPresent(span, URL_FULL)
-              ? span.getAttributes().get(URL_FULL)
-              : span.getAttributes().get(HTTP_URL);
+    if (isKeyPresentWithFallback(span, URL_FULL, HTTP_URL)) {
+      String httpUrl = getKeyValueWithFallback(span, URL_FULL, HTTP_URL);
       try {
         URL url;
         if (httpUrl != null) {
@@ -360,11 +365,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         logger.log(Level.FINEST, "invalid http.url attribute: ", httpUrl);
       }
     }
-    if (isKeyPresent(span, HTTP_REQUEST_METHOD) || isKeyPresent(span, HTTP_METHOD)) {
-      String httpMethod =
-          isKeyPresent(span, HTTP_REQUEST_METHOD)
-              ? span.getAttributes().get(HTTP_REQUEST_METHOD)
-              : span.getAttributes().get(HTTP_METHOD);
+    if (isKeyPresentWithFallback(span, HTTP_REQUEST_METHOD, HTTP_METHOD)) {
+      String httpMethod = getKeyValueWithFallback(span, HTTP_REQUEST_METHOD, HTTP_METHOD);
       remoteOperation = httpMethod + " " + remoteOperation;
     }
     if (remoteOperation.equals(UNKNOWN_REMOTE_OPERATION)) {
@@ -452,8 +454,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AmazonSQS": // AWS SDK v1
         case "Sqs": // AWS SDK v2
           return NORMALIZED_SQS_SERVICE_NAME;
-          // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
-          // Control and use AWS::Bedrock for RemoteService.
+        // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
+        // Control and use AWS::Bedrock for RemoteService.
         case "AmazonBedrock": // AWS SDK v1
         case "Bedrock": // AWS SDK v2
         case "AWSBedrockAgentRuntime": // AWS SDK v1
@@ -461,8 +463,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AWSBedrockAgent": // AWS SDK v1
         case "BedrockAgent": // AWS SDK v2
           return NORMALIZED_BEDROCK_SERVICE_NAME;
-          // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource
-          // (Model) is not listed in Cloud Control.
+        // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource
+        // (Model) is not listed in Cloud Control.
         case "AmazonBedrockRuntime": // AWS SDK v1
         case "BedrockRuntime": // AWS SDK v2
           return NORMALIZED_BEDROCK_RUNTIME_SERVICE_NAME;
@@ -772,7 +774,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * {address} attribute is retrieved in priority order:
    * - {@link SemanticAttributes#SERVER_ADDRESS},
    * - {@link SemanticAttributes#NET_PEER_NAME},
-   * - {@link SemanticAttributes#SERVER_SOCKET_ADDRESS}
+   * - {@link SemanticAttributes#NETWORK_PEER_ADDRESS}
    * - {@link SemanticAttributes#DB_CONNECTION_STRING}-Hostname
    * </pre>
    *
@@ -780,7 +782,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * {port} attribute is retrieved in priority order:
    * - {@link SemanticAttributes#SERVER_PORT},
    * - {@link SemanticAttributes#NET_PEER_PORT},
-   * - {@link SemanticAttributes#SERVER_SOCKET_PORT}
+   * - {@link SemanticAttributes#NETWORK_PEER_PORT}
    * - {@link SemanticAttributes#DB_CONNECTION_STRING}-Port
    * </pre>
    *
@@ -788,7 +790,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * provided.
    */
   private static Optional<String> getDbConnection(SpanData span) {
-    String dbName = span.getAttributes().get(DB_NAME);
+    String dbName = getKeyValueWithFallback(span, DB_NAMESPACE, DB_NAME);
     Optional<String> dbConnection = Optional.empty();
 
     if (isKeyPresent(span, SERVER_ADDRESS)) {
@@ -799,9 +801,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       String networkPeerAddress = span.getAttributes().get(NET_PEER_NAME);
       Long networkPeerPort = span.getAttributes().get(NET_PEER_PORT);
       dbConnection = buildDbConnection(networkPeerAddress, networkPeerPort);
-    } else if (isKeyPresent(span, SERVER_SOCKET_ADDRESS)) {
-      String serverSocketAddress = span.getAttributes().get(SERVER_SOCKET_ADDRESS);
-      Long serverSocketPort = span.getAttributes().get(SERVER_SOCKET_PORT);
+    } else if (isKeyPresent(span, NETWORK_PEER_ADDRESS)) {
+      String serverSocketAddress = span.getAttributes().get(NETWORK_PEER_ADDRESS);
+      Long serverSocketPort = span.getAttributes().get(NETWORK_PEER_PORT);
       dbConnection = buildDbConnection(serverSocketAddress, serverSocketPort);
     } else if (isKeyPresent(span, DB_CONNECTION_STRING)) {
       String connectionString = span.getAttributes().get(DB_CONNECTION_STRING);
@@ -946,6 +948,17 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     return remoteService;
   }
 
+  static String getRemoteServiceWithFallback(
+      SpanData span,
+      AttributeKey<String> remoteServiceKey,
+      AttributeKey<String> remoteServiceFallbackKey) {
+    String remoteService = span.getAttributes().get(remoteServiceKey);
+    if (remoteService == null) {
+      return getRemoteService(span, remoteServiceFallbackKey);
+    }
+    return remoteService;
+  }
+
   private static String getRemoteOperation(SpanData span, AttributeKey<String> remoteOperationKey) {
     String remoteOperation = span.getAttributes().get(remoteOperationKey);
     if (remoteOperation == null) {
@@ -954,15 +967,23 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     return remoteOperation;
   }
 
+  static String getRemoteOperationWithFallback(
+      SpanData span, AttributeKey<String> remoteOpKey, AttributeKey<String> remoteOpFallbackKey) {
+    String remoteOp = span.getAttributes().get(remoteOpKey);
+    if (remoteOp == null) {
+      return getRemoteOperation(span, remoteOpFallbackKey);
+    }
+    return remoteOp;
+  }
+
   /**
    * If no db.operation attribute provided in the span, we use db.statement to compute a valid
    * remote operation in a best-effort manner. To do this, we take the first substring of the
    * statement and compare to a regex list of known SQL keywords. The substring length is determined
    * by the longest known SQL keywords.
    */
-  private static String getDBStatementRemoteOperation(
-      SpanData span, AttributeKey<String> remoteOperationKey) {
-    String remoteOperation = span.getAttributes().get(remoteOperationKey);
+  private static String getDBStatementRemoteOperation(SpanData span, String dbStatement) {
+    String remoteOperation = dbStatement;
     if (remoteOperation == null) {
       remoteOperation = UNKNOWN_REMOTE_OPERATION;
     }

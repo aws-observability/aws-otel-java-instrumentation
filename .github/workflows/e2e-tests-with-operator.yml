@@ -34,19 +34,19 @@ jobs:
   build-sample-app:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: temurin
 
       # cache local patch outputs
       - name: Cache local Maven repository
         id: cache-local-maven-repo
-        uses: actions/cache@v3
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
@@ -60,20 +60,21 @@ jobs:
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
       - name: Build and push Sample-Apps without Auto-Instrumentation Agent
-        uses: gradle/gradle-build-action@v3
-        with:
-          arguments: jibBuildWithoutAgent
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70
+
+      - name: Build and push Sample-Apps with Auto-Instrumentation Agent
+        run: jibBuildWithoutAgent
         env:
           COMMIT_HASH: ${{ inputs.image_tag }}
 
@@ -84,20 +85,20 @@ jobs:
       test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
     steps:
       - name: Checkout Testing Framework repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           repository: ${{ env.TESTING_FRAMEWORK_REPO }}
           path: testing-framework
           ref: ${{ inputs.test_ref }}
 
       - name: Checkout Java Instrumentation repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
           path: aws-otel-java-instrumentation
 
       - name: Set up Go 1.x
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:
           go-version: '~1.18.9'
 
@@ -126,24 +127,24 @@ jobs:
     steps:
       # required for versioning
       - name: Checkout Java Instrumentation repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
           path: aws-otel-java-instrumentation
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           distribution: 'zulu'
           java-version: '11'
 
       - name: Set up terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd #v3.1.2
         with:
           terraform_version: "~1.5"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.JAVA_INSTRUMENTATION_INTEG_TEST_ARN}}
           aws-region: us-west-2
@@ -151,7 +152,7 @@ jobs:
           role-duration-seconds: 14400
 
       - name: Checkout Testing Framework repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           repository: ${{ env.TESTING_FRAMEWORK_REPO }}
           path: testing-framework
