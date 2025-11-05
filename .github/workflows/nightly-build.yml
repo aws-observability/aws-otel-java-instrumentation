@@ -18,10 +18,11 @@ env:
   BRANCH_NAME: nightly-dependency-updates
 
 jobs:
-  update-and-create-pr:
+  update-dependencies:
     runs-on: ubuntu-latest
     outputs:
       has_changes: ${{ steps.check_changes.outputs.has_changes }}
+      breaking_changes_info: ${{ steps.breaking_changes.outputs.breaking_changes_info }}
     
     steps:
     - name: Checkout repository
@@ -74,14 +75,38 @@ jobs:
           git commit -m "chore: update OpenTelemetry dependencies to latest versions"
           git push origin "$BRANCH_NAME"
         fi
+
+  build-and-test:
+    needs: update-dependencies
+    if: needs.update-dependencies.outputs.has_changes == 'true'
+    uses: ./.github/workflows/main-build.yml
+    secrets: inherit
+    with:
+      caller-workflow-name: nightly-build
+      ref: nightly-dependency-updates
+
+  create-pr:
+    needs: [update-dependencies, build-and-test]
+    if: always() && needs.update-dependencies.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Create or update PR
-      if: steps.check_changes.outputs.has_changes == 'true'
       run: |
+        BUILD_STATUS="${{ needs.build-and-test.result }}"
+        BUILD_EMOJI="${{ needs.build-and-test.result == 'success' && '✅' || '❌' }}"
+        BUILD_LINK="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        
         PR_BODY="Automated update of OpenTelemetry dependencies to their latest available versions.
 
+        **Build Status:** ${BUILD_EMOJI} [${BUILD_STATUS}](${BUILD_LINK})
+
         **Upstream releases with breaking changes:**
-        ${{ steps.breaking_changes.outputs.breaking_changes_info }}"
+        ${{ needs.update-dependencies.outputs.breaking_changes_info }}"
         
         if gh pr view "$BRANCH_NAME" --json state --jq '.state' 2>/dev/null | grep -q "OPEN"; then
           echo "Open PR already exists, updating description..."
@@ -97,18 +122,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-test:
-    needs: update-and-create-pr
-    if: needs.update-and-create-pr.outputs.has_changes == 'true'
-    uses: ./.github/workflows/main-build.yml
-    secrets: inherit
-    with:
-      caller-workflow-name: nightly-build
-      ref: nightly-dependency-updates
-
   publish-nightly-build-status:
     name: "Publish Nightly Build Status"
-    needs: [update-and-create-pr, build-and-test]
+    needs: [update-dependencies, build-and-test, create-pr]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -121,11 +137,13 @@ jobs:
       - name: Publish nightly build status
         run: |
           if [[ "${{ needs.build-and-test.result }}" == "skipped" ]]; then
-            echo "Build was skipped (no changes), not publishing metric"
+            echo "Build was skipped (no changes)"
+            value="0.0"
           else
-            value="${{ needs.build-and-test.result == 'success' && '0.0' || '1.0'}}"
-            aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-              --metric-name Failure \
-              --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly_build \
-              --value $value
+            value="${{ (needs.build-and-test.result == 'success' && needs.create-pr.result == 'success') && '0.0' || '1.0'}}"
           fi
+          
+          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+            --metric-name Failure \
+            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=nightly_build \
+            --value $value
