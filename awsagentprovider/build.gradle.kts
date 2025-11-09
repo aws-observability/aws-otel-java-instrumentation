@@ -53,6 +53,8 @@ dependencies {
   runtimeOnly("software.amazon.awssdk:sts")
   implementation("software.amazon.awssdk:auth")
   implementation("software.amazon.awssdk:http-auth-aws")
+  // For EMF exporter
+  implementation("software.amazon.awssdk:cloudwatchlogs")
 
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
