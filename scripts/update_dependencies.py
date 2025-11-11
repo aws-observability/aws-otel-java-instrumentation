@@ -164,6 +164,19 @@ def update_gradle_file(file_path):
         sys.exit(1)
 
 def main():
+    # Get versions for GitHub outputs
+    latest_instrumentation_version = get_latest_instrumentation_version()
+    latest_contrib_version = get_latest_contrib_version()
+    
+    # Set GitHub outputs
+    import os
+    if os.environ.get('GITHUB_OUTPUT'):
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            if latest_instrumentation_version:
+                f.write(f"otel_java_instrumentation_version={latest_instrumentation_version}\n")
+            if latest_contrib_version:
+                f.write(f"otel_java_contrib_version={latest_contrib_version}\n")
+    
     gradle_file_path = 'dependencyManagement/build.gradle.kts'
     
     updated = update_gradle_file(gradle_file_path)
