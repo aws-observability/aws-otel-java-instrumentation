@@ -16,13 +16,17 @@ def get_current_version_from_gradle():
         with open("dependencyManagement/build.gradle.kts", "r", encoding="utf-8") as file:
             content = file.read()
 
-        # Extract otelVersion (instrumentation version)
+        # Extract otelVersion (instrumentation version) and strip -adot1 suffix
         otel_version_match = re.search(r'val otelVersion = "([^"]*)"', content)
         current_instrumentation_version = otel_version_match.group(1) if otel_version_match else None
+        if current_instrumentation_version and current_instrumentation_version.endswith("-adot1"):
+            current_instrumentation_version = current_instrumentation_version[:-6]  # Remove -adot1
 
-        # Extract contrib version from dependency line
+        # Extract contrib version from dependency line and strip -adot1 suffix
         contrib_match = re.search(r'"io\.opentelemetry\.contrib:opentelemetry-aws-xray:([^"]*)",', content)
         current_contrib_version = contrib_match.group(1) if contrib_match else None
+        if current_contrib_version and current_contrib_version.endswith("-adot1"):
+            current_contrib_version = current_contrib_version[:-6]  # Remove -adot1
 
         return current_instrumentation_version, current_contrib_version
 
