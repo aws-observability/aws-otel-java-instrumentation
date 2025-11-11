@@ -43,7 +43,7 @@ dependencies {
   // YAML file reader
   implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
   // Import AWS SDK v1 core for ARN parsing utilities
-  implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
+  implementation("com.amazonaws:aws-java-sdk-core:1.12.793")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
   // For Udp emitter
