@@ -6,23 +6,6 @@ import os
 import re
 import sys
 
-# Dependencies that use the instrumentation version
-INSTRUMENTATION_DEPS = [
-    "io.opentelemetry.javaagent:opentelemetry-javaagent",
-]
-
-# Dependencies that use the contrib version
-CONTRIB_DEPS = [
-    "io.opentelemetry.contrib:opentelemetry-aws-xray",
-    "io.opentelemetry.contrib:opentelemetry-aws-resources",
-]
-
-# Other OpenTelemetry dependencies with independent versioning
-OTHER_OTEL_DEPS = [
-    "io.opentelemetry:opentelemetry-extension-aws",
-    "io.opentelemetry.proto:opentelemetry-proto",
-]
-
 def update_file_dependencies(file_path, otel_instrumentation_version, otel_contrib_version):
     """Update all OpenTelemetry dependencies in a given file"""
     try:
@@ -33,13 +16,14 @@ def update_file_dependencies(file_path, otel_instrumentation_version, otel_contr
 
         # Update otelVersion variable
         otel_version_pattern = r'val otelVersion = "[^"]*"'
-        otel_version_replacement = f'val otelVersion = "{otel_instrumentation_version}"'
+        otel_version_with_suffix = f"{otel_instrumentation_version}-adot1"
+        otel_version_replacement = f'val otelVersion = "{otel_version_with_suffix}"'
         if re.search(otel_version_pattern, content):
             new_content = re.sub(otel_version_pattern, otel_version_replacement, content)
             if new_content != content:
                 content = new_content
                 updated = True
-                print(f"Updated otelVersion to {otel_instrumentation_version}")
+                print(f"Updated otelVersion to {otel_version_with_suffix}")
 
         # Update otelSnapshotVersion (typically next minor version)
         version_parts = otel_instrumentation_version.split(".")
@@ -54,16 +38,49 @@ def update_file_dependencies(file_path, otel_instrumentation_version, otel_contr
                     updated = True
                     print(f"Updated otelSnapshotVersion to {next_minor}")
 
-        # Update contrib dependencies
-        for dep in CONTRIB_DEPS:
-            pattern = rf'"{re.escape(dep)}:[^"]*"'
-            replacement = f'"{dep}:{otel_contrib_version}"'
-            if re.search(pattern, content):
-                new_content = re.sub(pattern, replacement, content)
+        # Update opentelemetry-aws-xray with -adot1 suffix
+        xray_pattern = r'"io\.opentelemetry\.contrib:opentelemetry-aws-xray:[^"]*"'
+        xray_version = f"{otel_contrib_version}-adot1"
+        xray_replacement = f'"io.opentelemetry.contrib:opentelemetry-aws-xray:{xray_version}"'
+        if re.search(xray_pattern, content):
+            new_content = re.sub(xray_pattern, xray_replacement, content)
+            if new_content != content:
+                content = new_content
+                updated = True
+                print(f"Updated opentelemetry-aws-xray to {xray_version}")
+
+        # Update opentelemetry-aws-resources with -alpha suffix
+        resources_pattern = r'"io\.opentelemetry\.contrib:opentelemetry-aws-resources:[^"]*"'
+        resources_version = f"{otel_contrib_version}-alpha"
+        resources_replacement = f'"io.opentelemetry.contrib:opentelemetry-aws-resources:{resources_version}"'
+        if re.search(resources_pattern, content):
+            new_content = re.sub(resources_pattern, resources_replacement, content)
+            if new_content != content:
+                content = new_content
+                updated = True
+                print(f"Updated opentelemetry-aws-resources to {resources_version}")
+
+        # Update .github/patches/versions file
+        if file_path == ".github/patches/versions":
+            # Update OTEL_JAVA_INSTRUMENTATION_VERSION
+            instrumentation_pattern = r'OTEL_JAVA_INSTRUMENTATION_VERSION=v[^\n]*'
+            instrumentation_replacement = f'OTEL_JAVA_INSTRUMENTATION_VERSION=v{otel_instrumentation_version}'
+            if re.search(instrumentation_pattern, content):
+                new_content = re.sub(instrumentation_pattern, instrumentation_replacement, content)
                 if new_content != content:
                     content = new_content
                     updated = True
-                    print(f"Updated {dep} to {otel_contrib_version}")
+                    print(f"Updated OTEL_JAVA_INSTRUMENTATION_VERSION to v{otel_instrumentation_version}")
+
+            # Update OTEL_JAVA_CONTRIB_VERSION
+            contrib_pattern = r'OTEL_JAVA_CONTRIB_VERSION=v[^\n]*'
+            contrib_replacement = f'OTEL_JAVA_CONTRIB_VERSION=v{otel_contrib_version}'
+            if re.search(contrib_pattern, content):
+                new_content = re.sub(contrib_pattern, contrib_replacement, content)
+                if new_content != content:
+                    content = new_content
+                    updated = True
+                    print(f"Updated OTEL_JAVA_CONTRIB_VERSION to v{otel_contrib_version}")
 
         if updated:
             with open(file_path, "w", encoding="utf-8") as output_file:
@@ -86,6 +103,7 @@ def main():
     # Files to update
     files_to_update = [
         "dependencyManagement/build.gradle.kts",
+        ".github/patches/versions",
     ]
 
     any_updated = False
@@ -94,7 +112,7 @@ def main():
             any_updated = True
 
     if any_updated:
-        print(f"Dependencies updated to Instrumentation {otel_instrumentation_version} / Contrib {otel_contrib_version}")
+        print(f"Dependencies updated to Instrumentation {otel_instrumentation_version}-adot1 / Contrib {otel_contrib_version} (with appropriate suffixes)")
     else:
         print("No OpenTelemetry dependencies found to update")
 
