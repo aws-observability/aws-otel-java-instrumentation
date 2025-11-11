@@ -41,10 +41,6 @@ def get_latest_otel_versions():
                 otel_java_contrib_version = version_match.group(1)
                 break
 
-        if not otel_java_contrib_version:
-            print("Warning: No stable contrib releases found")
-            otel_java_contrib_version = "1.48.0"  # fallback
-
         return otel_java_instrumentation_version, otel_java_contrib_version
 
     except requests.RequestException as request_error:

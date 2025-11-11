@@ -11,7 +11,6 @@ on:
         description: 'The branch, tag or SHA to checkout'
         required: false
         type: string
-        default: ''
 env:
   AWS_DEFAULT_REGION: us-east-1
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
