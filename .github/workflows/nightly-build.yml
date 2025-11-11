@@ -101,7 +101,6 @@ jobs:
       contents: read
     with:
       ref: nightly-dependency-updates
-      caller-workflow-name: 'nightly-build'
 
   create-pr:
     needs: [update-dependencies, build-and-test]
