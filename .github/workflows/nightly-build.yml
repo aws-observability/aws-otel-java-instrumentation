@@ -154,7 +154,7 @@ jobs:
       - name: Configure AWS Credentials for emitting metrics
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
-          role-to-assume: ${{ secrets.MONITORING_ROLE_ARN }}
+          role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Publish nightly build status
