@@ -1,20 +1,17 @@
 name: Java Agent Main Build
 on:
-  workflow_call:
-    inputs:
-      caller-workflow-name:
-        required: true
-        type: string
-      ref:
-        description: 'The branch, tag or SHA to checkout'
-        required: false
-        type: string
-        default: ''
   push:
     branches:
       - main
       - "release/v*"
   workflow_dispatch: # be able to run the workflow on demand
+  workflow_call:
+    inputs:
+      ref:
+        description: 'The branch, tag or SHA to checkout'
+        required: false
+        type: string
+        default: ''
 env:
   AWS_DEFAULT_REGION: us-east-1
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
@@ -283,7 +280,7 @@ jobs:
     name: "Publish Main Build Status"
     needs: [ build, e2e-test, contract-tests, application-signals-lambda-layer-build, application-signals-e2e-test ]
     runs-on: ubuntu-latest
-    if: always()
+    if: always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/v'))
     steps:
       - name: Configure AWS Credentials for emitting metrics
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
