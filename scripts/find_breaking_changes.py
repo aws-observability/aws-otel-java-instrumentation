@@ -1,26 +1,34 @@
 #!/usr/bin/env python3
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
+import os
 import re
-import requests
 import sys
+
+import requests
 from packaging import version
 
 
-def get_current_versions():
-    """Get current versions from build.gradle.kts."""
+def get_current_version_from_gradle():
+    """Extract current OpenTelemetry versions from build.gradle.kts."""
     try:
         with open("dependencyManagement/build.gradle.kts", "r", encoding="utf-8") as file:
             content = file.read()
 
-        # Extract otelVersion
+        # Extract otelVersion (instrumentation version)
         otel_version_match = re.search(r'val otelVersion = "([^"]*)"', content)
         current_instrumentation_version = otel_version_match.group(1) if otel_version_match else None
 
-        return current_instrumentation_version
+        # Extract contrib version from dependency line
+        contrib_match = re.search(r'"io\.opentelemetry\.contrib:opentelemetry-aws-xray:([^"]*)",', content)
+        current_contrib_version = contrib_match.group(1) if contrib_match else None
+
+        return current_instrumentation_version, current_contrib_version
 
     except (OSError, IOError) as error:
         print(f"Error reading current versions: {error}")
-        return None
+        return None, None
 
 
 def get_releases_with_breaking_changes(repo, current_version, new_version):
@@ -44,10 +52,9 @@ def get_releases_with_breaking_changes(repo, current_version, new_version):
                     <= version.parse(new_version)
                 ):
 
-                    # Check if release notes have breaking changes as headers
+                    # Check if release notes have breaking changes header or bold text
                     body = release.get("body", "")
-                    breaking_header_pattern = r'^\s*#+.*Breaking changes'
-                    if re.search(breaking_header_pattern, body, re.MULTILINE):
+                    if re.search(r"^(#+|\*\*)\s*breaking changes", body, re.MULTILINE | re.IGNORECASE):
                         breaking_releases.append(
                             {
                                 "version": release_version,
@@ -56,7 +63,8 @@ def get_releases_with_breaking_changes(repo, current_version, new_version):
                                 "body": release.get("body", ""),
                             }
                         )
-            except (ValueError, KeyError):
+            except (ValueError, KeyError) as parse_error:
+                print(f"Warning: Skipping release {release.get('name', 'unknown')} due to error: {parse_error}")
                 continue
 
         return breaking_releases
@@ -67,32 +75,32 @@ def get_releases_with_breaking_changes(repo, current_version, new_version):
 
 
 def main():
-    current_instrumentation_version = get_current_versions()
+    new_instrumentation_version = os.environ.get("OTEL_JAVA_INSTRUMENTATION_VERSION")
+    new_contrib_version = os.environ.get("OTEL_JAVA_CONTRIB_VERSION")
+
+    if not new_instrumentation_version or not new_contrib_version:
+        print("Error: OTEL_JAVA_INSTRUMENTATION_VERSION and OTEL_JAVA_CONTRIB_VERSION environment variables required")
+        sys.exit(1)
+
+    current_instrumentation_version, current_contrib_version = get_current_version_from_gradle()
 
     if not current_instrumentation_version:
         print("Could not determine current versions")
         sys.exit(1)
 
-    # Get new versions from the update script
-    sys.path.append('scripts')
-    from update_dependencies import get_latest_instrumentation_version, get_latest_contrib_version
-
-    new_instrumentation_version = get_latest_instrumentation_version()
-    new_contrib_version = get_latest_contrib_version()
-
-    if not new_instrumentation_version:
-        print("Could not determine new versions")
-        sys.exit(1)
-
     print("Checking for breaking changes:")
     print(f"Instrumentation: {current_instrumentation_version} → {new_instrumentation_version}")
-    if new_contrib_version:
-        print(f"Contrib: → {new_contrib_version}")
+    print(f"Contrib: {current_contrib_version or 'unknown'} → {new_contrib_version}")
 
-    # Check instrumentation repo for breaking changes
+    # Check both repos for breaking changes
     instrumentation_breaking = get_releases_with_breaking_changes(
         "opentelemetry-java-instrumentation", current_instrumentation_version, new_instrumentation_version
     )
+    contrib_breaking = []
+    if current_contrib_version:
+        contrib_breaking = get_releases_with_breaking_changes(
+            "opentelemetry-java-contrib", current_contrib_version, new_contrib_version
+        )
 
     # Output for GitHub Actions
     breaking_info = ""
@@ -102,11 +110,12 @@ def main():
         for release in instrumentation_breaking:
             breaking_info += f"- [{release['name']}]({release['url']})\n"
 
-    if new_contrib_version:
-        breaking_info += "\n**Check contrib releases for potential breaking changes:**\n"
-        breaking_info += "- [opentelemetry-java-contrib releases](https://github.com/open-telemetry/opentelemetry-java-contrib/releases)\n"
+    if contrib_breaking:
+        breaking_info += "\n**opentelemetry-java-contrib:**\n"
+        for release in contrib_breaking:
+            breaking_info += f"- [{release['name']}]({release['url']})\n"
 
-    import os
+    # Set GitHub output
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
             output_file.write(f"breaking_changes_info<<EOF\n{breaking_info}EOF\n")

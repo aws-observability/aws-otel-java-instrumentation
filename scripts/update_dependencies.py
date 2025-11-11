@@ -1,188 +1,102 @@
 #!/usr/bin/env python3
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
-import requests
+import os
 import re
 import sys
 
-def get_latest_instrumentation_version():
-    """Get the latest version of opentelemetry-java-instrumentation from GitHub releases."""
-    try:
-        response = requests.get(
-            'https://api.github.com/repos/open-telemetry/opentelemetry-java-instrumentation/releases/latest',
-            timeout=30
-        )
-        response.raise_for_status()
-        
-        release_data = response.json()
-        tag_name = release_data['tag_name']
-        
-        version = tag_name.lstrip('v')
-        return version
-        
-    except requests.RequestException as request_error:
-        print(f"Warning: Could not get latest instrumentation version: {request_error}")
-        return None
+# Dependencies that use the instrumentation version
+INSTRUMENTATION_DEPS = [
+    "io.opentelemetry.javaagent:opentelemetry-javaagent",
+]
 
-def get_latest_contrib_version():
-    """Get the latest version of opentelemetry-java-contrib from GitHub releases."""
-    try:
-        response = requests.get(
-            'https://api.github.com/repos/open-telemetry/opentelemetry-java-contrib/releases',
-            timeout=30
-        )
-        response.raise_for_status()
-        
-        releases = response.json()
-        
-        # Find the latest stable release
-        for release in releases:
-            if release.get('prerelease', False):
-                continue
-            
-            tag_name = release['tag_name']
-            version_match = re.match(r'^v?(\d+\.\d+\.\d+)$', tag_name)
-            if version_match:
-                version = version_match.group(1)
-                print(f"Found contrib version: {version}")
-                return version
-        
-        print("Warning: No stable contrib releases found")
-        return None
-        
-    except requests.RequestException as request_error:
-        print(f"Warning: Could not get latest contrib version: {request_error}")
-        return None
+# Dependencies that use the contrib version
+CONTRIB_DEPS = [
+    "io.opentelemetry.contrib:opentelemetry-aws-xray",
+    "io.opentelemetry.contrib:opentelemetry-aws-resources",
+]
 
-def get_latest_maven_version(group_id, artifact_id):
-    """Get the latest version of a Maven artifact from Maven Central."""
-    try:
-        response = requests.get(
-            f'https://search.maven.org/solrsearch/select?q=g:{group_id}+AND+a:{artifact_id}&rows=1&wt=json',
-            timeout=30
-        )
-        response.raise_for_status()
-        
-        data = response.json()
-        docs = data.get('response', {}).get('docs', [])
-        
-        if docs:
-            return docs[0]['latestVersion']
-        else:
-            print(f"Warning: No versions found for {group_id}:{artifact_id}")
-            return None
-            
-    except requests.RequestException as request_error:
-        print(f"Warning: Could not get latest version for {group_id}:{artifact_id}: {request_error}")
-        return None
+# Other OpenTelemetry dependencies with independent versioning
+OTHER_OTEL_DEPS = [
+    "io.opentelemetry:opentelemetry-extension-aws",
+    "io.opentelemetry.proto:opentelemetry-proto",
+]
 
-def update_gradle_file(file_path):
-    """Update OpenTelemetry versions in build.gradle.kts."""
+def update_file_dependencies(file_path, otel_instrumentation_version, otel_contrib_version):
+    """Update all OpenTelemetry dependencies in a given file"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as input_file:
+        with open(file_path, "r", encoding="utf-8") as input_file:
             content = input_file.read()
-        
-        original_content = content
+
         updated = False
-        
-        latest_instrumentation_version = get_latest_instrumentation_version()
-        if latest_instrumentation_version:
-            # Update otelVersion
-            otel_version_pattern = r'val otelVersion = "[^"]*"'
-            otel_version_replacement = f'val otelVersion = "{latest_instrumentation_version}"'
-            if re.search(otel_version_pattern, content):
-                new_content = re.sub(otel_version_pattern, otel_version_replacement, content)
+
+        # Update otelVersion variable
+        otel_version_pattern = r'val otelVersion = "[^"]*"'
+        otel_version_replacement = f'val otelVersion = "{otel_instrumentation_version}"'
+        if re.search(otel_version_pattern, content):
+            new_content = re.sub(otel_version_pattern, otel_version_replacement, content)
+            if new_content != content:
+                content = new_content
+                updated = True
+                print(f"Updated otelVersion to {otel_instrumentation_version}")
+
+        # Update otelSnapshotVersion (typically next minor version)
+        version_parts = otel_instrumentation_version.split(".")
+        if len(version_parts) >= 2:
+            next_minor = f"{version_parts[0]}.{int(version_parts[1]) + 1}.0"
+            otel_snapshot_pattern = r'val otelSnapshotVersion = "[^"]*"'
+            otel_snapshot_replacement = f'val otelSnapshotVersion = "{next_minor}"'
+            if re.search(otel_snapshot_pattern, content):
+                new_content = re.sub(otel_snapshot_pattern, otel_snapshot_replacement, content)
                 if new_content != content:
                     content = new_content
                     updated = True
-                    print(f"Updated otelVersion to {latest_instrumentation_version}")
-            
-            # Update otelSnapshotVersion (typically next minor version)
-            version_parts = latest_instrumentation_version.split('.')
-            if len(version_parts) >= 2:
-                next_minor = f"{version_parts[0]}.{int(version_parts[1]) + 1}.0"
-                otel_snapshot_pattern = r'val otelSnapshotVersion = "[^"]*"'
-                otel_snapshot_replacement = f'val otelSnapshotVersion = "{next_minor}"'
-                if re.search(otel_snapshot_pattern, content):
-                    new_content = re.sub(otel_snapshot_pattern, otel_snapshot_replacement, content)
-                    if new_content != content:
-                        content = new_content
-                        updated = True
-                        print(f"Updated otelSnapshotVersion to {next_minor}")
-        
-        # Get latest contrib version from GitHub
-        latest_contrib_version = get_latest_contrib_version()
-        
-        contrib_packages = [
-            ('io.opentelemetry.contrib', 'opentelemetry-aws-xray'),
-            ('io.opentelemetry.contrib', 'opentelemetry-aws-resources'),
-        ]
-        
-        for group_id, artifact_id in contrib_packages:
-            if latest_contrib_version:
-                # Pattern to match the dependency line
-                pattern = rf'"{re.escape(group_id)}:{re.escape(artifact_id)}:[^"]*"'
-                replacement = f'"{group_id}:{artifact_id}:{latest_contrib_version}"'
-                
-                if re.search(pattern, content):
-                    new_content = re.sub(pattern, replacement, content)
-                    if new_content != content:
-                        content = new_content
-                        updated = True
-                        print(f"Updated {group_id}:{artifact_id} to {latest_contrib_version}")
-        
-        # Update remaining packages using Maven Central
-        other_packages = [
-            ('io.opentelemetry', 'opentelemetry-extension-aws'),
-            ('io.opentelemetry.proto', 'opentelemetry-proto'),
-        ]
-        
-        for group_id, artifact_id in other_packages:
-            latest_version = get_latest_maven_version(group_id, artifact_id)
-            if latest_version:
-                # Pattern to match the dependency line
-                pattern = rf'"{re.escape(group_id)}:{re.escape(artifact_id)}:[^"]*"'
-                replacement = f'"{group_id}:{artifact_id}:{latest_version}"'
-                
-                if re.search(pattern, content):
-                    new_content = re.sub(pattern, replacement, content)
-                    if new_content != content:
-                        content = new_content
-                        updated = True
-                        print(f"Updated {group_id}:{artifact_id} to {latest_version}")
-        
+                    print(f"Updated otelSnapshotVersion to {next_minor}")
+
+        # Update contrib dependencies
+        for dep in CONTRIB_DEPS:
+            pattern = rf'"{re.escape(dep)}:[^"]*"'
+            replacement = f'"{dep}:{otel_contrib_version}"'
+            if re.search(pattern, content):
+                new_content = re.sub(pattern, replacement, content)
+                if new_content != content:
+                    content = new_content
+                    updated = True
+                    print(f"Updated {dep} to {otel_contrib_version}")
+
         if updated:
-            with open(file_path, 'w', encoding='utf-8') as output_file:
+            with open(file_path, "w", encoding="utf-8") as output_file:
                 output_file.write(content)
-            print("Dependencies updated successfully")
-            return True
-        else:
-            print("No OpenTelemetry dependencies needed updating")
-            return False
-            
+            print(f"Updated {file_path}")
+
+        return updated
     except (OSError, IOError) as file_error:
-        print(f"Error updating dependencies: {file_error}")
-        sys.exit(1)
+        print(f"Error updating {file_path}: {file_error}")
+        return False
 
 def main():
-    # Get versions for GitHub outputs
-    latest_instrumentation_version = get_latest_instrumentation_version()
-    latest_contrib_version = get_latest_contrib_version()
-    
-    # Set GitHub outputs
-    import os
-    if os.environ.get('GITHUB_OUTPUT'):
-        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-            if latest_instrumentation_version:
-                f.write(f"otel_java_instrumentation_version={latest_instrumentation_version}\n")
-            if latest_contrib_version:
-                f.write(f"otel_java_contrib_version={latest_contrib_version}\n")
-    
-    gradle_file_path = 'dependencyManagement/build.gradle.kts'
-    
-    updated = update_gradle_file(gradle_file_path)
-    
-    if not updated:
-        print("No updates were made")
+    otel_instrumentation_version = os.environ.get("OTEL_JAVA_INSTRUMENTATION_VERSION")
+    otel_contrib_version = os.environ.get("OTEL_JAVA_CONTRIB_VERSION")
 
-if __name__ == '__main__':
+    if not otel_instrumentation_version or not otel_contrib_version:
+        print("Error: OTEL_JAVA_INSTRUMENTATION_VERSION and OTEL_JAVA_CONTRIB_VERSION environment variables required")
+        sys.exit(1)
+
+    # Files to update
+    files_to_update = [
+        "dependencyManagement/build.gradle.kts",
+    ]
+
+    any_updated = False
+    for file_path in files_to_update:
+        if update_file_dependencies(file_path, otel_instrumentation_version, otel_contrib_version):
+            any_updated = True
+
+    if any_updated:
+        print(f"Dependencies updated to Instrumentation {otel_instrumentation_version} / Contrib {otel_contrib_version}")
+    else:
+        print("No OpenTelemetry dependencies found to update")
+
+if __name__ == "__main__":
     main()
