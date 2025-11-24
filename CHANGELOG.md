@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.20.0 - 2025-10-29
+
 ### Enhancements
 
 - Add CloudWatch EMF metrics exporter with auto instrumentation configuration 
