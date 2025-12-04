@@ -18,6 +18,7 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.c
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
@@ -45,6 +46,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.co
  */
 public abstract class BaseEmfExporter<T> implements MetricExporter {
   private static final Logger logger = Logger.getLogger(BaseEmfExporter.class.getName());
+  private static final String DELIMITER = "\0";
   private final String namespace;
   protected final LogEventEmitter<T> emitter;
 
@@ -66,7 +68,6 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
         return CompletableResultCode.ofSuccess();
       }
 
-      // Group metrics by attributes and timestamp
       Map<String, List<MetricRecord>> groupedMetrics = new HashMap<>();
 
       for (MetricData metric : metricsData) {
@@ -74,6 +75,9 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
         if (metricData == null || metricData.getPoints().isEmpty()) {
           continue;
         }
+
+        Attributes resourceAttrs = metric.getResource().getAttributes();
+        InstrumentationScopeInfo scope = metric.getInstrumentationScopeInfo();
 
         for (PointData point : metricData.getPoints()) {
           MetricRecord record = null;
@@ -98,7 +102,7 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
             continue;
           }
 
-          String groupKey = this.groupByAttributesAndTimestamp(record);
+          String groupKey = groupByAttributesAndTimestamp(resourceAttrs, scope, record);
           groupedMetrics.computeIfAbsent(groupKey, k -> new ArrayList<>()).add(record);
         }
       }
@@ -107,12 +111,10 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
       for (List<MetricRecord> records : groupedMetrics.values()) {
         if (!records.isEmpty()) {
           MetricRecord firstRecord = records.get(0);
-          // Get resource from first metric in the collection
-          MetricData firstMetric = metricsData.iterator().next();
           Map<String, Object> emfLog =
               MetricRecord.createEmfLog(
                   records,
-                  firstMetric.getResource().getAttributes(),
+                  firstRecord.getResourceAttributes(),
                   this.namespace,
                   firstRecord.getTimestamp());
 
@@ -149,12 +151,20 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
     return Aggregation.defaultAggregation();
   }
 
-  private String groupByAttributesAndTimestamp(MetricRecord record) {
-    // Java doesn't have built-in, hash-able tuples, so we
-    // concatenate the attributes key and timestamp into a single string to create a unique
-    // grouping key for the HashMap.
+  private String groupByAttributesAndTimestamp(
+      Attributes resourceAttrs, InstrumentationScopeInfo scope, MetricRecord record) {
+    // Java doesn't have built-in hashable tuples, so concatenate components into a unique key.
+    // Groups metrics by resource, scope, attributes, and timestamp into a single EMF log.
+    String resourceKey = getAttributesKey(resourceAttrs);
+    String scopeKey = scope != null ? scope.toString() : "";
     String attrsKey = getAttributesKey(record.getAttributes());
-    return attrsKey + "_" + record.getTimestamp();
+    return resourceKey
+        + DELIMITER
+        + scopeKey
+        + DELIMITER
+        + attrsKey
+        + DELIMITER
+        + record.getTimestamp();
   }
 
   private String getAttributesKey(Attributes attributes) {

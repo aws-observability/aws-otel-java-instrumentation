@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.data.Data;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.ExponentialHistogramBuckets;
@@ -39,6 +40,9 @@ import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -75,6 +79,8 @@ public abstract class BaseEmfExporterTest<T> {
             })
         .when(mockEmitter)
         .emit(any());
+
+    doNothing().when(mockEmitter).flushEvents();
   }
 
   @Test
@@ -258,48 +264,12 @@ public abstract class BaseEmfExporterTest<T> {
     }
   }
 
-  @Test
-  void testGroupByAttributesAndTimestamp() {
-    String name1 = "test.metric1";
-    String name2 = "test.metric2";
-    long timestamp = 1234567890000000L;
-    Attributes attrs = Attributes.builder().put("env", "test").build();
-
-    MetricData metric1 = mock(MetricData.class);
-    GaugeData gaugeData1 = mock(GaugeData.class);
-    DoublePointData pointData1 = mock(DoublePointData.class);
-    when(pointData1.getValue()).thenReturn(10.0);
-    when(pointData1.getAttributes()).thenReturn(attrs);
-    when(pointData1.getEpochNanos()).thenReturn(timestamp);
-    when(metric1.getName()).thenReturn(name1);
-    when(metric1.getUnit()).thenReturn("1");
-    when(metric1.getData()).thenReturn(gaugeData1);
-    when(metric1.getResource()).thenReturn(Resource.getDefault());
-    when(gaugeData1.getPoints()).thenReturn(Collections.singletonList(pointData1));
-
-    MetricData metric2 = mock(MetricData.class);
-    GaugeData gaugeData2 = mock(GaugeData.class);
-    DoublePointData pointData2 = mock(DoublePointData.class);
-    when(pointData2.getValue()).thenReturn(20.0);
-    when(pointData2.getAttributes()).thenReturn(attrs);
-    when(pointData2.getEpochNanos()).thenReturn(timestamp);
-    when(metric2.getName()).thenReturn(name2);
-    when(metric2.getUnit()).thenReturn("1");
-    when(metric2.getData()).thenReturn((Data) gaugeData2);
-    when(metric2.getResource()).thenReturn(Resource.getDefault());
-    when(gaugeData2.getPoints()).thenReturn(Collections.singletonList(pointData2));
-
-    CompletableResultCode result = exporter.export(Arrays.asList(metric1, metric2));
-
+  @ParameterizedTest
+  @MethodSource("metricsGroupingProvider")
+  void testGroupByAttributesAndTimestamp(List<MetricData> metrics, int expectedLogCount) {
+    CompletableResultCode result = exporter.export(metrics);
     assertTrue(result.isSuccess());
-    assertEquals(1, capturedLogEvents.size());
-    Map<String, Object> emfLog =
-        this.validateEmfStructure(capturedLogEvents.get(0), name1).orElseThrow();
-    assertTrue(emfLog.containsKey(name1));
-    assertTrue(emfLog.containsKey(name2));
-    assertEquals(10.0, ((Number) emfLog.get(name1)).doubleValue(), PRECISION_TOLERANCE);
-    assertEquals(20.0, ((Number) emfLog.get(name2)).doubleValue(), PRECISION_TOLERANCE);
-    assertEquals("test", emfLog.get("env"));
+    assertEquals(expectedLogCount, capturedLogEvents.size());
   }
 
   protected Optional<Map<String, Object>> validateEmfStructure(
@@ -338,11 +308,189 @@ public abstract class BaseEmfExporterTest<T> {
     return logEvent;
   }
 
+  private static MetricData createMetric(
+      String name,
+      double value,
+      Attributes attrs,
+      long timestamp,
+      Resource resource,
+      InstrumentationScopeInfo scope) {
+    MetricData metric = mock(MetricData.class);
+    GaugeData gaugeData = mock(GaugeData.class);
+    DoublePointData pointData = mock(DoublePointData.class);
+    when(pointData.getValue()).thenReturn(value);
+    when(pointData.getAttributes()).thenReturn(attrs);
+    when(pointData.getEpochNanos()).thenReturn(timestamp);
+    when(metric.getName()).thenReturn(name);
+    when(metric.getUnit()).thenReturn("1");
+    when(metric.getData()).thenReturn(gaugeData);
+    when(metric.getResource()).thenReturn(resource);
+    when(metric.getInstrumentationScopeInfo()).thenReturn(scope);
+    when(gaugeData.getPoints()).thenReturn(Collections.singletonList(pointData));
+    return metric;
+  }
+
   private List<Number> generateRandomNumbers(int count) {
     List<Number> values = new ArrayList<>();
     for (int i = 0; i < count; i++) {
       values.add(RANDOM.nextDouble() * 100);
     }
     return values;
+  }
+
+  static List<Arguments> metricsGroupingProvider() {
+    Attributes attrs1 = Attributes.builder().put("env", "prod").build();
+    Attributes attrs2 = Attributes.builder().put("env", "dev").build();
+    Attributes attrs3 = Attributes.builder().put("region", "us-east-1").build();
+    Attributes attrs4 = Attributes.builder().put("region", "prod").build();
+    Attributes attrsSameValue = Attributes.builder().put("env", "prod").build();
+    Resource resourceAttrs1 = Resource.builder().put("service.name", "svc1").build();
+    Resource resourceAttrs2 = Resource.builder().put("service.name", "svc2").build();
+    InstrumentationScopeInfo scope1 = InstrumentationScopeInfo.create("scope1");
+    InstrumentationScopeInfo scope2 = InstrumentationScopeInfo.create("scope2");
+
+    return Arrays.asList(
+        // Should group when resource attributes, scope, point attributes, and timestamp all match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs1, 1000000L, resourceAttrs1, scope1)),
+            1),
+        // Should NOT group if timestamps differ but resource attributes, scope, and point
+        // attributes match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs1, 2000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs1, 3000000L, resourceAttrs1, scope1)),
+            3),
+        // Should NOT group if point attributes differ but resource attributes, scope, and timestamp
+        // match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs2, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs3, 1000000L, resourceAttrs1, scope1)),
+            3),
+        // Should NOT group if resource attributes differ but point attributes, scope, and timestamp
+        // match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs2, scope1),
+                createMetric("m3", 30.0, attrs1, 1000000L, Resource.empty(), scope1)),
+            3),
+        // Should NOT group if scopes differ but resource attributes, point attributes, and
+        // timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, scope2),
+                createMetric("m3", 30.0, attrs1, 1000000L, resourceAttrs1, null)),
+            3),
+        // Should group when both scopes are null and resource attributes, point attributes, and
+        // timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, null),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, null),
+                createMetric("m3", 30.0, attrs1, 1000000L, resourceAttrs1, null)),
+            1),
+        // Should NOT group if scopes differ but resource attributes, point attributes, and
+        // timestamp
+        // match
+        Arguments.of(
+            Arrays.asList(
+                createMetric(
+                    "m1",
+                    10.0,
+                    attrs1,
+                    1000000L,
+                    resourceAttrs1,
+                    InstrumentationScopeInfo.create("scope3")),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs1, 1000000L, resourceAttrs1, scope2)),
+            3),
+        // Should group when both point attributes are empty and resource attributes, scope, and
+        // timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, Attributes.empty(), 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, Attributes.empty(), 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, Attributes.empty(), 1000000L, resourceAttrs1, scope1)),
+            1),
+        // Should NOT group if one has empty point attributes and other does not but resource
+        // attributes, scope, and timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, Attributes.empty(), 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs2, 1000000L, resourceAttrs1, scope1)),
+            3),
+        // Should group when both resource attributes are empty and point attributes, scope, and
+        // timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, Resource.empty(), scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, Resource.empty(), scope1),
+                createMetric("m3", 30.0, attrs1, 1000000L, Resource.empty(), scope1)),
+            1),
+        // Should NOT group if one has empty resource attributes and other does not but point
+        // attributes, scope, and timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, Resource.empty(), scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs1, 1000000L, resourceAttrs2, scope1)),
+            3),
+        // Should NOT group if attribute values differ for same key but resource attributes, scope,
+        // and timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs2, 1000000L, resourceAttrs1, scope1),
+                createMetric(
+                    "m3",
+                    30.0,
+                    Attributes.builder().put("env", "staging").build(),
+                    1000000L,
+                    resourceAttrs1,
+                    scope1)),
+            3),
+        // Should NOT group if attribute keys differ but resource attributes, scope, and timestamp
+        // match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs3, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs4, 1000000L, resourceAttrs1, scope1)),
+            3),
+
+        // Should group when attributes have same content regardless of object identity and resource
+        // attributes, scope, and timestamp match
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrsSameValue, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs1, 1000000L, resourceAttrs1, scope1)),
+            1),
+        // Should partially group when some metrics match all dimensions but others differ in point
+        // attributes
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m3", 30.0, attrs2, 1000000L, resourceAttrs1, scope1)),
+            2),
+
+        // Should NOT group when all dimensions differ (resource attributes, scope, point
+        // attributes, and timestamp)
+        Arguments.of(
+            Arrays.asList(
+                createMetric("m1", 10.0, attrs1, 1000000L, resourceAttrs1, scope1),
+                createMetric("m2", 20.0, attrs2, 2000000L, resourceAttrs2, scope2),
+                createMetric("m3", 30.0, attrs3, 3000000L, Resource.empty(), null)),
+            3));
   }
 }
