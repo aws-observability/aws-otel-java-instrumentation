@@ -185,16 +185,16 @@ public final class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addMetricExporterCustomizer(this::customizeMetricExporter);
   }
 
+  static boolean isLambdaEnvironment(ConfigProperties props) {
+    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
+  }
+
   private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
     String region = configProps.getString(AWS_REGION);
     if (region != null) {
       return Optional.of(region);
     }
     return Optional.ofNullable(configProps.getString(AWS_DEFAULT_REGION));
-  }
-
-  static boolean isLambdaEnvironment(ConfigProperties props) {
-    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
   }
 
   static boolean isLambdaEnvironment() {
