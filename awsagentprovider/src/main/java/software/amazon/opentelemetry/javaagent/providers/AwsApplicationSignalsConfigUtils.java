@@ -18,15 +18,47 @@ package software.amazon.opentelemetry.javaagent.providers;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.*;
 
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
-import java.util.Arrays;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /** Utilities class to validate ADOT environment variable configuration. */
-public final class AwsApplicationSignalsConfigValidator {
+public final class AwsApplicationSignalsConfigUtils {
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
+
+  /**
+   * Removes "awsemf" from OTEL_METRICS_EXPORTER if present to prevent validation errors from OTel
+   * dependencies which would try to load metric exporters. We will contribute emf exporter to
+   * upstream for supporting OTel metrics in SDK
+   *
+   * @param configProps the configuration properties
+   * @return Optional string containing the updated metrics exporter config with "awsemf" removed if
+   *     "awsemf" was one of the registered exporters, otherwise empty Optional if "awsemf" was not
+   *     a part of the registered exporters.
+   */
+  static Optional<String> removeEmfExporterIfEnabled(ConfigProperties configProps) {
+    String metricExporters = configProps.getString(OTEL_METRICS_EXPORTER);
+
+    if (metricExporters == null || !metricExporters.contains("awsemf")) {
+      return Optional.empty();
+    }
+
+    // Remove "awsemf" from exporters list. If "awsemf" is the only exporter, return empty
+    // string instead of "none". While OTel's behavior when given an empty string for the exporter
+    // is to default to the "otlp" exporter, we will deviate from this
+    // because upstream will not call customizeMetricExporter if OTEL_METRICS_EXPORTER is set to
+    // "none", which would prevent EMF exporter registration
+    String filtered =
+        Arrays.stream(metricExporters.split(","))
+            .map(String::trim)
+            .filter(exp -> !exp.equals("awsemf"))
+            .collect(Collectors.joining(","));
+
+    return Optional.of(filtered);
+  }
 
   /**
    * Is the given configuration correct to enable SigV4 for Logs?
@@ -61,27 +93,21 @@ public final class AwsApplicationSignalsConfigValidator {
 
     if (logsHeaders == null || logsHeaders.isEmpty()) {
       logger.warning(
-          "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to include x-aws-log-group and x-aws-log-stream");
+          String.format(
+              "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to include %s and %s",
+              AWS_OTLP_LOGS_GROUP_HEADER, AWS_OTLP_LOGS_STREAM_HEADER));
 
       return false;
     }
+    Map<String, String> parsedHeaders =
+        AwsApplicationSignalsConfigUtils.parseOtlpHeaders(logsHeaders);
 
-    long filteredLogHeaders =
-        Arrays.stream(logsHeaders.split(","))
-            .filter(
-                pair -> {
-                  if (pair.contains("=")) {
-                    String key = pair.split("=", 2)[0];
-                    return key.equals(AWS_OTLP_LOGS_GROUP_HEADER)
-                        || key.equals(AWS_OTLP_LOGS_STREAM_HEADER);
-                  }
-                  return false;
-                })
-            .count();
-
-    if (filteredLogHeaders != 2) {
+    if (!(parsedHeaders.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
+        && parsedHeaders.containsKey(AWS_OTLP_LOGS_STREAM_HEADER))) {
       logger.warning(
-          "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for x-aws-log-group and x-aws-log-stream");
+          String.format(
+              "Improper configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s and %s",
+              AWS_OTLP_LOGS_GROUP_HEADER, AWS_OTLP_LOGS_STREAM_HEADER));
       return false;
     }
 
@@ -167,5 +193,27 @@ public final class AwsApplicationSignalsConfigValidator {
     }
 
     return false;
+  }
+
+  /**
+   * Parse OTLP headers and return a map of header key to value. See: <a
+   * href="https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_headers">...</a>
+   *
+   * @param headersString the headers string in format "key1=value1,key2=value2"
+   * @return map of header keys to values
+   */
+  static Map<String, String> parseOtlpHeaders(String headersString) {
+    Map<String, String> headers = new HashMap<>();
+    if (headersString == null || headersString.isEmpty()) {
+      return headers;
+    }
+
+    for (String pair : headersString.split(",")) {
+      if (pair.contains("=")) {
+        String[] keyValue = pair.split("=", 2);
+        headers.put(keyValue[0].trim(), keyValue[1].trim());
+      }
+    }
+    return headers;
   }
 }
