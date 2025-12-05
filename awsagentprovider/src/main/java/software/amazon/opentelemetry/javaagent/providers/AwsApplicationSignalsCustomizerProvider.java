@@ -65,9 +65,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
 /**
@@ -91,7 +92,10 @@ public final class AwsApplicationSignalsCustomizerProvider
   // https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html
   static final String AWS_REGION = "aws.region";
   static final String AWS_DEFAULT_REGION = "aws.default.region";
+  // TODO: We should clean up and get rid of using AWS_LAMBDA_FUNCTION_NAME and default to
+  // upstream config property implementation.
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+  static final String AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG = "aws.lambda.function.name";
   static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
       "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
 
@@ -179,6 +183,10 @@ public final class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
     autoConfiguration.addLogRecordExporterCustomizer(this::customizeLogsExporter);
     autoConfiguration.addMetricExporterCustomizer(this::customizeMetricExporter);
+  }
+
+  static boolean isLambdaEnvironment(ConfigProperties props) {
+    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
   }
 
   private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
@@ -515,7 +523,7 @@ public final class AwsApplicationSignalsCustomizerProvider
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
       try {
-        return OtlpAwsLogsExporterBuilder.create(
+        return OtlpAwsLogRecordExporterBuilder.create(
                 (OtlpHttpLogRecordExporter) logsExporter,
                 configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
             .setCompression(compression)
@@ -528,34 +536,41 @@ public final class AwsApplicationSignalsCustomizerProvider
             e);
       }
     }
+    String logsExporterConfig = configProps.getString(OTEL_LOGS_EXPORTER);
+
+    if (isLambdaEnvironment(configProps)
+        && logsExporterConfig != null
+        && logsExporterConfig.equals("console")) {
+      return new CompactConsoleLogRecordExporter();
+    }
 
     return logsExporter;
   }
 
   MetricExporter customizeMetricExporter(
       MetricExporter metricExporter, ConfigProperties configProps) {
+
     if (isEmfExporterEnabled) {
       Map<String, String> headers =
           AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
       Optional<String> awsRegion = getAwsRegionFromConfig(configProps);
+      String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
 
       if (awsRegion.isPresent()) {
-        String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
-
         if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
             && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
           String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
           String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
           return new AwsCloudWatchEmfExporter(namespace, logGroup, logStream, awsRegion.get());
         }
-        if (isLambdaEnvironment()) {
+
+        if (isLambdaEnvironment(configProps)) {
           return new ConsoleEmfExporter(namespace);
         }
         logger.warning(
             String.format(
-                "Improper EMF Exporter configuration: Please configure the environment variable %s to have values for %s, %s, and %s",
-                OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+                "Improper EMF Exporter configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s, %s, and %s",
                 AWS_OTLP_LOGS_GROUP_HEADER,
                 AWS_OTLP_LOGS_STREAM_HEADER,
                 AWS_EMF_METRICS_NAMESPACE));
