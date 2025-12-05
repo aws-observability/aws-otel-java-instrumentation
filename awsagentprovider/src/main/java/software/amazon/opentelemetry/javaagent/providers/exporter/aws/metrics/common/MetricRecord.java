@@ -91,6 +91,7 @@ public class MetricRecord {
 
   @Nullable private Long timestamp;
   private Attributes attributes = Attributes.empty();
+  private Attributes resourceAttributes = Attributes.empty();
 
   // Different metric type data - only one will be set per record
   @Nullable private Double value;
@@ -222,6 +223,7 @@ public class MetricRecord {
 
     record.setTimestamp(timestampMs);
     record.setAttributes(dataPoint.getAttributes());
+    record.setResourceAttributes(metric.getResource().getAttributes());
     record.setHistogramData(histogramMap);
 
     return record;
@@ -241,6 +243,7 @@ public class MetricRecord {
 
     record.setTimestamp(timestampMs);
     record.setAttributes(dataPoint.getAttributes());
+    record.setResourceAttributes(metric.getResource().getAttributes());
 
     // Process positive buckets
     ExponentialHistogramBuckets positiveBuckets = dataPoint.getPositiveBuckets();
@@ -339,6 +342,7 @@ public class MetricRecord {
 
     record.setTimestamp(timestampMs);
     record.setAttributes(dataPoint.getAttributes());
+    record.setResourceAttributes(metric.getResource().getAttributes());
 
     if (dataPoint instanceof DoublePointData) {
       record.setValue(((DoublePointData) dataPoint).getValue());
@@ -431,5 +435,13 @@ public class MetricRecord {
 
   void setExpHistogramData(@Nullable Map<String, Object> expHistogramData) {
     this.expHistogramData = expHistogramData;
+  }
+
+  Attributes getResourceAttributes() {
+    return this.resourceAttributes;
+  }
+
+  void setResourceAttributes(Attributes resourceAttributes) {
+    this.resourceAttributes = resourceAttributes;
   }
 }

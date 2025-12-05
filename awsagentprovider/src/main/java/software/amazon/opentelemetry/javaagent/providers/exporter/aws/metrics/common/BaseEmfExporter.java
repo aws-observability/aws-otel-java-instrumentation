@@ -18,6 +18,7 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.c
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
@@ -66,7 +67,6 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
         return CompletableResultCode.ofSuccess();
       }
 
-      // Group metrics by attributes and timestamp
       Map<String, List<MetricRecord>> groupedMetrics = new HashMap<>();
 
       for (MetricData metric : metricsData) {
@@ -74,6 +74,9 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
         if (metricData == null || metricData.getPoints().isEmpty()) {
           continue;
         }
+
+        Attributes resourceAttrs = metric.getResource().getAttributes();
+        InstrumentationScopeInfo scope = metric.getInstrumentationScopeInfo();
 
         for (PointData point : metricData.getPoints()) {
           MetricRecord record = null;
@@ -98,7 +101,9 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
             continue;
           }
 
-          String groupKey = this.groupByAttributesAndTimestamp(record);
+          String groupKey =
+              generateEmfGroupingKey(
+                  resourceAttrs, scope, record.getAttributes(), record.getTimestamp());
           groupedMetrics.computeIfAbsent(groupKey, k -> new ArrayList<>()).add(record);
         }
       }
@@ -107,12 +112,10 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
       for (List<MetricRecord> records : groupedMetrics.values()) {
         if (!records.isEmpty()) {
           MetricRecord firstRecord = records.get(0);
-          // Get resource from first metric in the collection
-          MetricData firstMetric = metricsData.iterator().next();
           Map<String, Object> emfLog =
               MetricRecord.createEmfLog(
                   records,
-                  firstMetric.getResource().getAttributes(),
+                  firstRecord.getResourceAttributes(),
                   this.namespace,
                   firstRecord.getTimestamp());
 
@@ -149,20 +152,23 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
     return Aggregation.defaultAggregation();
   }
 
-  private String groupByAttributesAndTimestamp(MetricRecord record) {
-    // Java doesn't have built-in, hash-able tuples, so we
-    // concatenate the attributes key and timestamp into a single string to create a unique
-    // grouping key for the HashMap.
-    String attrsKey = getAttributesKey(record.getAttributes());
-    return attrsKey + "_" + record.getTimestamp();
+  private String generateEmfGroupingKey(
+      Attributes resourceAttrs,
+      InstrumentationScopeInfo scope,
+      Attributes pointAttrs,
+      Long timestamp) {
+    // Generates a unique hash string for grouping metrics with identical resource attributes,
+    // scope, point attributes, and timestamp into a single EMF log event.
+    // Use null character as delimiter to separate components and avoid collisions (i.e.
+    // "{a=1}" + "scope1" vs "{a=1}scope" + "1").
+    String delimiter = "\0";
+    String resourceKey = getAttributesKey(resourceAttrs);
+    String scopeKey = scope != null ? scope.toString() : "";
+    String attrsKey = getAttributesKey(pointAttrs);
+    return resourceKey + delimiter + scopeKey + delimiter + attrsKey + delimiter + timestamp;
   }
 
   private String getAttributesKey(Attributes attributes) {
-    // Sort the attributes to ensure consistent keys
-    // Using TreeMap: The map is sorted
-    // according to the natural ordering of its keys, or by a Comparator provided at map creation
-    // time, depending on which constructor is used.
-    // https://docs.oracle.com/javase/8/docs/api/java/util/TreeMap.html
     Map<String, Object> sortedAttrs = new TreeMap<>();
     attributes.forEach((key, value) -> sortedAttrs.put(key.getKey(), value));
     return sortedAttrs.toString();
