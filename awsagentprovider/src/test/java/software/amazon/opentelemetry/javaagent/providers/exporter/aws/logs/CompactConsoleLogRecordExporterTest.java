@@ -334,6 +334,44 @@ public class CompactConsoleLogRecordExporterTest {
                         "abcdef1234567890",
                         TraceFlags.getSampled(),
                         TraceState.getDefault()))
+                .build()),
+        Arguments.of(
+            TestLogRecordData.builder()
+                .setResource(Resource.empty())
+                .setInstrumentationScopeInfo(InstrumentationScopeInfo.builder("test-scope").build())
+                .setBody("Test message")
+                .setTimestamp(Instant.ofEpochSecond(1000000000L))
+                .setObservedTimestamp(Instant.ofEpochSecond(1000000000L))
+                .build()),
+        Arguments.of(
+            TestLogRecordData.builder()
+                .setResource(Resource.empty())
+                .setInstrumentationScopeInfo(InstrumentationScopeInfo.builder("test-scope").build())
+                .setBody("Test message")
+                .setSeverity(Severity.INFO)
+                .setAttributes(Attributes.empty())
+                .setTimestamp(Instant.ofEpochSecond(1000000000L))
+                .setObservedTimestamp(Instant.ofEpochSecond(1000000000L))
+                .build()),
+        Arguments.of(
+            TestLogRecordData.builder()
+                .setResource(
+                    Resource.empty().toBuilder().put("service.name", "test-service").build())
+                .setInstrumentationScopeInfo(InstrumentationScopeInfo.builder("test-scope").build())
+                .setBody("Test message")
+                .setSeverity(Severity.INFO)
+                .setTimestamp(Instant.ofEpochSecond(1000000000L))
+                .setObservedTimestamp(Instant.ofEpochSecond(1000000000L))
+                .build()),
+        Arguments.of(
+            TestLogRecordData.builder()
+                .setResource(Resource.empty())
+                .setInstrumentationScopeInfo(
+                    InstrumentationScopeInfo.builder("test-scope").setVersion("1.0.0").build())
+                .setBody("Test message")
+                .setSeverity(Severity.INFO)
+                .setTimestamp(Instant.ofEpochSecond(1000000000L))
+                .setObservedTimestamp(Instant.ofEpochSecond(1000000000L))
                 .build()));
   }
 }

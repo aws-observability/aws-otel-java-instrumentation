@@ -208,8 +208,12 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
           log.getSpanContext().isValid() ? log.getSpanContext().getTraceId() : "",
           log.getSpanContext().isValid() ? log.getSpanContext().getSpanId() : "",
           log.getSpanContext().getTraceFlags().asByte(),
-          ResourceTemplate.parse(log.getResource()),
-          InstrumentationScopeTemplate.parse(log.getInstrumentationScopeInfo()));
+          log.getResource() != null
+              ? ResourceTemplate.parse(log.getResource())
+              : new ResourceTemplate(new HashMap<>(), ""),
+          log.getInstrumentationScopeInfo() != null
+              ? InstrumentationScopeTemplate.parse(log.getInstrumentationScopeInfo())
+              : new InstrumentationScopeTemplate("", "", ""));
     }
 
     private static String formatTimestamp(long nanos) {
@@ -235,6 +239,9 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
 
     private static ResourceTemplate parse(Resource resource) {
       Map<String, String> attributes = new HashMap<>();
+      if (resource == null) {
+        return new ResourceTemplate(attributes, "");
+      }
       resource
           .getAttributes()
           .forEach((key, value) -> attributes.put(key.getKey(), String.valueOf(value)));
@@ -260,6 +267,9 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
     }
 
     private static InstrumentationScopeTemplate parse(InstrumentationScopeInfo scope) {
+      if (scope == null) {
+        return new InstrumentationScopeTemplate("", "", "");
+      }
       return new InstrumentationScopeTemplate(
           scope.getName(), scope.getVersion(), scope.getSchemaUrl());
     }
