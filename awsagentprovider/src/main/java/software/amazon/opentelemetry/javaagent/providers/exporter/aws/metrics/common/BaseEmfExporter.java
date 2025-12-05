@@ -46,7 +46,6 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.co
  */
 public abstract class BaseEmfExporter<T> implements MetricExporter {
   private static final Logger logger = Logger.getLogger(BaseEmfExporter.class.getName());
-  private static final String DELIMITER = "\0";
   private final String namespace;
   protected final LogEventEmitter<T> emitter;
 
@@ -102,7 +101,9 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
             continue;
           }
 
-          String groupKey = groupByAttributesAndTimestamp(resourceAttrs, scope, record);
+          String groupKey =
+              generateEmfGroupingKey(
+                  resourceAttrs, scope, record.getAttributes(), record.getTimestamp());
           groupedMetrics.computeIfAbsent(groupKey, k -> new ArrayList<>()).add(record);
         }
       }
@@ -151,28 +152,23 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
     return Aggregation.defaultAggregation();
   }
 
-  private String groupByAttributesAndTimestamp(
-      Attributes resourceAttrs, InstrumentationScopeInfo scope, MetricRecord record) {
-    // Java doesn't have built-in hashable tuples, so concatenate components into a unique key.
-    // Groups metrics by resource, scope, attributes, and timestamp into a single EMF log.
+  private String generateEmfGroupingKey(
+      Attributes resourceAttrs,
+      InstrumentationScopeInfo scope,
+      Attributes pointAttrs,
+      Long timestamp) {
+    // Generates a unique hash string for grouping metrics with identical resource attributes,
+    // scope, point attributes, and timestamp into a single EMF log event.
+    // Use null character as delimiter to separate components and avoid collisions (i.e.
+    // "{a=1}" + "scope1" vs "{a=1}scope" + "1").
+    String delimiter = "\0";
     String resourceKey = getAttributesKey(resourceAttrs);
     String scopeKey = scope != null ? scope.toString() : "";
-    String attrsKey = getAttributesKey(record.getAttributes());
-    return resourceKey
-        + DELIMITER
-        + scopeKey
-        + DELIMITER
-        + attrsKey
-        + DELIMITER
-        + record.getTimestamp();
+    String attrsKey = getAttributesKey(pointAttrs);
+    return resourceKey + delimiter + scopeKey + delimiter + attrsKey + delimiter + timestamp;
   }
 
   private String getAttributesKey(Attributes attributes) {
-    // Sort the attributes to ensure consistent keys
-    // Using TreeMap: The map is sorted
-    // according to the natural ordering of its keys, or by a Comparator provided at map creation
-    // time, depending on which constructor is used.
-    // https://docs.oracle.com/javase/8/docs/api/java/util/TreeMap.html
     Map<String, Object> sortedAttrs = new TreeMap<>();
     attributes.forEach((key, value) -> sortedAttrs.put(key.getKey(), value));
     return sortedAttrs.toString();

@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /** Utilities class to validate ADOT environment variable configuration. */
 public final class AwsApplicationSignalsConfigUtils {
@@ -34,8 +35,9 @@ public final class AwsApplicationSignalsConfigUtils {
    * upstream for supporting OTel metrics in SDK
    *
    * @param configProps the configuration properties
-   * @return Optional containing string with "awsemf" removed if the original OTEL_METRICS_EXPORTER
-   *     contains "awsemf", otherwise empty Optional if "awsemf" is not found
+   * @return Optional string containing the updated metrics exporter config with "awsemf" removed if
+   *     "awsemf" was one of the registered exporters, otherwise empty Optional if "awsemf" was not
+   *     a part of the registered exporters.
    */
   static Optional<String> removeEmfExporterIfEnabled(ConfigProperties configProps) {
     String metricExporters = configProps.getString(OTEL_METRICS_EXPORTER);
@@ -44,17 +46,18 @@ public final class AwsApplicationSignalsConfigUtils {
       return Optional.empty();
     }
 
-    String[] exporters = metricExporters.split(",");
-    List<String> filtered =
-        Arrays.stream(exporters)
+    // Remove "awsemf" from exporters list. If "awsemf" is the only exporter, return empty
+    // string instead of "none". While OTel's behavior when given an empty string for the exporter
+    // is to default to the "otlp" exporter, we will deviate from this
+    // because upstream will not call customizeMetricExporter if OTEL_METRICS_EXPORTER is set to
+    // "none", which would prevent EMF exporter registration
+    String filtered =
+        Arrays.stream(metricExporters.split(","))
             .map(String::trim)
             .filter(exp -> !exp.equals("awsemf"))
-            .collect(java.util.stream.Collectors.toList());
+            .collect(Collectors.joining(","));
 
-    // Return empty string instead of "none" because upstream will not call
-    // customizeMetricExporter if OTEL_METRICS_EXPORTER is set to "none" as it assumes
-    // no metrics exporter is configured
-    return Optional.of(filtered.isEmpty() ? "" : String.join(",", filtered));
+    return Optional.of(filtered);
   }
 
   /**
