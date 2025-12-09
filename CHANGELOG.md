@@ -15,6 +15,15 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ### Enhancements
 
+- Configure EMF and CompactLog Exporters for Lambda Environment
+  ([#1222](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1222))
+- feat: [Java] EMF Exporter Implementation
+  ([#1209](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1209))
+
+## v2.20.0 - 2025-10-29
+
+### Enhancements
+
 - Support X-Ray Trace Id extraction from Lambda Context object, and respect user-configured OTEL_PROPAGATORS in AWS Lamdba instrumentation
   ([#1191](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1191)) ([#1218](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1218))
 - Adaptive Sampling improvements: Ensure propagation of sampling rule across services and AWS accounts. Remove unnecessary B3 propagator.
