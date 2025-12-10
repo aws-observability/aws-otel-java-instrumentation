@@ -244,14 +244,13 @@ public class MetricRecord {
       if (serviceName == null || serviceName.isEmpty()) {
         serviceName = UNKNOWN_SERVICE;
       }
-      dimensionNames.add(0, SERVICE_DIMENSION_NAME);
+      dimensionNames.add(SERVICE_DIMENSION_NAME);
       emfLog.put(SERVICE_DIMENSION_NAME, serviceName);
     }
 
     if (!hasDimension(dimensionNames, ENVIRONMENT_DIMENSION_NAME)) {
       String environmentName = getDeploymentEnvironment(resourceAttributes);
-      int insertPos = emfLog.containsKey(SERVICE_DIMENSION_NAME) ? 1 : 0;
-      dimensionNames.add(insertPos, ENVIRONMENT_DIMENSION_NAME);
+      dimensionNames.add(ENVIRONMENT_DIMENSION_NAME);
       emfLog.put(ENVIRONMENT_DIMENSION_NAME, environmentName);
     }
   }
