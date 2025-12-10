@@ -55,8 +55,12 @@ public class ConsoleEmfExporterTest extends BaseEmfExporterTest<PrintStream> {
   }
 
   @Override
-  protected MetricExporter createExporter() {
-    return ConsoleEmfExporter.builder().setNamespace(NAMESPACE).setEmitter(mockEmitter).build();
+  protected MetricExporter buildExporter(boolean shouldAddAppSignals) {
+    return ConsoleEmfExporter.builder()
+        .setNamespace(NAMESPACE)
+        .setEmitter(mockEmitter)
+        .setShouldAddApplicationSignalsDimensions(shouldAddAppSignals)
+        .build();
   }
 
   @Test
