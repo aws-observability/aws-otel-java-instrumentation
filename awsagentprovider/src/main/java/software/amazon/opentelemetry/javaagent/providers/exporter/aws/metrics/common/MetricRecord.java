@@ -214,7 +214,7 @@ public class MetricRecord {
       List<String> dimensionNames = new ArrayList<>();
       allAttributes.forEach((key, value) -> dimensionNames.add(key.getKey()));
       if (shouldAddApplicationSignalsDimensions) {
-        addApplicationSignalsDimensions(dimensionNames, emfLog, resourceAttributes);
+        MetricRecord.addApplicationSignalsDimensions(dimensionNames, emfLog, resourceAttributes);
       }
 
       if (!dimensionNames.isEmpty()) {
@@ -239,7 +239,7 @@ public class MetricRecord {
    */
   private static void addApplicationSignalsDimensions(
       List<String> dimensionNames, Map<String, Object> emfLog, Attributes resourceAttributes) {
-    if (!hasDimension(dimensionNames, SERVICE_DIMENSION_NAME)) {
+    if (!MetricRecord.hasDimension(dimensionNames, SERVICE_DIMENSION_NAME)) {
       String serviceName = resourceAttributes.get(ServiceAttributes.SERVICE_NAME);
       if (serviceName == null || serviceName.isEmpty()) {
         serviceName = UNKNOWN_SERVICE;
@@ -248,8 +248,8 @@ public class MetricRecord {
       emfLog.put(SERVICE_DIMENSION_NAME, serviceName);
     }
 
-    if (!hasDimension(dimensionNames, ENVIRONMENT_DIMENSION_NAME)) {
-      String environmentName = getDeploymentEnvironment(resourceAttributes);
+    if (!MetricRecord.hasDimension(dimensionNames, ENVIRONMENT_DIMENSION_NAME)) {
+      String environmentName = MetricRecord.getDeploymentEnvironment(resourceAttributes);
       dimensionNames.add(ENVIRONMENT_DIMENSION_NAME);
       emfLog.put(ENVIRONMENT_DIMENSION_NAME, environmentName);
     }
