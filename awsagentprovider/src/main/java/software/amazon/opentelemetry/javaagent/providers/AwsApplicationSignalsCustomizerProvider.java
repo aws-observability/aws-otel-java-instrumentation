@@ -118,6 +118,8 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String DEPRECATED_APP_SIGNALS_ENABLED_CONFIG =
       "otel.aws.app.signals.enabled";
   static final String APPLICATION_SIGNALS_ENABLED_CONFIG = "otel.aws.application.signals.enabled";
+  static final String APPLICATION_SIGNALS_DIMENSIONS_ENABLED =
+      "otel.aws.application.signals.dimensions.enabled";
 
   private static final String OTEL_RESOURCE_PROVIDERS_AWS_ENABLED =
       "otel.resource.providers.aws.enabled";
@@ -185,8 +187,8 @@ public final class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addMetricExporterCustomizer(this::customizeMetricExporter);
   }
 
-  static boolean isLambdaEnvironment(ConfigProperties props) {
-    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
+  static boolean isApplicationSignalsDimensionsEnabled(ConfigProperties props) {
+    return props.getBoolean(APPLICATION_SIGNALS_DIMENSIONS_ENABLED, false);
   }
 
   private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
@@ -195,6 +197,10 @@ public final class AwsApplicationSignalsCustomizerProvider
       return Optional.of(region);
     }
     return Optional.ofNullable(configProps.getString(AWS_DEFAULT_REGION));
+  }
+
+  static boolean isLambdaEnvironment(ConfigProperties props) {
+    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
   }
 
   static boolean isLambdaEnvironment() {
@@ -551,6 +557,8 @@ public final class AwsApplicationSignalsCustomizerProvider
       MetricExporter metricExporter, ConfigProperties configProps) {
 
     if (isEmfExporterEnabled) {
+      boolean isApplicationSignalsDimensionsEnabled =
+          isApplicationSignalsDimensionsEnabled(configProps);
       Map<String, String> headers =
           AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
@@ -562,11 +570,20 @@ public final class AwsApplicationSignalsCustomizerProvider
             && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
           String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
           String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
-          return new AwsCloudWatchEmfExporter(namespace, logGroup, logStream, awsRegion.get());
+          return AwsCloudWatchEmfExporter.builder()
+              .setNamespace(namespace)
+              .setLogGroupName(logGroup)
+              .setLogStreamName(logStream)
+              .setAwsRegion(awsRegion.get())
+              .setShouldAddApplicationSignalsDimensions(isApplicationSignalsDimensionsEnabled)
+              .build();
         }
 
         if (isLambdaEnvironment(configProps)) {
-          return new ConsoleEmfExporter(namespace);
+          return ConsoleEmfExporter.builder()
+              .setNamespace(namespace)
+              .setShouldAddApplicationSignalsDimensions(isApplicationSignalsDimensionsEnabled)
+              .build();
         }
         logger.warning(
             String.format(

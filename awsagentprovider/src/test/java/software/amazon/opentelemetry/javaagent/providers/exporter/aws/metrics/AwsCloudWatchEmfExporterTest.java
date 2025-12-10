@@ -56,7 +56,11 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
     super.setup();
     this.currentTime = System.currentTimeMillis();
     this.testMockEmitter = mock(CloudWatchLogsClientEmitter.class);
-    this.mockExporter = new AwsCloudWatchEmfExporter(NAMESPACE, this.testMockEmitter);
+    this.mockExporter =
+        AwsCloudWatchEmfExporter.builder()
+            .setNamespace(NAMESPACE)
+            .setEmitter(this.testMockEmitter)
+            .build();
     this.mockClient = mock(CloudWatchLogsClient.class);
     this.wrapper = spy(new CloudWatchLogsClientEmitter(LOG_GROUP_NAME, LOG_STREAM_NAME, REGION));
     doReturn(this.mockClient).when(this.wrapper).getEmitter();
@@ -69,7 +73,10 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
 
   @Override
   protected MetricExporter createExporter() {
-    return new AwsCloudWatchEmfExporter(NAMESPACE, this.mockEmitter);
+    return AwsCloudWatchEmfExporter.builder()
+        .setNamespace(NAMESPACE)
+        .setEmitter(this.mockEmitter)
+        .build();
   }
 
   @Test

@@ -15,6 +15,12 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common;
 
+import static io.opentelemetry.semconv.incubating.CloudIncubatingAttributes.CLOUD_PLATFORM;
+import static io.opentelemetry.semconv.incubating.CloudIncubatingAttributes.CloudPlatformIncubatingValues.AWS_EC2;
+import static io.opentelemetry.semconv.incubating.CloudIncubatingAttributes.CloudPlatformIncubatingValues.AWS_ECS;
+import static io.opentelemetry.semconv.incubating.CloudIncubatingAttributes.CloudPlatformIncubatingValues.AWS_EKS;
+import static io.opentelemetry.semconv.incubating.CloudIncubatingAttributes.CloudPlatformIncubatingValues.AWS_LAMBDA;
+
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.ExponentialHistogramBuckets;
@@ -23,6 +29,8 @@ import io.opentelemetry.sdk.metrics.data.HistogramPointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.PointData;
+import io.opentelemetry.semconv.ServiceAttributes;
+import io.opentelemetry.semconv.incubating.DeploymentIncubatingAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +45,11 @@ import javax.annotation.Nullable;
 /** The metric data unified representation of all OTel metrics for OTel to CW EMF conversion. */
 public class MetricRecord {
   private static final Logger logger = Logger.getLogger(MetricRecord.class.getName());
+
+  private static final String SERVICE_DIMENSION_NAME = "Service";
+  private static final String ENVIRONMENT_DIMENSION_NAME = "Environment";
+  private static final String UNKNOWN_SERVICE = "UnknownService";
+  private static final String UNKNOWN_ENVIRONMENT = "generic:default";
 
   // CloudWatch EMF supported units
   // Ref: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricDatum.html
@@ -113,16 +126,18 @@ public class MetricRecord {
    * Create EMF log dictionary from metric records.
    *
    * @param metricRecords List of metric records grouped by attributes
-   * @param resource Resource attributes
+   * @param resourceAttributes Resource attributes
    * @param namespace CloudWatch namespace
    * @param timestamp Optional timestamp
+   * @param shouldAddApplicationSignalsDimensions Whether to add application signals dimensions
    * @return EMF log as Map
    */
   static Map<String, Object> createEmfLog(
       List<MetricRecord> metricRecords,
-      Attributes resource,
+      Attributes resourceAttributes,
       String namespace,
-      @Nullable Long timestamp) {
+      @Nullable Long timestamp,
+      boolean shouldAddApplicationSignalsDimensions) {
     Map<String, Object> emfLog = new HashMap<>();
 
     // Base structure
@@ -140,8 +155,8 @@ public class MetricRecord {
     // we align with the OpenTelemetry concept that all metric attributes are treated as dimensions.
     // And have resource attributes as just additional metadata in EMF, added otel.resource as
     // prefix to distinguish.
-    if (resource != null) {
-      resource.forEach(
+    if (resourceAttributes != null) {
+      resourceAttributes.forEach(
           (key, value) -> emfLog.put("otel.resource." + key.getKey(), value.toString()));
     }
 
@@ -198,6 +213,9 @@ public class MetricRecord {
 
       List<String> dimensionNames = new ArrayList<>();
       allAttributes.forEach((key, value) -> dimensionNames.add(key.getKey()));
+      if (shouldAddApplicationSignalsDimensions) {
+        addApplicationSignalsDimensions(dimensionNames, emfLog, resourceAttributes);
+      }
 
       if (!dimensionNames.isEmpty()) {
         cloudwatchMetric.put("Dimensions", Collections.singletonList(dimensionNames));
@@ -207,6 +225,85 @@ public class MetricRecord {
     }
 
     return emfLog;
+  }
+
+  /**
+   * Adds Service and Environment dimensions for Application Signals. Service dimension is added
+   * first with value from service.name (defaults to "UnknownService" if not set). Environment
+   * dimension is added second with value from deployment.environment.name (defaults to
+   * "generic:default" if not set).
+   *
+   * @param dimensionNames List of dimension names to append to
+   * @param emfLog EMF log to add dimension values to
+   * @param resourceAttributes Resource attributes to extract Service and Environment values from
+   */
+  private static void addApplicationSignalsDimensions(
+      List<String> dimensionNames, Map<String, Object> emfLog, Attributes resourceAttributes) {
+    if (!hasDimension(dimensionNames, SERVICE_DIMENSION_NAME)) {
+      String serviceName = resourceAttributes.get(ServiceAttributes.SERVICE_NAME);
+      if (serviceName == null || serviceName.isEmpty()) {
+        serviceName = UNKNOWN_SERVICE;
+      }
+      dimensionNames.add(0, SERVICE_DIMENSION_NAME);
+      emfLog.put(SERVICE_DIMENSION_NAME, serviceName);
+    }
+
+    if (!hasDimension(dimensionNames, ENVIRONMENT_DIMENSION_NAME)) {
+      String environmentName = getDeploymentEnvironment(resourceAttributes);
+      int insertPos = emfLog.containsKey(SERVICE_DIMENSION_NAME) ? 1 : 0;
+      dimensionNames.add(insertPos, ENVIRONMENT_DIMENSION_NAME);
+      emfLog.put(ENVIRONMENT_DIMENSION_NAME, environmentName);
+    }
+  }
+
+  /**
+   * Does the given dimension exist in the given dimensions list?
+   *
+   * @param dimensionNames the list of dimensions to search
+   * @param dimensionName the target dimension
+   * @return true if the dimension exists in the list, false otherwise
+   */
+  private static boolean hasDimension(List<String> dimensionNames, String dimensionName) {
+    return dimensionNames.stream().anyMatch(dim -> dim.equalsIgnoreCase(dimensionName));
+  }
+
+  /**
+   * Determines the deployment environment from the resource attributes. It checks
+   * deployment.environment.name first, then the deprecated deployment.environment for backward
+   * compatibility. If neither is provided, it falls back to a platform-specific default based on
+   * cloud.platform, or uses generic:default if no platform can be identified.
+   *
+   * @param resourceAttributes Resource attributes to extract environment from
+   * @return Resolved environment name
+   */
+  private static String getDeploymentEnvironment(Attributes resourceAttributes) {
+    String environmentName =
+        resourceAttributes.get(DeploymentIncubatingAttributes.DEPLOYMENT_ENVIRONMENT_NAME);
+    if (environmentName == null || environmentName.isEmpty()) {
+      environmentName =
+          resourceAttributes.get(DeploymentIncubatingAttributes.DEPLOYMENT_ENVIRONMENT);
+    }
+
+    if (environmentName == null || environmentName.isEmpty()) {
+      // https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/aws-resources/src/main/java/io/opentelemetry/contrib/aws/resource
+      String platform = resourceAttributes.get(CLOUD_PLATFORM);
+      if (platform != null && !platform.isEmpty()) {
+        switch (platform) {
+          case AWS_EC2:
+            return "ec2:default";
+          case AWS_ECS:
+            return "ecs:default";
+          case AWS_EKS:
+            return "eks:default";
+          case AWS_LAMBDA:
+            return "lambda:default";
+          default:
+            return UNKNOWN_ENVIRONMENT;
+        }
+      }
+      return UNKNOWN_ENVIRONMENT;
+    }
+    return environmentName;
   }
 
   static MetricRecord convertHistogram(MetricData metric, HistogramPointData dataPoint) {
