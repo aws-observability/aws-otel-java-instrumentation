@@ -67,10 +67,10 @@ public abstract class BaseEmfExporterTest<T> {
 
   @BeforeEach
   void setup() {
-    capturedLogEvents = new ArrayList<>();
-    mockEmitter = createEmitter();
-    exporter = buildExporter(false);
-    metricData = mock(MetricData.class);
+    this.capturedLogEvents = new ArrayList<>();
+    this.mockEmitter = this.createEmitter();
+    this.exporter = this.buildExporter(false);
+    this.metricData = mock(MetricData.class);
 
     doAnswer(
             invocation -> {
