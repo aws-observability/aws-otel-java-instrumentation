@@ -118,8 +118,8 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String DEPRECATED_APP_SIGNALS_ENABLED_CONFIG =
       "otel.aws.app.signals.enabled";
   static final String APPLICATION_SIGNALS_ENABLED_CONFIG = "otel.aws.application.signals.enabled";
-  static final String APPLICATION_SIGNALS_DIMENSIONS_ENABLED =
-      "otel.aws.application.signals.dimensions.enabled";
+  static final String OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS =
+      "otel.metrics.add.application.signals.dimensions";
 
   private static final String OTEL_RESOURCE_PROVIDERS_AWS_ENABLED =
       "otel.resource.providers.aws.enabled";
@@ -187,8 +187,8 @@ public final class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addMetricExporterCustomizer(this::customizeMetricExporter);
   }
 
-  static boolean isApplicationSignalsDimensionsEnabled(ConfigProperties props) {
-    return props.getBoolean(APPLICATION_SIGNALS_DIMENSIONS_ENABLED, false);
+  static boolean shouldAddApplicationSignalsDimensionsEnabled(ConfigProperties props) {
+    return props.getBoolean(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, false);
   }
 
   private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
@@ -557,8 +557,9 @@ public final class AwsApplicationSignalsCustomizerProvider
       MetricExporter metricExporter, ConfigProperties configProps) {
 
     if (isEmfExporterEnabled) {
-      boolean isApplicationSignalsDimensionsEnabled =
-          isApplicationSignalsDimensionsEnabled(configProps);
+      boolean shouldAddApplicationSignalsDimensions =
+          AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+              configProps);
       Map<String, String> headers =
           AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
               configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
@@ -575,14 +576,14 @@ public final class AwsApplicationSignalsCustomizerProvider
               .setLogGroupName(logGroup)
               .setLogStreamName(logStream)
               .setAwsRegion(awsRegion.get())
-              .setShouldAddApplicationSignalsDimensions(isApplicationSignalsDimensionsEnabled)
+              .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
               .build();
         }
 
         if (isLambdaEnvironment(configProps)) {
           return ConsoleEmfExporter.builder()
               .setNamespace(namespace)
-              .setShouldAddApplicationSignalsDimensions(isApplicationSignalsDimensionsEnabled)
+              .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
               .build();
         }
         logger.warning(
