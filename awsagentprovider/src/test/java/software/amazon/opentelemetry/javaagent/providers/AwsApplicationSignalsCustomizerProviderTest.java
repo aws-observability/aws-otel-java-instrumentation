@@ -363,9 +363,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
-  void testApplicationSignalsDimensionsDefaultsToFalse() {
+  void testApplicationSignalsDimensionsDefaultsToTrue() {
     ConfigProperties props = DefaultConfigProperties.createFromMap(Map.of());
-    assertFalse(
+    assertTrue(
         AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
             props));
   }

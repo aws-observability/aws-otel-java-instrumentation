@@ -188,7 +188,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   }
 
   static boolean shouldAddApplicationSignalsDimensionsEnabled(ConfigProperties props) {
-    return props.getBoolean(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, false);
+    return props.getBoolean(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, true);
   }
 
   private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
