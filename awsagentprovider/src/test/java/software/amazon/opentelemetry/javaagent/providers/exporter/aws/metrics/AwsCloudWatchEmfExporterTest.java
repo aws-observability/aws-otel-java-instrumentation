@@ -64,17 +64,20 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
   }
 
   @Override
-  protected MetricExporter buildExporter(boolean shouldAddAppSignals) {
+  protected MetricExporter buildExporter(
+      LogEventEmitter<CloudWatchLogsClient> emitter,
+      String namespace,
+      boolean shouldAddAppSignals) {
     return AwsCloudWatchEmfExporter.builder()
-        .setNamespace(NAMESPACE)
-        .setEmitter(this.mockEmitter)
+        .setNamespace(namespace)
+        .setEmitter(emitter)
         .setShouldAddApplicationSignalsDimensions(shouldAddAppSignals)
         .build();
   }
 
   @Test
   void testShutdown() {
-    MetricExporter spyExporter = spy(buildExporter(false));
+    MetricExporter spyExporter = spy(buildExporter(this.mockEmitter, NAMESPACE, false));
     doNothing().when(this.mockEmitter).flushEvents();
 
     CompletableResultCode result = spyExporter.shutdown();
@@ -246,14 +249,15 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
   @MethodSource("batchLimitScenarios")
   void testEventBatchLimits(
       Map<String, Object> logEvent, int eventCount, boolean shouldExceedLimit) {
+    LogEventEmitter<CloudWatchLogsClient> testEmitter = createEmitter();
     for (int i = 0; i < eventCount; i++) {
-      this.mockEmitter.emit(logEvent);
+      testEmitter.emit(logEvent);
     }
 
     if (shouldExceedLimit) {
-      verify(this.mockEmitter, atLeast(2)).emit(logEvent);
+      verify(testEmitter, atLeast(2)).emit(logEvent);
     } else {
-      verify(this.mockEmitter, times(eventCount)).emit(logEvent);
+      verify(testEmitter, times(eventCount)).emit(logEvent);
     }
   }
 

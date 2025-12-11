@@ -61,9 +61,6 @@ public class AwsCloudWatchEmfExporterBuilder {
   }
 
   public AwsCloudWatchEmfExporter build() {
-    if (this.namespace == null) {
-      this.namespace = "default";
-    }
 
     if (this.emitter == null) {
       requireNonNull(logGroupName, "Must set logGroupName when emitter is not provided");

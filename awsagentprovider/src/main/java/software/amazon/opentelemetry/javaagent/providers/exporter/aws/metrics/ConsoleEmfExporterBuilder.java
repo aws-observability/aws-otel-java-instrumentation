@@ -41,9 +41,6 @@ public class ConsoleEmfExporterBuilder {
   }
 
   public ConsoleEmfExporter build() {
-    if (this.namespace == null) {
-      this.namespace = "default";
-    }
     if (this.emitter == null) {
       this.emitter = new ConsoleEmitter();
     }

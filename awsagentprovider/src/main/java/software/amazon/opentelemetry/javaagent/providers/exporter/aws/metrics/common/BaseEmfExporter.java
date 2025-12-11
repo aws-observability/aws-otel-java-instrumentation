@@ -61,7 +61,10 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
    */
   protected BaseEmfExporter(
       String namespace, LogEventEmitter<T> emitter, boolean shouldAddApplicationSignalsDimensions) {
-    this.namespace = namespace != null ? namespace : "default";
+    if (emitter == null) {
+      throw new IllegalArgumentException("Given emitter must not be null");
+    }
+    this.namespace = namespace == null || namespace.isEmpty() ? "default" : namespace;
     this.emitter = emitter;
     this.shouldAddApplicationSignalsDimensions = shouldAddApplicationSignalsDimensions;
   }

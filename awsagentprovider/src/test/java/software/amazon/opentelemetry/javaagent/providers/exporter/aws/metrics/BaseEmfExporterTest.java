@@ -63,13 +63,14 @@ public abstract class BaseEmfExporterTest<T> {
 
   abstract LogEventEmitter<T> createEmitter();
 
-  abstract MetricExporter buildExporter(boolean shouldAddAppSignals);
+  abstract MetricExporter buildExporter(
+      LogEventEmitter<T> emitter, String namespace, boolean shouldAddAppSignals);
 
   @BeforeEach
   void setup() {
     this.capturedLogEvents = new ArrayList<>();
     this.mockEmitter = this.createEmitter();
-    this.exporter = this.buildExporter(false);
+    this.exporter = this.buildExporter(mockEmitter, NAMESPACE, false);
     this.metricData = mock(MetricData.class);
 
     doAnswer(
@@ -88,6 +89,18 @@ public abstract class BaseEmfExporterTest<T> {
     CompletableResultCode result = exporter.export(Collections.emptyList());
     assertTrue(result.isSuccess());
     assertEquals(0, capturedLogEvents.size());
+  }
+
+  @Test
+  void testNullNamespaceDefaultsToDefault() {
+    MetricExporter exporter = buildExporter(createEmitter(), null, false);
+    assertNotNull(exporter);
+  }
+
+  @Test
+  void testEmptyNamespaceDefaultsToDefault() {
+    MetricExporter exporter = buildExporter(createEmitter(), "", false);
+    assertNotNull(exporter);
   }
 
   @Test
@@ -268,7 +281,7 @@ public abstract class BaseEmfExporterTest<T> {
   @MethodSource("applicationSignalsDimensionsProvider")
   void testApplicationSignalsDimensions(
       Map<String, String> resourceAttrs, String expectedService, String expectedEnvironment) {
-    MetricExporter exporterWithAppSignals = buildExporter(true);
+    MetricExporter exporterWithAppSignals = buildExporter(mockEmitter, NAMESPACE, true);
 
     Resource resource = Resource.empty();
     for (Map.Entry<String, String> entry : resourceAttrs.entrySet()) {
