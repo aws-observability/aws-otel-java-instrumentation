@@ -432,7 +432,12 @@ public abstract class BaseEmfExporterTest<T> {
                 "cloud.platform",
                 "aws_ec2"),
             "override-service",
-            "custom-env"));
+            "custom-env"),
+        // service.name set to unknown_service:java, should default to UnknownService
+        Arguments.of(
+            Map.of("service.name", "unknown_service:java", "cloud.platform", "aws_ec2"),
+            "UnknownService",
+            "ec2:default"));
   }
 
   static List<Arguments> metricsGroupingProvider() {

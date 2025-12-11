@@ -46,10 +46,18 @@ import javax.annotation.Nullable;
 public class MetricRecord {
   private static final Logger logger = Logger.getLogger(MetricRecord.class.getName());
 
+  // https://github.com/open-telemetry/opentelemetry-java/blob/04642a06138a889fce8a8224f489c14d9d55cf3f/sdk/common/src/main/java/io/opentelemetry/sdk/resources/Resource.java#L52C43-L52C63
   private static final String SERVICE_DIMENSION_NAME = "Service";
   private static final String ENVIRONMENT_DIMENSION_NAME = "Environment";
+
+  private static final String OTEL_UNKNOWN_SERVICE = "unknown_service:java";
   private static final String UNKNOWN_SERVICE = "UnknownService";
   private static final String UNKNOWN_ENVIRONMENT = "generic:default";
+
+  private static final String EC2_DEFAULT_ENVIRONMENT = "ec2:default";
+  private static final String ECS_DEFAULT_ENVIRONMENT = "ecs:default";
+  private static final String EKS_DEFAULT_ENVIRONMENT = "eks:default";
+  private static final String LAMBDA_DEFAULT_ENVIRONMENT = "lambda:default";
 
   // CloudWatch EMF supported units
   // Ref: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricDatum.html
@@ -241,7 +249,9 @@ public class MetricRecord {
       List<String> dimensionNames, Map<String, Object> emfLog, Attributes resourceAttributes) {
     if (!MetricRecord.hasDimension(dimensionNames, SERVICE_DIMENSION_NAME)) {
       String serviceName = resourceAttributes.get(ServiceAttributes.SERVICE_NAME);
-      if (serviceName == null || serviceName.isEmpty()) {
+      if (serviceName == null
+          || serviceName.isEmpty()
+          || serviceName.equals(OTEL_UNKNOWN_SERVICE)) {
         serviceName = UNKNOWN_SERVICE;
       }
       dimensionNames.add(SERVICE_DIMENSION_NAME);
@@ -289,13 +299,13 @@ public class MetricRecord {
       if (platform != null && !platform.isEmpty()) {
         switch (platform) {
           case AWS_EC2:
-            return "ec2:default";
+            return EC2_DEFAULT_ENVIRONMENT;
           case AWS_ECS:
-            return "ecs:default";
+            return ECS_DEFAULT_ENVIRONMENT;
           case AWS_EKS:
-            return "eks:default";
+            return EKS_DEFAULT_ENVIRONMENT;
           case AWS_LAMBDA:
-            return "lambda:default";
+            return LAMBDA_DEFAULT_ENVIRONMENT;
           default:
             return UNKNOWN_ENVIRONMENT;
         }
