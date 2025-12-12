@@ -47,17 +47,26 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.co
 public abstract class BaseEmfExporter<T> implements MetricExporter {
   private static final Logger logger = Logger.getLogger(BaseEmfExporter.class.getName());
   private final String namespace;
+  private final boolean shouldAddApplicationSignalsDimensions;
   protected final LogEventEmitter<T> emitter;
 
   /**
-   * Creates a new EMF exporter with the specified namespace and log emitter.
+   * Creates a new EMF exporter with the specified namespace, log emitter, and Application Signals
+   * flag.
    *
    * @param namespace the CloudWatch metric namespace, defaults to "default" if null
    * @param emitter the log event emitter for sending EMF logs
+   * @param shouldAddApplicationSignalsDimensions whether Application Signals dimensions should be
+   *     added
    */
-  protected BaseEmfExporter(String namespace, LogEventEmitter<T> emitter) {
-    this.namespace = namespace != null ? namespace : "default";
+  protected BaseEmfExporter(
+      String namespace, LogEventEmitter<T> emitter, boolean shouldAddApplicationSignalsDimensions) {
+    if (emitter == null) {
+      throw new IllegalArgumentException("Given emitter must not be null");
+    }
+    this.namespace = namespace == null || namespace.isEmpty() ? "default" : namespace;
     this.emitter = emitter;
+    this.shouldAddApplicationSignalsDimensions = shouldAddApplicationSignalsDimensions;
   }
 
   @Override
@@ -117,7 +126,8 @@ public abstract class BaseEmfExporter<T> implements MetricExporter {
                   records,
                   firstRecord.getResourceAttributes(),
                   this.namespace,
-                  firstRecord.getTimestamp());
+                  firstRecord.getTimestamp(),
+                  this.shouldAddApplicationSignalsDimensions);
 
           Map<String, Object> logEvent = new HashMap<>();
           logEvent.put("message", new ObjectMapper().writeValueAsString(emfLog));

@@ -343,6 +343,34 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
+  void testApplicationSignalsDimensionsEnabled() {
+    ConfigProperties props =
+        DefaultConfigProperties.createFromMap(
+            Map.of(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, "true"));
+    assertTrue(
+        AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+            props));
+  }
+
+  @Test
+  void testApplicationSignalsDimensionsDisabled() {
+    ConfigProperties props =
+        DefaultConfigProperties.createFromMap(
+            Map.of(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, "false"));
+    assertFalse(
+        AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+            props));
+  }
+
+  @Test
+  void testApplicationSignalsDimensionsDefaultsToTrue() {
+    ConfigProperties props = DefaultConfigProperties.createFromMap(Map.of());
+    assertTrue(
+        AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+            props));
+  }
+
+  @Test
   void setAdaptiveSamplingConfigFromString_validConfig() throws JsonProcessingException {
     assertThat(AwsApplicationSignalsCustomizerProvider.parseConfigString("version: 1").getVersion())
         .isEqualTo(1);

@@ -40,7 +40,11 @@ public class ConsoleEmfExporterTest extends BaseEmfExporterTest<PrintStream> {
   void setUp() {
     super.setup();
     this.testMockEmitter = mock(ConsoleEmitter.class);
-    this.testExporter = new ConsoleEmfExporter(NAMESPACE, this.testMockEmitter);
+    this.testExporter =
+        ConsoleEmfExporter.builder()
+            .setNamespace(NAMESPACE)
+            .setEmitter(this.testMockEmitter)
+            .build();
     this.outputStream = new ByteArrayOutputStream();
     this.consoleEmitter = new ConsoleEmitter(new PrintStream(this.outputStream));
   }
@@ -51,15 +55,21 @@ public class ConsoleEmfExporterTest extends BaseEmfExporterTest<PrintStream> {
   }
 
   @Override
-  protected MetricExporter createExporter() {
-    return new ConsoleEmfExporter(NAMESPACE, mockEmitter);
+  protected MetricExporter buildExporter(
+      LogEventEmitter<PrintStream> emitter, String namespace, boolean shouldAddAppSignals) {
+    return ConsoleEmfExporter.builder()
+        .setNamespace(namespace)
+        .setEmitter(emitter)
+        .setShouldAddApplicationSignalsDimensions(shouldAddAppSignals)
+        .build();
   }
 
   @Test
   void testFlush() {
     PrintStream mockPrintStream = mock(PrintStream.class);
     ConsoleEmitter testEmitter = new ConsoleEmitter(mockPrintStream);
-    ConsoleEmfExporter exporter = new ConsoleEmfExporter(NAMESPACE, testEmitter);
+    ConsoleEmfExporter exporter =
+        ConsoleEmfExporter.builder().setNamespace(NAMESPACE).setEmitter(testEmitter).build();
 
     assertTrue(exporter.flush().isSuccess());
     verify(mockPrintStream, times(1)).flush();
@@ -92,7 +102,8 @@ public class ConsoleEmfExporterTest extends BaseEmfExporterTest<PrintStream> {
   void testExportFailureHandling() {
     LogEventEmitter<PrintStream> failingEmitter = mock(ConsoleEmitter.class);
     doThrow(new IllegalStateException("Test exception")).when(failingEmitter).emit(any());
-    ConsoleEmfExporter failingExporter = new ConsoleEmfExporter(NAMESPACE, failingEmitter);
+    ConsoleEmfExporter failingExporter =
+        ConsoleEmfExporter.builder().setNamespace(NAMESPACE).setEmitter(failingEmitter).build();
 
     MetricData mockMetricData = mock(MetricData.class);
     when(mockMetricData.getData()).thenThrow(new IllegalStateException("Test exception"));
