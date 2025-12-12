@@ -5,9 +5,6 @@ on:
   schedule:
     - cron: "21 3 * * *"
   workflow_dispatch:
-  push:
-    branches:
-      - zhaez/nightly-build
 
 env:
   AWS_DEFAULT_REGION: us-east-1
