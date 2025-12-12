@@ -20,30 +20,28 @@ import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.BaseEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.ConsoleEmitter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 /** EMF metrics exporter for printing data to Standard Out. */
 public class ConsoleEmfExporter extends BaseEmfExporter<PrintStream> {
   private static final Logger logger = Logger.getLogger(ConsoleEmfExporter.class.getName());
 
-  /**
-   * Initialize the Console EMF exporter.
-   *
-   * @param namespace CloudWatch namespace for metrics (defaults to "default")
-   */
-  public ConsoleEmfExporter(String namespace) {
-    super(namespace, new ConsoleEmitter());
+  public static ConsoleEmfExporterBuilder builder() {
+    return new ConsoleEmfExporterBuilder();
   }
 
-  /**
-   * Initialize the Console EMF exporter with custom emitter.
-   *
-   * @param namespace CloudWatch namespace for metrics
-   * @param emitter Custom emitter
-   */
-  public ConsoleEmfExporter(String namespace, LogEventEmitter<PrintStream> emitter) {
-    super(namespace, emitter);
+  static ConsoleEmfExporter create(
+      String namespace,
+      LogEventEmitter<PrintStream> emitter,
+      boolean shouldAddApplicationSignalsDimensions) {
+    return new ConsoleEmfExporter(namespace, emitter, shouldAddApplicationSignalsDimensions);
+  }
+
+  private ConsoleEmfExporter(
+      String namespace,
+      LogEventEmitter<PrintStream> emitter,
+      boolean shouldAddApplicationSignalsDimensions) {
+    super(namespace, emitter, shouldAddApplicationSignalsDimensions);
   }
 
   @Override

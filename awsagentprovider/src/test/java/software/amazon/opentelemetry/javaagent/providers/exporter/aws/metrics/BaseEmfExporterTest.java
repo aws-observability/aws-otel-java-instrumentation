@@ -63,14 +63,15 @@ public abstract class BaseEmfExporterTest<T> {
 
   abstract LogEventEmitter<T> createEmitter();
 
-  abstract MetricExporter createExporter();
+  abstract MetricExporter buildExporter(
+      LogEventEmitter<T> emitter, String namespace, boolean shouldAddAppSignals);
 
   @BeforeEach
   void setup() {
-    capturedLogEvents = new ArrayList<>();
-    mockEmitter = createEmitter();
-    exporter = createExporter();
-    metricData = mock(MetricData.class);
+    this.capturedLogEvents = new ArrayList<>();
+    this.mockEmitter = this.createEmitter();
+    this.exporter = this.buildExporter(mockEmitter, NAMESPACE, false);
+    this.metricData = mock(MetricData.class);
 
     doAnswer(
             invocation -> {
@@ -88,6 +89,18 @@ public abstract class BaseEmfExporterTest<T> {
     CompletableResultCode result = exporter.export(Collections.emptyList());
     assertTrue(result.isSuccess());
     assertEquals(0, capturedLogEvents.size());
+  }
+
+  @Test
+  void testNullNamespaceDefaultsToDefault() {
+    MetricExporter exporter = buildExporter(createEmitter(), null, false);
+    assertNotNull(exporter);
+  }
+
+  @Test
+  void testEmptyNamespaceDefaultsToDefault() {
+    MetricExporter exporter = buildExporter(createEmitter(), "", false);
+    assertNotNull(exporter);
   }
 
   @Test
@@ -265,6 +278,52 @@ public abstract class BaseEmfExporterTest<T> {
   }
 
   @ParameterizedTest
+  @MethodSource("applicationSignalsDimensionsProvider")
+  void testApplicationSignalsDimensions(
+      Map<String, String> resourceAttrs, String expectedService, String expectedEnvironment) {
+    MetricExporter exporterWithAppSignals = buildExporter(mockEmitter, NAMESPACE, true);
+
+    Resource resource = Resource.empty();
+    for (Map.Entry<String, String> entry : resourceAttrs.entrySet()) {
+      resource = resource.toBuilder().put(entry.getKey(), entry.getValue()).build();
+    }
+
+    GaugeData gaugeData = mock(GaugeData.class);
+    DoublePointData pointData = mock(DoublePointData.class);
+    when(pointData.getValue()).thenReturn(10.0);
+    when(pointData.getAttributes()).thenReturn(Attributes.empty());
+    when(pointData.getEpochNanos()).thenReturn(timestampCounter += 1_000_000);
+
+    when(metricData.getName()).thenReturn("test.metric");
+    when(metricData.getUnit()).thenReturn("1");
+    when(metricData.getData()).thenReturn(gaugeData);
+    when(metricData.getResource()).thenReturn(resource);
+    when(gaugeData.getPoints()).thenReturn(Collections.singletonList(pointData));
+
+    CompletableResultCode result =
+        exporterWithAppSignals.export(Collections.singletonList(metricData));
+
+    assertTrue(result.isSuccess());
+    assertEquals(1, capturedLogEvents.size());
+
+    Map<String, Object> emfLog =
+        validateEmfStructure(capturedLogEvents.get(0), "test.metric").orElseThrow();
+
+    assertEquals(expectedService, emfLog.get("Service"));
+    assertEquals(expectedEnvironment, emfLog.get("Environment"));
+
+    Map<String, Object> awsMetadata = (Map<String, Object>) emfLog.get("_aws");
+    List<Map<String, Object>> cloudWatchMetrics =
+        (List<Map<String, Object>>) awsMetadata.get("CloudWatchMetrics");
+    Map<String, Object> metricGroup = cloudWatchMetrics.get(0);
+    List<List<String>> dimensions = (List<List<String>>) metricGroup.get("Dimensions");
+
+    List<String> dimensionNames = dimensions.get(0);
+    assertTrue(dimensionNames.contains("Service"));
+    assertTrue(dimensionNames.contains("Environment"));
+  }
+
+  @ParameterizedTest
   @MethodSource("metricsGroupingProvider")
   void testGroupByAttributesAndTimestamp(List<MetricData> metrics, int expectedLogCount) {
     CompletableResultCode result = exporter.export(metrics);
@@ -336,6 +395,62 @@ public abstract class BaseEmfExporterTest<T> {
       values.add(RANDOM.nextDouble() * 100);
     }
     return values;
+  }
+
+  static List<Arguments> applicationSignalsDimensionsProvider() {
+    return Arrays.asList(
+        // Both service.name and deployment.environment.name provided
+        Arguments.of(
+            Map.of("service.name", "test-service", "deployment.environment.name", "prod"),
+            "test-service",
+            "prod"),
+        // Only service.name provided, environment defaults to generic:default
+        Arguments.of(Map.of("service.name", "test-service"), "test-service", "generic:default"),
+        // No service.name, defaults to UnknownService
+        Arguments.of(Map.of("deployment.environment.name", "staging"), "UnknownService", "staging"),
+        // Empty service.name, defaults to UnknownService
+        Arguments.of(
+            Map.of("service.name", "", "deployment.environment.name", "dev"),
+            "UnknownService",
+            "dev"),
+        // No attributes, both default
+        Arguments.of(Map.of(), "UnknownService", "generic:default"),
+        // cloud.platform=aws_ec2, environment defaults to ec2:default
+        Arguments.of(
+            Map.of("service.name", "ec2-service", "cloud.platform", "aws_ec2"),
+            "ec2-service",
+            "ec2:default"),
+        // cloud.platform=aws_ecs, environment defaults to ecs:default
+        Arguments.of(
+            Map.of("service.name", "ecs-service", "cloud.platform", "aws_ecs"),
+            "ecs-service",
+            "ecs:default"),
+        // cloud.platform=aws_eks, environment defaults to eks:default
+        Arguments.of(
+            Map.of("service.name", "eks-service", "cloud.platform", "aws_eks"),
+            "eks-service",
+            "eks:default"),
+        // cloud.platform=aws_lambda, environment defaults to lambda:default
+        Arguments.of(
+            Map.of("service.name", "lambda-service", "cloud.platform", "aws_lambda"),
+            "lambda-service",
+            "lambda:default"),
+        // deployment.environment.name takes precedence over cloud.platform
+        Arguments.of(
+            Map.of(
+                "service.name",
+                "override-service",
+                "deployment.environment.name",
+                "custom-env",
+                "cloud.platform",
+                "aws_ec2"),
+            "override-service",
+            "custom-env"),
+        // service.name set to unknown_service:java, should default to UnknownService
+        Arguments.of(
+            Map.of("service.name", "unknown_service:java", "cloud.platform", "aws_ec2"),
+            "UnknownService",
+            "ec2:default"));
   }
 
   static List<Arguments> metricsGroupingProvider() {

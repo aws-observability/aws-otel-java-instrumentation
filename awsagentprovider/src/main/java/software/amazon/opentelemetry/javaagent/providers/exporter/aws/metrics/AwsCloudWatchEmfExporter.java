@@ -19,7 +19,6 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import java.util.logging.Logger;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.BaseEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.CloudWatchLogsClientEmitter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.LogEventEmitter;
 
 /**
@@ -34,27 +33,22 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.co
 public class AwsCloudWatchEmfExporter extends BaseEmfExporter<CloudWatchLogsClient> {
   private static final Logger logger = Logger.getLogger(AwsCloudWatchEmfExporter.class.getName());
 
-  /**
-   * Initialize the CloudWatch EMF exporter.
-   *
-   * @param namespace CloudWatch namespace for metrics (default: "default")
-   * @param logGroupName CloudWatch log group name
-   * @param logStreamName CloudWatch log stream name (auto-generated if null)
-   * @param awsRegion AWS region
-   */
-  public AwsCloudWatchEmfExporter(
-      String namespace, String logGroupName, String logStreamName, String awsRegion) {
-    super(namespace, new CloudWatchLogsClientEmitter(logGroupName, logStreamName, awsRegion));
+  public static AwsCloudWatchEmfExporterBuilder builder() {
+    return new AwsCloudWatchEmfExporterBuilder();
   }
 
-  /**
-   * Initialize the CloudWatch EMF exporter with a custom emitter.
-   *
-   * @param namespace CloudWatch namespace for metrics
-   * @param emitter Custom log emitter
-   */
-  public AwsCloudWatchEmfExporter(String namespace, LogEventEmitter<CloudWatchLogsClient> emitter) {
-    super(namespace, emitter);
+  static AwsCloudWatchEmfExporter create(
+      String namespace,
+      LogEventEmitter<CloudWatchLogsClient> emitter,
+      boolean shouldAddApplicationSignalsDimensions) {
+    return new AwsCloudWatchEmfExporter(namespace, emitter, shouldAddApplicationSignalsDimensions);
+  }
+
+  private AwsCloudWatchEmfExporter(
+      String namespace,
+      LogEventEmitter<CloudWatchLogsClient> emitter,
+      boolean shouldAddApplicationSignalsDimensions) {
+    super(namespace, emitter, shouldAddApplicationSignalsDimensions);
   }
 
   @Override

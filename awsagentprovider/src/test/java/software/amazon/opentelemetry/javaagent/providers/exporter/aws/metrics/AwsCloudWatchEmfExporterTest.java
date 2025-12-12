@@ -45,8 +45,6 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
   private static final String LOG_STREAM_NAME = "test-stream";
   private static final String REGION = "us-east-1";
 
-  private AwsCloudWatchEmfExporter mockExporter;
-  private CloudWatchLogsClientEmitter testMockEmitter;
   private CloudWatchLogsClient mockClient;
   private CloudWatchLogsClientEmitter wrapper;
   private long currentTime;
@@ -55,8 +53,6 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
   void setUp() {
     super.setup();
     this.currentTime = System.currentTimeMillis();
-    this.testMockEmitter = mock(CloudWatchLogsClientEmitter.class);
-    this.mockExporter = new AwsCloudWatchEmfExporter(NAMESPACE, this.testMockEmitter);
     this.mockClient = mock(CloudWatchLogsClient.class);
     this.wrapper = spy(new CloudWatchLogsClientEmitter(LOG_GROUP_NAME, LOG_STREAM_NAME, REGION));
     doReturn(this.mockClient).when(this.wrapper).getEmitter();
@@ -68,14 +64,21 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
   }
 
   @Override
-  protected MetricExporter createExporter() {
-    return new AwsCloudWatchEmfExporter(NAMESPACE, this.mockEmitter);
+  protected MetricExporter buildExporter(
+      LogEventEmitter<CloudWatchLogsClient> emitter,
+      String namespace,
+      boolean shouldAddAppSignals) {
+    return AwsCloudWatchEmfExporter.builder()
+        .setNamespace(namespace)
+        .setEmitter(emitter)
+        .setShouldAddApplicationSignalsDimensions(shouldAddAppSignals)
+        .build();
   }
 
   @Test
   void testShutdown() {
-    AwsCloudWatchEmfExporter spyExporter = spy(this.mockExporter);
-    doNothing().when(this.testMockEmitter).flushEvents();
+    MetricExporter spyExporter = spy(buildExporter(this.mockEmitter, NAMESPACE, false));
+    doNothing().when(this.mockEmitter).flushEvents();
 
     CompletableResultCode result = spyExporter.shutdown();
 
@@ -234,26 +237,27 @@ public class AwsCloudWatchEmfExporterTest extends BaseEmfExporterTest<CloudWatch
     Map<String, Object> firstEvent = createLogEvent("test1", this.currentTime);
     Map<String, Object> secondEvent = createLogEvent("test2", futureTime);
 
-    this.testMockEmitter.emit(firstEvent);
-    this.testMockEmitter.emit(secondEvent);
+    this.mockEmitter.emit(firstEvent);
+    this.mockEmitter.emit(secondEvent);
 
     // Should trigger 2 separate batch sends due to 24-hour span limit
-    verify(this.testMockEmitter, times(1)).emit(firstEvent);
-    verify(this.testMockEmitter, times(1)).emit(secondEvent);
+    verify(this.mockEmitter, times(1)).emit(firstEvent);
+    verify(this.mockEmitter, times(1)).emit(secondEvent);
   }
 
   @ParameterizedTest
   @MethodSource("batchLimitScenarios")
   void testEventBatchLimits(
       Map<String, Object> logEvent, int eventCount, boolean shouldExceedLimit) {
+    LogEventEmitter<CloudWatchLogsClient> testEmitter = createEmitter();
     for (int i = 0; i < eventCount; i++) {
-      this.testMockEmitter.emit(logEvent);
+      testEmitter.emit(logEvent);
     }
 
     if (shouldExceedLimit) {
-      verify(this.testMockEmitter, atLeast(2)).emit(logEvent);
+      verify(testEmitter, atLeast(2)).emit(logEvent);
     } else {
-      verify(this.testMockEmitter, times(eventCount)).emit(logEvent);
+      verify(testEmitter, times(eventCount)).emit(logEvent);
     }
   }
 

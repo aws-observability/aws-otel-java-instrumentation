@@ -15,6 +15,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ### Enhancements
 
+- Add Application Signals Dimensions to EMF exporter
+  ([#1264](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1264))
 - Configure EMF and CompactLog Exporters for Lambda Environment
   ([#1222](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1222))
 - feat: [Java] EMF Exporter Implementation
