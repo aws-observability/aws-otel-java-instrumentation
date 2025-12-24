@@ -13,6 +13,10 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Bump Netty version to 4.1.130 Final
+  ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
+
+
 ### Enhancements
 
 - Add Application Signals Dimensions to EMF exporter
