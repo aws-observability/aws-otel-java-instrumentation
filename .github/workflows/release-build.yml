@@ -416,8 +416,8 @@ jobs:
           VERSION: ${{ github.event.inputs.version }}
         run: |
           # Extract versions from dependency files
-          OTEL_INSTRUMENTATION_VERSION=$(grep "val otelVersion" dependencyManagement/build.gradle.kts | sed 's/.*= "\([^"]*\)".*/\1/')
-          OTEL_CONTRIB_VERSION=$(grep "io.opentelemetry.contrib:opentelemetry-aws-xray" dependencyManagement/build.gradle.kts | sed 's/.*:\([^"]*\)".*/\1/')
+          OTEL_INSTRUMENTATION_VERSION=$(grep "val otelVersion" dependencyManagement/build.gradle.kts | sed 's/.*= "\([^"]*\)".*/\1/' | sed 's/-adot1//')
+          OTEL_CONTRIB_VERSION=$(grep "io.opentelemetry.contrib:opentelemetry-aws-xray" dependencyManagement/build.gradle.kts | sed 's/.*:\([^"]*\)".*/\1/' | sed 's/-adot1//')
 
           # Extract CHANGELOG entries for this version
           CHANGELOG_ENTRIES=$(python3 -c "
@@ -453,6 +453,8 @@ jobs:
           ## Lambda Layer
 
           This release includes the AWS OpenTelemetry Lambda Layer for Java version $VERSION-$(echo $GITHUB_SHA | cut -c1-7).
+
+          **Note: the new Lambda Layer versions are not yet deployed to the Lambda and CloudWatch Application Signals consoles. You can add them to your Lambda functions using the AWS CLI.**
 
           Lambda Layer ARNs:
           ${{ needs.generate-lambda-release-note.outputs.layer-note }}
