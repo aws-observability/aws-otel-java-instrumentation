@@ -15,6 +15,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 - Bump Netty version to 4.1.130 Final
   ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
+- GetSamplingTargets statistics fixes and optimizations
+  ([#1274](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1274))
 
 
 ### Enhancements
