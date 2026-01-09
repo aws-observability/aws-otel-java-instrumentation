@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Sign Lambda layer by AWS Signer
+  ([#1275](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1275))
 - Bump Netty version to 4.1.130 Final
   ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
 
