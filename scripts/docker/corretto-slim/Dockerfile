@@ -1,4 +1,4 @@
-FROM amazoncorretto:17-alpine-jdk
+FROM public.ecr.aws/docker/library/amazoncorretto:17-alpine-jdk
 
 # Copied from https://github.com/corretto/corretto-docker/blob/master/11/jre/alpine/Dockerfile
 RUN apk update && apk add binutils && jlink --endian little --release-info $JAVA_HOME/release \
@@ -10,7 +10,7 @@ jdk.dynalink,jdk.httpserver,jdk.jsobject,jdk.localedata,jdk.naming.dns,jdk.secur
 jdk.jcmd,jdk.jfr" \
             --no-man-pages --no-header-files --strip-debug --output /temp/java-17-amazon-corretto
 
-FROM alpine:3.14
+FROM public.ecr.aws/docker/library/alpine:3.14
 
 COPY --from=0 /temp/java-17-amazon-corretto /usr/lib/jvm/java-17-amazon-corretto
 COPY --from=0 /licenses /licenses
