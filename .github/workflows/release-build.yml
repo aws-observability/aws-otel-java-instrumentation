@@ -5,6 +5,10 @@ on:
       version:
         description: The version to tag the release with, e.g., 1.2.0, 1.2.1-alpha.1
         required: true
+      aws_region:
+        description: 'Deploy lambda layer to aws regions'
+        required: true
+        default: 'us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1, af-south-1, ap-east-1, ap-south-2, ap-southeast-3, ap-southeast-4, eu-central-2, eu-south-1, eu-south-2, il-central-1, me-central-1, me-south-1, ap-southeast-5, ap-southeast-7, mx-central-1, ca-west-1, cn-north-1, cn-northwest-1'
 
 env:
   AWS_PUBLIC_ECR_REGION: us-east-1
@@ -13,14 +17,17 @@ env:
   PUBLIC_REPOSITORY: public.ecr.aws/aws-observability/adot-autoinstrumentation-java
   PRIVATE_REPOSITORY: 020628701572.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java
   PRIVATE_REGISTRY: 020628701572.dkr.ecr.us-west-2.amazonaws.com
-  ARTIFACT_NAME: aws-opentelemetry-agent.jar 
+  ARTIFACT_NAME: aws-opentelemetry-agent.jar
+  # Legacy list of commercial regions to deploy to. New regions should NOT be added here, and instead should be added to the `aws_region` default input to the workflow.
+  LEGACY_COMMERCIAL_REGIONS: us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1
+  LAYER_NAME: AWSOpenTelemetryDistroJava
 
 permissions:
   id-token: write
   contents: write
 
 jobs:
-  build:
+  build-sdk:
     environment: Release
     runs-on: ubuntu-latest
     steps:
@@ -71,7 +78,88 @@ jobs:
         with:
           arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
 
+      - name: Upload SDK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar
+
+  build-layer:
+    needs: build-sdk
+    runs-on: ubuntu-latest
+    outputs:
+      aws_regions_json: ${{ steps.set-matrix.outputs.aws_regions_json }}
+    steps:
+      - name: Set up regions matrix
+        id: set-matrix
+        env:
+          AWS_REGIONS: ${{ github.event.inputs.aws_region }}
+        run: |
+          IFS=',' read -ra REGIONS <<< "$AWS_REGIONS"
+          MATRIX="["
+          for region in "${REGIONS[@]}"; do
+            trimmed_region=$(echo "$region" | xargs)
+            MATRIX+="\"$trimmed_region\","
+          done
+          MATRIX="${MATRIX%,}]"
+          echo ${MATRIX}
+          echo "aws_regions_json=${MATRIX}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: 'temurin'
+
+      - name: Build layers
+        working-directory: lambda-layer
+        run: |
+          ./build-layer.sh
+
+      - name: Upload layer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: layer.zip
+          path: lambda-layer/build/distributions/aws-opentelemetry-java-layer.zip
+
+  publish-sdk:
+    runs-on: ubuntu-latest
+    needs: [build-sdk, build-layer]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: 'temurin'
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+      
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
+        with:
+          registry: public.ecr.aws
+
+      # build the artifact again so that its in the output path expected for building the docker image.
+      - name: Build release with Gradle
+        uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
+        with:
+          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+
+      - name: Configure AWS Credentials for public ECR
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
@@ -112,8 +200,10 @@ jobs:
           load: true
 
       - name: Test docker image
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "$VERSION"
 
       - name: Build and push image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
@@ -137,28 +227,273 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-
-      - name: Get SHA256 checksum of release artifact
-        id: get_sha256
-        run: |
-          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
-          shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
-
-      - name: Create release
+  publish-layer-prod:
+    runs-on: ubuntu-latest
+    needs: [build-layer, publish-sdk]
+    strategy:
+      matrix:
+        aws_region: ${{ fromJson(needs.build-layer.outputs.aws_regions_json) }}
+    steps:
+      - name: role arn
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+          LEGACY_COMMERCIAL_REGIONS: ${{ env.LEGACY_COMMERCIAL_REGIONS }}
         run: |
-          # Download layer.zip from existing latest tagged SDK release note
-          LATEST_SDK_VERSION=$(gh release list --repo "aws-observability/aws-otel-java-instrumentation" --json tagName,isLatest -q 'map(select(.isLatest==true)) | .[0].tagName')
-          mkdir -p layer_artifact
-          gh release download "$LATEST_SDK_VERSION" --repo "aws-observability/aws-otel-java-instrumentation" --pattern "layer.zip" --dir layer_artifact
-          shasum -a 256 layer_artifact/layer.zip > layer_artifact/layer.zip.sha256
+          LEGACY_COMMERCIAL_REGIONS_ARRAY=(${LEGACY_COMMERCIAL_REGIONS//,/ })
+          FOUND=false
+          for REGION in "${LEGACY_COMMERCIAL_REGIONS_ARRAY[@]}"; do
+            if [[ "$REGION" == "${{ matrix.aws_region }}" ]]; then
+              FOUND=true
+              break
+            fi
+          done
+          if [ "$FOUND" = true ]; then
+            echo "Found ${{ matrix.aws_region }} in LEGACY_COMMERCIAL_REGIONS"
+            SECRET_KEY="LAMBDA_LAYER_RELEASE"
+          else
+            echo "Not found ${{ matrix.aws_region }} in LEGACY_COMMERCIAL_REGIONS"
+            SECRET_KEY="${{ matrix.aws_region }}_LAMBDA_LAYER_RELEASE"
+          fi
+          SECRET_KEY=${SECRET_KEY//-/_}
+          echo "SECRET_KEY=${SECRET_KEY}" >> $GITHUB_ENV
+
+      - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
+        with:
+          role-to-assume: ${{ secrets[env.SECRET_KEY] }}
+          role-duration-seconds: 1200
+          aws-region: ${{ matrix.aws_region }}
+
+      - name: Get s3 bucket name for release
+        run: |
+          echo BUCKET_NAME=java-lambda-layer-${{ github.run_id }}-${{ matrix.aws_region }} | tee --append $GITHUB_ENV
+
+      - name: download layer.zip
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          name: layer.zip
+
+      - name: Upload to S3 and Sign
+        continue-on-error: true
+        run: |
+          aws s3 mb s3://${{ env.BUCKET_NAME }}
+          aws s3 cp aws-opentelemetry-java-layer.zip s3://${{ env.BUCKET_NAME }}
+          
+          # Sign the layer
+          PROFILE=$(aws signer list-signing-profiles --query "profiles[?profileName=='ADOTLambdaLayerSigningProfile'].arn" --output text 2>/dev/null)
+          [ -z "$PROFILE" ] && exit 0
+          
+          JOB_ID=$(aws signer start-signing-job \
+            --source "s3={bucketName=${{ env.BUCKET_NAME }},key=aws-opentelemetry-java-layer.zip,version=null}" \
+            --destination "s3={bucketName=${{ env.BUCKET_NAME }},prefix=signed-}" \
+            --profile-name ADOTLambdaLayerSigningProfile \
+            --query 'jobId' --output text 2>/dev/null) || exit 0
+          [ -z "$JOB_ID" ] && exit 0
+          
+          aws signer wait successful-signing-job --job-id "$JOB_ID" || exit 0
+          
+          SIGNED=$(aws signer describe-signing-job --job-id "$JOB_ID" --query 'signedObject.s3.key' --output text 2>/dev/null)
+          [ -n "$SIGNED" ] && aws s3 mv "s3://${{ env.BUCKET_NAME }}/$SIGNED" "s3://${{ env.BUCKET_NAME }}/aws-opentelemetry-python-layer.zip"
+      
+      - name: Publish Layer Version
+        run: |
+          layerARN=$(
+            aws lambda publish-layer-version \
+              --layer-name ${{ env.LAYER_NAME }} \
+              --content S3Bucket=${{ env.BUCKET_NAME }},S3Key=aws-opentelemetry-java-layer.zip \
+              --compatible-runtimes java11 java17 java21 \
+              --compatible-architectures "arm64" "x86_64" \
+              --license-info "Apache-2.0" \
+              --description "AWS Distro of OpenTelemetry Lambda Layer for Java Runtime" \
+              --query 'LayerVersionArn' \
+              --output text
+          )
+          echo $layerARN
+          echo "LAYER_ARN=${layerARN}" >> $GITHUB_ENV
+          mkdir ${{ env.LAYER_NAME }}
+          echo $layerARN > ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+          cat ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+          
+          # Output SigningProfileVersionArn
+          aws lambda get-layer-version-by-arn \
+            --arn $layerARN \
+            --output json | jq -r '.Content.SigningProfileVersionArn'
+
+      - name: public layer
+        run: |
+          layerVersion=$(
+            aws lambda list-layer-versions \
+              --layer-name ${{ env.LAYER_NAME }} \
+              --query 'max_by(LayerVersions, &Version).Version'
+          )
+          aws lambda add-layer-version-permission \
+            --layer-name ${{ env.LAYER_NAME }} \
+            --version-number $layerVersion \
+            --principal "*" \
+            --statement-id publish \
+            --action lambda:GetLayerVersion
+
+      - name: upload layer arn artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: ${{ env.LAYER_NAME }}-${{ matrix.aws_region }}
+          path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+
+      - name: clean s3
+        if: always()
+        run: |
+          aws s3 rb --force s3://${{ env.BUCKET_NAME }}
+
+  generate-lambda-release-note:
+    runs-on: ubuntu-latest
+    needs: publish-layer-prod
+    outputs:
+      layer-note: ${{ steps.layer-note.outputs.layer-note }}
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd #v3.1.2
+      - name: download layerARNs
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          pattern: ${{ env.LAYER_NAME }}-*
+          path: ${{ env.LAYER_NAME }}
+          merge-multiple: true
+      - name: show layerARNs
+        run: |
+          for file in ${{ env.LAYER_NAME }}/*
+          do
+          echo $file
+          cat $file
+          done
+      - name: generate layer-note
+        id: layer-note
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "| Region | Layer ARN |" >> ../layer-note
+          echo "|  ----  | ----  |" >> ../layer-note
+          for file in *
+          do
+          read arn < $file
+          echo "| " $file " | " $arn " |" >> ../layer-note
+          done
+          cd ..
+          {
+            echo "layer-note<<EOF"
+            cat layer-note
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          cat layer-note
+      - name: generate tf layer
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "locals {" >> ../layer_arns.tf
+          echo "  sdk_layer_arns = {" >> ../layer_arns.tf
+          for file in *
+          do
+          read arn < $file
+          echo "    \""$file"\" = \""$arn"\"" >> ../layer_arns.tf
+          done
+          cd ..
+          echo "  }" >> layer_arns.tf
+          echo "}" >> layer_arns.tf
+          terraform fmt layer_arns.tf
+          cat layer_arns.tf
+      - name: generate layer ARN constants for CDK
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "{" > ../layer_cdk
+          for file in *; do
+            read arn < "$file"
+            echo "    \"$file\": \"$arn\"," >> ../layer_cdk
+          done
+          echo "}" >> ../layer_cdk
+          cat ../layer_cdk
+
+  publish-github:
+    needs: generate-lambda-release-note
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+      
+      - name: Download SDK artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+      
+      - name: Download layer.zip artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          name: layer.zip
+
+      - name: Rename artifacts
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          cp "aws-opentelemetry-agent-$VERSION.jar" ${{ env.ARTIFACT_NAME }}
+          cp aws-opentelemetry-java-layer.zip layer.zip
+
+      # Publish to GitHub releases
+      - name: Create GH release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          # Extract versions from dependency files
+          OTEL_INSTRUMENTATION_VERSION=$(grep "val otelVersion" dependencyManagement/build.gradle.kts | sed 's/.*= "\([^"]*\)".*/\1/' | sed 's/-adot1//')
+          OTEL_CONTRIB_VERSION=$(grep "io.opentelemetry.contrib:opentelemetry-aws-xray" dependencyManagement/build.gradle.kts | sed 's/.*:\([^"]*\)".*/\1/' | sed 's/-adot1//')
+
+          # Extract CHANGELOG entries for this version
+          CHANGELOG_ENTRIES=$(python3 -c "
+          import re, os
+          version = os.environ['VERSION']
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
+          version_pattern = rf'## v{re.escape(version)}.*?\n(.*?)(?=\n## |\Z)'
+          version_match = re.search(version_pattern, content, re.DOTALL)
+          if version_match:
+              entries = version_match.group(1).strip()
+              if entries:
+                  print(entries)
+          ")
+
+          # Create release notes
+          cat > release_notes.md << EOF
+          $(if [ -n "$CHANGELOG_ENTRIES" ]; then echo "## What's Changed"; echo "$CHANGELOG_ENTRIES"; echo ""; fi)
+
+          ## Upstream Components
+
+          - \`OpenTelemetry Java Contrib\` - $OTEL_CONTRIB_VERSION
+          - \`Opentelemetry Instrumentation for Java\` - $OTEL_INSTRUMENTATION_VERSION
+
+          ## Release Artifacts
+
+          This release publishes to public ECR and Maven Central.
+          * See ADOT Java auto-instrumentation Docker image v$VERSION in our public ECR repository:
+          https://gallery.ecr.aws/aws-observability/adot-autoinstrumentation-java
+          * See version $VERSION in our Maven Central repository:
+          https://central.sonatype.com/artifact/software.amazon.opentelemetry/aws-opentelemetry-agent
+
+          ## Lambda Layer
+
+          This release includes the AWS OpenTelemetry Lambda Layer for Java version $VERSION-$(echo $GITHUB_SHA | cut -c1-7).
+
+          **Note: the new Lambda Layer versions are not yet deployed to the Lambda and CloudWatch Application Signals consoles. You can add them to your Lambda functions using the AWS CLI.**
+
+          Lambda Layer ARNs:
+          ${{ needs.generate-lambda-release-note.outputs.layer-note }}
+          EOF
+
+          shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
+          shasum -a 256 layer.zip > layer.zip.sha256
 
           gh release create --target "$GITHUB_REF_NAME" \
-             --title "Release v${{ github.event.inputs.version }}" \
+             --title "Release v$VERSION" \
+             --notes-file release_notes.md \
              --draft \
-             "v${{ github.event.inputs.version }}" \
+             "v$VERSION" \
              ${{ env.ARTIFACT_NAME }} \
              ${{ env.ARTIFACT_NAME }}.sha256 \
-             layer_artifact/layer.zip \
-             layer_artifact/layer.zip.sha256
+             layer.zip \
+             layer.zip.sha256
