@@ -4,6 +4,13 @@ on:
     branches:
       - main
       - "release/v*"
+  workflow_dispatch: # be able to run the workflow on demand
+  workflow_call:
+    inputs:
+      ref:
+        description: 'The branch, tag or SHA to checkout'
+        required: false
+        type: string
 env:
   AWS_DEFAULT_REGION: us-east-1
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
@@ -23,6 +30,8 @@ jobs:
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version-file: .java-version
@@ -57,6 +66,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version-file: .java-version
@@ -89,11 +99,10 @@ jobs:
         with:
           registry: public.ecr.aws
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #4.4.3
-
       - name: Build snapshot with Gradle
-        run: ./gradlew build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: build integrationTests snapshot --stacktrace -PenableCoverage=true -PlocalDocker=true
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -193,6 +202,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version: 23
@@ -222,11 +232,10 @@ jobs:
       - name: Pull base image of Contract Tests Sample Apps
         run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
-
       - name: Build snapshot with Gradle
-        run: ./gradlew contractTests -PlocalDocker=true
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: contractTests -PlocalDocker=true
 
   application-signals-lambda-layer-build:
     runs-on: ubuntu-latest
@@ -234,6 +243,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
           java-version-file: .java-version
@@ -269,7 +279,7 @@ jobs:
     name: "Publish Main Build Status"
     needs: [ build, e2e-test, contract-tests, application-signals-lambda-layer-build, application-signals-e2e-test ]
     runs-on: ubuntu-latest
-    if: always()
+    if: always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/v'))
     steps:
       - name: Configure AWS Credentials for emitting metrics
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
