@@ -271,10 +271,30 @@ jobs:
         with:
           name: layer.zip
 
-      - name: publish
+      - name: Upload to S3 and Sign
+        continue-on-error: true
         run: |
           aws s3 mb s3://${{ env.BUCKET_NAME }}
           aws s3 cp aws-opentelemetry-java-layer.zip s3://${{ env.BUCKET_NAME }}
+          
+          # Sign the layer
+          PROFILE=$(aws signer list-signing-profiles --query "profiles[?profileName=='ADOTLambdaLayerSigningProfile'].arn" --output text 2>/dev/null)
+          [ -z "$PROFILE" ] && exit 0
+          
+          JOB_ID=$(aws signer start-signing-job \
+            --source "s3={bucketName=${{ env.BUCKET_NAME }},key=aws-opentelemetry-java-layer.zip,version=null}" \
+            --destination "s3={bucketName=${{ env.BUCKET_NAME }},prefix=signed-}" \
+            --profile-name ADOTLambdaLayerSigningProfile \
+            --query 'jobId' --output text 2>/dev/null) || exit 0
+          [ -z "$JOB_ID" ] && exit 0
+          
+          aws signer wait successful-signing-job --job-id "$JOB_ID" || exit 0
+          
+          SIGNED=$(aws signer describe-signing-job --job-id "$JOB_ID" --query 'signedObject.s3.key' --output text 2>/dev/null)
+          [ -n "$SIGNED" ] && aws s3 mv "s3://${{ env.BUCKET_NAME }}/$SIGNED" "s3://${{ env.BUCKET_NAME }}/aws-opentelemetry-python-layer.zip"
+      
+      - name: Publish Layer Version
+        run: |
           layerARN=$(
             aws lambda publish-layer-version \
               --layer-name ${{ env.LAYER_NAME }} \
@@ -291,6 +311,11 @@ jobs:
           mkdir ${{ env.LAYER_NAME }}
           echo $layerARN > ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
           cat ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+          
+          # Output SigningProfileVersionArn
+          aws lambda get-layer-version-by-arn \
+            --arn $layerARN \
+            --output json | jq -r '.Content.SigningProfileVersionArn'
 
       - name: public layer
         run: |
@@ -416,8 +441,8 @@ jobs:
           VERSION: ${{ github.event.inputs.version }}
         run: |
           # Extract versions from dependency files
-          OTEL_INSTRUMENTATION_VERSION=$(grep "val otelVersion" dependencyManagement/build.gradle.kts | sed 's/.*= "\([^"]*\)".*/\1/')
-          OTEL_CONTRIB_VERSION=$(grep "io.opentelemetry.contrib:opentelemetry-aws-xray" dependencyManagement/build.gradle.kts | sed 's/.*:\([^"]*\)".*/\1/')
+          OTEL_INSTRUMENTATION_VERSION=$(grep "val otelVersion" dependencyManagement/build.gradle.kts | sed 's/.*= "\([^"]*\)".*/\1/' | sed 's/-adot1//')
+          OTEL_CONTRIB_VERSION=$(grep "io.opentelemetry.contrib:opentelemetry-aws-xray" dependencyManagement/build.gradle.kts | sed 's/.*:\([^"]*\)".*/\1/' | sed 's/-adot1//')
 
           # Extract CHANGELOG entries for this version
           CHANGELOG_ENTRIES=$(python3 -c "
@@ -453,6 +478,8 @@ jobs:
           ## Lambda Layer
 
           This release includes the AWS OpenTelemetry Lambda Layer for Java version $VERSION-$(echo $GITHUB_SHA | cut -c1-7).
+
+          **Note: the new Lambda Layer versions are not yet deployed to the Lambda and CloudWatch Application Signals consoles. You can add them to your Lambda functions using the AWS CLI.**
 
           Lambda Layer ARNs:
           ${{ needs.generate-lambda-release-note.outputs.layer-note }}
