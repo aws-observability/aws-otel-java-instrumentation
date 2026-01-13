@@ -25,6 +25,8 @@ jobs:
   upload-main-build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #5.0.0
         with:
@@ -36,7 +38,10 @@ jobs:
           name: aws-opentelemetry-agent.jar
 
       - name: Upload main-build adot.jar to s3
-        run: aws s3 cp ./aws-opentelemetry-agent-*-SNAPSHOT.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
+        run: |
+          # Extract artifact suffix using version.gradle.kts
+          VERSION=$(awk -F'"' '/val adotVersion = / {print $2}' version.gradle.kts)
+          aws s3 cp ./aws-opentelemetry-agent-$VERSION.jar s3://adot-main-build-staging-jar/aws-opentelemetry-agent.jar
 
   #
   # PACKAGED DISTRIBUTION LANGUAGE VERSION COVERAGE
@@ -96,6 +101,13 @@ jobs:
   java-ec2-adot-sigv4-test:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-sigv4-test.yml@main
+    secrets: inherit
+    with:
+      caller-workflow-name: 'main-build'
+
+  java-ec2-adaptive-sampling-test:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adaptive-sampling-test.yml@main
     secrets: inherit
     with:
       caller-workflow-name: 'main-build'
