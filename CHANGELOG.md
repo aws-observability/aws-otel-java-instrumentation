@@ -19,6 +19,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
 - GetSamplingTargets statistics fixes and optimizations
   ([#1274](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1274))
+- Update patch file against the latest upstream release versions 
+  ([#1287](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1287))
 
 
 ### Enhancements
