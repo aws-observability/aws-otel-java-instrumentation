@@ -15,6 +15,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  security-events: write
+
 jobs:
   analyze:
     # This repository only have Java and Rust code. Rust is not supported currently.
