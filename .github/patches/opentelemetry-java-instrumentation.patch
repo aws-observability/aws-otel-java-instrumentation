@@ -11,6 +11,28 @@ index b897b2f46a..6dd96f210a 100644
    "io.opentelemetry.contrib:opentelemetry-gcp-resources:${otelContribVersion}",
    "io.opentelemetry.contrib:opentelemetry-cloudfoundry-resources:${otelContribVersion}",
    "io.opentelemetry.contrib:opentelemetry-baggage-processor:${otelContribVersion}",
+diff --git a/conventions/src/main/kotlin/otel.java-conventions.gradle.kts b/conventions/src/main/kotlin/otel.java-conventions.gradle.kts
+index 66f0b4a89d..66f0b4a89d 100644
+--- a/conventions/src/main/kotlin/otel.java-conventions.gradle.kts
++++ b/conventions/src/main/kotlin/otel.java-conventions.gradle.kts
+@@ -4,7 +4,6 @@ import java.time.Duration
+ 
+ plugins {
+   `java-library`
+-  groovy
+   checkstyle
+   idea
+ 
+diff --git a/instrumentation/grails-3.0/javaagent/build.gradle.kts b/instrumentation/grails-3.0/javaagent/build.gradle.kts
+index a217d6bf44..a217d6bf44 100644
+--- a/instrumentation/grails-3.0/javaagent/build.gradle.kts
++++ b/instrumentation/grails-3.0/javaagent/build.gradle.kts
+@@ -1,4 +1,5 @@
+ plugins {
++  groovy
+   id("otel.javaagent-instrumentation")
+ }
+ 
 diff --git a/version.gradle.kts b/version.gradle.kts
 index a46c2d24de..183775c346 100644
 --- a/version.gradle.kts
