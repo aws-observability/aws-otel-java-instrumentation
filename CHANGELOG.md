@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Adaptive Sampling: Ensure the highest priority sampling rule is matched
+  ([#1290](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1290))
 - Sign Lambda layer by AWS Signer
   ([#1275](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1275))
 - Bump Netty version to 4.1.130 Final
