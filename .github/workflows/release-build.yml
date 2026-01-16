@@ -497,3 +497,53 @@ jobs:
              ${{ env.ARTIFACT_NAME }}.sha256 \
              layer.zip \
              layer.zip.sha256
+
+  sign-public-ecr-image:
+    runs-on: ubuntu-latest
+    needs: publish-sdk
+    steps:
+      - name: Configure AWS Credentials for public ECR
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
+          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
+
+      # Install notation CLI with AWS Signer plugin
+      - name: Install notation CLI with AWS Signer plugin
+        run: |
+          curl -Lo aws-signer-notation-cli_amd64.deb https://d2hvyiie56hcat.cloudfront.net/linux/amd64/installer/deb/latest/aws-signer-notation-cli_amd64.deb
+          sudo dpkg -i aws-signer-notation-cli_amd64.deb
+          notation version
+          notation plugin ls
+
+      # Query ECR signing profile ARN
+      - name: Query ECR Signing Profile ARN
+        id: ecr-signing-profile
+        run: |
+          PROFILE_ARN=$(aws signer list-signing-profiles --region ${{ env.AWS_PUBLIC_ECR_REGION }} --query "profiles[?profileName=='ADOTECRSigningProfile'].arn" --output text 2>/dev/null)
+          if [ -n "$PROFILE_ARN" ]; then
+            echo "profile_arn=$PROFILE_ARN" >> $GITHUB_OUTPUT
+            echo "Found ECR signing profile: $PROFILE_ARN"
+          else
+            echo "ECR signing profile 'ADOTECRSigningProfile' not found"
+            exit 0
+          fi
+
+      # Login to Public ECR
+      - name: Login to Public ECR
+        if: steps.ecr-signing-profile.outputs.profile_arn != ''
+        run: |
+          aws ecr-public get-login-password --region ${{ env.AWS_PUBLIC_ECR_REGION }} | docker login --username AWS --password-stdin public.ecr.aws
+
+      # Sign Public ECR Image
+      - name: Sign Public ECR Image
+        if: steps.ecr-signing-profile.outputs.profile_arn != ''
+        run: |
+          # Sign the released public ECR image
+          notation sign ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }} \
+            --plugin com.amazonaws.signer.notation.plugin \
+            --id ${{ steps.ecr-signing-profile.outputs.profile_arn }}
+
+          echo "Successfully signed public ECR image"
+          echo "Image: ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }}"
+          echo "Profile ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}"
