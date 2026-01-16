@@ -333,7 +333,7 @@ index 00000000..dc5b7a01
 +  }
 +}
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
-index ad9b72a2..2de038c9 100644
+index ad9b72a2..31d5a293 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
 @@ -9,16 +9,22 @@ import io.opentelemetry.api.common.Attributes;
@@ -442,7 +442,7 @@ index ad9b72a2..2de038c9 100644
          previousRulesResponse = response;
          ScheduledFuture<?> existingFetchTargetsFuture = fetchTargetsFuture;
          if (existingFetchTargetsFuture != null) {
-@@ -172,25 +217,51 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+@@ -172,25 +217,41 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
    }
 
    private void fetchTargets() {
@@ -464,8 +464,7 @@ index ad9b72a2..2de038c9 100644
 +      statisticsSnapshot.stream()
 +          .forEach(
 +              snapshot -> {
-+                if (snapshot.getStatisticsDocument() != null
-+                    && snapshot.getStatisticsDocument().getRequestCount() > 0) {
++                if (snapshot.getStatisticsDocument() != null) {
 +                  statistics.add(snapshot.getStatisticsDocument());
 +                }
 +                if (snapshot.getBoostStatisticsDocument() != null
@@ -473,15 +472,6 @@ index ad9b72a2..2de038c9 100644
 +                  boostStatistics.add(snapshot.getBoostStatisticsDocument());
 +                }
 +              });
-+
-+      // If there are no statistics to report, skip the request and schedule next update
-+      if (statistics.isEmpty() && boostStatistics.isEmpty()) {
-+        fetchTargetsFuture =
-+            executor.schedule(
-+                this::fetchTargets, DEFAULT_TARGET_INTERVAL_NANOS, TimeUnit.NANOSECONDS);
-+        return;
-+      }
-+
        Set<String> requestedTargetRuleNames =
            statistics.stream()
                .map(SamplingStatisticsDocument::getRuleName)
@@ -500,7 +490,7 @@ index ad9b72a2..2de038c9 100644
      } catch (Throwable t) {
        // Might be a transient API failure, try again after a default interval.
        fetchTargetsFuture =
-@@ -226,11 +297,6 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+@@ -226,11 +287,6 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
      return new String(clientIdChars);
    }
 
@@ -1074,7 +1064,7 @@ index 1d97c4ae..dd369f5f 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..944d4e45 100644
+index 75977dc0..48bdeb0f 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,81 @@
@@ -1331,7 +1321,7 @@ index 75977dc0..944d4e45 100644
 +          ruleToReportTo = applier;
 +          break;
 +        }
-+        if (matchedRule == null && applier.matches(spanData.getAttributes(), resource)) {
++        if (applier.matches(spanData.getAttributes(), resource)) {
 +          matchedRule = applier;
 +        }
 +      }
@@ -1603,7 +1593,7 @@ index 75977dc0..944d4e45 100644
    }
  }
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
-index 4e5cd13b..42e490ef 100644
+index 4e5cd13b..5af11a25 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
 @@ -7,7 +7,10 @@ package io.opentelemetry.contrib.awsxray;
@@ -1617,7 +1607,7 @@ index 4e5cd13b..42e490ef 100644
 
  import com.google.common.io.ByteStreams;
  import com.linecorp.armeria.common.HttpResponse;
-@@ -21,12 +24,16 @@ import io.opentelemetry.api.trace.SpanKind;
+@@ -21,6 +24,9 @@ import io.opentelemetry.api.trace.SpanKind;
  import io.opentelemetry.api.trace.TraceId;
  import io.opentelemetry.context.Context;
  import io.opentelemetry.sdk.resources.Resource;
@@ -1627,90 +1617,7 @@ index 4e5cd13b..42e490ef 100644
  import io.opentelemetry.sdk.trace.samplers.Sampler;
  import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
  import java.io.IOException;
- import java.io.UncheckedIOException;
- import java.time.Duration;
- import java.util.Collections;
-+import java.util.concurrent.atomic.AtomicInteger;
- import java.util.concurrent.atomic.AtomicReference;
- import org.junit.jupiter.api.AfterEach;
- import org.junit.jupiter.api.BeforeEach;
-@@ -37,6 +44,7 @@ class AwsXrayRemoteSamplerTest {
-
-   private static final byte[] RULE_RESPONSE_1;
-   private static final byte[] RULE_RESPONSE_2;
-+  private static final byte[] RULE_RESPONSE_3;
-   private static final byte[] TARGETS_RESPONSE;
-
-   static {
-@@ -51,6 +59,11 @@ class AwsXrayRemoteSamplerTest {
-               requireNonNull(
-                   AwsXrayRemoteSamplerTest.class.getResourceAsStream(
-                       "/test-sampling-rules-response-2.json")));
-+      RULE_RESPONSE_3 =
-+          ByteStreams.toByteArray(
-+              requireNonNull(
-+                  AwsXrayRemoteSamplerTest.class.getResourceAsStream(
-+                      "/test-sampling-rules-response-3.json")));
-       TARGETS_RESPONSE =
-           ByteStreams.toByteArray(
-               requireNonNull(
-@@ -63,6 +76,7 @@ class AwsXrayRemoteSamplerTest {
-
-   private static final AtomicReference<byte[]> rulesResponse = new AtomicReference<>();
-   private static final AtomicReference<byte[]> targetsResponse = new AtomicReference<>();
-+  private static final AtomicInteger samplingTargetsCallCount = new AtomicInteger(0);
-
-   private static final String TRACE_ID = TraceId.fromLongs(1, 2);
-
-@@ -86,6 +100,7 @@ class AwsXrayRemoteSamplerTest {
-           sb.service(
-               "/SamplingTargets",
-               (ctx, req) -> {
-+                samplingTargetsCallCount.incrementAndGet();
-                 byte[] response = AwsXrayRemoteSamplerTest.targetsResponse.get();
-                 if (response == null) {
-                   // Error out until the test configures a response, the sampler will use the
-@@ -114,6 +129,7 @@ class AwsXrayRemoteSamplerTest {
-   void tearDown() {
-     sampler.close();
-     rulesResponse.set(null);
-+    samplingTargetsCallCount.set(0);
-   }
-
-   @Test
-@@ -155,6 +171,31 @@ class AwsXrayRemoteSamplerTest {
-               assertThat(doSample(sampler, "dog-service"))
-                   .isEqualTo(SamplingDecision.RECORD_AND_SAMPLE);
-             });
-+    await()
-+        .untilAsserted(
-+            () -> {
-+              assertThat(samplingTargetsCallCount.get()).isGreaterThan(0);
-+            });
-+  }
-+
-+  @Test
-+  void getAndUpdateSamplerOnlyDropping() {
-+    // Initial Sampler allows all.
-+    assertThat(doSample(sampler, "cat-service")).isEqualTo(SamplingDecision.RECORD_AND_SAMPLE);
-+    assertThat(doSample(sampler, "dog-service")).isEqualTo(SamplingDecision.RECORD_AND_SAMPLE);
-+
-+    rulesResponse.set(RULE_RESPONSE_3);
-+
-+    // Should always drop now
-+    await()
-+        .untilAsserted(
-+            () -> {
-+              assertThat(doSample(sampler, "cat-service")).isEqualTo(SamplingDecision.DROP);
-+              assertThat(doSample(sampler, "dog-service")).isEqualTo(SamplingDecision.DROP);
-+            });
-+
-+    // Verify /SamplingTargets was never called
-+    assertThat(samplingTargetsCallCount.get()).isEqualTo(0);
-   }
-
-   @Test
-@@ -169,21 +210,28 @@ class AwsXrayRemoteSamplerTest {
+@@ -169,21 +175,28 @@ class AwsXrayRemoteSamplerTest {
    }
 
    @Test
@@ -1754,7 +1661,7 @@ index 4e5cd13b..42e490ef 100644
      }
    }
 
-@@ -206,6 +254,16 @@ class AwsXrayRemoteSamplerTest {
+@@ -206,6 +219,16 @@ class AwsXrayRemoteSamplerTest {
      }
    }
 
@@ -3452,55 +3359,6 @@ index 00000000..4ba3013a
 +  "Version": 1,
 +  "Attributes": {}
 +}
-diff --git a/aws-xray/src/test/resources/test-sampling-rules-response-3.json b/aws-xray/src/test/resources/test-sampling-rules-response-3.json
-new file mode 100644
-index 00000000..8672b2e1
---- /dev/null
-+++ b/aws-xray/src/test/resources/test-sampling-rules-response-3.json
-@@ -0,0 +1,42 @@
-+{
-+  "SamplingRuleRecords": [
-+    {
-+      "SamplingRule": {
-+        "RuleName": "Test",
-+        "RuleARN": "arn:aws:xray:us-east-1:595986152929:sampling-rule/Test",
-+        "ResourceARN": "*",
-+        "Priority": 1,
-+        "FixedRate": 0.0,
-+        "ReservoirSize": 0,
-+        "ServiceName": "*",
-+        "ServiceType": "*",
-+        "Host": "*",
-+        "HTTPMethod": "*",
-+        "URLPath": "*",
-+        "Version": 1,
-+        "Attributes": {}
-+      },
-+      "CreatedAt": "2021-06-18T17:28:15+09:00",
-+      "ModifiedAt": "2021-06-18T17:28:15+09:00"
-+    },
-+    {
-+      "SamplingRule": {
-+        "RuleName": "Default",
-+        "RuleARN": "arn:aws:xray:us-east-1:595986152929:sampling-rule/Default",
-+        "ResourceARN": "*",
-+        "Priority": 10000,
-+        "FixedRate": 1.0,
-+        "ReservoirSize": 1,
-+        "ServiceName": "*",
-+        "ServiceType": "*",
-+        "Host": "*",
-+        "HTTPMethod": "*",
-+        "URLPath": "*",
-+        "Version": 1,
-+        "Attributes": {}
-+      },
-+      "CreatedAt": "1970-01-01T09:00:00+09:00",
-+      "ModifiedAt": "1970-01-01T09:00:00+09:00"
-+    }
-+  ]
-+}
-\ No newline at end of file
 diff --git a/disk-buffering/build.gradle.kts b/disk-buffering/build.gradle.kts
 index 8250c1bd..74a1a24c 100644
 --- a/disk-buffering/build.gradle.kts
