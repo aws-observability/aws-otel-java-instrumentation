@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Ugrade to OTel v2.23.0 and Contrib v1.52.0
+  ([#1292](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1292))
 - Adaptive Sampling: Ensure the highest priority sampling rule is matched
   ([#1290](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1290))
 - Sign Lambda layer by AWS Signer
