@@ -1064,7 +1064,7 @@ index 1d97c4ae..dd369f5f 100644
    }
  }
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index 75977dc0..48bdeb0f 100644
+index 75977dc0..944d4e45 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -5,42 +5,81 @@
@@ -1321,7 +1321,7 @@ index 75977dc0..48bdeb0f 100644
 +          ruleToReportTo = applier;
 +          break;
 +        }
-+        if (applier.matches(spanData.getAttributes(), resource)) {
++        if (matchedRule == null && applier.matches(spanData.getAttributes(), resource)) {
 +          matchedRule = applier;
 +        }
 +      }
@@ -2150,7 +2150,7 @@ index 920a5ffd..b7c21aa0 100644
      try {
        return OBJECT_MAPPER.readValue(
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index 1ca8df34..14ebdbda 100644
+index 1ca8df34..8e4993a7 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -5,17 +5,28 @@
@@ -2394,7 +2394,7 @@ index 1ca8df34..14ebdbda 100644
 
      // Minimum is batTarget, 5s from now
      assertThat(sampler.nextTargetFetchTimeNanos())
-@@ -169,6 +275,891 @@ class XrayRulesSamplerTest {
+@@ -169,6 +275,913 @@ class XrayRulesSamplerTest {
      assertThat(sampler.snapshot(Date.from(now))).hasSize(4);
    }
 
@@ -2694,11 +2694,27 @@ index 1ca8df34..14ebdbda 100644
 +            0.0,
 +            "*",
 +            "*",
-+            4,
++            2,
 +            0,
 +            "*",
 +            "*",
-+            "default-rule",
++            "applied-boost-rule",
++            "*",
++            "*",
++            "*",
++            1,
++            SamplingRateBoost.create(1, 300));
++    SamplingRule rule3 =
++        SamplingRule.create(
++            Collections.emptyMap(),
++            0.0,
++            "*",
++            "*",
++            3,
++            0,
++            "*",
++            "*",
++            "lower-priority-boost-rule",
 +            "*",
 +            "*",
 +            "*",
@@ -2726,7 +2742,7 @@ index 1ca8df34..14ebdbda 100644
 +            Resource.getDefault(),
 +            clock,
 +            Sampler.alwaysOn(),
-+            Arrays.asList(rule1, rule2),
++            Arrays.asList(rule1, rule2, rule3),
 +            config);
 +
 +    Instant now = Instant.ofEpochSecond(0, clock.now());
@@ -2763,12 +2779,15 @@ index 1ca8df34..14ebdbda 100644
 +    // Rules are ordered by priority, so cat-rule is first
 +    assertThat(snapshot.get(0).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
 +    assertThat(snapshot.get(0).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
-+
 +    assertThat(snapshot.get(0).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
++
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(3);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(3);
-+
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
++
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
 +
 +    // Mock trace coming from upstream service where it was sampled by cat-rule
 +    when(spanDataMock.getTraceId()).thenReturn("TRACE_ID4");
@@ -2794,6 +2813,9 @@ index 1ca8df34..14ebdbda 100644
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
 +    assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
 +
 +    // Assert the trace ID cache is filled with appropriate data and is cleared after TTL passes
 +    assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(4);
