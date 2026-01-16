@@ -150,7 +150,7 @@ _Class Functionalities:_
 - `BedrockJasonParser`
   - Parses and extracts specific attributes from Bedrock LLM responses for GenAI telemetry
 
-### Commands for Running Groovy Tests
+### Commands for Running Java Tests
 
 #### aws-sdk v1.11
 To run the `BedrockJsonParserTest`:
@@ -158,15 +158,6 @@ To run the `BedrockJsonParserTest`:
 ./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.BedrockJsonParserTest"
 ````
 
-#### aws-sdk v2.2
-To run the `BedrockJsonParserTest`:
-````
-./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParserTest"
-````
-
-### Commands for Running Java Tests
-
-#### aws-sdk v1.11
 To run the `AwsSdkExperimentalAttributesInjectionTest`:
 ````
 ./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v1_11.AwsSdkExperimentalAttributesInjectionTest"
@@ -178,6 +169,11 @@ To run the `AdotAwsSdkClientAdviceTest`:
 ````
 
 #### aws-sdk v2.2
+To run the `BedrockJsonParserTest`:
+````
+./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.BedrockJsonParserTest"
+````
+
 To run the `AwsSdkExperimentalAttributesInjectionTest`:
 ````
 ./gradlew :instrumentation:aws-sdk:test --tests "software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsSdkExperimentalAttributesInjectionTest"
