@@ -125,7 +125,7 @@ jobs:
     
     - name: Create or update PR
       env:
-        GITHUB_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_RW_PATOKEN }}
+        GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
       run: |
         BUILD_STATUS="${{ needs.build-and-test.result }}"
         BUILD_EMOJI="${{ needs.build-and-test.result == 'success' && '✅' || '❌' }}"
