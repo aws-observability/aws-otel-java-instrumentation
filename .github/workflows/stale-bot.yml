@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark the issues/pr
-        uses: actions/stale@3a9db7e6a41a89f618792c92c0e97cc736e1b13f #10.0.0
+        uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 #10.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} #Github workflow will add a temporary token when executing the workflow
         with:
