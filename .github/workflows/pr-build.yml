@@ -69,6 +69,31 @@ jobs:
           
           echo "No versioned actions found in changed files"
 
+      - name: Check for github.event.inputs in run steps
+        if: always()
+        run: |
+          # Get changed GitHub workflow/action files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -E "^\.github/(workflows|actions)/.*\.ya?ml$" || true)
+          
+          if [ -n "$CHANGED_FILES" ]; then
+            VIOLATIONS=""
+            for file in $CHANGED_FILES; do
+              # Extract all 'run' step values excluding this validation step
+              RUN_STEPS=$(yq eval '.. | select(has("run") and has("name") and .name != "Check for github.event.inputs in run steps") | .run' "$file" 2>/dev/null || echo "")
+              if echo "$RUN_STEPS" | grep -q "github\.event\.inputs\."; then
+                VIOLATIONS="$VIOLATIONS$file: Contains github.event.inputs.* in run step\n"
+              fi
+            done
+            
+            if [ -n "$VIOLATIONS" ]; then
+              echo -e "Found github.event.inputs.* usage in run steps. This can lead to script injection vulnerabilities:"
+              echo -e "$VIOLATIONS"
+              exit 1
+            fi
+          fi
+          
+          echo "No github.event.inputs usage found in run steps"
+
   testpatch:
     name: Test patches applied to dependencies
     runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
