@@ -23,7 +23,6 @@ package software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2;
  */
 
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_AGENT_ID;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_DATA_SOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_GUARDRAIL_ID;
@@ -32,15 +31,12 @@ import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_LAMBDA_NAME;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_LAMBDA_RESOURCE_ID;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_QUEUE_NAME;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_SECRET_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_SNS_TOPIC_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STATE_MACHINE_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STREAM_ARN;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_TABLE_ARN;
-import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_MODEL;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_REQUEST_MAX_TOKENS;
 import static software.amazon.opentelemetry.javaagent.instrumentation.awssdk_v2_2.AwsExperimentalAttributes.GEN_AI_REQUEST_TEMPERATURE;
@@ -58,17 +54,13 @@ import java.util.Map;
 
 enum AwsSdkRequestType {
   // 2025-07-22: Amazon addition
-  S3(request(AWS_BUCKET_NAME.getKey(), "Bucket")),
+  S3(),
 
-  SQS(request(AWS_QUEUE_URL.getKey(), "QueueUrl"), request(AWS_QUEUE_NAME.getKey(), "QueueName")),
+  SQS(request(AWS_QUEUE_NAME.getKey(), "QueueName")),
 
-  KINESIS(
-      request(AWS_STREAM_NAME.getKey(), "StreamName"),
-      request(AWS_STREAM_ARN.getKey(), "StreamARN")),
+  KINESIS(request(AWS_STREAM_ARN.getKey(), "StreamARN")),
 
-  DYNAMODB(
-      request(AWS_TABLE_NAME.getKey(), "TableName"),
-      response(AWS_TABLE_ARN.getKey(), "Table.TableArn")),
+  DYNAMODB(response(AWS_TABLE_ARN.getKey(), "Table.TableArn")),
 
   SNS(
       /*
