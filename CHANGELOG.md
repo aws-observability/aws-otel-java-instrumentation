@@ -21,6 +21,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1275](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1275))
 - Bump Netty version to 4.1.130 Final
   ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
+- Remove conflicting attributes from aws-sdk instrumentation
+  ([#1294](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1294))
 
 
 ### Enhancements
