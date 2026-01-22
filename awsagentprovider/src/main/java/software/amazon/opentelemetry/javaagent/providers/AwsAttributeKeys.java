@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import io.opentelemetry.api.common.AttributeKey;
+import java.util.List;
 
 /** Utility class holding attribute keys with special meaning to AWS components */
 final class AwsAttributeKeys {
@@ -110,12 +111,14 @@ final class AwsAttributeKeys {
   // TODO: all AWS specific attributes should be defined in semconv package and reused cross all
   // otel packages. Related sim -
   // https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/8710
-  static final AttributeKey<String> AWS_BUCKET_NAME = AttributeKey.stringKey("aws.bucket.name");
-  static final AttributeKey<String> AWS_QUEUE_URL = AttributeKey.stringKey("aws.queue.url");
+  static final AttributeKey<String> AWS_S3_BUCKET = AttributeKey.stringKey("aws.s3.bucket");
+  static final AttributeKey<String> AWS_SQS_QUEUE_URL = AttributeKey.stringKey("aws.sqs.queue.url");
   static final AttributeKey<String> AWS_QUEUE_NAME = AttributeKey.stringKey("aws.queue.name");
-  static final AttributeKey<String> AWS_STREAM_NAME = AttributeKey.stringKey("aws.stream.name");
+  static final AttributeKey<String> AWS_KINESIS_STREAM_NAME =
+      AttributeKey.stringKey("aws.kinesis.stream_name");
   static final AttributeKey<String> AWS_STREAM_ARN = AttributeKey.stringKey("aws.stream.arn");
-  static final AttributeKey<String> AWS_TABLE_NAME = AttributeKey.stringKey("aws.table.name");
+  static final AttributeKey<List<String>> AWS_DYNAMODB_TABLE_NAMES =
+      AttributeKey.stringArrayKey("aws.dynamodb.table_names");
   static final AttributeKey<String> AWS_TABLE_ARN = AttributeKey.stringKey("aws.table.arn");
   static final AttributeKey<String> AWS_AGENT_ID = AttributeKey.stringKey("aws.bedrock.agent.id");
   static final AttributeKey<String> AWS_KNOWLEDGE_BASE_ID =

@@ -52,12 +52,12 @@ public class SemanticConventionsConstants {
   public static final String DB_SYSTEM = "db.system";
 
   // These are not official semantic attributes
-  public static final String AWS_BUCKET_NAME = "aws.bucket.name";
-  public static final String AWS_TABLE_NAME = "aws.table.name";
-  public static final String AWS_QUEUE_URL = "aws.queue.url";
+  public static final String AWS_S3_BUCKET = "aws.s3.bucket";
+  public static final String AWS_DYNAMODB_TABLE_NAMES = "aws.dynamodb.table_names";
+  public static final String AWS_SQS_QUEUE_URL = "aws.sqs.queue.url";
   public static final String AWS_QUEUE_NAME = "aws.queue.name";
   public static final String AWS_STREAM_ARN = "aws.stream.arn";
-  public static final String AWS_STREAM_NAME = "aws.stream.name";
+  public static final String AWS_KINESIS_STREAM_NAME = "aws.kinesis.stream_name";
   public static final String AWS_KNOWLEDGE_BASE_ID = "aws.bedrock.knowledge_base.id";
   public static final String AWS_DATA_SOURCE_ID = "aws.bedrock.data_source.id";
   public static final String AWS_AGENT_ID = "aws.bedrock.agent.id";

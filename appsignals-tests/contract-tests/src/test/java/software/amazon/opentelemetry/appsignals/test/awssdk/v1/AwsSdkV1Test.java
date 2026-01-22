@@ -168,7 +168,9 @@ public class AwsSdkV1Test extends AwsSdkBaseTest {
   @Override
   protected List<ThrowingConsumer<KeyValue>> dynamoDbAttributes(
       String operation, String tableName) {
-    return List.of(assertAttribute(SemanticConventionsConstants.AWS_TABLE_NAME, tableName));
+    return List.of(
+        assertAttribute(
+            SemanticConventionsConstants.AWS_DYNAMODB_TABLE_NAMES, new String[] {tableName}));
   }
 
   @Test
