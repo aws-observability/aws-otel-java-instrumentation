@@ -12,6 +12,8 @@ on:
       - "release/v*"
 env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
+  USER: ${{ github.event.pull_request.user.login }}
+  LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
 
 jobs:
   static-code-checks:
@@ -25,18 +27,18 @@ jobs:
         if: always()
         run: |
           # Check if PR is from workflows bot or dependabot
-          if [[ "${{ github.event.pull_request.user.login }}" == "aws-application-signals-bot" ]]; then
+          if [[ "${{ env.USER }}" == "aws-application-signals-bot" ]]; then
             echo "Skipping check: PR from aws-application-signals-bot"
             exit 0
           fi
           
-          if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+          if [[ "${{ env.USER }}" == "dependabot[bot]" ]]; then
             echo "Skipping check: PR from dependabot"
             exit 0
           fi
           
           # Check for skip changelog label
-          if echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]' | grep -q "skip changelog"; then
+          if echo '${{ env.LABELS }}' | jq -r '.[]' | grep -q "skip changelog"; then
             echo "Skipping check: skip changelog label found"
             exit 0
           fi
@@ -69,7 +71,7 @@ jobs:
           
           echo "No versioned actions found in changed files"
 
-      - name: Check for github.event.inputs in run steps
+      - name: Check for github.event in run steps
         if: always()
         run: |
           # Get changed GitHub workflow/action files
@@ -79,14 +81,14 @@ jobs:
             VIOLATIONS=""
             for file in $CHANGED_FILES; do
               # Extract all 'run' step values excluding this validation step
-              RUN_STEPS=$(yq eval '.. | select(has("run") and has("name") and .name != "Check for github.event.inputs in run steps") | .run' "$file" 2>/dev/null || echo "")
-              if echo "$RUN_STEPS" | grep -q "github\.event\.inputs\."; then
-                VIOLATIONS="$VIOLATIONS$file: Contains github.event.inputs.* in run step\n"
+              RUN_STEPS=$(yq eval '.. | select(has("run") and has("name") and .name != "Check for github.event in run steps") | .run' "$file" 2>/dev/null || echo "")
+              if echo "$RUN_STEPS" | grep -q "github\.event\."; then
+                VIOLATIONS="$VIOLATIONS$file: Contains github.event.* in run step\n"
               fi
             done
             
             if [ -n "$VIOLATIONS" ]; then
-              echo -e "Found github.event.inputs.* usage in run steps. This can lead to script injection vulnerabilities:"
+              echo -e "Found github.event.* usage in run steps. This can lead to script injection vulnerabilities:"
               echo -e "$VIOLATIONS"
               exit 1
             fi
@@ -125,7 +127,7 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}      
     strategy:
       matrix:
         os:
