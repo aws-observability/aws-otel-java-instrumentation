@@ -6,8 +6,8 @@ index 6ca4ff5..97e211a 100644
  val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
  
  // This is the version of the upstream instrumentation BOM
--val otelVersion = "2.20.1-adot1"
-+val otelVersion = "2.20.1-adot-lambda1"
- val otelSnapshotVersion = "2.21.0"
+-val otelVersion = "2.23.0"
++val otelVersion = "2.23.0-adot-lambda1"
+ val otelSnapshotVersion = "2.24.0"
  val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
  val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"

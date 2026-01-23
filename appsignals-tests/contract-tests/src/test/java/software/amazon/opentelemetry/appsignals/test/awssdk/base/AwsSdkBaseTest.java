@@ -239,6 +239,24 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
     };
   }
 
+  protected ThrowingConsumer<KeyValue> assertAttribute(String key, String[] valueArray) {
+    return (attribute) -> {
+      var actualKey = attribute.getKey();
+      assertThat(actualKey).isEqualTo(key);
+
+      // For now, only handle arrays of length 1.
+      var actualValueArray = attribute.getValue().getArrayValue();
+      var actualCount = actualValueArray.getValuesCount();
+      assertThat(actualCount).isEqualTo(1);
+      assertThat(valueArray.length).isEqualTo(1);
+
+      var value = valueArray[0];
+      var actualValue = actualValueArray.getValues(0).getStringValue();
+
+      assertThat(actualValue).isEqualTo(value);
+    };
+  }
+
   protected ThrowingConsumer<KeyValue> assertAttributeStartsWith(String key, String value) {
     return (attribute) -> {
       assertThat(attribute.getKey()).isEqualTo(key);
@@ -714,7 +732,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         4566,
         "http://create-bucket.s3.localstack:4566",
         200,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "create-bucket")));
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_S3_BUCKET, "create-bucket")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -794,7 +812,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         4566,
         "http://put-object.s3.localstack:4566",
         200,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "put-object")));
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_S3_BUCKET, "put-object")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -873,7 +891,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         4566,
         "http://get-object.s3.localstack:4566",
         200,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "get-object")));
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_S3_BUCKET, "get-object")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -952,7 +970,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         8080,
         "http://error-bucket.s3.test:8080",
         400,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "error-bucket")));
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_S3_BUCKET, "error-bucket")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1031,7 +1049,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         8080,
         "http://fault-bucket.s3.test:8080",
         500,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "fault-bucket")));
+        List.of(assertAttribute(SemanticConventionsConstants.AWS_S3_BUCKET, "fault-bucket")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1079,7 +1097,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   protected List<ThrowingConsumer<KeyValue>> dynamoDbAttributes(
       String operation, String tableName) {
     return List.of(
-        assertAttribute(SemanticConventionsConstants.AWS_TABLE_NAME, tableName),
+        assertAttribute(
+            SemanticConventionsConstants.AWS_DYNAMODB_TABLE_NAMES, new String[] {tableName}),
         assertAttribute(SemanticConventionsConstants.DB_SYSTEM, "dynamodb"),
         assertAttribute(SemanticConventionsConstants.DB_OPERATION, operation));
   }
@@ -1603,7 +1622,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "http://localstack:4566",
         200,
         List.of(
-            assertAttribute(SemanticConventionsConstants.AWS_QUEUE_URL, response.contentUtf8())));
+            assertAttribute(
+                SemanticConventionsConstants.AWS_SQS_QUEUE_URL, response.contentUtf8())));
     assertMetricProducerAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1649,7 +1669,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
   }
 
   protected List<ThrowingConsumer<KeyValue>> testSQSReceiveMessageExtraAssertions(String queueUrl) {
-    return List.of(assertAttribute(SemanticConventionsConstants.AWS_QUEUE_URL, queueUrl));
+    return List.of(assertAttribute(SemanticConventionsConstants.AWS_SQS_QUEUE_URL, queueUrl));
   }
 
   protected void doTestSQSReceiveMessage() throws Exception {
@@ -1749,7 +1769,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "http://error.test:8080",
         400,
         List.of(
-            assertAttribute(SemanticConventionsConstants.AWS_QUEUE_URL, "http://error.test:8080")));
+            assertAttribute(
+                SemanticConventionsConstants.AWS_SQS_QUEUE_URL, "http://error.test:8080")));
     assertMetricProducerAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1830,7 +1851,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "http://fault.test:8080",
         500,
         List.of(
-            assertAttribute(SemanticConventionsConstants.AWS_QUEUE_URL, "http://fault.test:8080")));
+            assertAttribute(
+                SemanticConventionsConstants.AWS_SQS_QUEUE_URL, "http://fault.test:8080")));
     assertMetricProducerAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -1909,7 +1931,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         4566,
         "http://localstack:4566",
         200,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_STREAM_NAME, "my-stream")));
+        List.of(
+            assertAttribute(SemanticConventionsConstants.AWS_KINESIS_STREAM_NAME, "my-stream")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -2073,7 +2096,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "http://error.test:8080",
         400,
         List.of(
-            assertAttribute(SemanticConventionsConstants.AWS_STREAM_NAME, "nonexistantstream")));
+            assertAttribute(
+                SemanticConventionsConstants.AWS_KINESIS_STREAM_NAME, "nonexistantstream")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -2152,7 +2176,8 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         8080,
         "http://fault.test:8080",
         500,
-        List.of(assertAttribute(SemanticConventionsConstants.AWS_STREAM_NAME, "faultstream")));
+        List.of(
+            assertAttribute(SemanticConventionsConstants.AWS_KINESIS_STREAM_NAME, "faultstream")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
@@ -4005,7 +4030,7 @@ public abstract class AwsSdkBaseTest extends ContractTestBase {
         "http://cross-account-bucket.s3.localstack:4566",
         200,
         List.of(
-            assertAttribute(SemanticConventionsConstants.AWS_BUCKET_NAME, "cross-account-bucket")));
+            assertAttribute(SemanticConventionsConstants.AWS_S3_BUCKET, "cross-account-bucket")));
     assertMetricClientAttributes(
         metrics,
         AppSignalsConstants.LATENCY_METRIC,
