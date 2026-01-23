@@ -23,7 +23,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
 - Remove conflicting attributes from aws-sdk instrumentation
   ([#1294](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1294))
-
+- Remove support for Java 23, add for Java 25
+  ([#1296](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1296))
 
 ### Enhancements
 
