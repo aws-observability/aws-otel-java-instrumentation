@@ -1,5 +1,32 @@
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
+index bfb2eee6..d9adedfe 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
+@@ -235,7 +235,8 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+       statisticsSnapshot.stream()
+           .forEach(
+               snapshot -> {
+-                if (snapshot.getStatisticsDocument() != null) {
++                if (snapshot.getStatisticsDocument() != null
++                    && snapshot.getStatisticsDocument().getRequestCount() > 0) {
+                   statistics.add(snapshot.getStatisticsDocument());
+                 }
+                 if (snapshot.getBoostStatisticsDocument() != null
+@@ -243,6 +244,12 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+                   boostStatistics.add(snapshot.getBoostStatisticsDocument());
+                 }
+               });
++
++      if (statistics.isEmpty() && boostStatistics.isEmpty()) {
++        fetchTargetsFuture =
++            executor.schedule(this::fetchTargets, DEFAULT_TARGET_INTERVAL_NANOS, NANOSECONDS);
++        return;
++      }
+       Set<String> requestedTargetRuleNames =
+           statistics.stream().map(SamplingStatisticsDocument::getRuleName).collect(toSet());
+
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index f2ab7c2d..7dcf8347 100644
+index f2ab7c2d..f0448176 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -263,7 +263,7 @@ final class XrayRulesSampler implements Sampler {
@@ -11,6 +38,98 @@ index f2ab7c2d..7dcf8347 100644
            matchedRule = applier;
          }
        }
+@@ -323,14 +323,8 @@ final class XrayRulesSampler implements Sampler {
+                   if (target != null) {
+                     return rule.withTarget(target, now, currentNanoTime);
+                   }
+-                  if (requestedTargetRuleNames.contains(rule.getRuleName())) {
+-                    // In practice X-Ray should return a target for any rule we requested but
+-                    // do a defensive check here in case. If we requested a target but got nothing
+-                    // back assume the default interval.
+-                    return rule.withNextSnapshotTimeNanos(defaultNextSnapshotTimeNanos);
+-                  }
+                   // Target not requested, will be updated in a future target fetch.
+-                  return rule;
++                  return rule.withNextSnapshotTimeNanos(defaultNextSnapshotTimeNanos);
+                 })
+             .toArray(SamplingRuleApplier[]::new);
+     return new XrayRulesSampler(
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
+index ef47ba72..f7b60eea 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
+@@ -51,7 +51,7 @@ final class XraySamplerClient {
+
+   private static final ObjectMapper OBJECT_MAPPER =
+       new ObjectMapper()
+-          .setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY)
++          .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
+           // AWS APIs return timestamps as floats.
+           .registerModule(
+               new SimpleModule().addDeserializer(Date.class, new FloatDateDeserializer()))
+diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
+index 7a75f377..8ce009c0 100644
+--- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
++++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
+@@ -33,6 +33,7 @@ import java.io.IOException;
+ import java.io.UncheckedIOException;
+ import java.time.Duration;
+ import java.util.Collections;
++import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicReference;
+ import org.junit.jupiter.api.AfterEach;
+ import org.junit.jupiter.api.BeforeEach;
+@@ -69,6 +70,7 @@ class AwsXrayRemoteSamplerTest {
+
+   private static final AtomicReference<byte[]> rulesResponse = new AtomicReference<>();
+   private static final AtomicReference<byte[]> targetsResponse = new AtomicReference<>();
++  private static final AtomicInteger targetsRequestCount = new AtomicInteger(0);
+
+   private static final String TRACE_ID = TraceId.fromLongs(1, 2);
+
+@@ -92,6 +94,7 @@ class AwsXrayRemoteSamplerTest {
+           sb.service(
+               "/SamplingTargets",
+               (ctx, req) -> {
++                targetsRequestCount.incrementAndGet();
+                 byte[] response = AwsXrayRemoteSamplerTest.targetsResponse.get();
+                 if (response == null) {
+                   // Error out until the test configures a response, the sampler will use the
+@@ -120,6 +123,7 @@ class AwsXrayRemoteSamplerTest {
+   void tearDown() {
+     sampler.close();
+     rulesResponse.set(null);
++    targetsRequestCount.set(0);
+   }
+
+   @Test
+@@ -163,6 +167,26 @@ class AwsXrayRemoteSamplerTest {
+             });
+   }
+
++  @Test
++  void doesNotCallGetSamplingTargetsWhenNoStatistics() {
++    rulesResponse.set(RULE_RESPONSE_1);
++    targetsResponse.set(TARGETS_RESPONSE);
++
++    await()
++        .untilAsserted(
++            () -> {
++              assertThat(sampler.getDescription()).contains("XrayRulesSampler");
++            });
++
++    await()
++        .pollDelay(Duration.ofMillis(100))
++        .atMost(Duration.ofMillis(200))
++        .untilAsserted(
++            () -> {
++              assertThat(targetsRequestCount.get()).isEqualTo(0);
++            });
++  }
++
+   @Test
+   void defaultInitialSampler() {
+     try (AwsXrayRemoteSampler sampler = AwsXrayRemoteSampler.newBuilder(Resource.empty()).build()) {
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 index c8a8dead..be314c1c 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
@@ -83,6 +202,18 @@ index c8a8dead..be314c1c 100644
 
      // Assert the trace ID cache is filled with appropriate data and is cleared after TTL passes
      assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(4);
+diff --git a/aws-xray/src/test/resources/get-sampling-targets-request.json b/aws-xray/src/test/resources/get-sampling-targets-request.json
+index a8ad4540..83e32229 100644
+--- a/aws-xray/src/test/resources/get-sampling-targets-request.json
++++ b/aws-xray/src/test/resources/get-sampling-targets-request.json
+@@ -16,5 +16,6 @@
+       "SampledCount":31,
+       "BorrowCount":0
+     }
+-  ]
++  ],
++  "SamplingBoostStatisticsDocuments":[]
+ }
 diff --git a/version.gradle.kts b/version.gradle.kts
 index 74967704..d08094f7 100644
 --- a/version.gradle.kts
