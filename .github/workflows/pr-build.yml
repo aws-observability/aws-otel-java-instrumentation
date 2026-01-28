@@ -236,6 +236,7 @@ jobs:
           image-ref: ${{ env.TEST_TAG }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
           logout: 'true'
+          trivyignore-file: .github/trivy/pr-build.trivyignore.yaml
 
       - name: Test docker image
         if: ${{ matrix.os == 'ubuntu-latest' }}

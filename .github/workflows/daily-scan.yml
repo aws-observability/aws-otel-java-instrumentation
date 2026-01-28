@@ -95,6 +95,7 @@ jobs:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'CRITICAL,HIGH'
           logout: 'false'
+          trivyignore-file: .github/trivy/daily-scan.trivyignore.yaml
 
       - name: Perform low image scan on v1
         if: always()
@@ -104,6 +105,7 @@ jobs:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'MEDIUM,LOW,UNKNOWN'
           logout: 'false'
+          trivyignore-file: .github/trivy/daily-scan.trivyignore.yaml
 
       - name: Perform high image scan on v2
         if: always()
@@ -113,6 +115,7 @@ jobs:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.20.0"
           severity: 'CRITICAL,HIGH'
           logout: 'false'
+          trivyignore-file: .github/trivy/daily-scan.trivyignore.yaml
 
       - name: Perform low image scan on v2
         if: always()
@@ -122,6 +125,7 @@ jobs:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.20.0"
           severity: 'MEDIUM,LOW,UNKNOWN'
           logout: 'false'
+          trivyignore-file: .github/trivy/daily-scan.trivyignore.yaml
 
       - name: Configure AWS Credentials for emitting metrics
         if: always()
