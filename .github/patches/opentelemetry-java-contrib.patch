@@ -26,10 +26,29 @@ index bfb2eee6..d9adedfe 100644
            statistics.stream().map(SamplingStatisticsDocument::getRuleName).collect(toSet());
 
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index f2ab7c2d..f0448176 100644
+index f2ab7c2d..42b7328c 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-@@ -263,7 +263,7 @@ final class XrayRulesSampler implements Sampler {
+@@ -50,6 +50,8 @@ final class XrayRulesSampler implements Sampler {
+
+   public static final AttributeKey<String> AWS_XRAY_SAMPLING_RULE =
+       AttributeKey.stringKey("aws.xray.sampling_rule");
++  public static final AttributeKey<Boolean> AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED =
++      AttributeKey.booleanKey("aws.xray.adaptive_sampling_configured");
+
+   // Used for generating operation
+   private static final String UNKNOWN_OPERATION = "UnknownOperation";
+@@ -183,6 +185,9 @@ final class XrayRulesSampler implements Sampler {
+                 .put(
+                     AWS_XRAY_SAMPLING_RULE.getKey(),
+                     ruleToPropagate != null ? ruleToPropagate : "UNKNOWN")
++                .put(
++                    AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED.getKey(),
++                    this.adaptiveSamplingConfig != null)
+                 .build(),
+             hashedRule);
+       }
+@@ -263,7 +268,7 @@ final class XrayRulesSampler implements Sampler {
            ruleToReportTo = applier;
            break;
          }
@@ -38,7 +57,7 @@ index f2ab7c2d..f0448176 100644
            matchedRule = applier;
          }
        }
-@@ -323,14 +323,8 @@ final class XrayRulesSampler implements Sampler {
+@@ -323,14 +328,8 @@ final class XrayRulesSampler implements Sampler {
                    if (target != null) {
                      return rule.withTarget(target, now, currentNanoTime);
                    }
@@ -131,10 +150,202 @@ index 7a75f377..8ce009c0 100644
    void defaultInitialSampler() {
      try (AwsXrayRemoteSampler sampler = AwsXrayRemoteSampler.newBuilder(Resource.empty()).build()) {
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index c8a8dead..be314c1c 100644
+index c8a8dead..a27b3fe1 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-@@ -571,11 +571,27 @@ class XrayRulesSamplerTest {
+@@ -134,6 +134,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "cat-service"))
+@@ -143,6 +144,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -152,6 +154,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -161,6 +164,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -170,6 +174,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -179,6 +184,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -188,6 +194,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+
+@@ -222,6 +229,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -231,6 +239,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -240,6 +249,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+     // Targets overridden to always drop.
+@@ -250,6 +260,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -259,6 +270,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+
+@@ -367,6 +379,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "cat-service"))
+@@ -376,6 +389,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -385,6 +399,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -394,6 +409,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -403,6 +419,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -412,6 +429,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -421,6 +439,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+
+@@ -455,6 +474,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -464,6 +484,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -473,6 +494,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+     // Targets overridden to always drop.
+@@ -483,6 +505,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -492,6 +515,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+
+@@ -571,11 +595,27 @@ class XrayRulesSamplerTest {
              0.0,
              "*",
              "*",
@@ -164,7 +375,7 @@ index c8a8dead..be314c1c 100644
              "*",
              "*",
              "*",
-@@ -603,7 +619,7 @@ class XrayRulesSamplerTest {
+@@ -603,7 +643,7 @@ class XrayRulesSamplerTest {
              Resource.getDefault(),
              clock,
              Sampler.alwaysOn(),
@@ -173,7 +384,7 @@ index c8a8dead..be314c1c 100644
              config);
 
      Instant now = Instant.ofEpochSecond(0, clock.now());
-@@ -640,13 +656,16 @@ class XrayRulesSamplerTest {
+@@ -640,13 +680,16 @@ class XrayRulesSamplerTest {
      // Rules are ordered by priority, so cat-rule is first
      assertThat(snapshot.get(0).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
      assertThat(snapshot.get(0).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
@@ -192,7 +403,7 @@ index c8a8dead..be314c1c 100644
      // Mock trace coming from upstream service where it was sampled by cat-rule
      when(spanDataMock.getTraceId()).thenReturn("TRACE_ID4");
      when(readableSpanMock.getSpanContext())
-@@ -671,6 +690,9 @@ class XrayRulesSamplerTest {
+@@ -671,6 +714,9 @@ class XrayRulesSamplerTest {
      assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
      assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
      assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
