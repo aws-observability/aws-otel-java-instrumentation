@@ -11,6 +11,10 @@ inputs:
   severity:
     required: true
     description: "List of severities that will cause a failure"
+  trivyignore-file:
+    required: false
+    default: ''
+    description: "Path to the .trivyignore.yaml file to use for this scan"
   logout:
     required: true
     description: |
@@ -37,3 +41,5 @@ runs:
         image-ref: ${{ inputs.image-ref }}
         severity: ${{ inputs.severity }}
         exit-code: '1'
+      env:
+        TRIVY_IGNOREFILE: ${{ inputs.trivyignore-file }}
