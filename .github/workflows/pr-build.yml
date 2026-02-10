@@ -12,6 +12,8 @@ on:
       - "release/v*"
 env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
+  USER: ${{ github.event.pull_request.user.login }}
+  LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
 
 jobs:
   static-code-checks:
@@ -25,18 +27,18 @@ jobs:
         if: always()
         run: |
           # Check if PR is from workflows bot or dependabot
-          if [[ "${{ github.event.pull_request.user.login }}" == "aws-application-signals-bot" ]]; then
+          if [[ "${{ env.USER }}" == "aws-application-signals-bot" ]]; then
             echo "Skipping check: PR from aws-application-signals-bot"
             exit 0
           fi
           
-          if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+          if [[ "${{ env.USER }}" == "dependabot[bot]" ]]; then
             echo "Skipping check: PR from dependabot"
             exit 0
           fi
           
           # Check for skip changelog label
-          if echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | jq -r '.[]' | grep -q "skip changelog"; then
+          if echo '${{ env.LABELS }}' | jq -r '.[]' | grep -q "skip changelog"; then
             echo "Skipping check: skip changelog label found"
             exit 0
           fi
