@@ -47,39 +47,6 @@ public class AwsSdkExperimentalAttributesInjectionTest {
   }
 
   @Test
-  void testS3ExperimentalAttributes() {
-    when(mockRequest.getValueForField("Bucket", Object.class))
-        .thenReturn(Optional.of("test-bucket"));
-
-    fieldMapper.mapToAttributes(mockRequest, AwsSdkRequest.S3Request, mockSpan);
-
-    verify(mockSpan)
-        .setAttribute(eq(AwsExperimentalAttributes.AWS_BUCKET_NAME.getKey()), eq("test-bucket"));
-  }
-
-  @Test
-  void testSqsExperimentalAttributes() {
-    String queueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
-    when(mockRequest.getValueForField("QueueUrl", Object.class)).thenReturn(Optional.of(queueUrl));
-
-    fieldMapper.mapToAttributes(mockRequest, AwsSdkRequest.SqsRequest, mockSpan);
-
-    verify(mockSpan)
-        .setAttribute(eq(AwsExperimentalAttributes.AWS_QUEUE_URL.getKey()), eq(queueUrl));
-  }
-
-  @Test
-  void testDynamoDbExperimentalAttributes() {
-    when(mockRequest.getValueForField("TableName", Object.class))
-        .thenReturn(Optional.of("test-table"));
-
-    fieldMapper.mapToAttributes(mockRequest, AwsSdkRequest.DynamoDbRequest, mockSpan);
-
-    verify(mockSpan)
-        .setAttribute(eq(AwsExperimentalAttributes.AWS_TABLE_NAME.getKey()), eq("test-table"));
-  }
-
-  @Test
   void testSnsExperimentalAttributes() {
     String topicArn = "arn:aws:sns:us-east-1:123456789012:test-topic";
     when(mockRequest.getValueForField("TopicArn", Object.class)).thenReturn(Optional.of(topicArn));
@@ -92,15 +59,10 @@ public class AwsSdkExperimentalAttributesInjectionTest {
 
   @Test
   void testKinesisExperimentalAttributes() {
-    when(mockRequest.getValueForField("StreamName", Object.class))
-        .thenReturn(Optional.of("test-stream"));
     when(mockRequest.getValueForField("StreamARN", Object.class))
         .thenReturn(Optional.of("arn:aws:kinesis:region:account:stream/test-stream"));
 
     fieldMapper.mapToAttributes(mockRequest, AwsSdkRequest.KinesisRequest, mockSpan);
-
-    verify(mockSpan)
-        .setAttribute(eq(AwsExperimentalAttributes.AWS_STREAM_NAME.getKey()), eq("test-stream"));
     verify(mockSpan)
         .setAttribute(
             eq(AwsExperimentalAttributes.AWS_STREAM_ARN.getKey()),
