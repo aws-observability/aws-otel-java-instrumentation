@@ -5,11 +5,14 @@ on:
       - main
       - "release/v*"
 
+env:
+  BASE_REF: ${{ github.event.pull_request.base.ref }}
+
 jobs:
   testpatch:
     name: Test patches applied to dependencies
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') }}
+    if: ${{ startsWith(env.BASE_REF, 'release/v') }}
     steps:
       - uses: actions/checkout@v2
 
@@ -23,7 +26,7 @@ jobs:
       - uses: ./.github/actions/patch-dependencies
         with:
           run_tests: "true"
-          branch: ${{ github.event.pull_request.base.ref }}
+          branch: ${{ env.BASE_REF }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -42,7 +45,7 @@ jobs:
           # Windows is not working for patch workflows, therefore we disable it here
           # https://github.com/square/wire/issues/2188
           # https://github.com/open-telemetry/opentelemetry-java/issues/4560
-          - os: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') && 'windows-latest' || '' }}
+          - os: ${{ startsWith(env.BASE_REF, 'release/v') && 'windows-latest' || '' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -55,9 +58,9 @@ jobs:
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
-        if: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') }}
+        if: ${{ startsWith(env.BASE_REF, 'release/v') }}
         with:
-          branch: ${{ github.event.pull_request.base.ref }}
+          branch: ${{ env.BASE_REF }}
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg_password: ${{ secrets.GPG_PASSPHRASE }}
 
