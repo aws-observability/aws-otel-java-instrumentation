@@ -14,6 +14,7 @@ env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
   USER: ${{ github.event.pull_request.user.login }}
   LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+  BASE_REF: ${{ github.event.pull_request.base.ref }}
 
 jobs:
   static-code-checks:
@@ -140,7 +141,7 @@ jobs:
           # Windows is not working for patch workflows, therefore we disable it here
           # https://github.com/square/wire/issues/2188
           # https://github.com/open-telemetry/opentelemetry-java/issues/4560
-          - os: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') && 'windows-latest' || '' }}
+          - os: ${{ startsWith(env.BASE_REF, 'release/v') && 'windows-latest' || '' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
