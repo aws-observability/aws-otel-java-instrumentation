@@ -16,7 +16,6 @@
 plugins {
   java
   id("com.gradleup.shadow")
-  id("groovy")
 }
 
 base.archivesBaseName = "aws-instrumentation-aws-sdk"

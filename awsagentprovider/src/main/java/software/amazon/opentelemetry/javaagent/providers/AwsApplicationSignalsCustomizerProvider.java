@@ -65,7 +65,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
 /**
@@ -86,7 +89,13 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trace
 @Immutable
 public final class AwsApplicationSignalsCustomizerProvider
     implements AutoConfigurationCustomizerProvider {
+  // https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html
+  static final String AWS_REGION = "aws.region";
+  static final String AWS_DEFAULT_REGION = "aws.default.region";
+  // TODO: We should clean up and get rid of using AWS_LAMBDA_FUNCTION_NAME and default to
+  // upstream config property implementation.
   static final String AWS_LAMBDA_FUNCTION_NAME_CONFIG = "AWS_LAMBDA_FUNCTION_NAME";
+  static final String AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG = "aws.lambda.function.name";
   static final String LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT =
       "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
 
@@ -103,11 +112,14 @@ public final class AwsApplicationSignalsCustomizerProvider
   // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html#CloudWatch-LogsEndpoint
   static final String AWS_OTLP_LOGS_GROUP_HEADER = "x-aws-log-group";
   static final String AWS_OTLP_LOGS_STREAM_HEADER = "x-aws-log-stream";
+  static final String AWS_EMF_METRICS_NAMESPACE = "x-aws-metric-namespace";
 
   private static final String DEPRECATED_SMP_ENABLED_CONFIG = "otel.smp.enabled";
   private static final String DEPRECATED_APP_SIGNALS_ENABLED_CONFIG =
       "otel.aws.app.signals.enabled";
   static final String APPLICATION_SIGNALS_ENABLED_CONFIG = "otel.aws.application.signals.enabled";
+  static final String OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS =
+      "otel.metrics.add.application.signals.dimensions";
 
   private static final String OTEL_RESOURCE_PROVIDERS_AWS_ENABLED =
       "otel.resource.providers.aws.enabled";
@@ -132,7 +144,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
       "otel.bsp.max.export.batch.size";
 
-  private static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
+  static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
   static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
   static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
   static final String OTEL_EXPORTER_OTLP_TRACES_PROTOCOL = "otel.exporter.otlp.traces.protocol";
@@ -161,6 +173,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
 
   private Sampler sampler;
+  private boolean isEmfExporterEnabled = false;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -171,6 +184,23 @@ public final class AwsApplicationSignalsCustomizerProvider
     autoConfiguration.addMeterProviderCustomizer(this::customizeMeterProvider);
     autoConfiguration.addSpanExporterCustomizer(this::customizeSpanExporter);
     autoConfiguration.addLogRecordExporterCustomizer(this::customizeLogsExporter);
+    autoConfiguration.addMetricExporterCustomizer(this::customizeMetricExporter);
+  }
+
+  static boolean shouldAddApplicationSignalsDimensionsEnabled(ConfigProperties props) {
+    return props.getBoolean(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, true);
+  }
+
+  private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
+    String region = configProps.getString(AWS_REGION);
+    if (region != null) {
+      return Optional.of(region);
+    }
+    return Optional.ofNullable(configProps.getString(AWS_DEFAULT_REGION));
+  }
+
+  static boolean isLambdaEnvironment(ConfigProperties props) {
+    return props.getString(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG) != null;
   }
 
   static boolean isLambdaEnvironment() {
@@ -190,9 +220,17 @@ public final class AwsApplicationSignalsCustomizerProvider
         && configProps.getBoolean(APPLICATION_SIGNALS_RUNTIME_ENABLED_CONFIG, true);
   }
 
-  private Map<String, String> customizeProperties(ConfigProperties configProps) {
+  Map<String, String> customizeProperties(ConfigProperties configProps) {
     Map<String, String> propsOverride = new HashMap<>();
     boolean isLambdaEnvironment = isLambdaEnvironment();
+
+    // Check if awsemf was specified and remove it from OTEL_METRICS_EXPORTER
+    Optional<String> filteredExporters =
+        AwsApplicationSignalsConfigUtils.removeEmfExporterIfEnabled(configProps);
+    if (filteredExporters.isPresent()) {
+      this.isEmfExporterEnabled = true;
+      propsOverride.put(OTEL_METRICS_EXPORTER, filteredExporters.get());
+    }
 
     // Enable AWS Resource Providers
     propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
@@ -394,7 +432,6 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   private SdkMeterProviderBuilder customizeMeterProvider(
       SdkMeterProviderBuilder sdkMeterProviderBuilder, ConfigProperties configProps) {
-
     if (isApplicationSignalsRuntimeEnabled(configProps)) {
       Set<String> registeredScopeNames = new HashSet<>(1);
       String jmxRuntimeScopeName = "io.opentelemetry.jmx";
@@ -434,7 +471,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
-    if (AwsApplicationSignalsConfigValidator.isSigV4EnabledTraces(configProps)) {
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)) {
       // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
       // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
       // so the given spanExporter will be an instance of OtlpHttpSpanExporter
@@ -480,7 +517,7 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   LogRecordExporter customizeLogsExporter(
       LogRecordExporter logsExporter, ConfigProperties configProps) {
-    if (AwsApplicationSignalsConfigValidator.isSigV4EnabledLogs(configProps)) {
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledLogs(configProps)) {
       // can cast here since we've checked that the configuration for OTEL_LOGS_EXPORTER is otlp and
       // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
       // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
@@ -492,7 +529,7 @@ public final class AwsApplicationSignalsCustomizerProvider
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
       try {
-        return OtlpAwsLogsExporterBuilder.create(
+        return OtlpAwsLogRecordExporterBuilder.create(
                 (OtlpHttpLogRecordExporter) logsExporter,
                 configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
             .setCompression(compression)
@@ -505,8 +542,66 @@ public final class AwsApplicationSignalsCustomizerProvider
             e);
       }
     }
+    String logsExporterConfig = configProps.getString(OTEL_LOGS_EXPORTER);
+
+    if (isLambdaEnvironment(configProps)
+        && logsExporterConfig != null
+        && logsExporterConfig.equals("console")) {
+      return new CompactConsoleLogRecordExporter();
+    }
 
     return logsExporter;
+  }
+
+  MetricExporter customizeMetricExporter(
+      MetricExporter metricExporter, ConfigProperties configProps) {
+
+    if (isEmfExporterEnabled) {
+      boolean shouldAddApplicationSignalsDimensions =
+          AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+              configProps);
+      Map<String, String> headers =
+          AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
+              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
+      Optional<String> awsRegion = getAwsRegionFromConfig(configProps);
+      String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
+
+      if (awsRegion.isPresent()) {
+        if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
+            && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
+          String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
+          String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
+          return AwsCloudWatchEmfExporter.builder()
+              .setNamespace(namespace)
+              .setLogGroupName(logGroup)
+              .setLogStreamName(logStream)
+              .setAwsRegion(awsRegion.get())
+              .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
+              .build();
+        }
+
+        if (isLambdaEnvironment(configProps)) {
+          return ConsoleEmfExporter.builder()
+              .setNamespace(namespace)
+              .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
+              .build();
+        }
+        logger.warning(
+            String.format(
+                "Improper EMF Exporter configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s, %s, and %s",
+                AWS_OTLP_LOGS_GROUP_HEADER,
+                AWS_OTLP_LOGS_STREAM_HEADER,
+                AWS_EMF_METRICS_NAMESPACE));
+
+      } else {
+        logger.warning(
+            String.format(
+                "Improper EMF Exporter configuration: AWS region not found in environment variables please set %s or %s",
+                AWS_REGION, AWS_DEFAULT_REGION));
+      }
+    }
+
+    return metricExporter;
   }
 
   static AwsXrayAdaptiveSamplingConfig parseConfigString(String config)

@@ -13,6 +13,35 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Add adaptive sampling local config attribute to spans
+  ([#1299](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1299))
+- Optimize GetSamplingTargets calls by removing empty statistics documents
+  ([#1298](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1298))
+
+## v2.23.0 - 2026-01-24
+
+### Enhancements
+- Upgrade to OTel v2.23.0 and Contrib v1.52.0
+  ([#1292](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1292))
+- Adaptive Sampling: Ensure the highest priority sampling rule is matched
+  ([#1290](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1290))
+- Sign Lambda layer by AWS Signer
+  ([#1275](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1275))
+- Bump Netty version to 4.1.130 Final
+  ([#1271](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1271))
+- Remove conflicting attributes from aws-sdk instrumentation
+  ([#1294](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1294))
+- Remove support for Java 23, add for Java 25
+  ([#1296](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1296))
+- Add Application Signals Dimensions to EMF exporter
+  ([#1264](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1264))
+- Configure EMF and CompactLog Exporters for Lambda Environment
+  ([#1222](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1222))
+- feat: [Java] EMF Exporter Implementation
+  ([#1209](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1209))
+
+## v2.20.0 - 2025-10-29
+
 ### Enhancements
 
 - Support X-Ray Trace Id extraction from Lambda Context object, and respect user-configured OTEL_PROPAGATORS in AWS Lamdba instrumentation

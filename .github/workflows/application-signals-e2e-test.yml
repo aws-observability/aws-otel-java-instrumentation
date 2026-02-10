@@ -88,14 +88,14 @@ jobs:
       java-version: '21'
       cpu-architecture: 'x86_64'
 
-  default-v23-amd64:
+  default-v25-amd64:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-default-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
-      java-version: '23'
+      java-version: '25'
       cpu-architecture: 'x86_64'
 
   java-ec2-adot-sigv4-test:
@@ -159,7 +159,7 @@ jobs:
       caller-workflow-name: 'main-build'
       java-version: '21'
 
-  eks-v23-amd64:
+  eks-v25-amd64:
     needs: eks-v21-amd64
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
@@ -168,7 +168,7 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
-      java-version: '23'
+      java-version: '25'
 
   #
   # PACKAGED DISTRIBUTION PLATFORM COVERAGE
@@ -241,7 +241,7 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    needs: [ eks-v23-amd64 ]
+    needs: [ eks-v25-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
