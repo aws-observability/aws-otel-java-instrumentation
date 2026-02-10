@@ -11,6 +11,8 @@ on:
         description: Comma separated list of commit shas to cherrypick
 
 env:
+  VERSION: ${{ github.event.inputs.version }}
+  COMMITS: ${{ github.event.inputs.commits }}
   AWS_DEFAULT_REGION: us-east-1
 
 permissions:
@@ -29,9 +31,9 @@ jobs:
         name: Parse release branch name
         run: |
           # Sets the release-branch-name output to the version number with the last non-period element replaced with an 'x' and preprended with v.
-          echo "release-branch-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
+          echo "release-branch-name=$(echo '${{ env.VERSION }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
           # Sets the release-tag-name output to the version number with the last non-period element replace with a '0' and prepended with v
-          echo "release-tag-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
+          echo "release-tag-name=$(echo '${{ env.VERSION }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
       - id: checkout-release-branch
         name: Check out release branch
         # Will fail if there is no release branch yet or succeed otherwise
@@ -79,10 +81,10 @@ jobs:
           git config user.email github-actions@github.com
 
       - name: Cherrypicks
-        if: ${{ github.event.inputs.commits != '' }}
+        if: ${{ env.COMMITS != '' }}
         run: |
           git fetch origin main
-          echo ${{ github.event.inputs.commits }} | sed -n 1'p' | tr ',' '\n' | while read word; do
+          echo ${{ env.COMMITS }} | sed -n 1'p' | tr ',' '\n' | while read word; do
               # Trim whitespaces and cherrypick
               echo $word | sed 's/ *$//g' | sed 's/^ *//g' | git cherry-pick --stdin
           done
@@ -90,12 +92,12 @@ jobs:
       - name: Build release with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build jib final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build jib final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ env.VERSION }} --stacktrace
         env:
           PUBLISH_USERNAME: ${{ secrets.PUBLISH_USERNAME }}
           PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
           GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_HASH: ${{ github.event.inputs.version }}
+          COMMIT_HASH: ${{ env.VERSION }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
@@ -105,8 +107,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          release_name: Release v${{ github.event.inputs.version }}
+          tag_name: v${{ env.VERSION }}
+          release_name: Release v${{ env.VERSION }}
           draft: true
           prerelease: false
 
@@ -117,6 +119,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar
+          asset_path: otelagent/build/libs/aws-opentelemetry-agent-${{ env.VERSION }}.jar
           asset_name: aws-opentelemetry-agent.jar
           asset_content_type: application/java-archive
