@@ -13,6 +13,8 @@ on:
 env:
   AWS_DEFAULT_REGION: us-east-1
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test
+  VERSION: ${{ github.event.inputs.version }}
+  COMMITS: ${{ github.event.inputs.commits }}
 
 permissions:
   id-token: write
@@ -30,9 +32,9 @@ jobs:
         name: Parse release branch name
         run: |
           # Sets the release-branch-name output to the version number with the last non-period element replaced with an 'x' and preprended with v.
-          echo "release-branch-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
+          echo "release-branch-name=$(echo '${{ env.VERSION }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
           # Sets the release-tag-name output to the version number with the last non-period element replace with a '0' and prepended with v
-          echo "release-tag-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
+          echo "release-tag-name=$(echo '${{ env.VERSION }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
       - id: checkout-release-branch
         name: Check out release branch
         # Will fail if there is no release branch yet or succeed otherwise
@@ -81,10 +83,10 @@ jobs:
           git config user.email github-actions@github.com
 
       - name: Cherrypicks
-        if: ${{ github.event.inputs.commits != '' }}
+        if: ${{ env.COMMITS != '' }}
         run: |
           git fetch origin main
-          echo ${{ github.event.inputs.commits }} | sed -n 1'p' | tr ',' '\n' | while read word; do
+          echo ${{ env.COMMITS }} | sed -n 1'p' | tr ',' '\n' | while read word; do
               # Trim whitespaces and cherrypick
               echo $word | sed 's/ *$//g' | sed 's/^ *//g' | git cherry-pick --stdin
           done
@@ -92,7 +94,7 @@ jobs:
       - name: Build release with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ env.VERSION }} --stacktrace
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -117,7 +119,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: false
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
           context: .
           platforms: linux/amd64
           tags: ${{ env.TEST_TAG }}
@@ -125,22 +127,22 @@ jobs:
 
       - name: Test docker image
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.VERSION }}"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           push: true
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
+            public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ env.VERSION }}
 
       - name: Build and Publish release with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ env.VERSION }} --stacktrace
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -152,9 +154,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
-            cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" aws-opentelemetry-agent.jar
+            cp "otelagent/build/libs/aws-opentelemetry-agent-${{ env.VERSION }}.jar" aws-opentelemetry-agent.jar
             gh release create --target "$GITHUB_REF_NAME" \
-               --title "Release v${{ github.event.inputs.version }}" \
+               --title "Release v${{ env.VERSION }}" \
                --draft \
-               "v${{ github.event.inputs.version }}" \
+               "v${{ env.VERSION }}" \
                aws-opentelemetry-agent.jar
