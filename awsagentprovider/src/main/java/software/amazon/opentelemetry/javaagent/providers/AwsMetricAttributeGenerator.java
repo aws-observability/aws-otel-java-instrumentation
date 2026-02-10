@@ -15,6 +15,10 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.DbAttributes.DB_NAMESPACE;
+import static io.opentelemetry.semconv.DbAttributes.DB_OPERATION_NAME;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_TEXT;
+import static io.opentelemetry.semconv.DbAttributes.DB_SYSTEM_NAME;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.NetworkAttributes.NETWORK_PEER_ADDRESS;
@@ -26,7 +30,6 @@ import static io.opentelemetry.semconv.UrlAttributes.URL_FULL;
 // https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv-incubating/src/main/java/io/opentelemetry/semconv/incubating/DbIncubatingAttributes.java#L322-L327
 // They have been replaced with new keys:
 // https://github.com/open-telemetry/semantic-conventions-java/blob/release/v1.34.0/semconv/src/main/java/io/opentelemetry/semconv/DbAttributes.java#L77
-// TODO: Supporting new keys. Cannot do this now as new keys are not available in OTel Agent 2.11.
 // TODO: Delete deprecated keys once they no longer exist in binding version of the upstream code.
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
@@ -56,11 +59,12 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSi
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DYNAMODB_TABLE_NAMES;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KINESIS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
@@ -68,7 +72,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
@@ -78,21 +81,22 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_S3_BUCKET;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SNS_TOPIC_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SQS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_ARN;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_ARN;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.SQL_DIALECT_PATTERN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.UNKNOWN_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getKeyValueWithFallback;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isAwsSDKSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isDBSpan;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
@@ -285,11 +289,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
       remoteOperation = getRemoteOperation(span, RPC_METHOD);
 
     } else if (isDBSpan(span)) {
-      remoteService = getRemoteService(span, DB_SYSTEM);
-      if (isKeyPresent(span, DB_OPERATION)) {
-        remoteOperation = getRemoteOperation(span, DB_OPERATION);
+      remoteService = getRemoteServiceWithFallback(span, DB_SYSTEM_NAME, DB_SYSTEM);
+      if (isKeyPresentWithFallback(span, DB_OPERATION_NAME, DB_OPERATION)) {
+        remoteOperation = getRemoteOperationWithFallback(span, DB_OPERATION_NAME, DB_OPERATION);
       } else {
-        remoteOperation = getDBStatementRemoteOperation(span, DB_STATEMENT);
+        String dbStatement = getKeyValueWithFallback(span, DB_QUERY_TEXT, DB_STATEMENT);
+        remoteOperation = getDBStatementRemoteOperation(span, dbStatement);
       }
     } else if (isKeyPresent(span, FAAS_INVOKED_NAME) || isKeyPresent(span, FAAS_TRIGGER)) {
       remoteService = getRemoteService(span, FAAS_INVOKED_NAME);
@@ -348,11 +353,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    */
   private static String generateRemoteOperation(SpanData span) {
     String remoteOperation = UNKNOWN_REMOTE_OPERATION;
-    if (isKeyPresent(span, URL_FULL) || isKeyPresent(span, HTTP_URL)) {
-      String httpUrl =
-          isKeyPresent(span, URL_FULL)
-              ? span.getAttributes().get(URL_FULL)
-              : span.getAttributes().get(HTTP_URL);
+    if (isKeyPresentWithFallback(span, URL_FULL, HTTP_URL)) {
+      String httpUrl = getKeyValueWithFallback(span, URL_FULL, HTTP_URL);
       try {
         URL url;
         if (httpUrl != null) {
@@ -363,11 +365,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         logger.log(Level.FINEST, "invalid http.url attribute: ", httpUrl);
       }
     }
-    if (isKeyPresent(span, HTTP_REQUEST_METHOD) || isKeyPresent(span, HTTP_METHOD)) {
-      String httpMethod =
-          isKeyPresent(span, HTTP_REQUEST_METHOD)
-              ? span.getAttributes().get(HTTP_REQUEST_METHOD)
-              : span.getAttributes().get(HTTP_METHOD);
+    if (isKeyPresentWithFallback(span, HTTP_REQUEST_METHOD, HTTP_METHOD)) {
+      String httpMethod = getKeyValueWithFallback(span, HTTP_REQUEST_METHOD, HTTP_METHOD);
       remoteOperation = httpMethod + " " + remoteOperation;
     }
     if (remoteOperation.equals(UNKNOWN_REMOTE_OPERATION)) {
@@ -455,8 +454,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AmazonSQS": // AWS SDK v1
         case "Sqs": // AWS SDK v2
           return NORMALIZED_SQS_SERVICE_NAME;
-          // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
-          // Control and use AWS::Bedrock for RemoteService.
+        // For Bedrock, Bedrock Agent, and Bedrock Agent Runtime, we can align with AWS Cloud
+        // Control and use AWS::Bedrock for RemoteService.
         case "AmazonBedrock": // AWS SDK v1
         case "Bedrock": // AWS SDK v2
         case "AWSBedrockAgentRuntime": // AWS SDK v1
@@ -464,8 +463,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         case "AWSBedrockAgent": // AWS SDK v1
         case "BedrockAgent": // AWS SDK v2
           return NORMALIZED_BEDROCK_SERVICE_NAME;
-          // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource
-          // (Model) is not listed in Cloud Control.
+        // For BedrockRuntime, we are using AWS::BedrockRuntime as the associated remote resource
+        // (Model) is not listed in Cloud Control.
         case "AmazonBedrockRuntime": // AWS SDK v1
         case "BedrockRuntime": // AWS SDK v2
           return NORMALIZED_BEDROCK_RUNTIME_SERVICE_NAME;
@@ -518,36 +517,45 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     Optional<String> cloudformationPrimaryIdentifier = Optional.empty();
 
     if (isAwsSDKSpan(span)) {
-      if (isKeyPresent(span, AWS_TABLE_NAME)) {
+      // AWS_DYNAMODB_TABLE_NAMES should never be empty, but we apply defensive programming in this
+      // case.
+      // If there are multiple table names (e.g. batch writes), we only take the first, a future
+      // improvement would be to have multiple remote resource identifiers, but this is not
+      // supported today.
+      if (isKeyPresent(span, AWS_DYNAMODB_TABLE_NAMES)
+          && !span.getAttributes().get(AWS_DYNAMODB_TABLE_NAMES).isEmpty()) {
         remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
         remoteResourceIdentifier =
-            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_TABLE_NAME)));
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(AWS_DYNAMODB_TABLE_NAMES).get(0)));
       } else if (isKeyPresent(span, AWS_TABLE_ARN)) {
         remoteResourceType = Optional.of(NORMALIZED_DYNAMO_DB_SERVICE_NAME + "::Table");
         remoteResourceIdentifier =
             getDynamodbTableNameFromArn(
                 Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_TABLE_ARN))));
-      } else if (isKeyPresent(span, AWS_STREAM_NAME)) {
+      } else if (isKeyPresent(span, AWS_KINESIS_STREAM_NAME)) {
         remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
         remoteResourceIdentifier =
-            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STREAM_NAME)));
+            Optional.ofNullable(
+                escapeDelimiters(span.getAttributes().get(AWS_KINESIS_STREAM_NAME)));
       } else if (isKeyPresent(span, AWS_STREAM_ARN)) {
         remoteResourceType = Optional.of(NORMALIZED_KINESIS_SERVICE_NAME + "::Stream");
         remoteResourceIdentifier =
             getKinesisStreamNameFromArn(
                 Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_STREAM_ARN))));
-      } else if (isKeyPresent(span, AWS_BUCKET_NAME)) {
+      } else if (isKeyPresent(span, AWS_S3_BUCKET)) {
         remoteResourceType = Optional.of(NORMALIZED_S3_SERVICE_NAME + "::Bucket");
         remoteResourceIdentifier =
-            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_BUCKET_NAME)));
+            Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_S3_BUCKET)));
       } else if (isKeyPresent(span, AWS_QUEUE_NAME)) {
         remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_QUEUE_NAME)));
-      } else if (isKeyPresent(span, AWS_QUEUE_URL)) {
+      } else if (isKeyPresent(span, AWS_SQS_QUEUE_URL)) {
         remoteResourceType = Optional.of(NORMALIZED_SQS_SERVICE_NAME + "::Queue");
         remoteResourceIdentifier =
-            SqsUrlParser.getQueueName(escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL)));
+            SqsUrlParser.getQueueName(
+                escapeDelimiters(span.getAttributes().get(AWS_SQS_QUEUE_URL)));
       } else if (isKeyPresent(span, AWS_AGENT_ID)) {
         remoteResourceType = Optional.of(NORMALIZED_BEDROCK_SERVICE_NAME + "::Agent");
         remoteResourceIdentifier =
@@ -666,8 +674,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
             AWS_GUARDRAIL_ARN,
             AWS_LAMBDA_FUNCTION_ARN);
 
-    if (isKeyPresent(span, AWS_QUEUE_URL)) {
-      String url = escapeDelimiters(span.getAttributes().get(AWS_QUEUE_URL));
+    if (isKeyPresent(span, AWS_SQS_QUEUE_URL)) {
+      String url = escapeDelimiters(span.getAttributes().get(AWS_SQS_QUEUE_URL));
       remoteResourceAccountId = SqsUrlParser.getAccountId(url);
       remoteResourceRegion = SqsUrlParser.getRegion(url);
     } else {
@@ -791,7 +799,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * provided.
    */
   private static Optional<String> getDbConnection(SpanData span) {
-    String dbName = span.getAttributes().get(DB_NAME);
+    String dbName = getKeyValueWithFallback(span, DB_NAMESPACE, DB_NAME);
     Optional<String> dbConnection = Optional.empty();
 
     if (isKeyPresent(span, SERVER_ADDRESS)) {
@@ -949,6 +957,17 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     return remoteService;
   }
 
+  static String getRemoteServiceWithFallback(
+      SpanData span,
+      AttributeKey<String> remoteServiceKey,
+      AttributeKey<String> remoteServiceFallbackKey) {
+    String remoteService = span.getAttributes().get(remoteServiceKey);
+    if (remoteService == null) {
+      return getRemoteService(span, remoteServiceFallbackKey);
+    }
+    return remoteService;
+  }
+
   private static String getRemoteOperation(SpanData span, AttributeKey<String> remoteOperationKey) {
     String remoteOperation = span.getAttributes().get(remoteOperationKey);
     if (remoteOperation == null) {
@@ -972,9 +991,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * statement and compare to a regex list of known SQL keywords. The substring length is determined
    * by the longest known SQL keywords.
    */
-  private static String getDBStatementRemoteOperation(
-      SpanData span, AttributeKey<String> remoteOperationKey) {
-    String remoteOperation = span.getAttributes().get(remoteOperationKey);
+  private static String getDBStatementRemoteOperation(SpanData span, String dbStatement) {
+    String remoteOperation = dbStatement;
     if (remoteOperation == null) {
       remoteOperation = UNKNOWN_REMOTE_OPERATION;
     }

@@ -13,6 +13,8 @@ on:
 env:
   AWS_DEFAULT_REGION: us-east-1
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
+  VERSION: ${{ github.event.inputs.version }}
+  COMMITS: ${{ github.event.inputs.commits }}
 
 permissions:
   id-token: write
@@ -30,21 +32,21 @@ jobs:
         name: Parse release branch name
         run: |
           # Sets the release-branch-name output to the version number with the last non-period element replaced with an 'x' and preprended with v.
-          echo "release-branch-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
+          echo "release-branch-name=$(echo '${{ env.VERSION }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.x/')" >> $GITHUB_OUTPUT
           # Sets the release-tag-name output to the version number with the last non-period element replace with a '0' and prepended with v
-          echo "release-tag-name=$(echo '${{ github.event.inputs.version }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
+          echo "release-tag-name=$(echo '${{ env.VERSION }}' | sed -E 's/([^.]+)\.([^.]+)\.([^.]+)/v\1.\2.0/')" >> $GITHUB_OUTPUT
       - id: checkout-release-branch
         name: Check out release branch
         # Will fail if there is no release branch yet or succeed otherwise
         continue-on-error: true
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           ref: ${{ steps.parse-release-branch.outputs.release-branch-name }}
       - id: checkout-release-tag
         name: Check out release tag
         # If there is already a release branch, the previous step succeeds and we don't run this or the next one.
         if: ${{ steps.checkout-release-branch.outcome == 'failure' }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           ref: ${{ steps.parse-release-branch.outputs.release-tag-name }}
       - name: Create release branch
@@ -57,21 +59,21 @@ jobs:
     needs: prepare-release-branch
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release-branch-name }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
-          java-version: 17
+          java-version-file: .java-version
           distribution: 'temurin'
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
@@ -81,43 +83,42 @@ jobs:
           git config user.email github-actions@github.com
 
       - name: Cherrypicks
-        if: ${{ github.event.inputs.commits != '' }}
+        if: ${{ env.COMMITS != '' }}
         run: |
           git fetch origin main
-          echo ${{ github.event.inputs.commits }} | sed -n 1'p' | tr ',' '\n' | while read word; do
+          echo ${{ env.COMMITS }} | sed -n 1'p' | tr ',' '\n' | while read word; do
               # Trim whitespaces and cherrypick
               echo $word | sed 's/ *$//g' | sed 's/^ *//g' | git cherry-pick --stdin
           done
-
       - name: Build release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
-          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ env.VERSION }} --stacktrace
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Log in to AWS ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #3.6.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
         with:
           driver-opts: image=moby/buildkit:v0.15.1
 
       - name: Build image for testing
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           push: false
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
           context: .
           platforms: linux/amd64
           tags: ${{ env.TEST_TAG }}
@@ -125,22 +126,22 @@ jobs:
 
       - name: Test docker image
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.VERSION }}"
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           push: true
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ github.event.inputs.version }}
+            public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v${{ env.VERSION }}
 
       - name: Build and Publish release with Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
-          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ env.VERSION }} --stacktrace
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -152,9 +153,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
-            cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" aws-opentelemetry-agent.jar
+            cp "otelagent/build/libs/aws-opentelemetry-agent-${{ env.VERSION }}.jar" aws-opentelemetry-agent.jar
             gh release create --target "$GITHUB_REF_NAME" \
-               --title "Release v${{ github.event.inputs.version }}" \
+               --title "Release v${{ env.VERSION }}" \
                --draft \
-               "v${{ github.event.inputs.version }}" \
+               "v${{ env.VERSION }}" \
                aws-opentelemetry-agent.jar

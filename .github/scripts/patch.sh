@@ -44,3 +44,16 @@ if [[ -f "$OTEL_JAVA_CONTRIB_PATCH" ]]; then
 else
   echo "Skipping patching opentelemetry-java-contrib"
 fi
+
+
+OTEL_JAVA_INSTRUMENTATION_PATCH=".github/patches/opentelemetry-java-instrumentation.patch"
+if [[ -f "$OTEL_JAVA_INSTRUMENTATION_PATCH" ]]; then
+  git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
+  cd opentelemetry-java-instrumentation
+  git checkout ${OTEL_JAVA_INSTRUMENTATION_VERSION} -b tag-${OTEL_JAVA_INSTRUMENTATION_VERSION}
+  patch -p1 < "../${OTEL_JAVA_INSTRUMENTATION_PATCH}"
+  git commit -a -m "ADOT Patch release"
+  cd -
+else
+  echo "Skipping patching opentelemetry-java-instrumentation"
+fi

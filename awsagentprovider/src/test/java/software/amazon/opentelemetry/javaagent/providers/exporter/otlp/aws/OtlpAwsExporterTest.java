@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,8 +51,8 @@ import software.amazon.awssdk.http.auth.spi.signer.SignRequest.Builder;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
@@ -282,7 +282,7 @@ abstract class AbstractOtlpAwsExporterTest {
     }
   }
 
-  static class OtlpAwsLogsExporterTest extends AbstractOtlpAwsExporterTest {
+  static class OtlpAwsLogRecordExporterTest extends AbstractOtlpAwsExporterTest {
     private static final String LOGS_OTLP_ENDPOINT = "https://logs.us-east-1.amazonaws.com/v1/logs";
 
     @Mock private OtlpHttpLogRecordExporterBuilder mockBuilder;
@@ -306,15 +306,15 @@ abstract class AbstractOtlpAwsExporterTest {
 
     @Test
     void testLogsExporterCompressionDefaultsToNone() {
-      OtlpAwsLogsExporter exporter =
-          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT).build();
+      OtlpAwsLogRecordExporter exporter =
+          OtlpAwsLogRecordExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT).build();
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
     @Test
     void testLogsExporterCompressionCanBeSetToGzip() {
-      OtlpAwsLogsExporter exporter =
-          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
+      OtlpAwsLogRecordExporter exporter =
+          OtlpAwsLogRecordExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
               .setCompression("gzip")
               .build();
       assertEquals(CompressionMethod.GZIP, exporter.getCompression());
@@ -322,8 +322,8 @@ abstract class AbstractOtlpAwsExporterTest {
 
     @Test
     void testLogsExporterCompressionIgnoresCaseForGzip() {
-      OtlpAwsLogsExporter exporter =
-          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
+      OtlpAwsLogRecordExporter exporter =
+          OtlpAwsLogRecordExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
               .setCompression("GZIP")
               .build();
       assertEquals(CompressionMethod.GZIP, exporter.getCompression());
@@ -331,8 +331,8 @@ abstract class AbstractOtlpAwsExporterTest {
 
     @Test
     void testLogsExporterCompressionDefaultsToNoneForUnknownValue() {
-      OtlpAwsLogsExporter exporter =
-          OtlpAwsLogsExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
+      OtlpAwsLogRecordExporter exporter =
+          OtlpAwsLogRecordExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT)
               .setCompression("unknown")
               .build();
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
@@ -343,8 +343,8 @@ abstract class AbstractOtlpAwsExporterTest {
 
       private MockOtlpAwsLogsExporterWrapper(OtlpHttpLogRecordExporter mockExporter) {
         this.exporter =
-            OtlpAwsLogsExporterBuilder.create(
-                    mockExporter, OtlpAwsLogsExporterTest.LOGS_OTLP_ENDPOINT)
+            OtlpAwsLogRecordExporterBuilder.create(
+                    mockExporter, OtlpAwsLogRecordExporterTest.LOGS_OTLP_ENDPOINT)
                 .build();
       }
 

@@ -11,6 +11,10 @@ inputs:
   severity:
     required: true
     description: "List of severities that will cause a failure"
+  trivyignore-file:
+    required: false
+    default: ''
+    description: "Path to the .trivyignore.yaml file to use for this scan"
   logout:
     required: true
     description: |
@@ -32,8 +36,10 @@ runs:
       run: docker logout public.ecr.aws
 
     - name: Run Trivy vulnerability scanner on image
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 #v0.33.1
       with:
         image-ref: ${{ inputs.image-ref }}
         severity: ${{ inputs.severity }}
         exit-code: '1'
+      env:
+        TRIVY_IGNOREFILE: ${{ inputs.trivyignore-file }}

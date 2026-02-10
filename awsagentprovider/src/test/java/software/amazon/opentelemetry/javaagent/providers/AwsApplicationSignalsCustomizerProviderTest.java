@@ -15,52 +15,60 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatException;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.opentelemetry.contrib.awsxray.AwsXrayAdaptiveSamplingConfig;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
+import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
+import java.io.File;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
-import org.mockito.junit.jupiter.MockitoExtension;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogsExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
 
-@ExtendWith({MockitoExtension.class})
-public class AwsApplicationSignalsCustomizerTest {
+class AwsApplicationSignalsCustomizerProviderTest {
   private AwsApplicationSignalsCustomizerProvider provider;
   private final LogRecordExporter defaultHttpLogsExporter = OtlpHttpLogRecordExporter.getDefault();
   private final SpanExporter defaultHttpSpanExporter = OtlpHttpSpanExporter.getDefault();
+  private final MetricExporter defaultHttpMetricsExporter = OtlpHttpMetricExporter.getDefault();
 
   @BeforeEach
   void init() {
     this.provider = new AwsApplicationSignalsCustomizerProvider();
   }
-
-  @AfterEach
-  void reset() {}
 
   @ParameterizedTest
   @MethodSource("validSigv4LogsConfigProvider")
@@ -69,12 +77,13 @@ public class AwsApplicationSignalsCustomizerTest {
         validSigv4Config,
         defaultHttpLogsExporter,
         this.provider::customizeLogsExporter,
-        OtlpAwsLogsExporter.class);
+        OtlpAwsLogRecordExporter.class);
   }
 
   @ParameterizedTest
   @MethodSource("invalidSigv4LogsConfigProvider")
-  void testShouldNotUseSigv4LogsExporter(Map<String, String> invalidSigv4Config) {
+  void testShouldNotUseSigv4LogsExporterIfConfigIsIncorrect(
+      Map<String, String> invalidSigv4Config) {
     customizeExporterTest(
         invalidSigv4Config,
         defaultHttpLogsExporter,
@@ -102,6 +111,31 @@ public class AwsApplicationSignalsCustomizerTest {
     }
   }
 
+  @Test
+  void testLambdaShouldEnableCompactLogsExporterIfConfigIsCorrect() {
+    Map<String, String> lambdaConfig =
+        Map.of(
+            OTEL_LOGS_EXPORTER, "console", AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+    DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(lambdaConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        lambdaConfig,
+        defaultHttpLogsExporter,
+        this.provider::customizeLogsExporter,
+        CompactConsoleLogRecordExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidCompactLogsConfigProvider")
+  void testShouldNotUseCompactLogsExporterIfConfigIsIncorrect(Map<String, String> invalidConfig) {
+    customizeExporterTest(
+        invalidConfig,
+        defaultHttpLogsExporter,
+        this.provider::customizeLogsExporter,
+        OtlpHttpLogRecordExporter.class);
+  }
+
   @ParameterizedTest
   @MethodSource("validSigv4TracesConfigProvider")
   void testShouldEnableSigV4SpanExporterIfConfigIsCorrect(Map<String, String> validSigv4Config) {
@@ -114,7 +148,8 @@ public class AwsApplicationSignalsCustomizerTest {
 
   @ParameterizedTest
   @MethodSource("invalidSigv4TracesConfigProvider")
-  void testShouldNotUseSigv4SpanExporter(Map<String, String> invalidSigv4Config) {
+  void testShouldNotUseSigv4SpanExporterIfConfigIsIncorrect(
+      Map<String, String> invalidSigv4Config) {
     customizeExporterTest(
         invalidSigv4Config,
         defaultHttpSpanExporter,
@@ -213,6 +248,198 @@ public class AwsApplicationSignalsCustomizerTest {
         defaultHttpSpanExporter,
         this.provider::customizeSpanExporter,
         AwsMetricAttributesSpanExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("validCloudWatchEmfConfigProvider")
+  void testShouldEnableCloudWatchEmfExporterIfConfigIsCorrect(Map<String, String> validEmfConfig) {
+    DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(validEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        validEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        AwsCloudWatchEmfExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("validCloudWatchEmfConfigProvider")
+  void testLambdaShouldEnableCloudWatchEmfExporterIfConfigIsCorrect(
+      Map<String, String> validEmfConfig) {
+    Map<String, String> lambdaCloudWatchEmfConfig = new HashMap<>(validEmfConfig);
+    lambdaCloudWatchEmfConfig.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+    DefaultConfigProperties configProps =
+        DefaultConfigProperties.createFromMap(lambdaCloudWatchEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        lambdaCloudWatchEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        AwsCloudWatchEmfExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("validConsoleEmfConfigProvider")
+  void testLambdaShouldEnableConsoleEmfExporterIfConfigIsCorrect(
+      Map<String, String> lambdaConsoleEmfConfig) {
+    DefaultConfigProperties configProps =
+        DefaultConfigProperties.createFromMap(lambdaConsoleEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        lambdaConsoleEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        ConsoleEmfExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidCloudWatchEmfConfigProvider")
+  void testShouldNotUseCloudWatchEmfExporterIfConfigIsIncorrect(
+      Map<String, String> invalidEmfConfig) {
+    DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(invalidEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        invalidEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        OtlpHttpMetricExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidConsoleEmfConfigProvider")
+  void testShouldNotUseConsoleEmfExporterIfConfigIsIncorrect(
+      Map<String, String> invalidConsoleEmfConfig) {
+    DefaultConfigProperties configProps =
+        DefaultConfigProperties.createFromMap(invalidConsoleEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        invalidConsoleEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        OtlpHttpMetricExporter.class);
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidLambdaCloudWatchEmfConfigProvider")
+  void testLambdaShouldNotUseCloudWatchEmfExporterIfConfigIsIncorrect(
+      Map<String, String> invalidEmfConfig) {
+    Map<String, String> lambdaCloudWatchEmfConfig = new HashMap<>(invalidEmfConfig);
+    lambdaCloudWatchEmfConfig.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+
+    DefaultConfigProperties configProps =
+        DefaultConfigProperties.createFromMap(lambdaCloudWatchEmfConfig);
+    this.provider.customizeProperties(configProps);
+
+    customizeExporterTest(
+        lambdaCloudWatchEmfConfig,
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        OtlpHttpMetricExporter.class);
+  }
+
+  @Test
+  void testApplicationSignalsDimensionsEnabled() {
+    ConfigProperties props =
+        DefaultConfigProperties.createFromMap(
+            Map.of(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, "true"));
+    assertTrue(
+        AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+            props));
+  }
+
+  @Test
+  void testApplicationSignalsDimensionsDisabled() {
+    ConfigProperties props =
+        DefaultConfigProperties.createFromMap(
+            Map.of(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, "false"));
+    assertFalse(
+        AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+            props));
+  }
+
+  @Test
+  void testApplicationSignalsDimensionsDefaultsToTrue() {
+    ConfigProperties props = DefaultConfigProperties.createFromMap(Map.of());
+    assertTrue(
+        AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
+            props));
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromString_validConfig() throws JsonProcessingException {
+    assertThat(AwsApplicationSignalsCustomizerProvider.parseConfigString("version: 1").getVersion())
+        .isEqualTo(1);
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromString_nullConfig() {
+    assertThatNoException()
+        .isThrownBy(() -> AwsApplicationSignalsCustomizerProvider.parseConfigString(null));
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromString_missingVersion() {
+    assertThatException()
+        .isThrownBy(() -> AwsApplicationSignalsCustomizerProvider.parseConfigString(""));
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromString_unsupportedVersion() {
+    assertThatException()
+        .isThrownBy(
+            () -> AwsApplicationSignalsCustomizerProvider.parseConfigString("{version: 5000.1}"));
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromString_invalidYaml() {
+    assertThatException()
+        .isThrownBy(
+            () ->
+                AwsApplicationSignalsCustomizerProvider.parseConfigString(
+                    "{version: 1, invalid: yaml: structure}"));
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromFile_validYaml()
+      throws JsonProcessingException, URISyntaxException {
+    // Get the resource file path
+    URL resourceUrl =
+        getClass().getClassLoader().getResource("adaptive-sampling-config-valid.yaml");
+    assertThat(resourceUrl).isNotNull();
+
+    // Get the absolute file path
+    File configFile = new File(resourceUrl.toURI());
+    String absolutePath = configFile.getAbsolutePath();
+
+    // Parse the config using the file path
+    AwsXrayAdaptiveSamplingConfig config =
+        AwsApplicationSignalsCustomizerProvider.parseConfigString(absolutePath);
+
+    // Assert the configuration was parsed correctly
+    assertThat(config).isNotNull();
+    assertThat(config.getVersion()).isEqualTo(1);
+    assertThat(config.getAnomalyCaptureLimit().getAnomalyTracesPerSecond()).isEqualTo(10);
+  }
+
+  @Test
+  void setAdaptiveSamplingConfigFromFile_invalidYaml() throws URISyntaxException {
+    // Get the resource file path
+    URL resourceUrl =
+        getClass().getClassLoader().getResource("adaptive-sampling-config-invalid.yaml");
+    assertThat(resourceUrl).isNotNull();
+
+    // Get the absolute file path
+    File configFile = new File(resourceUrl.toURI());
+    String absolutePath = configFile.getAbsolutePath();
+
+    // Parse the config using the file path
+    assertThatException()
+        .isThrownBy(() -> AwsApplicationSignalsCustomizerProvider.parseConfigString(absolutePath));
   }
 
   private static <Exporter> void customizeExporterTest(
@@ -455,5 +682,140 @@ public class AwsApplicationSignalsCustomizerTest {
     args.add(consoleExporter);
 
     return args.stream().map(Arguments::of);
+  }
+
+  static Stream<Arguments> invalidCloudWatchEmfConfigProvider() {
+    List<Map<String, String>> args = new ArrayList<>();
+
+    Map<String, String> wrongExporter =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "otlp",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
+            AWS_REGION,
+            "us-east-1");
+
+    Map<String, String> missingHeaders =
+        Map.of(OTEL_METRICS_EXPORTER, "awsemf", AWS_REGION, "us-east-1");
+
+    Map<String, String> missingRegion =
+        Map.of(
+            OTEL_METRICS_EXPORTER, "awsemf",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+                "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace");
+
+    Map<String, String> missingLogGroup =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "awsemf",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
+            AWS_REGION,
+            "us-east-1");
+
+    Map<String, String> missingLogStream =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "awsemf",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-group=test-group,x-aws-metric-namespace=test-namespace",
+            AWS_REGION,
+            "us-east-1");
+
+    args.add(wrongExporter);
+    args.add(missingHeaders);
+    args.add(missingRegion);
+    args.add(missingLogGroup);
+    args.add(missingLogStream);
+
+    return args.stream().map(Arguments::of);
+  }
+
+  static Stream<Arguments> validCloudWatchEmfConfigProvider() {
+    List<Map<String, String>> args = new ArrayList<>();
+
+    Map<String, String> awsRegionConfig =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "awsemf",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
+            AWS_REGION,
+            "us-east-1");
+
+    Map<String, String> awsDefaultRegionConfig =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "awsemf",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-group=test-group,x-aws-log-stream=test-stream,x-aws-metric-namespace=test-namespace",
+            AWS_DEFAULT_REGION,
+            "us-west-2");
+
+    args.add(awsRegionConfig);
+    args.add(awsDefaultRegionConfig);
+
+    return args.stream().map(Arguments::of);
+  }
+
+  static Stream<Arguments> invalidCompactLogsConfigProvider() {
+    return Stream.of(
+        Arguments.of(Map.of(OTEL_LOGS_EXPORTER, "console")),
+        Arguments.of(
+            Map.of(
+                OTEL_LOGS_EXPORTER, "otlp", AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function")),
+        Arguments.of(
+            Map.of(
+                OTEL_LOGS_EXPORTER, "none", AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function")),
+        Arguments.of(Map.of(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function")),
+        Arguments.of(Map.of()));
+  }
+
+  static Stream<Arguments> validConsoleEmfConfigProvider() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "awsemf",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace",
+                AWS_REGION, "us-east-1",
+                AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function")),
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "awsemf",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=another-namespace",
+                AWS_DEFAULT_REGION, "us-west-2",
+                AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "another-function")));
+  }
+
+  static Stream<Arguments> invalidConsoleEmfConfigProvider() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "otlp",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace",
+                AWS_REGION, "us-east-1",
+                AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function")),
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "awsemf",
+                AWS_REGION, "us-east-1")),
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "awsemf",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace")));
+  }
+
+  static Stream<Arguments> invalidLambdaCloudWatchEmfConfigProvider() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "otlp",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace",
+                AWS_REGION, "us-east-1")),
+        Arguments.of(
+            Map.of(
+                OTEL_METRICS_EXPORTER, "awsemf",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace")));
   }
 }

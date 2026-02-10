@@ -1,237 +1,442 @@
-diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
-index 1ef8abf..ef84f35 100644
---- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
-+++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
-@@ -35,6 +35,11 @@ final class SamplingRuleApplier {
- 
-   private static final Map<String, String> XRAY_CLOUD_PLATFORM;
- 
-+  private static final AttributeKey<String> URL_PATH = AttributeKey.stringKey("url.path");
-+  private static final AttributeKey<String> URL_FULL = AttributeKey.stringKey("url.full");
-+  private static final AttributeKey<String> HTTP_REQUEST_METHOD =
-+      AttributeKey.stringKey("http.request.method");
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
+index bfb2eee6..d9adedfe 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSampler.java
+@@ -235,7 +235,8 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+       statisticsSnapshot.stream()
+           .forEach(
+               snapshot -> {
+-                if (snapshot.getStatisticsDocument() != null) {
++                if (snapshot.getStatisticsDocument() != null
++                    && snapshot.getStatisticsDocument().getRequestCount() > 0) {
+                   statistics.add(snapshot.getStatisticsDocument());
+                 }
+                 if (snapshot.getBoostStatisticsDocument() != null
+@@ -243,6 +244,12 @@ public final class AwsXrayRemoteSampler implements Sampler, Closeable {
+                   boostStatistics.add(snapshot.getBoostStatisticsDocument());
+                 }
+               });
 +
-   static {
-     Map<String, String> xrayCloudPlatform = new HashMap<>();
-     xrayCloudPlatform.put(ResourceAttributes.CloudPlatformValues.AWS_EC2, "AWS::EC2::Instance");
-@@ -162,11 +167,14 @@ final class SamplingRuleApplier {
-     String host = null;
- 
-     for (Map.Entry<AttributeKey<?>, Object> entry : attributes.asMap().entrySet()) {
--      if (entry.getKey().equals(SemanticAttributes.HTTP_TARGET)) {
-+      if (entry.getKey().equals(SemanticAttributes.HTTP_TARGET)
-+          || entry.getKey().equals(URL_PATH)) {
-         httpTarget = (String) entry.getValue();
--      } else if (entry.getKey().equals(SemanticAttributes.HTTP_URL)) {
-+      } else if (entry.getKey().equals(SemanticAttributes.HTTP_URL)
-+          || entry.getKey().equals(URL_FULL)) {
-         httpUrl = (String) entry.getValue();
--      } else if (entry.getKey().equals(SemanticAttributes.HTTP_METHOD)) {
-+      } else if (entry.getKey().equals(SemanticAttributes.HTTP_METHOD)
-+          || entry.getKey().equals(HTTP_REQUEST_METHOD)) {
-         httpMethod = (String) entry.getValue();
-       } else if (entry.getKey().equals(SemanticAttributes.NET_HOST_NAME)) {
-         host = (String) entry.getValue();
-diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java
-index 6bb6e82..55dabbd 100644
---- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java
-+++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplierTest.java
-@@ -42,6 +42,11 @@ class SamplingRuleApplierTest {
- 
-   private static final String CLIENT_ID = "test-client-id";
- 
-+  private static final AttributeKey<String> URL_PATH = AttributeKey.stringKey("url.path");
-+  private static final AttributeKey<String> URL_FULL = AttributeKey.stringKey("url.full");
-+  private static final AttributeKey<String> HTTP_REQUEST_METHOD =
-+      AttributeKey.stringKey("http.request.method");
++      if (statistics.isEmpty() && boostStatistics.isEmpty()) {
++        fetchTargetsFuture =
++            executor.schedule(this::fetchTargets, DEFAULT_TARGET_INTERVAL_NANOS, NANOSECONDS);
++        return;
++      }
+       Set<String> requestedTargetRuleNames =
+           statistics.stream().map(SamplingStatisticsDocument::getRuleName).collect(toSet());
+
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
+index f2ab7c2d..42b7328c 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
+@@ -50,6 +50,8 @@ final class XrayRulesSampler implements Sampler {
+
+   public static final AttributeKey<String> AWS_XRAY_SAMPLING_RULE =
+       AttributeKey.stringKey("aws.xray.sampling_rule");
++  public static final AttributeKey<Boolean> AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED =
++      AttributeKey.booleanKey("aws.xray.adaptive_sampling_configured");
+
+   // Used for generating operation
+   private static final String UNKNOWN_OPERATION = "UnknownOperation";
+@@ -183,6 +185,9 @@ final class XrayRulesSampler implements Sampler {
+                 .put(
+                     AWS_XRAY_SAMPLING_RULE.getKey(),
+                     ruleToPropagate != null ? ruleToPropagate : "UNKNOWN")
++                .put(
++                    AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED.getKey(),
++                    this.adaptiveSamplingConfig != null)
+                 .build(),
+             hashedRule);
+       }
+@@ -263,7 +268,7 @@ final class XrayRulesSampler implements Sampler {
+           ruleToReportTo = applier;
+           break;
+         }
+-        if (applier.matches(spanData.getAttributes(), resource)) {
++        if (matchedRule == null && applier.matches(spanData.getAttributes(), resource)) {
+           matchedRule = applier;
+         }
+       }
+@@ -323,14 +328,8 @@ final class XrayRulesSampler implements Sampler {
+                   if (target != null) {
+                     return rule.withTarget(target, now, currentNanoTime);
+                   }
+-                  if (requestedTargetRuleNames.contains(rule.getRuleName())) {
+-                    // In practice X-Ray should return a target for any rule we requested but
+-                    // do a defensive check here in case. If we requested a target but got nothing
+-                    // back assume the default interval.
+-                    return rule.withNextSnapshotTimeNanos(defaultNextSnapshotTimeNanos);
+-                  }
+                   // Target not requested, will be updated in a future target fetch.
+-                  return rule;
++                  return rule.withNextSnapshotTimeNanos(defaultNextSnapshotTimeNanos);
+                 })
+             .toArray(SamplingRuleApplier[]::new);
+     return new XrayRulesSampler(
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
+index ef47ba72..f7b60eea 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
+@@ -51,7 +51,7 @@ final class XraySamplerClient {
+
+   private static final ObjectMapper OBJECT_MAPPER =
+       new ObjectMapper()
+-          .setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY)
++          .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
+           // AWS APIs return timestamps as floats.
+           .registerModule(
+               new SimpleModule().addDeserializer(Date.class, new FloatDateDeserializer()))
+diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
+index 7a75f377..8ce009c0 100644
+--- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
++++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/AwsXrayRemoteSamplerTest.java
+@@ -33,6 +33,7 @@ import java.io.IOException;
+ import java.io.UncheckedIOException;
+ import java.time.Duration;
+ import java.util.Collections;
++import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicReference;
+ import org.junit.jupiter.api.AfterEach;
+ import org.junit.jupiter.api.BeforeEach;
+@@ -69,6 +70,7 @@ class AwsXrayRemoteSamplerTest {
+
+   private static final AtomicReference<byte[]> rulesResponse = new AtomicReference<>();
+   private static final AtomicReference<byte[]> targetsResponse = new AtomicReference<>();
++  private static final AtomicInteger targetsRequestCount = new AtomicInteger(0);
+
+   private static final String TRACE_ID = TraceId.fromLongs(1, 2);
+
+@@ -92,6 +94,7 @@ class AwsXrayRemoteSamplerTest {
+           sb.service(
+               "/SamplingTargets",
+               (ctx, req) -> {
++                targetsRequestCount.incrementAndGet();
+                 byte[] response = AwsXrayRemoteSamplerTest.targetsResponse.get();
+                 if (response == null) {
+                   // Error out until the test configures a response, the sampler will use the
+@@ -120,6 +123,7 @@ class AwsXrayRemoteSamplerTest {
+   void tearDown() {
+     sampler.close();
+     rulesResponse.set(null);
++    targetsRequestCount.set(0);
+   }
+
+   @Test
+@@ -163,6 +167,26 @@ class AwsXrayRemoteSamplerTest {
+             });
+   }
+
++  @Test
++  void doesNotCallGetSamplingTargetsWhenNoStatistics() {
++    rulesResponse.set(RULE_RESPONSE_1);
++    targetsResponse.set(TARGETS_RESPONSE);
 +
-   @Nested
-   @SuppressWarnings("ClassCanBeStatic")
-   class ExactMatch {
-@@ -68,6 +73,15 @@ class SamplingRuleApplierTest {
-             .put(AttributeKey.longKey("speed"), 10)
-             .build();
- 
-+    private final Attributes newSemCovAttributes =
-+        Attributes.builder()
-+            .put(HTTP_REQUEST_METHOD, "GET")
-+            .put(SemanticAttributes.NET_HOST_NAME, "opentelemetry.io")
-+            .put(URL_PATH, "/instrument-me")
-+            .put(AttributeKey.stringKey("animal"), "cat")
-+            .put(AttributeKey.longKey("speed"), 10)
-+            .build();
++    await()
++        .untilAsserted(
++            () -> {
++              assertThat(sampler.getDescription()).contains("XrayRulesSampler");
++            });
 +
-     // FixedRate set to 1.0 in rule and no reservoir
-     @Test
-     void fixedRateAlwaysSample() {
-@@ -116,6 +130,21 @@ class SamplingRuleApplierTest {
-           .isTrue();
++    await()
++        .pollDelay(Duration.ofMillis(100))
++        .atMost(Duration.ofMillis(200))
++        .untilAsserted(
++            () -> {
++              assertThat(targetsRequestCount.get()).isEqualTo(0);
++            });
++  }
++
+   @Test
+   void defaultInitialSampler() {
+     try (AwsXrayRemoteSampler sampler = AwsXrayRemoteSampler.newBuilder(Resource.empty()).build()) {
+diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
+index c8a8dead..a27b3fe1 100644
+--- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
++++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
+@@ -134,6 +134,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "cat-service"))
+@@ -143,6 +144,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -152,6 +154,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -161,6 +164,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -170,6 +174,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -179,6 +184,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -188,6 +194,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+
+@@ -222,6 +229,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -231,6 +239,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -240,6 +249,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+     // Targets overridden to always drop.
+@@ -250,6 +260,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -259,6 +270,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, false)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+
+@@ -367,6 +379,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "cat-service"))
+@@ -376,6 +389,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -385,6 +399,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -394,6 +409,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -403,6 +419,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -412,6 +429,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -421,6 +439,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+
+@@ -455,6 +474,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.RECORD_AND_SAMPLE,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "dog-service"))
+@@ -464,6 +484,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "dog-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("dog-rule")));
+     assertThat(doSample(sampler, "unknown"))
+@@ -473,6 +494,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "default-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("default-rule")));
+     // Targets overridden to always drop.
+@@ -483,6 +505,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "cat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("cat-rule")));
+     assertThat(doSample(sampler, "bat-service"))
+@@ -492,6 +515,7 @@ class XrayRulesSamplerTest {
+                 SamplingDecision.DROP,
+                 Attributes.builder()
+                     .put(XrayRulesSampler.AWS_XRAY_SAMPLING_RULE, "bat-rule")
++                    .put(XrayRulesSampler.AWS_XRAY_ADAPTIVE_SAMPLING_CONFIGURED, true)
+                     .build(),
+                 XrayRulesSampler.hashRuleName("bat-rule")));
+
+@@ -571,11 +595,27 @@ class XrayRulesSamplerTest {
+             0.0,
+             "*",
+             "*",
+-            4,
++            2,
+             0,
+             "*",
+             "*",
+-            "default-rule",
++            "applied-boost-rule",
++            "*",
++            "*",
++            "*",
++            1,
++            SamplingRateBoost.create(1, 300));
++    SamplingRule rule3 =
++        SamplingRule.create(
++            Collections.emptyMap(),
++            0.0,
++            "*",
++            "*",
++            3,
++            0,
++            "*",
++            "*",
++            "lower-priority-boost-rule",
+             "*",
+             "*",
+             "*",
+@@ -603,7 +643,7 @@ class XrayRulesSamplerTest {
+             Resource.getDefault(),
+             clock,
+             Sampler.alwaysOn(),
+-            Arrays.asList(rule1, rule2),
++            Arrays.asList(rule1, rule2, rule3),
+             config);
+
+     Instant now = Instant.ofEpochSecond(0, clock.now());
+@@ -640,13 +680,16 @@ class XrayRulesSamplerTest {
+     // Rules are ordered by priority, so cat-rule is first
+     assertThat(snapshot.get(0).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
+     assertThat(snapshot.get(0).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
+-
+     assertThat(snapshot.get(0).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
++
+     assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(3);
+     assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(3);
+-
+     assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
+
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
++
+     // Mock trace coming from upstream service where it was sampled by cat-rule
+     when(spanDataMock.getTraceId()).thenReturn("TRACE_ID4");
+     when(readableSpanMock.getSpanContext())
+@@ -671,6 +714,9 @@ class XrayRulesSamplerTest {
+     assertThat(snapshot.get(1).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
+     assertThat(snapshot.get(1).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
+     assertThat(snapshot.get(1).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getTotalCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getAnomalyCount()).isEqualTo(0);
++    assertThat(snapshot.get(2).getBoostStatisticsDocument().getSampledAnomalyCount()).isEqualTo(0);
+
+     // Assert the trace ID cache is filled with appropriate data and is cleared after TTL passes
+     assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(4);
+diff --git a/aws-xray/src/test/resources/get-sampling-targets-request.json b/aws-xray/src/test/resources/get-sampling-targets-request.json
+index a8ad4540..83e32229 100644
+--- a/aws-xray/src/test/resources/get-sampling-targets-request.json
++++ b/aws-xray/src/test/resources/get-sampling-targets-request.json
+@@ -16,5 +16,6 @@
+       "SampledCount":31,
+       "BorrowCount":0
      }
- 
-+    @Test
-+    void matchesURLFullNewSemCov() {
-+      assertThat(applier.matches(newSemCovAttributes, resource)).isTrue();
-+
-+      // http.url works too
-+      assertThat(
-+              applier.matches(
-+                  attributes.toBuilder()
-+                      .remove(URL_FULL)
-+                      .put(URL_FULL, "scheme://host:port/instrument-me")
-+                      .build(),
-+                  resource))
-+          .isTrue();
-+    }
-+
-     @Test
-     void serviceNameNotMatch() {
-       assertThat(
-@@ -137,6 +166,13 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
- 
-+    @Test
-+    void methodNewSemCovNotMatch() {
-+      Attributes attributes =
-+          this.newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "POST").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void hostNotMatch() {
-       // Replacing dot with character makes sure we're not accidentally treating dot as regex
-@@ -178,6 +214,34 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
- 
-+    @Test
-+    void pathNewSemCovNotMatch() {
-+      Attributes attributes =
-+          this.newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-you").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes =
-+          this.newSemCovAttributes.toBuilder()
-+              .remove(URL_PATH)
-+              .put(URL_FULL, "scheme://host:port/instrument-you")
-+              .build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes =
-+          this.newSemCovAttributes.toBuilder()
-+              .remove(URL_PATH)
-+              .put(URL_FULL, "scheme://host:port")
-+              .build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+
-+      // Correct path, but we ignore anyways since the URL is malformed per spec, scheme is always
-+      // present.
-+      attributes =
-+          this.newSemCovAttributes.toBuilder()
-+              .remove(URL_PATH)
-+              .put(URL_FULL, "host:port/instrument-me")
-+              .build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void attributeNotMatch() {
-       Attributes attributes =
-@@ -243,6 +307,15 @@ class SamplingRuleApplierTest {
-             .put(AttributeKey.longKey("speed"), 10)
-             .build();
- 
-+    private final Attributes newSemCovAttributes =
-+        Attributes.builder()
-+            .put(HTTP_REQUEST_METHOD, "GET")
-+            .put(SemanticAttributes.NET_HOST_NAME, "opentelemetry.io")
-+            .put(URL_PATH, "/instrument-me?foo=bar&cat=meow")
-+            .put(AttributeKey.stringKey("animal"), "cat")
-+            .put(AttributeKey.longKey("speed"), 10)
-+            .build();
-+
-     // FixedRate set to 0.0 in rule and no reservoir
-     @Test
-     void fixedRateNeverSample() {
-@@ -329,6 +402,26 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
- 
-+    @Test
-+    void newSemCovMethodMatches() {
-+      Attributes attributes =
-+          this.newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "BADGETGOOD").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+      attributes = newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "BADGET").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+      attributes = newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "GETGET").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+    }
-+
-+    @Test
-+    void newSemCovMethodNotMatch() {
-+      Attributes attributes =
-+          newSemCovAttributes.toBuilder().put(HTTP_REQUEST_METHOD, "POST").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes = removeAttribute(newSemCovAttributes, HTTP_REQUEST_METHOD);
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void hostMatches() {
-       Attributes attributes =
-@@ -410,6 +503,29 @@ class SamplingRuleApplierTest {
-       assertThat(applier.matches(attributes, resource)).isFalse();
-     }
- 
-+    @Test
-+    void pathNewSemCovMatches() {
-+      Attributes attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-me?foo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+      // Deceptive question mark, it's actually a wildcard :-)
-+      attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-meafoo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isTrue();
-+    }
-+
-+    @Test
-+    void pathNewSemCovNotMatch() {
-+      Attributes attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "/instrument-mea?foo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes =
-+          newSemCovAttributes.toBuilder().put(URL_PATH, "foo/instrument-meafoo=bar&cat=").build();
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+      attributes = removeAttribute(newSemCovAttributes, URL_PATH);
-+      assertThat(applier.matches(attributes, resource)).isFalse();
-+    }
-+
-     @Test
-     void attributeMatches() {
-       Attributes attributes =
-diff --git a/disk-buffering/build.gradle.kts b/disk-buffering/build.gradle.kts
-index 041d2e9..e3d60f4 100644
---- a/disk-buffering/build.gradle.kts
-+++ b/disk-buffering/build.gradle.kts
-@@ -70,6 +70,10 @@ tasks.named<ShadowJar>("shadowJar") {
-   mustRunAfter("jar")
+-  ]
++  ],
++  "SamplingBoostStatisticsDocuments":[]
  }
- 
-+tasks.withType<Test>().configureEach {
-+  dependsOn("shadowJar")
-+}
-+
- // The javadoc from wire's generated classes has errors that make the task that generates the "javadoc" artifact to fail. This
- // makes the javadoc task to ignore those generated classes.
- tasks.withType(Javadoc::class.java) {
 diff --git a/version.gradle.kts b/version.gradle.kts
-index acefcee..329b524 100644
+index 74967704..d08094f7 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.39.0"
--val alphaVersion = "1.39.0-alpha"
-+val stableVersion = "1.39.0-adot1"
-+val alphaVersion = "1.39.0-alpha-adot1"
- 
+-val stableVersion = "1.52.0"
+-val alphaVersion = "1.52.0-alpha"
++val stableVersion = "1.52.0-adot1"
++val alphaVersion = "1.52.0-alpha-adot1"
+ val tagVersion by extra { "v$stableVersion" }
+
  allprojects {
-   if (findProperty("otel.stable") != "true") {
+-- 
+2.45.1
+

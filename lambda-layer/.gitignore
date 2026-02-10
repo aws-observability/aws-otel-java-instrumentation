@@ -3,3 +3,9 @@
 
 # Ignore Gradle build output directory
 build
+
+# Ignore Terraform state files
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.lock.hcl

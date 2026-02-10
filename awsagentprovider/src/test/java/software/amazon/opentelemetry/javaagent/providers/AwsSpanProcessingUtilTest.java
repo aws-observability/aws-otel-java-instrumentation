@@ -23,6 +23,8 @@ import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.RECEIVE;
 import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Answers.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -37,6 +39,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -543,5 +546,106 @@ public class AwsSpanProcessingUtilTest {
             AwsSpanProcessingUtil.getKeyValueWithFallback(
                 spanDataMock, MESSAGING_OPERATION_TYPE, MESSAGING_OPERATION))
         .isNull();
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withLambdaScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-lib-1.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertTrue(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withNonLambdaScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName())
+        .thenReturn("org.abc." + AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-lib-3.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withNullScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(null);
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsLambdaServerSpan_withNonServerSpanKind() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-core-1.0");
+    when(span.getKind()).thenReturn(SpanKind.CLIENT);
+
+    assertFalse(AwsSpanProcessingUtil.isLambdaServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withServletScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.SERVLET_SCOPE_PREFIX + "-3.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertTrue(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withNonServletScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.LAMBDA_SCOPE_PREFIX + "-2.0");
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withNullScope() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(null);
+    when(span.getKind()).thenReturn(SpanKind.SERVER);
+
+    assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  @Test
+  public void testIsServletServerSpan_withNonServerSpanKind() {
+    ReadableSpan span = mock(ReadableSpan.class);
+    SpanData spanData = mock(SpanData.class);
+    InstrumentationScopeInfo scopeInfo = mock(InstrumentationScopeInfo.class);
+    when(span.toSpanData()).thenReturn(spanData);
+    when(spanData.getInstrumentationScopeInfo()).thenReturn(scopeInfo);
+    when(scopeInfo.getName()).thenReturn(AwsSpanProcessingUtil.SERVLET_SCOPE_PREFIX + "-5.0");
+    when(span.getKind()).thenReturn(SpanKind.CLIENT);
+
+    assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
   }
 }
