@@ -59,11 +59,12 @@ import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_BUCKET_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DATA_SOURCE_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_DYNAMODB_TABLE_NAMES;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_GUARDRAIL_ID;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KINESIS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_KNOWLEDGE_BASE_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_FUNCTION_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LAMBDA_NAME;
@@ -71,7 +72,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_NAME;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_DB_USER;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_ENVIRONMENT;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_OPERATION;
@@ -81,15 +81,15 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_REGION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_RESOURCE_TYPE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_S3_BUCKET;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SECRET_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SNS_TOPIC_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SPAN_KIND;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_SQS_QUEUE_URL;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STATE_MACHINE_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STEP_FUNCTIONS_ACTIVITY_ARN;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_ARN;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_STREAM_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_ARN;
-import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_TABLE_NAME;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.GEN_AI_REQUEST_MODEL;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.DEPENDENCY_METRIC;
 import static software.amazon.opentelemetry.javaagent.providers.MetricAttributeGenerator.SERVICE_METRIC;
@@ -873,11 +873,11 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(AWS_AUTH_ACCESS_KEY, MOCK_ACCESS_KEY);
     mockAttribute(AWS_AUTH_REGION, MOCK_REGION);
     // Validate behaviour of aws bucket name attribute, then remove it.
-    mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
+    mockAttribute(AWS_S3_BUCKET, "aws_s3_bucket_name");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "aws_s3_bucket_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
-    mockAttribute(AWS_BUCKET_NAME, null);
+    mockAttribute(AWS_S3_BUCKET, null);
 
     // Validate behaviour of AWS_QUEUE_NAME attribute, then remove it.
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
@@ -888,29 +888,29 @@ class AwsMetricAttributeGeneratorTest {
 
     // Validate behaviour of having both AWS_QUEUE_NAME and AWS_QUEUE_URL attribute, then remove
     // them. Queue name is more reliable than queue URL, so we prefer to use name over URL.
-    mockAttribute(AWS_QUEUE_URL, "https://sqs.us-east-2.amazonaws.com/123456789012/Queue");
+    mockAttribute(AWS_SQS_QUEUE_URL, "https://sqs.us-east-2.amazonaws.com/123456789012/Queue");
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
     validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-2"));
-    mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_SQS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Valid queue name with invalid queue URL, we should default to using the queue name.
-    mockAttribute(AWS_QUEUE_URL, "invalidUrl");
+    mockAttribute(AWS_SQS_QUEUE_URL, "invalidUrl");
     mockAttribute(AWS_QUEUE_NAME, "aws_queue_name");
     validateRemoteResourceAttributes("AWS::SQS::Queue", "aws_queue_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
-    mockAttribute(AWS_QUEUE_URL, null);
+    mockAttribute(AWS_SQS_QUEUE_URL, null);
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Validate behaviour of AWS_STREAM_NAME attribute, then remove it.
-    mockAttribute(AWS_STREAM_NAME, "aws_stream_name");
+    mockAttribute(AWS_KINESIS_STREAM_NAME, "aws_stream_name");
     validateRemoteResourceAttributes("AWS::Kinesis::Stream", "aws_stream_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
-    mockAttribute(AWS_STREAM_NAME, null);
+    mockAttribute(AWS_KINESIS_STREAM_NAME, null);
 
     // Validate behaviour of AWS_STREAM_ARN attribute, then remove it.
     mockAttribute(AWS_STREAM_ARN, "arn:aws:kinesis:us-east-1:123456789012:stream/test_stream");
@@ -919,26 +919,41 @@ class AwsMetricAttributeGeneratorTest {
         Optional.of("123456789012"), Optional.empty(), Optional.of("us-east-1"));
     mockAttribute(AWS_STREAM_ARN, null);
 
-    // Validate behaviour of AWS_TABLE_NAME attribute, then remove it.
-    mockAttribute(AWS_TABLE_NAME, "aws_table_name");
+    // Validate behaviour of AWS_DYNAMODB_TABLE_NAMES attribute, then remove it.
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of("aws_table_name"));
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table_name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
-    mockAttribute(AWS_TABLE_NAME, null);
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, null);
 
-    // Validate behaviour of AWS_TABLE_NAME attribute with special chars(|), then remove it.
-    mockAttribute(AWS_TABLE_NAME, "aws_table|name");
+    // Validate behaviour of AWS_DYNAMODB_TABLE_NAMES attribute with special chars(|), then remove
+    // it.
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of("aws_table|name"));
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^|name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
-    mockAttribute(AWS_TABLE_NAME, null);
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, null);
 
-    // Validate behaviour of AWS_TABLE_NAME attribute with special chars(^), then remove it.
-    mockAttribute(AWS_TABLE_NAME, "aws_table^name");
+    // Validate behaviour of AWS_DYNAMODB_TABLE_NAMES attribute with special chars(^), then remove
+    // it.
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of("aws_table^name"));
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table^^name");
     validateRemoteResourceAccountIdAndRegion(
         Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
-    mockAttribute(AWS_TABLE_NAME, null);
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, null);
+
+    // Validate behaviour of AWS_DYNAMODB_TABLE_NAMES attribute with empty list, then remove it.
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of());
+    validateRemoteResourceAttributes(null, null);
+    validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, null);
+
+    // Validate behaviour of AWS_DYNAMODB_TABLE_NAMES attribute with two tables, then remove it.
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of("aws_table_name", "ignored"));
+    validateRemoteResourceAttributes("AWS::DynamoDB::Table", "aws_table_name");
+    validateRemoteResourceAccountIdAndRegion(
+        Optional.empty(), Optional.of(MOCK_ACCESS_KEY), Optional.of(MOCK_REGION));
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, null);
 
     // Validate behaviour of AWS_TABLE_ARN attribute, then remove it.
     mockAttribute(AWS_TABLE_ARN, "arn:aws:dynamodb:us-east-1:123456789012:table/test_table");
@@ -1154,10 +1169,10 @@ class AwsMetricAttributeGeneratorTest {
     // Both account access key and account id are not available
     mockAttribute(AWS_AUTH_REGION, null);
     mockAttribute(AWS_AUTH_ACCESS_KEY, null);
-    mockAttribute(AWS_BUCKET_NAME, "aws_s3_bucket_name");
+    mockAttribute(AWS_S3_BUCKET, "aws_s3_bucket_name");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "aws_s3_bucket_name");
     validateRemoteResourceAccountIdAndRegion(Optional.empty(), Optional.empty(), Optional.empty());
-    mockAttribute(AWS_BUCKET_NAME, null);
+    mockAttribute(AWS_S3_BUCKET, null);
 
     // Account access key is not available
     mockAttribute(
@@ -1204,13 +1219,13 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     // Test case 1: S3 Bucket (no ARN available, should use bucket name for both)
-    mockAttribute(AWS_BUCKET_NAME, "my-test-bucket");
+    mockAttribute(AWS_S3_BUCKET, "my-test-bucket");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "my-test-bucket");
 
     // Test S3 bucket with special characters
-    mockAttribute(AWS_BUCKET_NAME, "my-test|bucket^name");
+    mockAttribute(AWS_S3_BUCKET, "my-test|bucket^name");
     validateRemoteResourceAttributes("AWS::S3::Bucket", "my-test^|bucket^^name");
-    mockAttribute(AWS_BUCKET_NAME, null);
+    mockAttribute(AWS_S3_BUCKET, null);
 
     // Test case 2: SQS Queue by name (no ARN, should use queue name for both)
     mockAttribute(AWS_QUEUE_NAME, "my-test-queue");
@@ -1222,22 +1237,22 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(AWS_QUEUE_NAME, null);
 
     // Test case 3: DynamoDB Table (no ARN, should use table name for both)
-    mockAttribute(AWS_TABLE_NAME, "my-test-table");
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of("my-test-table"));
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "my-test-table");
 
     // Test DynamoDB table with special characters
-    mockAttribute(AWS_TABLE_NAME, "my|test^table");
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, List.of("my|test^table"));
     validateRemoteResourceAttributes("AWS::DynamoDB::Table", "my^|test^^table");
-    mockAttribute(AWS_TABLE_NAME, null);
+    mockAttribute(AWS_DYNAMODB_TABLE_NAMES, null);
 
     // Test case 4: Kinesis Stream
-    mockAttribute(AWS_STREAM_NAME, "my-test-stream");
+    mockAttribute(AWS_KINESIS_STREAM_NAME, "my-test-stream");
     validateRemoteResourceAttributes("AWS::Kinesis::Stream", "my-test-stream");
 
     // Test Kinesis stream with special characters
-    mockAttribute(AWS_STREAM_NAME, "my-stream^with|chars");
+    mockAttribute(AWS_KINESIS_STREAM_NAME, "my-stream^with|chars");
     validateRemoteResourceAttributes("AWS::Kinesis::Stream", "my-stream^^with^|chars");
-    mockAttribute(AWS_STREAM_NAME, null);
+    mockAttribute(AWS_KINESIS_STREAM_NAME, null);
 
     // Test case 5: Lambda Function (non-invoke operation, no ARN)
     mockAttribute(RPC_METHOD, "GetFunction"); // Non-invoke operation
