@@ -17,6 +17,9 @@ on:
   schedule:
     - cron: '0 15 * * *'
 env:
+  TARGET_COMMIT_SHA: ${{ github.event.inputs.target_commit_sha }}
+  TEST_DURATION_MINUTES_INPUT: ${{ github.event.inputs.test_duration_minutes }}
+  EVENT_NAME: ${{ github.event_name }}
   # NOTE: The configuration of `APP_PROCESS_EXECUTABLE_NAME` is repo dependent
   APP_PROCESS_EXECUTABLE_NAME: java
   AWS_DEFAULT_REGION: us-east-1
@@ -52,16 +55,16 @@ jobs:
     # MARK: - GitHub Workflow Event Type Specific Values
 
       - name: Use INPUT as commit SHA
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ env.EVENT_NAME == 'workflow_dispatch' }}
         run: |
-          echo "TARGET_SHA=${{ github.event.inputs.target_commit_sha }}" | tee --append $GITHUB_ENV;
+          echo "TARGET_SHA=${{ env.TARGET_COMMIT_SHA }}" | tee --append $GITHUB_ENV;
       - name: Use LATEST as commit SHA
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        if: ${{ env.EVENT_NAME != 'workflow_dispatch' }}
         run: |
           echo "TARGET_SHA=${{ github.sha }}" | tee --append $GITHUB_ENV;
       - name: Configure Performance Test Duration
         run: |
-          echo "TEST_DURATION_MINUTES=${{ github.event.inputs.test_duration_minutes || env.DEFAULT_TEST_DURATION_MINUTES }}" | tee --append $GITHUB_ENV;
+          echo "TEST_DURATION_MINUTES=${{ env.TEST_DURATION_MINUTES_INPUT || env.DEFAULT_TEST_DURATION_MINUTES }}" | tee --append $GITHUB_ENV;
       - name: Clone This Repo @ ${{ env.TARGET_SHA }}
         uses: actions/checkout@v4
         with:
@@ -224,14 +227,14 @@ jobs:
           # https://github.com/open-telemetry/opentelemetry-python/pull/1478
           # comment-always: true
           fail-on-alert: true
-          auto-push: ${{ github.event_name == 'schedule' &&
+          auto-push: ${{ env.EVENT_NAME == 'schedule' &&
             steps.check-already-have-performance-results.outcome == 'failure' &&
             github.ref == 'refs/heads/main' }}
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: soak-tests/per-commit-overall-results
       - name: Publish Issue if failed DURING Performance Tests
         uses: JasonEtco/create-an-issue@v2
-        if: ${{ github.event_name == 'schedule' &&
+        if: ${{ env.EVENT_NAME == 'schedule' &&
           steps.check-failure-during-performance-tests.outcome == 'failure' }}
         env:
           APP_PLATFORM: ${{ matrix.app-platform }}
@@ -242,7 +245,7 @@ jobs:
           update_existing: true
       - name: Publish Issue if failed AFTER Performance Tests
         uses: JasonEtco/create-an-issue@v2
-        if: ${{ github.event_name == 'schedule' &&
+        if: ${{ env.EVENT_NAME == 'schedule' &&
           steps.check-failure-after-performance-tests.outcome == 'failure' }}
         env:
           APP_PLATFORM: ${{ matrix.app-platform }}

@@ -14,6 +14,8 @@ on:
 env:
   COMMERCIAL_REGIONS: us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1
   LAYER_NAME: AWSOpenTelemetryDistroJava
+  VERSION: ${{ github.event.inputs.version }}
+  AWS_REGION: ${{ github.event.inputs.aws_region }}
 
 permissions:
   id-token: write
@@ -28,7 +30,7 @@ jobs:
       - name: Set up regions matrix
         id: set-matrix
         run: |
-          IFS=',' read -ra REGIONS <<< "${{ github.event.inputs.aws_region }}"
+          IFS=',' read -ra REGIONS <<< "${{ env.AWS_REGION }}"
           MATRIX="["
           for region in "${REGIONS[@]}"; do
             trimmed_region=$(echo "$region" | xargs)
@@ -213,7 +215,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         run: |
           gh release create --target "$GITHUB_REF_NAME" \
-             --title "Release lambda-v${{ github.event.inputs.version }}" \
+             --title "Release lambda-v${{ env.VERSION }}" \
              --draft \
-             "lambda-v${{ github.event.inputs.version }}" \
+             "lambda-v${{ env.VERSION }}" \
              layer.tf
