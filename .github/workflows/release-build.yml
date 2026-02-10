@@ -492,8 +492,6 @@ jobs:
 
           This release includes the AWS OpenTelemetry Lambda Layer for Java version $VERSION-$(echo $GITHUB_SHA | cut -c1-7).
 
-          **Note: the new Lambda Layer versions are not yet deployed to the Lambda and CloudWatch Application Signals consoles. You can add them to your Lambda functions using the AWS CLI.**
-
           Lambda Layer ARNs:
           ${{ needs.generate-lambda-release-note.outputs.layer-note }}
           EOF
