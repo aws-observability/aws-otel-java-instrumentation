@@ -20,12 +20,8 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import io.opentelemetry.api.common.AttributeKey;
 
 final class AwsExperimentalAttributes {
-  static final AttributeKey<String> AWS_BUCKET_NAME = stringKey("aws.bucket.name");
-  static final AttributeKey<String> AWS_QUEUE_URL = stringKey("aws.queue.url");
   static final AttributeKey<String> AWS_QUEUE_NAME = stringKey("aws.queue.name");
-  static final AttributeKey<String> AWS_STREAM_NAME = stringKey("aws.stream.name");
   static final AttributeKey<String> AWS_STREAM_ARN = stringKey("aws.stream.arn");
-  static final AttributeKey<String> AWS_TABLE_NAME = stringKey("aws.table.name");
   static final AttributeKey<String> AWS_GUARDRAIL_ID = stringKey("aws.bedrock.guardrail.id");
   static final AttributeKey<String> AWS_GUARDRAIL_ARN = stringKey("aws.bedrock.guardrail.arn");
   static final AttributeKey<String> AWS_AGENT_ID = stringKey("aws.bedrock.agent.id");
