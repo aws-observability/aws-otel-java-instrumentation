@@ -7,6 +7,7 @@ on:
         required: true
 
 env:
+  VERSION: ${{ github.event.inputs.version }}
   AWS_PUBLIC_ECR_REGION: us-east-1
   AWS_PRIVATE_ECR_REGION: us-west-2
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
@@ -51,7 +52,7 @@ jobs:
       - name: Build release with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ env.VERSION }} --stacktrace
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -87,7 +88,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: false
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
           context: .
           platforms: linux/amd64
           tags: ${{ env.TEST_TAG }}
@@ -95,23 +96,23 @@ jobs:
 
       - name: Test docker image
         shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ github.event.inputs.version }}"
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "${{ env.VERSION }}"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           push: true
-          build-args: "ADOT_JAVA_VERSION=${{ github.event.inputs.version }}"
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.PUBLIC_REPOSITORY }}:v${{ github.event.inputs.version }}
-            ${{ env.PRIVATE_REPOSITORY }}:v${{ github.event.inputs.version }}
+            ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
+            ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }}
 
       - name: Build and Publish release with Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ github.event.inputs.version }} --stacktrace
+          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ env.VERSION }} --stacktrace
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
@@ -123,7 +124,7 @@ jobs:
       - name: Get SHA256 checksum of release artifact
         id: get_sha256
         run: |
-          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ github.event.inputs.version }}.jar" ${{ env.ARTIFACT_NAME }}
+          cp "otelagent/build/libs/aws-opentelemetry-agent-${{ env.VERSION }}.jar" ${{ env.ARTIFACT_NAME }}
           shasum -a 256 ${{ env.ARTIFACT_NAME }} > ${{ env.ARTIFACT_NAME }}.sha256
 
       - name: Create release
@@ -137,9 +138,9 @@ jobs:
           shasum -a 256 layer_artifact/layer.zip > layer_artifact/layer.zip.sha256
 
           gh release create --target "$GITHUB_REF_NAME" \
-             --title "Release v${{ github.event.inputs.version }}" \
+             --title "Release v${{ env.VERSION }}" \
              --draft \
-             "v${{ github.event.inputs.version }}" \
+             "v${{ env.VERSION }}" \
              ${{ env.ARTIFACT_NAME }} \
              ${{ env.ARTIFACT_NAME }}.sha256 \
              layer_artifact/layer.zip \
