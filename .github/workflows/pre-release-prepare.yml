@@ -13,6 +13,8 @@ on:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
+  VERSION: ${{ github.event.inputs.version }}
+  IS_PATCH: ${{ github.event.inputs.is_patch }}
 
 permissions:
   contents: write
@@ -51,12 +53,12 @@ jobs:
 
       - name: Extract Major.Minor Version and setup Env variable
         run: |
-          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-          echo "MAJOR_MINOR=$(echo ${{ github.event.inputs.version }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
+          echo "VERSION=${{ env.VERSION }}" >> $GITHUB_ENV
+          echo "MAJOR_MINOR=$(echo ${{ env.VERSION }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
 
       - name: Create branches
         run: |
-          IS_PATCH=${{ github.event.inputs.is_patch }}
+          IS_PATCH=${{ env.IS_PATCH }}
           if [[ "$IS_PATCH" != "true" && "$IS_PATCH" != "false" ]]; then
             echo "Invalid input for IS_PATCH. Must be 'true' or 'false'."
             exit 1
@@ -95,7 +97,7 @@ jobs:
           git push origin "v${VERSION}_release"
 
       - name: Update CHANGELOG for release
-        if: github.event.inputs.is_patch != 'true'
+        if: ${{ env.IS_PATCH != 'true' }}
         run: |
           sed -i "s/## Unreleased/## Unreleased\n\n## v${VERSION} - $(date +%Y-%m-%d)/" CHANGELOG.md
           git add CHANGELOG.md
@@ -110,5 +112,5 @@ jobs:
                        --body "This PR updates the version to ${VERSION}.
           
           By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice." \
-                       --head v${{ github.event.inputs.version }}_release \
+                       --head v${{ env.VERSION }}_release \
                        --base release/v${MAJOR_MINOR}.x
