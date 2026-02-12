@@ -50,5 +50,12 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1201](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1201))
 - Add support for new formal database semantic convention keys.
   ([#1162](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1162))
+<<<<<<< HEAD
 - Bump ADOT Java version to 2.20.0 and OTel deps to 2.20.1.
   ([#1246](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1246))
+=======
+
+### Refactors
+- Refactor AwsMetricAttributesSpanExporter to an onEnding processor
+  ([#1250](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1250))
+>>>>>>> f6008fb (Refactor AwsMetricAttributesSpanExporter to an onEnding processor)
