@@ -5,29 +5,23 @@ inputs:
   # (Optional) Command to run before the retry command. To be used for environment setup, etc
   pre-command:
     required: false
-    type: string
   # (Optional) Number of retries to perform. Default is 3
   max_retry:
     required: false
-    type: number
     default: 3
   # (Required) Command to execute with the retry mechanism
   command:
     required: true
-    type: string
   # (Required) Command to clean up resources before retrying the main command
   cleanup:
     required: false
-    type: string
   # (Optional) Time to wait between each attempt in seconds. Default is 10 seconds
   sleep_time:
     required: false
-    type: number
     default: 10
   # (Optional) Follow-up command after the main command is finished.
   post-command:
     required: false
-    type: string
 
 runs:
   using: "composite"

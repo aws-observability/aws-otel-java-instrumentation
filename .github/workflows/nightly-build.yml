@@ -1,5 +1,4 @@
 name: Nightly Upstream Snapshot Build
-description: This workflow checks for new upstream versions of OpenTelemetry dependencies, creates a PR to update them, and builds and tests the new changes.
 
 on:
   schedule:
