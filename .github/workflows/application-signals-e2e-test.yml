@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: '${{ github.workflow }} @ ${{ inputs.adot-image-name }}'
+  group: '${{ github.workflow }}'
   cancel-in-progress: false
 
 

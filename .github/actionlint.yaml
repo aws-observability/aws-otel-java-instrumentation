@@ -1,3 +1,0 @@
-self-hosted-runner:
-  labels:
-    - aws-otel-java-instrumentation_ubuntu-latest_32-core
