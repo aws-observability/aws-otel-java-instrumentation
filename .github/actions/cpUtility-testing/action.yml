@@ -17,7 +17,7 @@ inputs:
     required: true
     description: "ADOT Java Version"
   snapshot-ecr-role:
-    require: true
+    required: true
     description: "IAM Role used for pushing to snapshot ecr"
 
 
