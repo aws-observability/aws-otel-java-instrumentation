@@ -40,6 +40,7 @@ jobs:
         distribution: temurin
 
     - name: Cache local Maven repository
+      id: cache_local_maven_repo
       uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
       with:
         path: |
@@ -48,7 +49,7 @@ jobs:
 
     - name: Publish patched dependencies to maven local
       uses: ./.github/actions/patch-dependencies
-      if: steps.cache-local-maven-repo.outputs.cache-hit != 'true'
+      if: steps.cache_local_maven_repo.outputs.cache-hit != 'true'
       with:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
         gpg_password: ${{ secrets.GPG_PASSPHRASE }}
