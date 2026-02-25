@@ -25,8 +25,119 @@ index bfb2eee6..d9adedfe 100644
        Set<String> requestedTargetRuleNames =
            statistics.stream().map(SamplingStatisticsDocument::getRuleName).collect(toSet());
 
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java
+index 01835dc2..962a4602 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/GetSamplingRulesResponse.java
+@@ -118,13 +118,18 @@ abstract class GetSamplingRulesResponse {
+     @JsonCreator
+     static SamplingRateBoost create(
+         @JsonProperty("MaxRate") double maxRate,
+-        @JsonProperty("CooldownWindowMinutes") long cooldownWindowMinutes) {
++        @JsonProperty("CooldownWindowMinutes") long cooldownWindowMinutes,
++        @JsonProperty("DisableDefaultAnomalyDetection") @Nullable
++            Boolean disableDefaultAnomalyDetection) {
+       return new AutoValue_GetSamplingRulesResponse_SamplingRateBoost(
+-          maxRate, cooldownWindowMinutes);
++          maxRate, cooldownWindowMinutes, disableDefaultAnomalyDetection);
+     }
+
+     abstract double getMaxRate();
+
+     abstract long getCooldownWindowMinutes();
++
++    @Nullable
++    abstract Boolean getDisableDefaultAnomalyDetection();
+   }
+ }
+diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
+index 0e78d5f5..792812eb 100644
+--- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
++++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/SamplingRuleApplier.java
+@@ -15,6 +15,7 @@ import io.opentelemetry.api.common.Attributes;
+ import io.opentelemetry.api.trace.Span;
+ import io.opentelemetry.api.trace.SpanKind;
+ import io.opentelemetry.context.Context;
++import io.opentelemetry.contrib.awsxray.GetSamplingRulesResponse.SamplingRateBoost;
+ import io.opentelemetry.contrib.awsxray.GetSamplingTargetsRequest.SamplingBoostStatisticsDocument;
+ import io.opentelemetry.contrib.awsxray.GetSamplingTargetsRequest.SamplingStatisticsDocument;
+ import io.opentelemetry.contrib.awsxray.GetSamplingTargetsResponse.SamplingBoost;
+@@ -89,6 +90,7 @@ final class SamplingRuleApplier {
+
+   // Adaptive sampling related configs
+   private final boolean hasBoost;
++  private final boolean defaultAnomalyDetectionDisabled;
+   private final double boostedFixedRate;
+   private final Long boostEndTimeNanos;
+   private final Sampler boostedFixedRateSampler;
+@@ -145,7 +147,12 @@ final class SamplingRuleApplier {
+     fixedRateSampler = createFixedRate(fixedRate);
+
+     // Check if the rule has a sampling rate boost option
+-    hasBoost = rule.getSamplingRateBoost() != null;
++    SamplingRateBoost samplingRateBoost = rule.getSamplingRateBoost();
++    hasBoost = samplingRateBoost != null;
++
++    defaultAnomalyDetectionDisabled =
++        samplingRateBoost != null
++            && Boolean.TRUE.equals(samplingRateBoost.getDisableDefaultAnomalyDetection());
+
+     boostedFixedRate = fixedRate;
+     boostedFixedRateSampler = createFixedRate(fixedRate);
+@@ -182,6 +189,7 @@ final class SamplingRuleApplier {
+       double boostedFixedRate,
+       Long boostEndTimeNanos,
+       boolean hasBoost,
++      boolean defaultAnomalyDetectionDisabled,
+       Map<String, Matcher> attributeMatchers,
+       Matcher urlPathMatcher,
+       Matcher serviceNameMatcher,
+@@ -203,6 +211,7 @@ final class SamplingRuleApplier {
+     this.boostedFixedRate = boostedFixedRate;
+     this.boostEndTimeNanos = boostEndTimeNanos;
+     this.hasBoost = hasBoost;
++    this.defaultAnomalyDetectionDisabled = defaultAnomalyDetectionDisabled;
+     this.attributeMatchers = attributeMatchers;
+     this.urlPathMatcher = urlPathMatcher;
+     this.serviceNameMatcher = serviceNameMatcher;
+@@ -431,6 +440,7 @@ final class SamplingRuleApplier {
+         newBoostedFixedRate,
+         newBoostEndTimeNanos,
+         hasBoost,
++        defaultAnomalyDetectionDisabled,
+         attributeMatchers,
+         urlPathMatcher,
+         serviceNameMatcher,
+@@ -456,6 +466,7 @@ final class SamplingRuleApplier {
+         boostedFixedRate,
+         boostEndTimeNanos,
+         hasBoost,
++        defaultAnomalyDetectionDisabled,
+         attributeMatchers,
+         urlPathMatcher,
+         serviceNameMatcher,
+@@ -480,6 +491,10 @@ final class SamplingRuleApplier {
+     return hasBoost;
+   }
+
++  boolean isDefaultAnomalyDetectionDisabled() {
++    return defaultAnomalyDetectionDisabled;
++  }
++
+   @Nullable
+   private static String getArn(Attributes attributes, Resource resource) {
+     String arn = resource.getAttributes().get(AWS_ECS_CONTAINER_ARN);
+@@ -640,8 +655,6 @@ final class SamplingRuleApplier {
+     final SamplingStatisticsDocument statisticsDocument;
+     final SamplingBoostStatisticsDocument boostStatisticsDocument;
+
+-    // final SamplingBoostStatisticsDocument boostStatisticsDocument;
+-
+     SamplingRuleStatisticsSnapshot(
+         SamplingStatisticsDocument statisticsDocument,
+         SamplingBoostStatisticsDocument boostStatisticsDocument) {
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
-index f2ab7c2d..42b7328c 100644
+index f2ab7c2d..6f870eae 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 +++ b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XrayRulesSampler.java
 @@ -50,6 +50,8 @@ final class XrayRulesSampler implements Sampler {
@@ -48,16 +159,110 @@ index f2ab7c2d..42b7328c 100644
                  .build(),
              hashedRule);
        }
-@@ -263,7 +268,7 @@ final class XrayRulesSampler implements Sampler {
-           ruleToReportTo = applier;
-           break;
-         }
+@@ -225,7 +230,9 @@ final class XrayRulesSampler implements Sampler {
+       return;
+     }
+
+-    AnomalyDetectionResult result = isAnomaly(span, spanData);
++    SamplingRuleApplier effectiveRule = getEffectiveSamplingRuleApplier(span, spanData);
++
++    AnomalyDetectionResult result = isAnomaly(span, spanData, effectiveRule);
+     boolean shouldBoostSampling = result.shouldBoostSampling();
+     boolean shouldCaptureAnomalySpan = result.shouldCaptureAnomalySpan();
+
+@@ -247,52 +254,57 @@ final class XrayRulesSampler implements Sampler {
+     // Sampling Boost
+     boolean isCountedAsAnomalyForBoost = false;
+     if (shouldBoostSampling || isNewTrace) {
+-      String traceStateValue =
+-          span.getSpanContext()
+-              .getTraceState()
+-              .get(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
+-      String upstreamRuleName =
+-          traceStateValue != null
+-              ? hashToRuleMap.getOrDefault(traceStateValue, traceStateValue)
+-              : traceStateValue;
+-      SamplingRuleApplier ruleToReportTo = null;
+-      SamplingRuleApplier matchedRule = null;
+-      for (SamplingRuleApplier applier : ruleAppliers) {
+-        // Rule propagated from when sampling decision was made, otherwise the matched rule
+-        if (applier.getRuleName().equals(upstreamRuleName)) {
+-          ruleToReportTo = applier;
+-          break;
+-        }
 -        if (applier.matches(spanData.getAttributes(), resource)) {
-+        if (matchedRule == null && applier.matches(spanData.getAttributes(), resource)) {
-           matchedRule = applier;
-         }
+-          matchedRule = applier;
+-        }
+-      }
+-      if (ruleToReportTo == null) {
+-        if (matchedRule == null) {
+-          logger.log(
+-              FINE,
+-              "No sampling rule matched the request. This is a bug in either the OpenTelemetry SDK or X-Ray.");
+-        } else if (!span.getParentSpanContext().isValid()) {
+-          // Span is not from an upstream service, so we should boost the matched rule
+-          ruleToReportTo = matchedRule;
+-        }
++      if (effectiveRule == null) {
++        logger.log(
++            FINE,
++            "No sampling rule matched the request. This is a bug in either the OpenTelemetry SDK or X-Ray.");
        }
-@@ -323,14 +328,8 @@ final class XrayRulesSampler implements Sampler {
+
+       if (shouldBoostSampling
+-          && ruleToReportTo != null
+-          && ruleToReportTo.hasBoost()
++          && effectiveRule != null
++          && effectiveRule.hasBoost()
+           && !AwsXrayAdaptiveSamplingConfig.UsageType.isUsedForBoost(existingUsage)) {
+-        ruleToReportTo.countAnomalyTrace(span);
++        effectiveRule.countAnomalyTrace(span);
+         isCountedAsAnomalyForBoost = true;
+       }
+-      if (isNewTrace && ruleToReportTo != null && ruleToReportTo.hasBoost()) {
+-        ruleToReportTo.countTrace();
++      if (isNewTrace && effectiveRule != null && effectiveRule.hasBoost()) {
++        effectiveRule.countTrace();
+       }
+     }
+
+     updateTraceUsageCache(traceId, isSpanCaptured, isCountedAsAnomalyForBoost);
+   }
+
++  @Nullable
++  private SamplingRuleApplier getEffectiveSamplingRuleApplier(
++      ReadableSpan span, SpanData spanData) {
++    String traceStateValue =
++        span.getSpanContext()
++            .getTraceState()
++            .get(AwsSamplingResult.AWS_XRAY_SAMPLING_RULE_TRACE_STATE_KEY);
++    String upstreamRuleName =
++        traceStateValue != null
++            ? hashToRuleMap.getOrDefault(traceStateValue, traceStateValue)
++            : null;
++
++    SamplingRuleApplier matchedRule = null;
++    for (SamplingRuleApplier applier : ruleAppliers) {
++      if (applier.getRuleName().equals(upstreamRuleName)) {
++        return applier;
++      }
++      if (matchedRule == null && applier.matches(spanData.getAttributes(), resource)) {
++        matchedRule = applier;
++      }
++    }
++
++    // No upstream rule found, use matched rule for root spans
++    if (matchedRule != null && !span.getParentSpanContext().isValid()) {
++      return matchedRule;
++    }
++
++    return null;
++  }
++
+   List<SamplingRuleApplier.SamplingRuleStatisticsSnapshot> snapshot(Date now) {
+     return Arrays.stream(ruleAppliers)
+         .map(rule -> rule.snapshot(now))
+@@ -323,14 +335,8 @@ final class XrayRulesSampler implements Sampler {
                    if (target != null) {
                      return rule.withTarget(target, now, currentNanoTime);
                    }
@@ -73,6 +278,32 @@ index f2ab7c2d..42b7328c 100644
                  })
              .toArray(SamplingRuleApplier[]::new);
      return new XrayRulesSampler(
+@@ -345,7 +351,8 @@ final class XrayRulesSampler implements Sampler {
+         traceUsageCache);
+   }
+
+-  private AnomalyDetectionResult isAnomaly(ReadableSpan span, SpanData spanData) {
++  private AnomalyDetectionResult isAnomaly(
++      ReadableSpan span, SpanData spanData, @Nullable SamplingRuleApplier effectiveRule) {
+     boolean shouldBoostSampling = false;
+     boolean shouldCaptureAnomalySpan = false;
+     Long statusCode = spanData.getAttributes().get(HTTP_RESPONSE_STATUS_CODE);
+@@ -417,8 +424,13 @@ final class XrayRulesSampler implements Sampler {
+         || (statusCode == null
+             && spanData.getStatus() != null
+             && StatusCode.ERROR.equals(spanData.getStatus().getStatusCode()))) {
+-      shouldBoostSampling = true;
+-      shouldCaptureAnomalySpan = true;
++      // Default anomaly detection - check if disabled for the effective rule
++      boolean defaultAnomalyDetectionDisabled =
++          effectiveRule != null && effectiveRule.isDefaultAnomalyDetectionDisabled();
++      if (!defaultAnomalyDetectionDisabled) {
++        shouldBoostSampling = true;
++        shouldCaptureAnomalySpan = true;
++      }
+     }
+
+     return new AnomalyDetectionResult(shouldBoostSampling, shouldCaptureAnomalySpan);
 diff --git a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java b/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
 index ef47ba72..f7b60eea 100644
 --- a/aws-xray/src/main/java/io/opentelemetry/contrib/awsxray/XraySamplerClient.java
@@ -150,7 +381,7 @@ index 7a75f377..8ce009c0 100644
    void defaultInitialSampler() {
      try (AwsXrayRemoteSampler sampler = AwsXrayRemoteSampler.newBuilder(Resource.empty()).build()) {
 diff --git a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
-index c8a8dead..a27b3fe1 100644
+index c8a8dead..59d9c982 100644
 --- a/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 +++ b/aws-xray/src/test/java/io/opentelemetry/contrib/awsxray/XrayRulesSamplerTest.java
 @@ -134,6 +134,7 @@ class XrayRulesSamplerTest {
@@ -345,7 +576,7 @@ index c8a8dead..a27b3fe1 100644
                      .build(),
                  XrayRulesSampler.hashRuleName("bat-rule")));
 
-@@ -571,11 +595,27 @@ class XrayRulesSamplerTest {
+@@ -571,16 +595,32 @@ class XrayRulesSamplerTest {
              0.0,
              "*",
              "*",
@@ -356,11 +587,12 @@ index c8a8dead..a27b3fe1 100644
              "*",
 -            "default-rule",
 +            "applied-boost-rule",
-+            "*",
-+            "*",
-+            "*",
-+            1,
-+            SamplingRateBoost.create(1, 300));
+             "*",
+             "*",
+             "*",
+             1,
+-            SamplingRateBoost.create(1, 300));
++            SamplingRateBoost.create(1, 300, null));
 +    SamplingRule rule3 =
 +        SamplingRule.create(
 +            Collections.emptyMap(),
@@ -372,9 +604,14 @@ index c8a8dead..a27b3fe1 100644
 +            "*",
 +            "*",
 +            "lower-priority-boost-rule",
-             "*",
-             "*",
-             "*",
++            "*",
++            "*",
++            "*",
++            1,
++            SamplingRateBoost.create(1, 300, null));
+     AwsXrayAdaptiveSamplingConfig config =
+         AwsXrayAdaptiveSamplingConfig.builder()
+             .setVersion(1.0)
 @@ -603,7 +643,7 @@ class XrayRulesSamplerTest {
              Resource.getDefault(),
              clock,
@@ -413,6 +650,51 @@ index c8a8dead..a27b3fe1 100644
 
      // Assert the trace ID cache is filled with appropriate data and is cleared after TTL passes
      assertThat(sampler.getTraceUsageCache().asMap().size()).isEqualTo(4);
+@@ -731,7 +777,7 @@ class XrayRulesSamplerTest {
+             "*",
+             "*",
+             1,
+-            SamplingRateBoost.create(1, 300));
++            SamplingRateBoost.create(1, 300, null));
+
+     TestClock clock = TestClock.create();
+     AwsXrayAdaptiveSamplingConfig config =
+@@ -803,7 +849,7 @@ class XrayRulesSamplerTest {
+             "*",
+             "*",
+             1,
+-            SamplingRateBoost.create(1, 300));
++            SamplingRateBoost.create(1, 300, null));
+
+     TestClock clock = TestClock.create();
+     AwsXrayAdaptiveSamplingConfig config =
+@@ -875,7 +921,7 @@ class XrayRulesSamplerTest {
+             "*",
+             "*",
+             1,
+-            SamplingRateBoost.create(1, 300));
++            SamplingRateBoost.create(1, 300, null));
+
+     TestClock clock = TestClock.create();
+     AwsXrayAdaptiveSamplingConfig config =
+@@ -961,7 +1007,7 @@ class XrayRulesSamplerTest {
+             "*",
+             "*",
+             1,
+-            SamplingRateBoost.create(1, 300));
++            SamplingRateBoost.create(1, 300, null));
+
+     TestClock clock = TestClock.create();
+     AwsXrayAdaptiveSamplingConfig config =
+@@ -1054,7 +1100,7 @@ class XrayRulesSamplerTest {
+             "*",
+             "*",
+             1,
+-            SamplingRateBoost.create(1, 300));
++            SamplingRateBoost.create(1, 300, null));
+
+     TestClock clock = TestClock.create();
+     // Error span capture should default to 1/s
 diff --git a/aws-xray/src/test/resources/get-sampling-targets-request.json b/aws-xray/src/test/resources/get-sampling-targets-request.json
 index a8ad4540..83e32229 100644
 --- a/aws-xray/src/test/resources/get-sampling-targets-request.json
