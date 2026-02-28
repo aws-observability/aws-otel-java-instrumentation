@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.25.0 - 2026-02-27
+
 - Add adaptive sampling local config attribute to spans
   ([#1299](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1299))
 - Optimize GetSamplingTargets calls by removing empty statistics documents
