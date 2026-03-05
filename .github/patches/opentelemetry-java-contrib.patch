@@ -712,10 +712,10 @@ index 74967704..d08094f7 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "1.52.0"
--val alphaVersion = "1.52.0-alpha"
-+val stableVersion = "1.52.0-adot1"
-+val alphaVersion = "1.52.0-alpha-adot1"
+-val stableVersion = "1.54.0"
+-val alphaVersion = "1.54.0-alpha"
++val stableVersion = "1.54.0-adot1"
++val alphaVersion = "1.54.0-alpha-adot1"
  val tagVersion by extra { "v$stableVersion" }
 
  allprojects {
