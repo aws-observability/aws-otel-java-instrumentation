@@ -17,6 +17,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1299](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1299))
 - Optimize GetSamplingTargets calls by removing empty statistics documents
   ([#1298](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1298))
+- feat: Allow disabling of default anomaly condition
+  ([#1329](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1329))
 
 ## v2.23.0 - 2026-01-24
 
