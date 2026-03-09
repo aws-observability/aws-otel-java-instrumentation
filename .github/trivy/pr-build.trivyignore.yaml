@@ -8,4 +8,7 @@
 #    statement: "<Why are we excluding?> <link to CVE where we can we status>"
 #    expired_at: <required - YYYY-MM-DD>
 
-vulnerabilities: []
+vulnerabilities:
+  - id: GHSA-72hv-8253-57qq
+    statement: "Excluding to unblock PR build as the CVE fix is not yet released in upstream: https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/16353"
+    expired_at: 2026-03-16
