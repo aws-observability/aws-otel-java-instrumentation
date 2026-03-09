@@ -13,6 +13,11 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.25.1 - 2026-03-11
+
+- feat: Allow disabling of default anomaly condition
+  ([#1329](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1329))
+
 ## v2.25.0 - 2026-02-27
 
 - Add adaptive sampling local config attribute to spans
