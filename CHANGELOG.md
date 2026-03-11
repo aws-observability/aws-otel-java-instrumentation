@@ -19,6 +19,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1298](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1298))
 - feat: Allow disabling of default anomaly condition
   ([#1329](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1329))
+- Upgrade jackson-bom to 2.21.1 to fix CVE GHSA-72hv-8253-57qq
+  ([#1334](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1334))
 
 ## v2.23.0 - 2026-01-24
 
