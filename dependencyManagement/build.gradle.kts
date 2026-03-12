@@ -35,7 +35,7 @@ val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVe
 
 val dependencyBoms = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.599",
-  "com.fasterxml.jackson:jackson-bom:2.16.0",
+  "com.fasterxml.jackson:jackson-bom:2.21.1",
   "com.google.guava:guava-bom:33.0.0-jre",
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
