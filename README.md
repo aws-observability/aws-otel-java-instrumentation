@@ -15,8 +15,7 @@ data from a Java application without any code changes.
 
 Note: There are 2.x releases and 1.x releases. The 2.0 release included significant breaking changes from [OpenTelemetry Agent for Java](https://github.com/open-telemetry/opentelemetry-java-instrumentation), 
 the details of which can be found in the [release notes](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases). 
-It is recommended to use the latest 2.x release which will have the latest features and improvements. 
-1.x will receive security patches for a limited time and will not include other bug fixes and enhancements.
+As of Mar 16, 2026, we are no longer supporting 1.x releases, please migrate to 2.x releases for latest features and improvements.
 
 ## Getting Started
 
