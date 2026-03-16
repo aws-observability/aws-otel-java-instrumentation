@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- End support for ADOT Java 1.x: remove v1 image scans and update README#1339
+  ([#1339](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1339))
+
 ## v2.25.1 - 2026-03-11
 
 - feat: Allow disabling of default anomaly condition
