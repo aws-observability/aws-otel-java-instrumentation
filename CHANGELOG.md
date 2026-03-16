@@ -13,6 +13,15 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.25.1 - 2026-03-11
+
+- feat: Allow disabling of default anomaly condition
+  ([#1329](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1329))
+- Upgrade jackson-bom to 2.21.1 to fix CVE GHSA-72hv-8253-57qq
+  ([#1334](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1334))
+
+## v2.25.0 - 2026-02-27
+
 - Add adaptive sampling local config attribute to spans
   ([#1299](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1299))
 - Optimize GetSamplingTargets calls by removing empty statistics documents
