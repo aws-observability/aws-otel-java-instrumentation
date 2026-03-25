@@ -678,10 +678,10 @@ index a46c2d24de..71a2264042 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.25.0"
--val alphaVersion = "2.25.0-alpha"
-+val stableVersion = "2.25.0-adot-lambda1"
-+val alphaVersion = "2.25.0-adot-lambda1-alpha"
+-val stableVersion = "2.26.1"
+-val alphaVersion = "2.26.1-alpha"
++val stableVersion = "2.26.1-adot-lambda1"
++val alphaVersion = "2.26.1-adot-lambda1-alpha"
 
  allprojects {
    if (findProperty("otel.stable") != "true") {
