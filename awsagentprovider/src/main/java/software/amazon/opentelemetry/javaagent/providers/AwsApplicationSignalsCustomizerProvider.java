@@ -413,20 +413,15 @@ public final class AwsApplicationSignalsCustomizerProvider
       MetricReader metricReader =
           PeriodicMetricReader.builder(metricsExporter).setInterval(exportInterval).build();
 
-      String appSignalsScopeName = AwsSpanMetricsProcessorBuilder.DEFAULT_SCOPE_NAME;
       SdkMeterProvider meterProvider =
           SdkMeterProvider.builder()
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
-              // Only export metrics from the Application Signals scope. Drop all other
-              // metrics (e.g. SDK internal telemetry like
-              // otel.sdk.metric_reader.collection.duration) to avoid exporting unwanted
-              // metrics to the Application Signals endpoint.
+              // Drop SDK internal telemetry metrics (e.g.
+              // otel.sdk.metric_reader.collection.duration added in OTel SDK 1.60.0) to
+              // avoid exporting them to the Application Signals endpoint.
               .registerView(
-                  InstrumentSelector.builder().setMeterName(appSignalsScopeName).build(),
-                  View.builder().build())
-              .registerView(
-                  InstrumentSelector.builder().setName("*").build(),
+                  InstrumentSelector.builder().setMeterName("io.opentelemetry.sdk.metrics").build(),
                   View.builder().setAggregation(Aggregation.drop()).build())
               .build();
 

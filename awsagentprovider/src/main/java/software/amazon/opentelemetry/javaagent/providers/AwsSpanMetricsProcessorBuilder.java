@@ -39,7 +39,7 @@ public final class AwsSpanMetricsProcessorBuilder {
   // Defaults
   private static final MetricAttributeGenerator DEFAULT_GENERATOR =
       new AwsMetricAttributeGenerator();
-  static final String DEFAULT_SCOPE_NAME = "AwsSpanMetricsProcessor";
+  private static final String DEFAULT_SCOPE_NAME = "AwsSpanMetricsProcessor";
 
   // Required builder elements
   private final MeterProvider meterProvider;
