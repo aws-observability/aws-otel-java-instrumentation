@@ -36,8 +36,10 @@ import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.metrics.Aggregation;
+import io.opentelemetry.sdk.metrics.InstrumentSelector;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.View;
 import io.opentelemetry.sdk.metrics.SdkMeterProviderBuilder;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
@@ -411,10 +413,21 @@ public final class AwsApplicationSignalsCustomizerProvider
       MetricReader metricReader =
           PeriodicMetricReader.builder(metricsExporter).setInterval(exportInterval).build();
 
+      String appSignalsScopeName = AwsSpanMetricsProcessorBuilder.DEFAULT_SCOPE_NAME;
       SdkMeterProvider meterProvider =
           SdkMeterProvider.builder()
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
+              // Only export metrics from the Application Signals scope. Drop all other
+              // metrics (e.g. SDK internal telemetry like
+              // otel.sdk.metric_reader.collection.duration) to avoid exporting unwanted
+              // metrics to the Application Signals endpoint.
+              .registerView(
+                  InstrumentSelector.builder().setMeterName(appSignalsScopeName).build(),
+                  View.builder().build())
+              .registerView(
+                  InstrumentSelector.builder().setName("*").build(),
+                  View.builder().setAggregation(Aggregation.drop()).build())
               .build();
 
       // Construct and set application signals metrics processor
