@@ -36,9 +36,11 @@ import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.metrics.Aggregation;
+import io.opentelemetry.sdk.metrics.InstrumentSelector;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.SdkMeterProviderBuilder;
+import io.opentelemetry.sdk.metrics.View;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
@@ -415,6 +417,12 @@ public final class AwsApplicationSignalsCustomizerProvider
           SdkMeterProvider.builder()
               .setResource(ResourceHolder.getResource())
               .registerMetricReader(metricReader)
+              // Drop SDK internal telemetry metrics (e.g.
+              // otel.sdk.metric_reader.collection.duration added in OTel SDK 1.60.0) to
+              // avoid exporting them to the Application Signals endpoint.
+              .registerView(
+                  InstrumentSelector.builder().setMeterName("io.opentelemetry.sdk.metrics").build(),
+                  View.builder().setAggregation(Aggregation.drop()).build())
               .build();
 
       // Construct and set application signals metrics processor

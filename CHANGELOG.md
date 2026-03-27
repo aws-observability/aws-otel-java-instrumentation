@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Bump OpenTelemetry Java Instrumentation version to 2.26.1
+  ([#1342](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1342))
 - End support for ADOT Java 1.x: remove v1 image scans and update README#1339
   ([#1339](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1339))
 
@@ -29,13 +31,6 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1299](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1299))
 - Optimize GetSamplingTargets calls by removing empty statistics documents
   ([#1298](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1298))
-- feat: Allow disabling of default anomaly condition
-  ([#1329](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1329))
-- Upgrade jackson-bom to 2.21.1 to fix CVE GHSA-72hv-8253-57qq
-  ([#1334](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1334))
-
-## v2.25.1 - 2026-03-11
-
 - feat: Allow disabling of default anomaly condition
   ([#1329](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1329))
 - Upgrade jackson-bom to 2.21.1 to fix CVE GHSA-72hv-8253-57qq
