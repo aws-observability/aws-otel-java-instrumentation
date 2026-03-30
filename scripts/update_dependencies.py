@@ -16,8 +16,7 @@ def update_file_dependencies(file_path, otel_instrumentation_version, otel_contr
 
         # Update otelVersion variable
         otel_version_pattern = r'val otelVersion = "[^"]*"'
-        otel_version_with_suffix = f"{otel_instrumentation_version}-adot1"
-        otel_version_replacement = f'val otelVersion = "{otel_version_with_suffix}"'
+        otel_version_replacement = f'val otelVersion = "{otel_instrumentation_version}"'
         if re.search(otel_version_pattern, content):
             new_content = re.sub(otel_version_pattern, otel_version_replacement, content)
             if new_content != content:
