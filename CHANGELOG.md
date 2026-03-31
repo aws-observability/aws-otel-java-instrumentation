@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
+  ([#1348](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1348))
+
 ## v2.26.1 - 2026-03-27
 
 - Bump OpenTelemetry Java Instrumentation version to 2.26.1
