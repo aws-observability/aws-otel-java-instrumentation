@@ -44,10 +44,13 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.semconv.HttpAttributes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /** Utility class designed to support shared logic across AWS Span Processors. */
@@ -78,6 +81,118 @@ final class AwsSpanProcessingUtil {
   static final String LAMBDA_SCOPE_PREFIX = "io.opentelemetry.aws-lambda-";
   static final String SERVLET_SCOPE_PREFIX = "io.opentelemetry.servlet-";
 
+  // Environment variable for configurable operation name paths
+  static final String OTEL_AWS_HTTP_OPERATION_PATHS_CONFIG = "OTEL_AWS_HTTP_OPERATION_PATHS";
+
+  private static final Logger logger =
+      Logger.getLogger(AwsSpanProcessingUtil.class.getName());
+
+  // Parsed and sorted (longest first) operation paths from env var, computed once
+  private static volatile List<String> operationPaths;
+
+  /**
+   * Parse the OTEL_AWS_HTTP_OPERATION_PATHS env var into a sorted list of path prefixes (longest
+   * first). Curly-brace segments like {version} are converted to regex patterns for matching.
+   * Returns an empty list if the env var is not set.
+   */
+  static List<String> getOperationPaths() {
+    if (operationPaths == null) {
+      synchronized (AwsSpanProcessingUtil.class) {
+        if (operationPaths == null) {
+          String config = System.getenv(OTEL_AWS_HTTP_OPERATION_PATHS_CONFIG);
+          if (config == null || config.trim().isEmpty()) {
+            operationPaths = Collections.emptyList();
+          } else {
+            List<String> paths = new ArrayList<>();
+            for (String path : config.split(",")) {
+              String trimmed = path.trim();
+              if (!trimmed.isEmpty()) {
+                paths.add(trimmed);
+              }
+            }
+            // Sort longest first so longest prefix match wins
+            paths.sort((a, b) -> {
+              int aSegments = a.split("/").length;
+              int bSegments = b.split("/").length;
+              return Integer.compare(bSegments, aSegments);
+            });
+            operationPaths = Collections.unmodifiableList(paths);
+          }
+        }
+      }
+    }
+    return operationPaths;
+  }
+
+  // Visible for testing — allows tests to reset the cached paths
+  static void resetOperationPaths() {
+    synchronized (AwsSpanProcessingUtil.class) {
+      operationPaths = null;
+    }
+  }
+
+  /**
+   * Match a URL path against the configured operation paths. Returns the matched operation path
+   * template (e.g., "/api/{version}/users") or null if no match. Curly-brace segments in the
+   * configured path match any single path segment in the URL.
+   */
+  static String matchOperationPath(String urlPath) {
+    if (urlPath == null || urlPath.isEmpty()) {
+      return null;
+    }
+    // Strip query string and fragment
+    int queryIdx = urlPath.indexOf('?');
+    if (queryIdx >= 0) {
+      urlPath = urlPath.substring(0, queryIdx);
+    }
+    int fragIdx = urlPath.indexOf('#');
+    if (fragIdx >= 0) {
+      urlPath = urlPath.substring(0, fragIdx);
+    }
+
+    for (String pattern : getOperationPaths()) {
+      if (pathMatchesPattern(urlPath, pattern)) {
+        return pattern;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if a URL path matches a pattern. Patterns can contain curly-brace segments like
+   * {id} which match any single path segment. The pattern acts as a prefix — if all pattern
+   * segments match the corresponding URL segments, it's a match even if the URL has additional
+   * trailing segments. A trailing /* in the pattern explicitly matches any remaining segments.
+   */
+  private static boolean pathMatchesPattern(String urlPath, String pattern) {
+    String[] urlSegments = urlPath.split("/", -1);
+    String[] patternSegments = pattern.split("/", -1);
+
+    for (int i = 0; i < patternSegments.length; i++) {
+      if (i >= urlSegments.length) {
+        return false;
+      }
+      String ps = patternSegments[i];
+      // Wildcard matches remaining
+      if (ps.equals("*")) {
+        return true;
+      }
+      // Curly-brace segment matches any non-empty segment
+      if (ps.startsWith("{") && ps.endsWith("}")) {
+        if (urlSegments[i].isEmpty()) {
+          return false;
+        }
+        continue;
+      }
+      // Literal match
+      if (!ps.equals(urlSegments[i])) {
+        return false;
+      }
+    }
+    // All pattern segments matched — URL may have extra trailing segments, that's fine
+    return true;
+  }
+
   static List<String> getDialectKeywords() {
     try (InputStream jsonFile =
         AwsSpanProcessingUtil.class
@@ -101,18 +216,6 @@ final class AwsSpanProcessingUtil {
    */
   static String getIngressOperation(SpanData span) {
     if (isLambdaEnvironment()) {
-      /*
-       * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".
-       * To dynamically override this at runtime—such as when running a custom server inside your Lambda—
-       * you can set the span attribute "aws.lambda.local.operation.override" before ending the span. For example:
-       *
-       *   // Obtain the current Span and override its operation name
-       *   Span.current().setAttribute(
-       *       "aws.lambda.local.operation.override",
-       *       "MyServiceOperation");
-       *
-       * The code below will detect that override and use it instead of the default.
-       */
       String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
       if (operationOverride != null) {
         return operationOverride;
@@ -123,6 +226,27 @@ final class AwsSpanProcessingUtil {
       }
       return getFunctionNameFromEnv() + "/FunctionHandler";
     }
+
+    // Priority 1: Check OTEL_AWS_HTTP_OPERATION_PATHS configuration
+    if (!getOperationPaths().isEmpty()) {
+      String urlPath = getUrlPath(span);
+      if (urlPath != null) {
+        String matchedPath = matchOperationPath(urlPath);
+        if (matchedPath != null) {
+          String httpMethod = getHttpMethod(span);
+          return httpMethod != null ? httpMethod + " " + matchedPath : matchedPath;
+        }
+      }
+    }
+
+    // Priority 2: Check http.route (OTel standard low-cardinality route template)
+    String httpRoute = span.getAttributes().get(HttpAttributes.HTTP_ROUTE);
+    if (httpRoute != null && !httpRoute.isEmpty()) {
+      String httpMethod = getHttpMethod(span);
+      return httpMethod != null ? httpMethod + " " + httpRoute : httpRoute;
+    }
+
+    // Priority 3: Existing logic — span.name or generateIngressOperation fallback
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
       operation = INTERNAL_OPERATION;
@@ -130,6 +254,26 @@ final class AwsSpanProcessingUtil {
       operation = generateIngressOperation(span);
     }
     return operation;
+  }
+
+  /** Get the URL path from the span, checking new and deprecated semconv attributes. */
+  private static String getUrlPath(SpanData span) {
+    if (isKeyPresent(span, URL_PATH)) {
+      return span.getAttributes().get(URL_PATH);
+    } else if (isKeyPresent(span, HTTP_TARGET)) {
+      return span.getAttributes().get(HTTP_TARGET);
+    }
+    return null;
+  }
+
+  /** Get the HTTP method from the span, checking new and deprecated semconv attributes. */
+  private static String getHttpMethod(SpanData span) {
+    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
+      return span.getAttributes().get(HTTP_REQUEST_METHOD);
+    } else if (isKeyPresent(span, HTTP_METHOD)) {
+      return span.getAttributes().get(HTTP_METHOD);
+    }
+    return null;
   }
 
   // define a function so that we can mock it in unit test
