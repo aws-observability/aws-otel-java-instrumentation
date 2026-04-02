@@ -22,6 +22,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1342](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1342))
 - End support for ADOT Java 1.x: remove v1 image scans and update README#1339
   ([#1339](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1339))
+- Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
+  ([#1347](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1347))
 
 ## v2.25.1 - 2026-03-11
 
