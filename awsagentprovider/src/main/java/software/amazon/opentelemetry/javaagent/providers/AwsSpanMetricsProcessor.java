@@ -17,12 +17,15 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
 import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_STATUS_CODE;
+import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_LOCAL_OPERATION;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_REMOTE_SERVICE;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getKeyValueWithFallback;
 
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongHistogram;
+import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.contrib.awsxray.AwsXrayRemoteSampler;
@@ -33,9 +36,12 @@ import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-import javax.annotation.concurrent.Immutable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This processor will generate metrics based on span data. It depends on a {@link
@@ -53,8 +59,9 @@ import javax.annotation.concurrent.Immutable;
  * <p>For highest fidelity metrics, this processor should be coupled with the {@link
  * AlwaysRecordSampler}, which will result in 100% of spans being sent to the processor.
  */
-@Immutable
 public final class AwsSpanMetricsProcessor implements SpanProcessor {
+
+  private static final Logger logger = Logger.getLogger(AwsSpanMetricsProcessor.class.getName());
 
   private static final double NANOS_TO_MILLIS = 1_000_000.0;
 
@@ -68,10 +75,15 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html#instancedata-inside-access
   private final String EC2_METADATA_API_IP = "169.254.169.254";
 
-  // Metric instruments
+  // Metric instruments (standard AppSignals -> port 4315/4316)
   private final LongHistogram errorHistogram;
   private final LongHistogram faultHistogram;
   private final DoubleHistogram latencyHistogram;
+
+  // Custom metrics histograms (-> port 4317/4318), nullable
+  private final LongHistogram customErrorHistogram;
+  private final LongHistogram customFaultHistogram;
+  private final DoubleHistogram customLatencyHistogram;
 
   private final MetricAttributeGenerator generator;
   private final Resource resource;
@@ -79,11 +91,18 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
 
   private Sampler sampler;
 
+  // traceId -> accumulated custom dims from any span in the trace
+  private final ConcurrentHashMap<String, Map<String, String>> pendingCustomDims =
+      new ConcurrentHashMap<>();
+
   /** Use {@link AwsSpanMetricsProcessorBuilder} to construct this processor. */
   static AwsSpanMetricsProcessor create(
       LongHistogram errorHistogram,
       LongHistogram faultHistogram,
       DoubleHistogram latencyHistogram,
+      LongHistogram customErrorHistogram,
+      LongHistogram customFaultHistogram,
+      DoubleHistogram customLatencyHistogram,
       MetricAttributeGenerator generator,
       Resource resource,
       Sampler sampler,
@@ -92,6 +111,9 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
         errorHistogram,
         faultHistogram,
         latencyHistogram,
+        customErrorHistogram,
+        customFaultHistogram,
+        customLatencyHistogram,
         generator,
         resource,
         sampler,
@@ -102,6 +124,9 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       LongHistogram errorHistogram,
       LongHistogram faultHistogram,
       DoubleHistogram latencyHistogram,
+      LongHistogram customErrorHistogram,
+      LongHistogram customFaultHistogram,
+      DoubleHistogram customLatencyHistogram,
       MetricAttributeGenerator generator,
       Resource resource,
       Sampler sampler,
@@ -109,6 +134,9 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
     this.errorHistogram = errorHistogram;
     this.faultHistogram = faultHistogram;
     this.latencyHistogram = latencyHistogram;
+    this.customErrorHistogram = customErrorHistogram;
+    this.customFaultHistogram = customFaultHistogram;
+    this.customLatencyHistogram = customLatencyHistogram;
     this.generator = generator;
     this.resource = resource;
     this.sampler = sampler;
@@ -131,13 +159,68 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   @Override
   public void onEnd(ReadableSpan span) {
     SpanData spanData = span.toSpanData();
+    SpanContext ownSpanContext = spanData.getSpanContext();
+    String traceId = ownSpanContext != null ? ownSpanContext.getTraceId() : null;
 
-    Map<String, Attributes> attributeMap =
+    // Extract custom dims from this span's attributes and accumulate under traceId.
+    // Any span in the trace can contribute custom dims regardless of depth or kind.
+    Map<String, String> ownCustomDims = CustomDimensionExtractor.extract(spanData.getAttributes());
+    if (!ownCustomDims.isEmpty() && traceId != null) {
+      pendingCustomDims.merge(
+          traceId,
+          new HashMap<>(ownCustomDims),
+          (existing, incoming) -> {
+            Map<String, String> merged = new HashMap<>(existing);
+            merged.putAll(incoming);
+            return merged;
+          });
+    }
+
+    // Local root spans clean up the pendingCustomDims entry for this trace.
+    // This prevents memory leaks even for spans excluded from service metrics
+    // (e.g. SQS receive message consumer spans).
+    Map<String, String> allCustomDims = null;
+    if (traceId != null && AwsSpanProcessingUtil.isLocalRoot(spanData)) {
+      allCustomDims = pendingCustomDims.remove(traceId);
+    }
+
+    // Always generate standard Application Signals metrics -> port 4315/4316
+    Map<String, Attributes> standardAttributeMap =
         generator.generateMetricAttributeMapFromSpan(spanData, resource);
-
-    for (Map.Entry<String, Attributes> attribute : attributeMap.entrySet()) {
+    for (Map.Entry<String, Attributes> attribute : standardAttributeMap.entrySet()) {
       recordMetrics(span, spanData, attribute.getValue());
     }
+
+    // Generate custom dimension metrics -> port 4317/4318
+    // Only for SERVICE-type spans (SERVER or local root), not DEPENDENCY
+    if (allCustomDims != null
+        && !allCustomDims.isEmpty()
+        && AwsSpanProcessingUtil.shouldGenerateServiceMetricAttributes(spanData)) {
+
+      // Get Operation from the standard SERVICE_METRIC attributes
+      Attributes serviceAttrs = standardAttributeMap.get(MetricAttributeGenerator.SERVICE_METRIC);
+      String operation = serviceAttrs != null ? serviceAttrs.get(AWS_LOCAL_OPERATION) : null;
+
+      // For EACH custom dim separately, generate 2 recordings
+      for (Map.Entry<String, String> dim : allCustomDims.entrySet()) {
+        String dimName = dim.getKey();
+        String dimValue = dim.getValue();
+
+        // Set A: {Operation=<value>, <dimName>=<dimValue>}
+        if (operation != null) {
+          AttributesBuilder withOpBuilder = Attributes.builder();
+          withOpBuilder.put("Operation", operation);
+          withOpBuilder.put(dimName, dimValue);
+          recordCustomMetrics(span, spanData, withOpBuilder.build());
+        }
+
+        // Set B: {<dimName>=<dimValue>}
+        Attributes withoutOp =
+            Attributes.of(io.opentelemetry.api.common.AttributeKey.stringKey(dimName), dimValue);
+        recordCustomMetrics(span, spanData, withoutOp);
+      }
+    }
+
     if (sampler != null) {
       ((AwsXrayRemoteSampler) sampler).adaptSampling(span, spanData);
     }
@@ -193,6 +276,60 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
       recordErrorOrFault(spanData, attributes);
       recordLatency(span, attributes);
     }
+  }
+
+  private void recordCustomMetrics(ReadableSpan span, SpanData spanData, Attributes attributes) {
+    if (!attributes.isEmpty() && !isEc2MetadataSpan(attributes) && customErrorHistogram != null) {
+      double latencyMillis = span.getLatencyNanos() / NANOS_TO_MILLIS;
+      logger.log(
+          Level.FINER,
+          "Recording custom metric -> port 4317/4318: span=[{0}], latency={1}ms, attributes={2}",
+          new Object[] {spanData.getName(), latencyMillis, attributes});
+      recordCustomErrorOrFault(spanData, attributes);
+      recordCustomLatency(span, attributes);
+    } else if (customErrorHistogram == null) {
+      logger.log(
+          Level.FINE,
+          "Custom metric histograms not configured (null). "
+              + "Custom dim metrics will be skipped for span [{0}].",
+          spanData.getName());
+    }
+  }
+
+  private void recordCustomErrorOrFault(SpanData spanData, Attributes attributes) {
+    Long httpStatusCode =
+        getKeyValueWithFallback(spanData, HTTP_RESPONSE_STATUS_CODE, HTTP_STATUS_CODE);
+    StatusCode statusCode = spanData.getStatus().getStatusCode();
+
+    if (httpStatusCode == null) {
+      httpStatusCode = attributes.get(HTTP_RESPONSE_STATUS_CODE);
+    }
+
+    if (httpStatusCode == null
+        || httpStatusCode < ERROR_CODE_LOWER_BOUND
+        || httpStatusCode > FAULT_CODE_UPPER_BOUND) {
+      if (StatusCode.ERROR.equals(statusCode)) {
+        customErrorHistogram.record(0, attributes);
+        customFaultHistogram.record(1, attributes);
+      } else {
+        customErrorHistogram.record(0, attributes);
+        customFaultHistogram.record(0, attributes);
+      }
+    } else if (httpStatusCode >= ERROR_CODE_LOWER_BOUND
+        && httpStatusCode <= ERROR_CODE_UPPER_BOUND) {
+      customErrorHistogram.record(1, attributes);
+      customFaultHistogram.record(0, attributes);
+    } else if (httpStatusCode >= FAULT_CODE_LOWER_BOUND
+        && httpStatusCode <= FAULT_CODE_UPPER_BOUND) {
+      customErrorHistogram.record(0, attributes);
+      customFaultHistogram.record(1, attributes);
+    }
+  }
+
+  private void recordCustomLatency(ReadableSpan span, Attributes attributes) {
+    long nanos = span.getLatencyNanos();
+    double millis = nanos / NANOS_TO_MILLIS;
+    customLatencyHistogram.record(millis, attributes);
   }
 
   private boolean isEc2MetadataSpan(Attributes attributes) {
