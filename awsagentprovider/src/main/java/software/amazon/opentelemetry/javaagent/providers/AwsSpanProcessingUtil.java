@@ -43,8 +43,8 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.ReadableSpan;
+import io.opentelemetry.sdk.trace.data.DelegatingSpanData;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.semconv.HttpAttributes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -84,16 +84,14 @@ final class AwsSpanProcessingUtil {
   // Environment variable for configurable operation name paths
   static final String OTEL_AWS_HTTP_OPERATION_PATHS_CONFIG = "OTEL_AWS_HTTP_OPERATION_PATHS";
 
-  private static final Logger logger =
-      Logger.getLogger(AwsSpanProcessingUtil.class.getName());
+  private static final Logger logger = Logger.getLogger(AwsSpanProcessingUtil.class.getName());
 
   // Parsed and sorted (longest first) operation paths from env var, computed once
   private static volatile List<String> operationPaths;
 
   /**
-   * Parse the OTEL_AWS_HTTP_OPERATION_PATHS env var into a sorted list of path prefixes (longest
-   * first). Curly-brace segments like {version} are converted to regex patterns for matching.
-   * Returns an empty list if the env var is not set.
+   * Parse the OTEL_AWS_HTTP_OPERATION_PATHS env var into a sorted list of path templates (longest
+   * first). Returns an empty list if the env var is not set.
    */
   static List<String> getOperationPaths() {
     if (operationPaths == null) {
@@ -111,11 +109,12 @@ final class AwsSpanProcessingUtil {
               }
             }
             // Sort longest first so longest prefix match wins
-            paths.sort((a, b) -> {
-              int aSegments = a.split("/").length;
-              int bSegments = b.split("/").length;
-              return Integer.compare(bSegments, aSegments);
-            });
+            paths.sort(
+                (a, b) -> {
+                  int aSegments = a.split("/").length;
+                  int bSegments = b.split("/").length;
+                  return Integer.compare(bSegments, aSegments);
+                });
             operationPaths = Collections.unmodifiableList(paths);
           }
         }
@@ -132,65 +131,150 @@ final class AwsSpanProcessingUtil {
   }
 
   /**
-   * Match a URL path against the configured operation paths. Returns the matched operation path
-   * template (e.g., "/api/{version}/users") or null if no match. Curly-brace segments in the
-   * configured path match any single path segment in the URL.
+   * If OTEL_AWS_HTTP_OPERATION_PATHS is configured and a pattern matches the span's URL path,
+   * returns a wrapped SpanData with the span name overridden to "METHOD /path/template". Returns
+   * the original span unchanged if no config is set or no pattern matches.
+   *
+   * <p>The URL path is extracted from url.path, http.target, url.full, or http.url (in that order).
+   * For full URLs, the path component is extracted.
+   *
+   * <p>Pattern segments can use {param}, :param, or * as wildcards that match any single path
+   * segment. A trailing /* matches any remaining segments.
    */
-  static String matchOperationPath(String urlPath) {
-    if (urlPath == null || urlPath.isEmpty()) {
-      return null;
-    }
-    // Strip query string and fragment
-    int queryIdx = urlPath.indexOf('?');
-    if (queryIdx >= 0) {
-      urlPath = urlPath.substring(0, queryIdx);
-    }
-    int fragIdx = urlPath.indexOf('#');
-    if (fragIdx >= 0) {
-      urlPath = urlPath.substring(0, fragIdx);
+  static SpanData applyOperationPathSpanName(SpanData span) {
+    List<String> paths = getOperationPaths();
+    if (paths.isEmpty()) {
+      return span;
     }
 
-    for (String pattern : getOperationPaths()) {
-      if (pathMatchesPattern(urlPath, pattern)) {
-        return pattern;
+    String urlPath = extractUrlPath(span);
+    if (urlPath == null || urlPath.isEmpty()) {
+      return span;
+    }
+
+    // Strip query string and fragment
+    int idx = urlPath.indexOf('?');
+    if (idx >= 0) {
+      urlPath = urlPath.substring(0, idx);
+    }
+    idx = urlPath.indexOf('#');
+    if (idx >= 0) {
+      urlPath = urlPath.substring(0, idx);
+    }
+
+    // Normalize trailing slashes
+    while (urlPath.endsWith("/") && urlPath.length() > 1) {
+      urlPath = urlPath.substring(0, urlPath.length() - 1);
+    }
+
+    // Find the first matching pattern (list is sorted longest first)
+    String[] urlSegments = urlPath.split("/", -1);
+    for (String pattern : paths) {
+      String normalizedPattern = pattern;
+      while (normalizedPattern.endsWith("/") && normalizedPattern.length() > 1) {
+        normalizedPattern = normalizedPattern.substring(0, normalizedPattern.length() - 1);
+      }
+      if (segmentsMatch(urlSegments, normalizedPattern.split("/", -1))) {
+        String httpMethod = getHttpMethod(span);
+        String newName = httpMethod != null ? httpMethod + " " + pattern : pattern;
+        return new DelegatingSpanData(span) {
+          @Override
+          public String getName() {
+            return newName;
+          }
+        };
+      }
+    }
+    return span;
+  }
+
+  /**
+   * Extract the URL path from span attributes for matching against configured operation paths.
+   * Checks http.route first (already a low-cardinality template), then url.path and http.target
+   * (just the path), then falls back to url.full and http.url (full URLs) and extracts the path.
+   */
+  private static String extractUrlPath(SpanData span) {
+    // Prefer http.route — it's already a template with placeholders like :param
+    AttributeKey<String> httpRoute = AttributeKey.stringKey("http.route");
+    if (isKeyPresent(span, httpRoute)) {
+      return span.getAttributes().get(httpRoute);
+    }
+    // Then try attributes that are just the path
+    if (isKeyPresent(span, URL_PATH)) {
+      return span.getAttributes().get(URL_PATH);
+    }
+    if (isKeyPresent(span, HTTP_TARGET)) {
+      return span.getAttributes().get(HTTP_TARGET);
+    }
+    // Fall back to full URLs — extract the path component
+    String fullUrl = null;
+    AttributeKey<String> urlFull = AttributeKey.stringKey("url.full");
+    AttributeKey<String> httpUrl = AttributeKey.stringKey("http.url");
+    if (isKeyPresent(span, urlFull)) {
+      fullUrl = span.getAttributes().get(urlFull);
+    } else if (isKeyPresent(span, httpUrl)) {
+      fullUrl = span.getAttributes().get(httpUrl);
+    }
+    if (fullUrl != null) {
+      int schemeEnd = fullUrl.indexOf("://");
+      if (schemeEnd >= 0) {
+        int pathStart = fullUrl.indexOf('/', schemeEnd + 3);
+        if (pathStart >= 0) {
+          return fullUrl.substring(pathStart);
+        }
       }
     }
     return null;
   }
 
   /**
-   * Check if a URL path matches a pattern. Patterns can contain curly-brace segments like
-   * {id} which match any single path segment. The pattern acts as a prefix — if all pattern
-   * segments match the corresponding URL segments, it's a match even if the URL has additional
-   * trailing segments. A trailing /* in the pattern explicitly matches any remaining segments.
+   * Check if URL segments match a pattern's segments. Both the URL and pattern can contain wildcard
+   * segments. A segment is a wildcard if it uses {param}, :param, or * format. Two wildcard
+   * segments always match each other. A wildcard matches any non-empty literal segment. Two literal
+   * segments must be equal. The pattern acts as a prefix — extra URL segments after the pattern are
+   * allowed. A trailing * in the pattern matches all remaining segments.
    */
-  private static boolean pathMatchesPattern(String urlPath, String pattern) {
-    String[] urlSegments = urlPath.split("/", -1);
-    String[] patternSegments = pattern.split("/", -1);
-
+  private static boolean segmentsMatch(String[] urlSegments, String[] patternSegments) {
     for (int i = 0; i < patternSegments.length; i++) {
       if (i >= urlSegments.length) {
         return false;
       }
       String ps = patternSegments[i];
-      // Wildcard matches remaining
-      if (ps.equals("*")) {
+      String us = urlSegments[i];
+
+      // Trailing * in pattern matches everything remaining
+      if (ps.equals("*") && i == patternSegments.length - 1) {
         return true;
       }
-      // Curly-brace segment matches any non-empty segment
-      if (ps.startsWith("{") && ps.endsWith("}")) {
-        if (urlSegments[i].isEmpty()) {
+
+      boolean patternIsWildcard = isWildcardSegment(ps);
+      boolean urlIsWildcard = isWildcardSegment(us);
+
+      // Two wildcards always match
+      if (patternIsWildcard && urlIsWildcard) {
+        continue;
+      }
+      // Wildcard matches any non-empty literal
+      if (patternIsWildcard || urlIsWildcard) {
+        String literal = patternIsWildcard ? us : ps;
+        if (literal.isEmpty()) {
           return false;
         }
         continue;
       }
-      // Literal match
-      if (!ps.equals(urlSegments[i])) {
+      // Both literal — must be equal
+      if (!ps.equals(us)) {
         return false;
       }
     }
-    // All pattern segments matched — URL may have extra trailing segments, that's fine
     return true;
+  }
+
+  /** A segment is a wildcard if it uses {param}, :param, or * format. */
+  private static boolean isWildcardSegment(String segment) {
+    return (segment.startsWith("{") && segment.endsWith("}"))
+        || segment.startsWith(":")
+        || segment.equals("*");
   }
 
   static List<String> getDialectKeywords() {
@@ -227,26 +311,6 @@ final class AwsSpanProcessingUtil {
       return getFunctionNameFromEnv() + "/FunctionHandler";
     }
 
-    // Priority 1: Check OTEL_AWS_HTTP_OPERATION_PATHS configuration
-    if (!getOperationPaths().isEmpty()) {
-      String urlPath = getUrlPath(span);
-      if (urlPath != null) {
-        String matchedPath = matchOperationPath(urlPath);
-        if (matchedPath != null) {
-          String httpMethod = getHttpMethod(span);
-          return httpMethod != null ? httpMethod + " " + matchedPath : matchedPath;
-        }
-      }
-    }
-
-    // Priority 2: Check http.route (OTel standard low-cardinality route template)
-    String httpRoute = span.getAttributes().get(HttpAttributes.HTTP_ROUTE);
-    if (httpRoute != null && !httpRoute.isEmpty()) {
-      String httpMethod = getHttpMethod(span);
-      return httpMethod != null ? httpMethod + " " + httpRoute : httpRoute;
-    }
-
-    // Priority 3: Existing logic — span.name or generateIngressOperation fallback
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
       operation = INTERNAL_OPERATION;
