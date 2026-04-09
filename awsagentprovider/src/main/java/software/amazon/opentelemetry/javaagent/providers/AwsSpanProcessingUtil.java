@@ -108,7 +108,8 @@ final class AwsSpanProcessingUtil {
                 paths.add(trimmed);
               }
             }
-            // Sort longest first so longest prefix match wins
+            // Sort longest first so longest prefix match wins. For patterns with the same
+            // number of segments, the original configuration order is preserved (stable sort).
             paths.sort(
                 (a, b) -> {
                   int aSegments = a.split("/").length;
@@ -190,8 +191,8 @@ final class AwsSpanProcessingUtil {
 
   /**
    * Extract the URL path from span attributes for matching against configured operation paths.
-   * Checks http.route first (already a low-cardinality template), then url.path and http.target
-   * (just the path), then falls back to url.full and http.url (full URLs) and extracts the path.
+   * Checks http.route first (already a low-cardinality template), then url.path (just the path),
+   * then http.target (path + query string, which gets stripped later).
    */
   private static String extractUrlPath(SpanData span) {
     // Prefer http.route — it's already a template with placeholders like :param
@@ -199,30 +200,13 @@ final class AwsSpanProcessingUtil {
     if (isKeyPresent(span, httpRoute)) {
       return span.getAttributes().get(httpRoute);
     }
-    // Then try attributes that are just the path
+    // url.path contains just the path, no query string
     if (isKeyPresent(span, URL_PATH)) {
       return span.getAttributes().get(URL_PATH);
     }
+    // http.target may include query string/fragment — stripped later in caller
     if (isKeyPresent(span, HTTP_TARGET)) {
       return span.getAttributes().get(HTTP_TARGET);
-    }
-    // Fall back to full URLs — extract the path component
-    String fullUrl = null;
-    AttributeKey<String> urlFull = AttributeKey.stringKey("url.full");
-    AttributeKey<String> httpUrl = AttributeKey.stringKey("http.url");
-    if (isKeyPresent(span, urlFull)) {
-      fullUrl = span.getAttributes().get(urlFull);
-    } else if (isKeyPresent(span, httpUrl)) {
-      fullUrl = span.getAttributes().get(httpUrl);
-    }
-    if (fullUrl != null) {
-      int schemeEnd = fullUrl.indexOf("://");
-      if (schemeEnd >= 0) {
-        int pathStart = fullUrl.indexOf('/', schemeEnd + 3);
-        if (pathStart >= 0) {
-          return fullUrl.substring(pathStart);
-        }
-      }
     }
     return null;
   }
