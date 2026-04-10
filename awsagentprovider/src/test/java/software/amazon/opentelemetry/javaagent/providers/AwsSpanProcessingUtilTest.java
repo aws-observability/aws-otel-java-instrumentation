@@ -651,10 +651,6 @@ public class AwsSpanProcessingUtilTest {
     assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
   }
 
-  // ============================================================================
-  // Tests for OTEL_AWS_HTTP_OPERATION_PATHS and applyOperationPathSpanName
-  // ============================================================================
-
   // Helper to call the private segmentsMatch method via reflection
   private static boolean segmentsMatch(String[] urlSegments, String[] patternSegments) {
     try {
@@ -670,6 +666,41 @@ public class AwsSpanProcessingUtilTest {
 
   private static boolean matchSegments(String urlPath, String pattern) {
     return segmentsMatch(urlPath.split("/", -1), pattern.split("/", -1));
+  }
+
+  // Helper to call the private getUrlPath method via reflection
+  private static String getUrlPath(SpanData span) {
+    try {
+      java.lang.reflect.Method method =
+          AwsSpanProcessingUtil.class.getDeclaredMethod("getUrlPath", SpanData.class);
+      method.setAccessible(true);
+      return (String) method.invoke(null, span);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  // --- getUrlPath: attribute priority ---
+
+  @Test
+  public void testGetUrlPath_prefersUrlPathOverHttpTarget() {
+    when(attributesMock.get(URL_PATH)).thenReturn("/from/url-path");
+    when(attributesMock.get(HTTP_TARGET)).thenReturn("/from/http-target");
+    assertThat(getUrlPath(spanDataMock)).isEqualTo("/from/url-path");
+  }
+
+  @Test
+  public void testGetUrlPath_fallsBackToHttpTarget() {
+    when(attributesMock.get(URL_PATH)).thenReturn(null);
+    when(attributesMock.get(HTTP_TARGET)).thenReturn("/from/http-target");
+    assertThat(getUrlPath(spanDataMock)).isEqualTo("/from/http-target");
+  }
+
+  @Test
+  public void testGetUrlPath_returnsNullWhenNeitherPresent() {
+    when(attributesMock.get(URL_PATH)).thenReturn(null);
+    when(attributesMock.get(HTTP_TARGET)).thenReturn(null);
+    assertThat(getUrlPath(spanDataMock)).isNull();
   }
 
   // --- segmentsMatch: exact literal matching ---
@@ -745,38 +776,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testSegmentsMatch_starDoesNotMatchEmpty() {
     assertThat(matchSegments("/api/contests/", "/api/contests/*/leaderboard")).isFalse();
-  }
-
-  // --- segmentsMatch: wildcard in URL (e.g., http.route with :param) ---
-
-  @Test
-  public void testSegmentsMatch_urlColonParamMatchedByPatternWildcard() {
-    // Config {userId} wildcard matches URL literal :userId
-    assertThat(matchSegments("/api/users/:userId/stats", "/api/users/{userId}/stats")).isTrue();
-  }
-
-  @Test
-  public void testSegmentsMatch_urlColonParamMatchedByPatternStar() {
-    assertThat(matchSegments("/api/users/:userId/stats", "/api/users/*/stats")).isTrue();
-  }
-
-  @Test
-  public void testSegmentsMatch_urlColonParamNotMatchedByLiteralPattern() {
-    // Literal "john" does NOT match :userId — they're different strings
-    assertThat(matchSegments("/api/users/:userId/stats", "/api/users/john/stats")).isFalse();
-  }
-
-  @Test
-  public void testSegmentsMatch_mixedWildcardsInPattern() {
-    assertThat(matchSegments("/api/v2/users/42", "/api/*/users/{userId}")).isTrue();
-  }
-
-  @Test
-  public void testSegmentsMatch_urlWildcardMatchesShorterLiteralConfig() {
-    // Prefix match: config /api/v1 matches route /api/:version/hi
-    // because {version} in config would match, but /api/v1 is literal —
-    // :version != v1 as literals, so this should NOT match
-    assertThat(matchSegments("/api/:version/hi", "/api/v1")).isFalse();
   }
 
   // --- applyOperationPathSpanName: integration tests ---

@@ -139,53 +139,55 @@ final class AwsSpanProcessingUtil {
       return span;
     }
 
-    for (String urlPath : getUrlPathCandidates(span)) {
-      if (urlPath == null || urlPath.isEmpty()) {
-        continue;
-      }
+    String urlPath = getUrlPath(span);
+    if (urlPath == null || urlPath.isEmpty()) {
+      return span;
+    }
 
-      // Strip query string and fragment (relevant for http.target)
-      int idx = urlPath.indexOf('?');
-      if (idx >= 0) {
-        urlPath = urlPath.substring(0, idx);
-      }
-      idx = urlPath.indexOf('#');
-      if (idx >= 0) {
-        urlPath = urlPath.substring(0, idx);
-      }
+    // Strip query string and fragment (relevant for http.target)
+    int idx = urlPath.indexOf('?');
+    if (idx >= 0) {
+      urlPath = urlPath.substring(0, idx);
+    }
+    idx = urlPath.indexOf('#');
+    if (idx >= 0) {
+      urlPath = urlPath.substring(0, idx);
+    }
 
-      // Normalize trailing slashes
-      while (urlPath.endsWith("/") && urlPath.length() > 1) {
-        urlPath = urlPath.substring(0, urlPath.length() - 1);
-      }
+    // Normalize trailing slashes
+    while (urlPath.endsWith("/") && urlPath.length() > 1) {
+      urlPath = urlPath.substring(0, urlPath.length() - 1);
+    }
 
-      String[] urlSegments = urlPath.split("/", -1);
-      for (String pattern : paths) {
-        String normalizedPattern = pattern;
-        while (normalizedPattern.endsWith("/") && normalizedPattern.length() > 1) {
-          normalizedPattern = normalizedPattern.substring(0, normalizedPattern.length() - 1);
-        }
-        if (segmentsMatch(urlSegments, normalizedPattern.split("/", -1))) {
-          String httpMethod = getHttpMethod(span);
-          String newName = httpMethod != null ? httpMethod + " " + pattern : pattern;
-          return new DelegatingSpanData(span) {
-            @Override
-            public String getName() {
-              return newName;
-            }
-          };
-        }
+    String[] urlSegments = urlPath.split("/", -1);
+    for (String pattern : paths) {
+      String normalizedPattern = pattern;
+      while (normalizedPattern.endsWith("/") && normalizedPattern.length() > 1) {
+        normalizedPattern = normalizedPattern.substring(0, normalizedPattern.length() - 1);
+      }
+      if (segmentsMatch(urlSegments, normalizedPattern.split("/", -1))) {
+        String httpMethod = getHttpMethod(span);
+        String newName = httpMethod != null ? httpMethod + " " + pattern : pattern;
+        return new DelegatingSpanData(span) {
+          @Override
+          public String getName() {
+            return newName;
+          }
+        };
       }
     }
     return span;
   }
 
-  /** Return URL path candidates from server span attributes: url.path, then http.target */
-  private static String[] getUrlPathCandidates(SpanData span) {
-    return new String[] {
-      isKeyPresent(span, URL_PATH) ? span.getAttributes().get(URL_PATH) : null,
-      isKeyPresent(span, HTTP_TARGET) ? span.getAttributes().get(HTTP_TARGET) : null,
-    };
+  /** Return the URL path from server span attributes, preferring url.path over http.target. */
+  private static String getUrlPath(SpanData span) {
+    if (isKeyPresent(span, URL_PATH)) {
+      return span.getAttributes().get(URL_PATH);
+    }
+    if (isKeyPresent(span, HTTP_TARGET)) {
+      return span.getAttributes().get(HTTP_TARGET);
+    }
+    return null;
   }
 
   /**
