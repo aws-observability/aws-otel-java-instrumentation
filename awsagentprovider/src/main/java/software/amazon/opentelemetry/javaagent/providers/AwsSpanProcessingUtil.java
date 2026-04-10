@@ -43,10 +43,12 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.trace.ReadableSpan;
+import io.opentelemetry.sdk.trace.data.DelegatingSpanData;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -77,6 +79,153 @@ final class AwsSpanProcessingUtil {
   static final AttributeKey<String> OTEL_SCOPE_NAME = AttributeKey.stringKey("otel.scope.name");
   static final String LAMBDA_SCOPE_PREFIX = "io.opentelemetry.aws-lambda-";
   static final String SERVLET_SCOPE_PREFIX = "io.opentelemetry.servlet-";
+
+  // Environment variable for configurable operation name paths
+  static final String OTEL_AWS_HTTP_OPERATION_PATHS_CONFIG = "OTEL_AWS_HTTP_OPERATION_PATHS";
+
+  // Parsed and sorted (longest first) operation paths from env var, computed once
+  private static volatile List<String> operationPaths;
+
+  /**
+   * Parse the OTEL_AWS_HTTP_OPERATION_PATHS env var into a sorted list of path templates (longest
+   * first). Returns an empty list if the env var is not set.
+   */
+  static List<String> getOperationPaths() {
+    if (operationPaths == null) {
+      synchronized (AwsSpanProcessingUtil.class) {
+        if (operationPaths == null) {
+          String config = System.getenv(OTEL_AWS_HTTP_OPERATION_PATHS_CONFIG);
+          if (config == null || config.trim().isEmpty()) {
+            operationPaths = Collections.emptyList();
+          } else {
+            List<String> paths = new ArrayList<>();
+            for (String path : config.split(",")) {
+              String trimmed = path.trim();
+              if (!trimmed.isEmpty()) {
+                paths.add(trimmed);
+              }
+            }
+            // Sort longest first so longest prefix match wins. For patterns with the same
+            // number of segments, the original configuration order is preserved (stable sort).
+            paths.sort(
+                (a, b) -> {
+                  int aSegments = a.split("/").length;
+                  int bSegments = b.split("/").length;
+                  return Integer.compare(bSegments, aSegments);
+                });
+            operationPaths = Collections.unmodifiableList(paths);
+          }
+        }
+      }
+    }
+    return operationPaths;
+  }
+
+  // Visible for testing — allows tests to reset the cached paths
+  static void resetOperationPaths() {
+    synchronized (AwsSpanProcessingUtil.class) {
+      operationPaths = null;
+    }
+  }
+
+  /**
+   * If OTEL_AWS_HTTP_OPERATION_PATHS is configured and a pattern matches the span's URL path,
+   * returns a wrapped SpanData with the span name overridden to "METHOD /path/template". Returns
+   * the original span unchanged if no config is set or no pattern matches.
+   */
+  static SpanData applyOperationPathSpanName(SpanData span) {
+    List<String> paths = getOperationPaths();
+    if (paths.isEmpty()) {
+      return span;
+    }
+
+    String urlPath = getUrlPath(span);
+    if (urlPath == null || urlPath.isEmpty()) {
+      return span;
+    }
+
+    // Strip query string and fragment (relevant for http.target)
+    int idx = urlPath.indexOf('?');
+    if (idx >= 0) {
+      urlPath = urlPath.substring(0, idx);
+    }
+    idx = urlPath.indexOf('#');
+    if (idx >= 0) {
+      urlPath = urlPath.substring(0, idx);
+    }
+
+    // Normalize trailing slashes
+    while (urlPath.endsWith("/") && urlPath.length() > 1) {
+      urlPath = urlPath.substring(0, urlPath.length() - 1);
+    }
+
+    String[] urlSegments = urlPath.split("/", -1);
+    for (String pattern : paths) {
+      String normalizedPattern = pattern;
+      while (normalizedPattern.endsWith("/") && normalizedPattern.length() > 1) {
+        normalizedPattern = normalizedPattern.substring(0, normalizedPattern.length() - 1);
+      }
+      if (segmentsMatch(urlSegments, normalizedPattern.split("/", -1))) {
+        String httpMethod = getHttpMethod(span);
+        String newName = httpMethod != null ? httpMethod + " " + pattern : pattern;
+        return new DelegatingSpanData(span) {
+          @Override
+          public String getName() {
+            return newName;
+          }
+        };
+      }
+    }
+    return span;
+  }
+
+  /** Return the URL path from server span attributes, preferring url.path over http.target. */
+  private static String getUrlPath(SpanData span) {
+    if (isKeyPresent(span, URL_PATH)) {
+      return span.getAttributes().get(URL_PATH);
+    }
+    if (isKeyPresent(span, HTTP_TARGET)) {
+      return span.getAttributes().get(HTTP_TARGET);
+    }
+    return null;
+  }
+
+  /**
+   * Check if URL segments match a pattern's segments. Only pattern segments can be wildcards
+   * ({param}, :param, or *) — URL segments are always treated as literals. A wildcard pattern
+   * segment matches any non-empty URL segment. The pattern acts as a prefix — extra URL segments
+   * after the pattern are allowed.
+   */
+  private static boolean segmentsMatch(String[] urlSegments, String[] patternSegments) {
+    for (int i = 0; i < patternSegments.length; i++) {
+      if (i >= urlSegments.length) {
+        return false;
+      }
+      String ps = patternSegments[i];
+      String us = urlSegments[i];
+
+      // Pattern wildcard matches any non-empty URL segment
+      if (isWildcardSegment(ps)) {
+        if (us.isEmpty()) {
+          return false;
+        }
+        continue;
+      }
+
+      // Both literal — must be equal
+      if (!ps.equals(us)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** A segment is a wildcard if it uses {param}, :param, or * format. */
+  private static boolean isWildcardSegment(String segment) {
+    return (segment.startsWith("{") && segment.endsWith("}"))
+        || segment.startsWith(":")
+        || segment.equals("*");
+  }
 
   static List<String> getDialectKeywords() {
     try (InputStream jsonFile =
@@ -123,6 +272,7 @@ final class AwsSpanProcessingUtil {
       }
       return getFunctionNameFromEnv() + "/FunctionHandler";
     }
+
     String operation = span.getName();
     if (shouldUseInternalOperation(span)) {
       operation = INTERNAL_OPERATION;
@@ -130,6 +280,16 @@ final class AwsSpanProcessingUtil {
       operation = generateIngressOperation(span);
     }
     return operation;
+  }
+
+  /** Get the HTTP method from the span, checking new and deprecated semconv attributes. */
+  private static String getHttpMethod(SpanData span) {
+    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
+      return span.getAttributes().get(HTTP_REQUEST_METHOD);
+    } else if (isKeyPresent(span, HTTP_METHOD)) {
+      return span.getAttributes().get(HTTP_METHOD);
+    }
+    return null;
   }
 
   // define a function so that we can mock it in unit test
@@ -256,11 +416,8 @@ final class AwsSpanProcessingUtil {
     if (operation == null || operation.equals(UNKNOWN_OPERATION)) {
       return false;
     }
-    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
-      String httpMethod = span.getAttributes().get(HTTP_REQUEST_METHOD);
-      return !operation.equals(httpMethod);
-    } else if (isKeyPresent(span, HTTP_METHOD)) {
-      String httpMethod = span.getAttributes().get(HTTP_METHOD);
+    String httpMethod = getHttpMethod(span);
+    if (httpMethod != null) {
       return !operation.equals(httpMethod);
     }
     return true;

@@ -88,6 +88,11 @@ public class AwsMetricAttributesSpanExporter implements SpanExporter {
     List<SpanData> modifiedSpans = new ArrayList<>();
 
     for (SpanData span : spans) {
+      // If OTEL_AWS_HTTP_OPERATION_PATHS is configured and matches, wrap the span with the
+      // overridden name so that the exported trace carries the correct span name. This ensures
+      // getIngressOperation (called below) derives aws.local.operation from the overridden name.
+      span = AwsSpanProcessingUtil.applyOperationPathSpanName(span);
+
       // If the map has no items, no modifications are required. If there is one item, it means the
       // span either produces Service or Dependency metric attributes, and in either case we want to
       // modify the span with them. If there are two items, the span produces both Service and
