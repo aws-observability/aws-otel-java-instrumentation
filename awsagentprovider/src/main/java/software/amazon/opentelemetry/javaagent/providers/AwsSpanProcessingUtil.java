@@ -50,7 +50,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /** Utility class designed to support shared logic across AWS Span Processors. */
@@ -83,8 +82,6 @@ final class AwsSpanProcessingUtil {
 
   // Environment variable for configurable operation name paths
   static final String OTEL_AWS_HTTP_OPERATION_PATHS_CONFIG = "OTEL_AWS_HTTP_OPERATION_PATHS";
-
-  private static final Logger logger = Logger.getLogger(AwsSpanProcessingUtil.class.getName());
 
   // Parsed and sorted (longest first) operation paths from env var, computed once
   private static volatile List<String> operationPaths;
@@ -183,9 +180,7 @@ final class AwsSpanProcessingUtil {
     return span;
   }
 
-  /**
-   * Return URL path candidates from server span attributes: url.path, then http.target
-   */
+  /** Return URL path candidates from server span attributes: url.path, then http.target */
   private static String[] getUrlPathCandidates(SpanData span) {
     return new String[] {
       isKeyPresent(span, URL_PATH) ? span.getAttributes().get(URL_PATH) : null,
@@ -253,6 +248,18 @@ final class AwsSpanProcessingUtil {
    */
   static String getIngressOperation(SpanData span) {
     if (isLambdaEnvironment()) {
+      /*
+       * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".
+       * To dynamically override this at runtime—such as when running a custom server inside your Lambda—
+       * you can set the span attribute "aws.lambda.local.operation.override" before ending the span. For example:
+       *
+       *   // Obtain the current Span and override its operation name
+       *   Span.current().setAttribute(
+       *       "aws.lambda.local.operation.override",
+       *       "MyServiceOperation");
+       *
+       * The code below will detect that override and use it instead of the default.
+       */
       String operationOverride = span.getAttributes().get(AWS_LAMBDA_LOCAL_OPERATION_OVERRIDE);
       if (operationOverride != null) {
         return operationOverride;
@@ -271,16 +278,6 @@ final class AwsSpanProcessingUtil {
       operation = generateIngressOperation(span);
     }
     return operation;
-  }
-
-  /** Get the URL path from the span, checking new and deprecated semconv attributes. */
-  private static String getUrlPath(SpanData span) {
-    if (isKeyPresent(span, URL_PATH)) {
-      return span.getAttributes().get(URL_PATH);
-    } else if (isKeyPresent(span, HTTP_TARGET)) {
-      return span.getAttributes().get(HTTP_TARGET);
-    }
-    return null;
   }
 
   /** Get the HTTP method from the span, checking new and deprecated semconv attributes. */
@@ -417,11 +414,8 @@ final class AwsSpanProcessingUtil {
     if (operation == null || operation.equals(UNKNOWN_OPERATION)) {
       return false;
     }
-    if (isKeyPresent(span, HTTP_REQUEST_METHOD)) {
-      String httpMethod = span.getAttributes().get(HTTP_REQUEST_METHOD);
-      return !operation.equals(httpMethod);
-    } else if (isKeyPresent(span, HTTP_METHOD)) {
-      String httpMethod = span.getAttributes().get(HTTP_METHOD);
+    String httpMethod = getHttpMethod(span);
+    if (httpMethod != null) {
       return !operation.equals(httpMethod);
     }
     return true;

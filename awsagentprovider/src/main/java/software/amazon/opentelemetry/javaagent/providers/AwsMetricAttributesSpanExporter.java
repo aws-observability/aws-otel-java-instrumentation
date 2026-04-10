@@ -91,7 +91,6 @@ public class AwsMetricAttributesSpanExporter implements SpanExporter {
       // If OTEL_AWS_HTTP_OPERATION_PATHS is configured and matches, wrap the span with the
       // overridden name so that the exported trace carries the correct span name. This ensures
       // getIngressOperation (called below) derives aws.local.operation from the overridden name.
-      // Note: metrics are handled separately in AwsSpanMetricsProcessor.onEnd().
       span = AwsSpanProcessingUtil.applyOperationPathSpanName(span);
 
       // If the map has no items, no modifications are required. If there is one item, it means the
