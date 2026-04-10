@@ -135,12 +135,6 @@ final class AwsSpanProcessingUtil {
    * If OTEL_AWS_HTTP_OPERATION_PATHS is configured and a pattern matches the span's URL path,
    * returns a wrapped SpanData with the span name overridden to "METHOD /path/template". Returns
    * the original span unchanged if no config is set or no pattern matches.
-   *
-   * <p>The URL path is extracted from url.path, http.target, url.full, or http.url (in that order).
-   * For full URLs, the path component is extracted.
-   *
-   * <p>Pattern segments can use {param}, :param, or * as wildcards that match any single path
-   * segment. A trailing /* matches any remaining segments.
    */
   static SpanData applyOperationPathSpanName(SpanData span) {
     List<String> paths = getOperationPaths();
@@ -148,75 +142,62 @@ final class AwsSpanProcessingUtil {
       return span;
     }
 
-    String urlPath = extractUrlPath(span);
-    if (urlPath == null || urlPath.isEmpty()) {
-      return span;
-    }
-
-    // Strip query string and fragment
-    int idx = urlPath.indexOf('?');
-    if (idx >= 0) {
-      urlPath = urlPath.substring(0, idx);
-    }
-    idx = urlPath.indexOf('#');
-    if (idx >= 0) {
-      urlPath = urlPath.substring(0, idx);
-    }
-
-    // Normalize trailing slashes
-    while (urlPath.endsWith("/") && urlPath.length() > 1) {
-      urlPath = urlPath.substring(0, urlPath.length() - 1);
-    }
-
-    // Find the first matching pattern (list is sorted longest first)
-    String[] urlSegments = urlPath.split("/", -1);
-    for (String pattern : paths) {
-      String normalizedPattern = pattern;
-      while (normalizedPattern.endsWith("/") && normalizedPattern.length() > 1) {
-        normalizedPattern = normalizedPattern.substring(0, normalizedPattern.length() - 1);
+    for (String urlPath : getUrlPathCandidates(span)) {
+      if (urlPath == null || urlPath.isEmpty()) {
+        continue;
       }
-      if (segmentsMatch(urlSegments, normalizedPattern.split("/", -1))) {
-        String httpMethod = getHttpMethod(span);
-        String newName = httpMethod != null ? httpMethod + " " + pattern : pattern;
-        return new DelegatingSpanData(span) {
-          @Override
-          public String getName() {
-            return newName;
-          }
-        };
+
+      // Strip query string and fragment (relevant for http.target)
+      int idx = urlPath.indexOf('?');
+      if (idx >= 0) {
+        urlPath = urlPath.substring(0, idx);
+      }
+      idx = urlPath.indexOf('#');
+      if (idx >= 0) {
+        urlPath = urlPath.substring(0, idx);
+      }
+
+      // Normalize trailing slashes
+      while (urlPath.endsWith("/") && urlPath.length() > 1) {
+        urlPath = urlPath.substring(0, urlPath.length() - 1);
+      }
+
+      String[] urlSegments = urlPath.split("/", -1);
+      for (String pattern : paths) {
+        String normalizedPattern = pattern;
+        while (normalizedPattern.endsWith("/") && normalizedPattern.length() > 1) {
+          normalizedPattern = normalizedPattern.substring(0, normalizedPattern.length() - 1);
+        }
+        if (segmentsMatch(urlSegments, normalizedPattern.split("/", -1))) {
+          String httpMethod = getHttpMethod(span);
+          String newName = httpMethod != null ? httpMethod + " " + pattern : pattern;
+          return new DelegatingSpanData(span) {
+            @Override
+            public String getName() {
+              return newName;
+            }
+          };
+        }
       }
     }
     return span;
   }
 
   /**
-   * Extract the URL path from span attributes for matching against configured operation paths.
-   * Checks http.route first (already a low-cardinality template), then url.path (just the path),
-   * then http.target (path + query string, which gets stripped later).
+   * Return URL path candidates from server span attributes: url.path, then http.target
    */
-  private static String extractUrlPath(SpanData span) {
-    // Prefer http.route — it's already a template with placeholders like :param
-    AttributeKey<String> httpRoute = AttributeKey.stringKey("http.route");
-    if (isKeyPresent(span, httpRoute)) {
-      return span.getAttributes().get(httpRoute);
-    }
-    // url.path contains just the path, no query string
-    if (isKeyPresent(span, URL_PATH)) {
-      return span.getAttributes().get(URL_PATH);
-    }
-    // http.target may include query string/fragment — stripped later in caller
-    if (isKeyPresent(span, HTTP_TARGET)) {
-      return span.getAttributes().get(HTTP_TARGET);
-    }
-    return null;
+  private static String[] getUrlPathCandidates(SpanData span) {
+    return new String[] {
+      isKeyPresent(span, URL_PATH) ? span.getAttributes().get(URL_PATH) : null,
+      isKeyPresent(span, HTTP_TARGET) ? span.getAttributes().get(HTTP_TARGET) : null,
+    };
   }
 
   /**
-   * Check if URL segments match a pattern's segments. Both the URL and pattern can contain wildcard
-   * segments. A segment is a wildcard if it uses {param}, :param, or * format. Two wildcard
-   * segments always match each other. A wildcard matches any non-empty literal segment. Two literal
-   * segments must be equal. The pattern acts as a prefix — extra URL segments after the pattern are
-   * allowed. A trailing * in the pattern matches all remaining segments.
+   * Check if URL segments match a pattern's segments. Only pattern segments can be wildcards
+   * ({param}, :param, or *) — URL segments are always treated as literals. A wildcard pattern
+   * segment matches any non-empty URL segment. The pattern acts as a prefix — extra URL segments
+   * after the pattern are allowed.
    */
   private static boolean segmentsMatch(String[] urlSegments, String[] patternSegments) {
     for (int i = 0; i < patternSegments.length; i++) {
@@ -226,26 +207,14 @@ final class AwsSpanProcessingUtil {
       String ps = patternSegments[i];
       String us = urlSegments[i];
 
-      // Trailing * in pattern matches everything remaining
-      if (ps.equals("*") && i == patternSegments.length - 1) {
-        return true;
-      }
-
-      boolean patternIsWildcard = isWildcardSegment(ps);
-      boolean urlIsWildcard = isWildcardSegment(us);
-
-      // Two wildcards always match
-      if (patternIsWildcard && urlIsWildcard) {
-        continue;
-      }
-      // Wildcard matches any non-empty literal
-      if (patternIsWildcard || urlIsWildcard) {
-        String literal = patternIsWildcard ? us : ps;
-        if (literal.isEmpty()) {
+      // Pattern wildcard matches any non-empty URL segment
+      if (isWildcardSegment(ps)) {
+        if (us.isEmpty()) {
           return false;
         }
         continue;
       }
+
       // Both literal — must be equal
       if (!ps.equals(us)) {
         return false;

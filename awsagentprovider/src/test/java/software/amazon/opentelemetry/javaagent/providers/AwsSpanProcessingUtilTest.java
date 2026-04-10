@@ -37,7 +37,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.MAX_KEYWORD_LENGTH;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.getDialectKeywords;
 
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
@@ -751,23 +750,33 @@ public class AwsSpanProcessingUtilTest {
   // --- segmentsMatch: wildcard in URL (e.g., http.route with :param) ---
 
   @Test
-  public void testSegmentsMatch_urlColonParamMatchesPatternCurlyBrace() {
+  public void testSegmentsMatch_urlColonParamMatchedByPatternWildcard() {
+    // Config {userId} wildcard matches URL literal :userId
     assertThat(matchSegments("/api/users/:userId/stats", "/api/users/{userId}/stats")).isTrue();
   }
 
   @Test
-  public void testSegmentsMatch_urlColonParamMatchesPatternStar() {
+  public void testSegmentsMatch_urlColonParamMatchedByPatternStar() {
     assertThat(matchSegments("/api/users/:userId/stats", "/api/users/*/stats")).isTrue();
   }
 
   @Test
-  public void testSegmentsMatch_urlCurlyBraceMatchesPatternColonParam() {
-    assertThat(matchSegments("/api/users/{userId}/stats", "/api/users/:userId/stats")).isTrue();
+  public void testSegmentsMatch_urlColonParamNotMatchedByLiteralPattern() {
+    // Literal "john" does NOT match :userId — they're different strings
+    assertThat(matchSegments("/api/users/:userId/stats", "/api/users/john/stats")).isFalse();
   }
 
   @Test
-  public void testSegmentsMatch_twoWildcardsAlwaysMatch() {
-    assertThat(matchSegments("/api/{version}/users/:id", "/api/*/users/{userId}")).isTrue();
+  public void testSegmentsMatch_mixedWildcardsInPattern() {
+    assertThat(matchSegments("/api/v2/users/42", "/api/*/users/{userId}")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_urlWildcardMatchesShorterLiteralConfig() {
+    // Prefix match: config /api/v1 matches route /api/:version/hi
+    // because {version} in config would match, but /api/v1 is literal —
+    // :version != v1 as literals, so this should NOT match
+    assertThat(matchSegments("/api/:version/hi", "/api/v1")).isFalse();
   }
 
   // --- applyOperationPathSpanName: integration tests ---
@@ -775,7 +784,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_matchesUrlPath() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/123/leaderboard");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
@@ -792,10 +800,9 @@ public class AwsSpanProcessingUtilTest {
   }
 
   @Test
-  public void testApplyOperationPathSpanName_matchesHttpRoute() {
+  public void testApplyOperationPathSpanName_matchesParameterizedUrl() {
     when(spanDataMock.getName()).thenReturn("GET /api/users/:userId/stats");
-    when(attributesMock.get(AttributeKey.stringKey("http.route")))
-        .thenReturn("/api/users/:userId/stats");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/users/42/stats");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
     try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
@@ -812,7 +819,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_matchesHttpTarget() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn(null);
     when(attributesMock.get(HTTP_TARGET)).thenReturn("/api/teams/5?include=roster");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
@@ -831,7 +837,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_httpTargetWithFragment() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn(null);
     when(attributesMock.get(HTTP_TARGET)).thenReturn("/api/teams/5#section");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
@@ -850,7 +855,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_sameLengthPatternsFirstConfigWins() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/v1/user1");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
@@ -869,7 +873,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_noMatch_returnsOriginal() {
     when(spanDataMock.getName()).thenReturn("GET /unknown");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/unknown/path");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
@@ -898,7 +901,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_longestMatchWins() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/42");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
@@ -919,7 +921,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_queryStringStripped() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests?page=1&size=10");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
@@ -937,7 +938,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_noHttpMethod() {
     when(spanDataMock.getName()).thenReturn("/api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn(null);
     when(attributesMock.get(HTTP_METHOD)).thenReturn(null);
@@ -956,7 +956,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_trailingSlashNormalized() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
@@ -974,7 +973,6 @@ public class AwsSpanProcessingUtilTest {
   @Test
   public void testApplyOperationPathSpanName_patternTrailingSlashNormalized() {
     when(spanDataMock.getName()).thenReturn("GET /api");
-    when(attributesMock.get(AttributeKey.stringKey("http.route"))).thenReturn(null);
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
 
