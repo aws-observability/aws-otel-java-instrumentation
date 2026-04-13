@@ -232,17 +232,15 @@ jobs:
 
       - name: Create and push multi-arch manifest to public ECR
         run: |
-          docker manifest create ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
+          docker buildx imagetools create -t ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
             ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}-amd64 \
             ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}-arm64
-          docker manifest push ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
 
       - name: Create and push multi-arch manifest to private ECR
         run: |
-          docker manifest create ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }} \
+          docker buildx imagetools create -t ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }} \
             ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }}-amd64 \
             ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }}-arm64
-          docker manifest push ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }}
 
       - name: Build and Publish release with Gradle
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0

@@ -83,20 +83,19 @@ jobs:
 
       - name: Create and push multi-arch manifest
         run: |
-          docker manifest create ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }} \
+          docker buildx imagetools create -t ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }} \
             ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}-amd64 \
             ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}-arm64
-          docker manifest push ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}
 
       - name: Verify manifest references tagged images
         run: |
-          echo "=== Manifest inspect ==="
-          docker manifest inspect ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}
+          echo "=== Multi-arch manifest ==="
+          docker buildx imagetools inspect ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}
 
           echo ""
-          echo "=== Verifying per-arch tags exist ==="
-          docker manifest inspect ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}-amd64
-          docker manifest inspect ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}-arm64
+          echo "=== Per-arch tags ==="
+          docker buildx imagetools inspect ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}-amd64
+          docker buildx imagetools inspect ${{ env.STAGING_ECR_REPOSITORY }}:v${{ env.VERSION }}-arm64
 
           echo ""
           echo "All per-arch images are individually tagged. ARS replication should succeed."
