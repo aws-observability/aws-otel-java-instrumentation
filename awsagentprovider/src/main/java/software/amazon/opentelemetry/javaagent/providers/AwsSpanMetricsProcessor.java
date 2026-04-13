@@ -132,6 +132,10 @@ public final class AwsSpanMetricsProcessor implements SpanProcessor {
   public void onEnd(ReadableSpan span) {
     SpanData spanData = span.toSpanData();
 
+    // If OTEL_AWS_HTTP_OPERATION_PATHS is configured, wrap the span with the overridden name
+    // so that metrics use the configured operation path instead of the original span name.
+    spanData = AwsSpanProcessingUtil.applyOperationPathSpanName(spanData);
+
     Map<String, Attributes> attributeMap =
         generator.generateMetricAttributeMapFromSpan(spanData, resource);
 

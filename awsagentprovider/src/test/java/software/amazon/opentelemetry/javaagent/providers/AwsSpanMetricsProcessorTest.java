@@ -15,7 +15,9 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_RESPONSE_STATUS_CODE;
+import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -624,5 +626,42 @@ class AwsSpanMetricsProcessorTest {
         .record(eq(0L), eq(metricAttributesMap.get(DEPENDENCY_METRIC)));
     verify(latencyHistogramMock, times(wantedDependencyMetricInvocation))
         .record(eq(TEST_LATENCY_MILLIS), eq(metricAttributesMap.get(DEPENDENCY_METRIC)));
+  }
+
+  @Test
+  public void testOnEndAppliesOperationPathSpanNameBeforeMetrics() {
+    // Build a span with url.path that matches a configured operation path
+    Attributes spanAttributes =
+        Attributes.builder()
+            .put(URL_PATH, "/api/users/42/stats")
+            .put(HTTP_REQUEST_METHOD, "GET")
+            .put(HTTP_RESPONSE_STATUS_CODE, 200L)
+            .build();
+    ReadableSpan readableSpanMock = buildReadableSpanMock(spanAttributes);
+
+    try (org.mockito.MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        org.mockito.Mockito.mockStatic(
+            AwsSpanProcessingUtil.class,
+            org.mockito.Mockito.withSettings()
+                .defaultAnswer(org.mockito.Mockito.CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(java.util.List.of("/api/users/{userId}/stats"));
+
+      // Capture the SpanData passed to the generator
+      org.mockito.ArgumentCaptor<io.opentelemetry.sdk.trace.data.SpanData> spanCaptor =
+          org.mockito.ArgumentCaptor.forClass(io.opentelemetry.sdk.trace.data.SpanData.class);
+      Map<String, Attributes> metricAttributesMap =
+          buildMetricAttributes(CONTAINS_ATTRIBUTES, readableSpanMock.toSpanData());
+      when(generatorMock.generateMetricAttributeMapFromSpan(any(), eq(testResource)))
+          .thenReturn(metricAttributesMap);
+
+      awsSpanMetricsProcessor.onEnd(readableSpanMock);
+
+      // Verify the generator received a span with the overridden name
+      verify(generatorMock)
+          .generateMetricAttributeMapFromSpan(spanCaptor.capture(), eq(testResource));
+      assertThat(spanCaptor.getValue().getName()).isEqualTo("GET /api/users/{userId}/stats");
+    }
   }
 }
