@@ -14,7 +14,7 @@ env:
   AWS_REGION: us-west-2
   STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
   STAGING_ECR_REPOSITORY: 611364707713.dkr.ecr.us-west-2.amazonaws.com/adot-autoinstrumentation-java-operator-staging
-  VERSION: ${{ github.event.inputs.version }}
+  VERSION: ${{ github.event.inputs.version || 'test-tagging-push' }}
 
 permissions:
   id-token: write
@@ -100,8 +100,8 @@ jobs:
           echo ""
           echo "All per-arch images are individually tagged. ARS replication should succeed."
 
-      - name: Cleanup test images
-        if: always()
+      - name: Cleanup test images (disabled for verification)
+        if: false
         run: |
           for tag in "v${{ env.VERSION }}" "v${{ env.VERSION }}-amd64" "v${{ env.VERSION }}-arm64"; do
             aws ecr batch-delete-image \
