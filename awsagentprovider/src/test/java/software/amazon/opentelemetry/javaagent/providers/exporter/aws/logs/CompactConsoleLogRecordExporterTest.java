@@ -47,13 +47,13 @@ public class CompactConsoleLogRecordExporterTest {
 
   private static final String TRACE_ID_KEY = "traceId";
   private static final String SPAN_ID_KEY = "spanId";
-  private static final String TRACE_FLAGS_KEY = "traceFlags";
+  private static final String FLAGS_KEY = "flags";
   private static final String BODY_KEY = "body";
   private static final String SEVERITY_NUMBER_KEY = "severityNumber";
   private static final String SEVERITY_TEXT_KEY = "severityText";
-  private static final String TIMESTAMP_KEY = "timestamp";
-  private static final String OBSERVED_TIMESTAMP_KEY = "observedTimestamp";
-  private static final String INSTRUMENTATION_SCOPE_KEY = "instrumentationScope";
+  private static final String TIME_UNIX_NANO_KEY = "timeUnixNano";
+  private static final String OBSERVED_TIME_UNIX_NANO_KEY = "observedTimeUnixNano";
+  private static final String SCOPE_KEY = "scope";
   private static final String RESOURCE_KEY = "resource";
   private static final String ATTRIBUTES_KEY = "attributes";
   private static final String DROPPED_ATTRIBUTES_KEY = "droppedAttributes";
@@ -181,7 +181,7 @@ public class CompactConsoleLogRecordExporterTest {
             () -> mapper.readValue(actualJsonString, new TypeReference<Map<String, Object>>() {}));
 
     // Validate nested objects exist
-    assertTrue(actualParsedJson.containsKey(INSTRUMENTATION_SCOPE_KEY));
+    assertTrue(actualParsedJson.containsKey(SCOPE_KEY));
     assertTrue(actualParsedJson.containsKey(RESOURCE_KEY));
     assertTrue(actualParsedJson.containsKey(ATTRIBUTES_KEY));
 
@@ -193,26 +193,26 @@ public class CompactConsoleLogRecordExporterTest {
             : null;
     assertEquals(expectedBody, actualParsedJson.get(BODY_KEY));
 
-    // Validate instrumentationScope structure and values
-    assertInstanceOf(Map.class, actualParsedJson.get(INSTRUMENTATION_SCOPE_KEY));
-    Map<String, Object> instrumentationScope =
-        (Map<String, Object>) actualParsedJson.get(INSTRUMENTATION_SCOPE_KEY);
-    assertTrue(instrumentationScope.containsKey(SCOPE_NAME_KEY));
-    assertTrue(instrumentationScope.containsKey(SCOPE_VERSION_KEY));
-    assertTrue(instrumentationScope.containsKey(SCOPE_SCHEMA_URL_KEY));
+    // Validate scope structure and values
+    assertInstanceOf(Map.class, actualParsedJson.get(SCOPE_KEY));
+    Map<String, Object> scope =
+        (Map<String, Object>) actualParsedJson.get(SCOPE_KEY);
+    assertTrue(scope.containsKey(SCOPE_NAME_KEY));
+    assertTrue(scope.containsKey(SCOPE_VERSION_KEY));
+    assertTrue(scope.containsKey(SCOPE_SCHEMA_URL_KEY));
     assertEquals(
         expectedLogRecordData.getInstrumentationScopeInfo().getName(),
-        instrumentationScope.get(SCOPE_NAME_KEY));
+        scope.get(SCOPE_NAME_KEY));
     assertEquals(
         expectedLogRecordData.getInstrumentationScopeInfo().getVersion() != null
             ? expectedLogRecordData.getInstrumentationScopeInfo().getVersion()
             : "",
-        instrumentationScope.get(SCOPE_VERSION_KEY));
+        scope.get(SCOPE_VERSION_KEY));
     assertEquals(
         expectedLogRecordData.getInstrumentationScopeInfo().getSchemaUrl() != null
             ? expectedLogRecordData.getInstrumentationScopeInfo().getSchemaUrl()
             : "",
-        instrumentationScope.get(SCOPE_SCHEMA_URL_KEY));
+        scope.get(SCOPE_SCHEMA_URL_KEY));
 
     // Validate resource structure and values
     assertInstanceOf(Map.class, actualParsedJson.get(RESOURCE_KEY));
@@ -239,16 +239,15 @@ public class CompactConsoleLogRecordExporterTest {
                   String.valueOf(value), String.valueOf(actualAttributes.get(key.getKey())));
             });
 
-    // Validate timestamp fields and values
-    assertTrue(actualParsedJson.containsKey(TIMESTAMP_KEY));
-    assertTrue(actualParsedJson.containsKey(OBSERVED_TIMESTAMP_KEY));
+    // Validate timestamp fields and values (raw epoch nanos)
+    assertTrue(actualParsedJson.containsKey(TIME_UNIX_NANO_KEY));
+    assertTrue(actualParsedJson.containsKey(OBSERVED_TIME_UNIX_NANO_KEY));
     assertEquals(
         expectedLogRecordData.getTimestampEpochNanos(),
-        Instant.parse((String) actualParsedJson.get(TIMESTAMP_KEY)).toEpochMilli() * 1_000_000L);
+        ((Number) actualParsedJson.get(TIME_UNIX_NANO_KEY)).longValue());
     assertEquals(
         expectedLogRecordData.getObservedTimestampEpochNanos(),
-        Instant.parse((String) actualParsedJson.get(OBSERVED_TIMESTAMP_KEY)).toEpochMilli()
-            * 1_000_000L);
+        ((Number) actualParsedJson.get(OBSERVED_TIME_UNIX_NANO_KEY)).longValue());
 
     // Validate droppedAttributes field and value
     assertTrue(actualParsedJson.containsKey(DROPPED_ATTRIBUTES_KEY));
@@ -257,10 +256,10 @@ public class CompactConsoleLogRecordExporterTest {
             - expectedLogRecordData.getAttributes().size();
     assertEquals(expectedDroppedAttributes, actualParsedJson.get(DROPPED_ATTRIBUTES_KEY));
 
-    // Validate traceId, spanId, and traceFlags fields
+    // Validate traceId, spanId, and flags fields
     assertTrue(actualParsedJson.containsKey(TRACE_ID_KEY));
     assertTrue(actualParsedJson.containsKey(SPAN_ID_KEY));
-    assertTrue(actualParsedJson.containsKey(TRACE_FLAGS_KEY));
+    assertTrue(actualParsedJson.containsKey(FLAGS_KEY));
 
     SpanContext spanContext = expectedLogRecordData.getSpanContext();
     if (spanContext != null) {
@@ -272,7 +271,7 @@ public class CompactConsoleLogRecordExporterTest {
         assertEquals("", actualParsedJson.get(SPAN_ID_KEY));
       }
       assertEquals(
-          (int) spanContext.getTraceFlags().asByte(), actualParsedJson.get(TRACE_FLAGS_KEY));
+          (int) spanContext.getTraceFlags().asByte(), actualParsedJson.get(FLAGS_KEY));
     }
 
     // Validate severity fields

@@ -32,13 +32,9 @@ import io.opentelemetry.sdk.logs.data.LogRecordData;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.PrintStream;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -48,7 +44,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @SuppressWarnings("SystemOut")
 public class CompactConsoleLogRecordExporter implements LogRecordExporter {
-  private static final DateTimeFormatter ISO_FORMAT = DateTimeFormatter.ISO_INSTANT;
   private static final ObjectMapper MAPPER =
       new ObjectMapper().disable(SerializationFeature.INDENT_OUTPUT);
   private final AtomicBoolean isShutdown = new AtomicBoolean();
@@ -126,6 +121,9 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
     @JsonProperty("resource")
     private final ResourceTemplate resourceTemplate;
 
+    @JsonProperty("scope")
+    private final ScopeTemplate scope;
+
     @JsonProperty("body")
     private final String body;
 
@@ -136,16 +134,16 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
     private final String severityText;
 
     @JsonProperty("attributes")
-    private final Map<String, String> attributes;
+    private final Map<String, Object> attributes;
 
     @JsonProperty("droppedAttributes")
     private final int droppedAttributes;
 
-    @JsonProperty("timestamp")
-    private final String timestamp;
+    @JsonProperty("timeUnixNano")
+    private final long timeUnixNano;
 
-    @JsonProperty("observedTimestamp")
-    private final String observedTimestamp;
+    @JsonProperty("observedTimeUnixNano")
+    private final long observedTimeUnixNano;
 
     @JsonProperty("traceId")
     private final String traceId;
@@ -153,44 +151,43 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
     @JsonProperty("spanId")
     private final String spanId;
 
-    @JsonProperty("traceFlags")
-    private final int traceFlags;
+    @JsonProperty("flags")
+    private final int flags;
 
-    @JsonProperty("instrumentationScope")
-    private final InstrumentationScopeTemplate instrumentationScope;
+    @JsonProperty("exportPath")
+    private final String exportPath = "console";
 
     private LogRecordDataTemplate(
         String body,
         int severityNumber,
         String severityText,
-        Map<String, String> attributes,
+        Map<String, Object> attributes,
         int droppedAttributes,
-        String timestamp,
-        String observedTimestamp,
+        long timeUnixNano,
+        long observedTimeUnixNano,
         String traceId,
         String spanId,
         int traceFlags,
         ResourceTemplate resourceTemplate,
-        InstrumentationScopeTemplate instrumentationScope) {
+        ScopeTemplate scope) {
       this.resourceTemplate = resourceTemplate;
+      this.scope = scope;
       this.body = body;
       this.severityNumber = severityNumber;
       this.severityText = severityText;
       this.attributes = attributes;
       this.droppedAttributes = droppedAttributes;
-      this.timestamp = timestamp;
-      this.observedTimestamp = observedTimestamp;
+      this.timeUnixNano = timeUnixNano;
+      this.observedTimeUnixNano = observedTimeUnixNano;
       this.traceId = traceId;
       this.spanId = spanId;
-      this.traceFlags = traceFlags;
-      this.instrumentationScope = instrumentationScope;
+      this.flags = traceFlags;
     }
 
     private static LogRecordDataTemplate parse(LogRecordData log) {
-      // https://github.com/open-telemetry/opentelemetry-java/blob/48684d6d33048030b133b4f6479d45afddcdc313/exporters/otlp/common/src/main/java/io/opentelemetry/exporter/internal/otlp/logs/LogMarshaler.java#L59
-      Map<String, String> attributes = new HashMap<>();
+      Map<String, Object> attributes = new HashMap<>();
       log.getAttributes()
-          .forEach((key, value) -> attributes.put(key.getKey(), String.valueOf(value)));
+          .forEach((key, value) -> attributes.put(key.getKey(), value));
 
       int attributeSize =
           IncubatingUtil.isExtendedLogRecordData(log)
@@ -203,8 +200,8 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
           log.getSeverity().name(),
           attributes,
           log.getTotalAttributeCount() - attributeSize,
-          formatTimestamp(log.getTimestampEpochNanos()),
-          formatTimestamp(log.getObservedTimestampEpochNanos()),
+          log.getTimestampEpochNanos(),
+          log.getObservedTimestampEpochNanos(),
           log.getSpanContext().isValid() ? log.getSpanContext().getTraceId() : "",
           log.getSpanContext().isValid() ? log.getSpanContext().getSpanId() : "",
           log.getSpanContext().getTraceFlags().asByte(),
@@ -212,45 +209,38 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
               ? ResourceTemplate.parse(log.getResource())
               : new ResourceTemplate(new HashMap<>(), ""),
           log.getInstrumentationScopeInfo() != null
-              ? InstrumentationScopeTemplate.parse(log.getInstrumentationScopeInfo())
-              : new InstrumentationScopeTemplate("", "", ""));
-    }
-
-    private static String formatTimestamp(long nanos) {
-      return nanos != 0
-          ? ISO_FORMAT.format(
-              Instant.ofEpochMilli(TimeUnit.NANOSECONDS.toMillis(nanos)).atZone(ZoneOffset.UTC))
-          : null;
+              ? ScopeTemplate.parse(log.getInstrumentationScopeInfo())
+              : new ScopeTemplate("", "", ""));
     }
   }
 
   @SuppressWarnings("unused")
   private static final class ResourceTemplate {
     @JsonProperty("attributes")
-    private final Map<String, String> attributes;
+    private final Map<String, Object> attributes;
 
     @JsonProperty("schemaUrl")
     private final String schemaUrl;
 
-    private ResourceTemplate(Map<String, String> attributes, String schemaUrl) {
+    private ResourceTemplate(Map<String, Object> attributes, String schemaUrl) {
       this.attributes = attributes;
       this.schemaUrl = schemaUrl != null ? schemaUrl : "";
     }
 
     private static ResourceTemplate parse(Resource resource) {
-      Map<String, String> attributes = new HashMap<>();
+      Map<String, Object> attributes = new HashMap<>();
       if (resource == null) {
         return new ResourceTemplate(attributes, "");
       }
       resource
           .getAttributes()
-          .forEach((key, value) -> attributes.put(key.getKey(), String.valueOf(value)));
+          .forEach((key, value) -> attributes.put(key.getKey(), value));
       return new ResourceTemplate(attributes, resource.getSchemaUrl());
     }
   }
 
   @SuppressWarnings("unused")
-  private static final class InstrumentationScopeTemplate {
+  private static final class ScopeTemplate {
     @JsonProperty("name")
     private final String name;
 
@@ -260,17 +250,17 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
     @JsonProperty("schemaUrl")
     private final String schemaUrl;
 
-    private InstrumentationScopeTemplate(String name, String version, String schemaUrl) {
+    private ScopeTemplate(String name, String version, String schemaUrl) {
       this.name = name != null ? name : "";
       this.version = version != null ? version : "";
       this.schemaUrl = schemaUrl != null ? schemaUrl : "";
     }
 
-    private static InstrumentationScopeTemplate parse(InstrumentationScopeInfo scope) {
+    private static ScopeTemplate parse(InstrumentationScopeInfo scope) {
       if (scope == null) {
-        return new InstrumentationScopeTemplate("", "", "");
+        return new ScopeTemplate("", "", "");
       }
-      return new InstrumentationScopeTemplate(
+      return new ScopeTemplate(
           scope.getName(), scope.getVersion(), scope.getSchemaUrl());
     }
   }
