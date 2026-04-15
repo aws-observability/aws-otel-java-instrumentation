@@ -186,8 +186,7 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
 
     private static LogRecordDataTemplate parse(LogRecordData log) {
       Map<String, Object> attributes = new HashMap<>();
-      log.getAttributes()
-          .forEach((key, value) -> attributes.put(key.getKey(), value));
+      log.getAttributes().forEach((key, value) -> attributes.put(key.getKey(), value));
 
       int attributeSize =
           IncubatingUtil.isExtendedLogRecordData(log)
@@ -232,9 +231,7 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
       if (resource == null) {
         return new ResourceTemplate(attributes, "");
       }
-      resource
-          .getAttributes()
-          .forEach((key, value) -> attributes.put(key.getKey(), value));
+      resource.getAttributes().forEach((key, value) -> attributes.put(key.getKey(), value));
       return new ResourceTemplate(attributes, resource.getSchemaUrl());
     }
   }
@@ -260,8 +257,7 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
       if (scope == null) {
         return new ScopeTemplate("", "", "");
       }
-      return new ScopeTemplate(
-          scope.getName(), scope.getVersion(), scope.getSchemaUrl());
+      return new ScopeTemplate(scope.getName(), scope.getVersion(), scope.getSchemaUrl());
     }
   }
 }

@@ -195,14 +195,12 @@ public class CompactConsoleLogRecordExporterTest {
 
     // Validate scope structure and values
     assertInstanceOf(Map.class, actualParsedJson.get(SCOPE_KEY));
-    Map<String, Object> scope =
-        (Map<String, Object>) actualParsedJson.get(SCOPE_KEY);
+    Map<String, Object> scope = (Map<String, Object>) actualParsedJson.get(SCOPE_KEY);
     assertTrue(scope.containsKey(SCOPE_NAME_KEY));
     assertTrue(scope.containsKey(SCOPE_VERSION_KEY));
     assertTrue(scope.containsKey(SCOPE_SCHEMA_URL_KEY));
     assertEquals(
-        expectedLogRecordData.getInstrumentationScopeInfo().getName(),
-        scope.get(SCOPE_NAME_KEY));
+        expectedLogRecordData.getInstrumentationScopeInfo().getName(), scope.get(SCOPE_NAME_KEY));
     assertEquals(
         expectedLogRecordData.getInstrumentationScopeInfo().getVersion() != null
             ? expectedLogRecordData.getInstrumentationScopeInfo().getVersion()
@@ -270,8 +268,7 @@ public class CompactConsoleLogRecordExporterTest {
         assertEquals("", actualParsedJson.get(TRACE_ID_KEY));
         assertEquals("", actualParsedJson.get(SPAN_ID_KEY));
       }
-      assertEquals(
-          (int) spanContext.getTraceFlags().asByte(), actualParsedJson.get(FLAGS_KEY));
+      assertEquals((int) spanContext.getTraceFlags().asByte(), actualParsedJson.get(FLAGS_KEY));
     }
 
     // Validate severity fields
