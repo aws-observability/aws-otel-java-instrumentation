@@ -17,6 +17,8 @@ package software.amazon.opentelemetry.javaagent.providers;
 
 import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
 import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION_TYPE;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
@@ -647,5 +649,375 @@ public class AwsSpanProcessingUtilTest {
     when(span.getKind()).thenReturn(SpanKind.CLIENT);
 
     assertFalse(AwsSpanProcessingUtil.isServletServerSpan(span));
+  }
+
+  // Helper to call the private segmentsMatch method via reflection
+  private static boolean segmentsMatch(String[] urlSegments, String[] patternSegments) {
+    try {
+      java.lang.reflect.Method method =
+          AwsSpanProcessingUtil.class.getDeclaredMethod(
+              "segmentsMatch", String[].class, String[].class);
+      method.setAccessible(true);
+      return (boolean) method.invoke(null, urlSegments, patternSegments);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static boolean matchSegments(String urlPath, String pattern) {
+    return segmentsMatch(urlPath.split("/", -1), pattern.split("/", -1));
+  }
+
+  // Helper to call the private getUrlPath method via reflection
+  private static String getUrlPath(SpanData span) {
+    try {
+      java.lang.reflect.Method method =
+          AwsSpanProcessingUtil.class.getDeclaredMethod("getUrlPath", SpanData.class);
+      method.setAccessible(true);
+      return (String) method.invoke(null, span);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  // --- getUrlPath: attribute priority ---
+
+  @Test
+  public void testGetUrlPath_prefersUrlPathOverHttpTarget() {
+    when(attributesMock.get(URL_PATH)).thenReturn("/from/url-path");
+    when(attributesMock.get(HTTP_TARGET)).thenReturn("/from/http-target");
+    assertThat(getUrlPath(spanDataMock)).isEqualTo("/from/url-path");
+  }
+
+  @Test
+  public void testGetUrlPath_fallsBackToHttpTarget() {
+    when(attributesMock.get(URL_PATH)).thenReturn(null);
+    when(attributesMock.get(HTTP_TARGET)).thenReturn("/from/http-target");
+    assertThat(getUrlPath(spanDataMock)).isEqualTo("/from/http-target");
+  }
+
+  @Test
+  public void testGetUrlPath_returnsNullWhenNeitherPresent() {
+    when(attributesMock.get(URL_PATH)).thenReturn(null);
+    when(attributesMock.get(HTTP_TARGET)).thenReturn(null);
+    assertThat(getUrlPath(spanDataMock)).isNull();
+  }
+
+  // --- segmentsMatch: exact literal matching ---
+
+  @Test
+  public void testSegmentsMatch_exactMatch() {
+    assertThat(matchSegments("/api/contests", "/api/contests")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_noMatch() {
+    assertThat(matchSegments("/api/players", "/api/contests")).isFalse();
+  }
+
+  @Test
+  public void testSegmentsMatch_extraUrlSegmentsAllowed() {
+    assertThat(matchSegments("/api/contests/123/extra", "/api/contests")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_patternLongerThanUrl() {
+    assertThat(matchSegments("/api", "/api/contests/{id}")).isFalse();
+  }
+
+  // --- segmentsMatch: {param} wildcard in pattern ---
+
+  @Test
+  public void testSegmentsMatch_curlyBraceMatchesLiteral() {
+    assertThat(matchSegments("/api/contests/123", "/api/contests/{id}")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_curlyBraceMatchesDeepPath() {
+    assertThat(matchSegments("/api/contests/123/leaderboard", "/api/contests/{id}/leaderboard"))
+        .isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_curlyBraceDoesNotMatchEmpty() {
+    assertThat(matchSegments("/api/contests/", "/api/contests/{id}")).isFalse();
+  }
+
+  // --- segmentsMatch: :param wildcard in pattern ---
+
+  @Test
+  public void testSegmentsMatch_colonParamMatchesLiteral() {
+    assertThat(matchSegments("/api/users/42", "/api/users/:userId")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_colonParamMatchesDeepPath() {
+    assertThat(matchSegments("/api/users/42/stats", "/api/users/:userId/stats")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_colonParamDoesNotMatchEmpty() {
+    assertThat(matchSegments("/api/users/", "/api/users/:userId")).isFalse();
+  }
+
+  // --- segmentsMatch: * wildcard in pattern ---
+
+  @Test
+  public void testSegmentsMatch_trailingStarMatchesRemaining() {
+    assertThat(matchSegments("/api/contests/123/anything/else", "/api/contests/*")).isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_midStarMatchesSingleSegment() {
+    assertThat(matchSegments("/api/contests/123/leaderboard", "/api/contests/*/leaderboard"))
+        .isTrue();
+  }
+
+  @Test
+  public void testSegmentsMatch_starDoesNotMatchEmpty() {
+    assertThat(matchSegments("/api/contests/", "/api/contests/*/leaderboard")).isFalse();
+  }
+
+  // --- applyOperationPathSpanName: integration tests ---
+
+  @Test
+  public void testApplyOperationPathSpanName_matchesUrlPath() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/123/leaderboard");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(
+              List.of("/api/contests/{id}/leaderboard", "/api/contests/{id}", "/api/contests"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/contests/{id}/leaderboard");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_matchesParameterizedUrl() {
+    when(spanDataMock.getName()).thenReturn("GET /api/users/:userId/stats");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/users/42/stats");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/users/{userId}/stats", "/api/users/{userId}", "/api/users"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/users/{userId}/stats");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_matchesHttpTarget() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn(null);
+    when(attributesMock.get(HTTP_TARGET)).thenReturn("/api/teams/5?include=roster");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/teams/{id}", "/api/teams"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/teams/{id}");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_httpTargetWithFragment() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn(null);
+    when(attributesMock.get(HTTP_TARGET)).thenReturn("/api/teams/5#section");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/teams/{id}"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/teams/{id}");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_sameLengthPatternsFirstConfigWins() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/v1/user1");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      // Both patterns have 3 segments — first one in config order should win
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/v1/{userId}", "/api/{version}/user1"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/v1/{userId}");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_noMatch_returnsOriginal() {
+    when(spanDataMock.getName()).thenReturn("GET /unknown");
+    when(attributesMock.get(URL_PATH)).thenReturn("/unknown/path");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/contests/{id}"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result).isSameAs(spanDataMock);
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_emptyConfig_returnsOriginal() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic.when(AwsSpanProcessingUtil::getOperationPaths).thenReturn(List.of());
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result).isSameAs(spanDataMock);
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_longestMatchWins() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/42");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      // Sorted longest first
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(
+              List.of(
+                  "/api/contests/{id}/leaderboard", "/api/contests/{id}", "/api/contests", "/api"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/contests/{id}");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_queryStringStripped() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests?page=1&size=10");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/contests"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/contests");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_noHttpMethod() {
+    when(spanDataMock.getName()).thenReturn("/api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn(null);
+    when(attributesMock.get(HTTP_METHOD)).thenReturn(null);
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/contests"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("/api/contests");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_trailingSlashNormalized() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/contests"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      assertThat(result.getName()).isEqualTo("GET /api/contests");
+    }
+  }
+
+  @Test
+  public void testApplyOperationPathSpanName_patternTrailingSlashNormalized() {
+    when(spanDataMock.getName()).thenReturn("GET /api");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      // Pattern has trailing slash
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/contests/"));
+
+      SpanData result = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      // Matches, and preserves the original pattern format in the name
+      assertThat(result.getName()).isEqualTo("GET /api/contests/");
+    }
+  }
+
+  // --- getIngressOperation: uses span name (no longer reads operation paths directly) ---
+
+  @Test
+  public void testGetIngressOperation_validSpanName_usedDirectly() {
+    when(spanDataMock.getName()).thenReturn("GET /api/contests/{id}");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic.when(AwsSpanProcessingUtil::getOperationPaths).thenReturn(List.of());
+
+      String actual = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
+      assertThat(actual).isEqualTo("GET /api/contests/{id}");
+    }
+  }
+
+  @Test
+  public void testGetIngressOperation_invalidSpanName_fallsBackToUrlTruncation() {
+    when(spanDataMock.getName()).thenReturn("GET");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("GET");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/123");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic.when(AwsSpanProcessingUtil::getOperationPaths).thenReturn(List.of());
+
+      String actual = AwsSpanProcessingUtil.getIngressOperation(spanDataMock);
+      assertThat(actual).isEqualTo("GET /api");
+    }
   }
 }
