@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.26.2 - 2026-04-20
+
 - Support environment-configured endpoint visibility for HTTP operation names
   ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
 - Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
