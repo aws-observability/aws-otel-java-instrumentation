@@ -33,6 +33,8 @@ import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
+import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.logs.data.LogRecordData;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
@@ -119,11 +121,28 @@ class AwsApplicationSignalsCustomizerProviderTest {
     DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(lambdaConfig);
     this.provider.customizeProperties(configProps);
 
-    customizeExporterTest(
-        lambdaConfig,
-        defaultHttpLogsExporter,
-        this.provider::customizeLogsExporter,
-        CompactConsoleLogRecordExporter.class);
+    // The customizer checks class simple name equals "SystemOutLogRecordExporter"
+    LogRecordExporter result =
+        this.provider.customizeLogsExporter(new SystemOutLogRecordExporter(), configProps);
+    assertInstanceOf(CompactConsoleLogRecordExporter.class, result);
+  }
+
+  /** Stub that mimics the real SystemOutLogRecordExporter's class name. */
+  private static class SystemOutLogRecordExporter implements LogRecordExporter {
+    @Override
+    public CompletableResultCode export(java.util.Collection<LogRecordData> logs) {
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode flush() {
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode shutdown() {
+      return CompletableResultCode.ofSuccess();
+    }
   }
 
   @ParameterizedTest
@@ -195,25 +214,23 @@ class AwsApplicationSignalsCustomizerProviderTest {
                 OtlpHttpSpanExporter.class));
   }
 
-  // This technically should never happen as the validator checks for the correct env variables
+  // When SigV4 is enabled but the exporter is not OtlpHttpLogRecordExporter,
+  // the customizer should pass through the exporter unchanged (no exception).
   @Test
-  void testShouldThrowIllegalStateExceptionIfIncorrectLogsExporter() {
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            customizeExporterTest(
-                Map.of(
-                    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-                    "https://logs.us-east-1.amazonaws.com/v1/logs",
-                    OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-                    "x-aws-log-group=test1,x-aws-log-stream=test2",
-                    OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
-                    "http/protobuf",
-                    OTEL_LOGS_EXPORTER,
-                    "otlp"),
-                OtlpGrpcLogRecordExporter.getDefault(),
-                this.provider::customizeLogsExporter,
-                OtlpHttpLogRecordExporter.class));
+  void testShouldPassThroughNonHttpLogsExporterWhenSigV4Enabled() {
+    customizeExporterTest(
+        Map.of(
+            OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+            "https://logs.us-east-1.amazonaws.com/v1/logs",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-group=test1,x-aws-log-stream=test2",
+            OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+            "http/protobuf",
+            OTEL_LOGS_EXPORTER,
+            "otlp"),
+        OtlpGrpcLogRecordExporter.getDefault(),
+        this.provider::customizeLogsExporter,
+        OtlpGrpcLogRecordExporter.class);
   }
 
   @Test

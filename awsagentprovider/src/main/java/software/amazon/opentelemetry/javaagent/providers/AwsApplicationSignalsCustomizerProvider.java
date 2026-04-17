@@ -525,36 +525,25 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   LogRecordExporter customizeLogsExporter(
       LogRecordExporter logsExporter, ConfigProperties configProps) {
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledLogs(configProps)) {
-      // can cast here since we've checked that the configuration for OTEL_LOGS_EXPORTER is otlp and
-      // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
-      // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
-
-      // get compression method from environment
+    // Wrap OTLP exporter with SigV4 signing for AWS CloudWatch OTLP endpoint
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledLogs(configProps)
+        && logsExporter instanceof OtlpHttpLogRecordExporter) {
       String compression =
           configProps.getString(
               OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG,
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
-      try {
-        return OtlpAwsLogRecordExporterBuilder.create(
-                (OtlpHttpLogRecordExporter) logsExporter,
-                configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
-            .setCompression(compression)
-            .build();
-      } catch (Exception e) {
-        // This technically should never happen as the validator checks for the correct env
-        // variables
-        throw new IllegalStateException(
-            "Given LogsExporter is not an instance of OtlpHttpLogRecordExporter, please check that you have the correct environment variables: ",
-            e);
-      }
+      return OtlpAwsLogRecordExporterBuilder.create(
+              (OtlpHttpLogRecordExporter) logsExporter,
+              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
+          .setCompression(compression)
+          .build();
     }
-    String logsExporterConfig = configProps.getString(OTEL_LOGS_EXPORTER);
 
+    // Replace the default SystemOutLogRecordExporter with CompactConsoleLogRecordExporter
+    // in Lambda when the console exporter is enabled
     if (isLambdaEnvironment(configProps)
-        && logsExporterConfig != null
-        && logsExporterConfig.equals("console")) {
+        && logsExporter.getClass().getSimpleName().equals("SystemOutLogRecordExporter")) {
       return new CompactConsoleLogRecordExporter();
     }
 
