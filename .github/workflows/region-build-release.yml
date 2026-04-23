@@ -1,0 +1,258 @@
+name: Region Build Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to tag the lambda release with, e.g., 1.2.0
+        required: true
+      aws_region:
+        description: 'Deploy lambda layer to aws regions'
+        required: true
+        default: ''
+
+env:
+  LAYER_ARTIFACT_NAME: aws-opentelemetry-java-layer.zip
+  # Legacy list of commercial regions to deploy to. New regions should NOT be added here, and instead should be added to the `aws_region` default input to the workflow.
+  LEGACY_COMMERCIAL_REGIONS: us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1
+  LAYER_NAME: AWSOpenTelemetryDistroJava
+  VERSION: ${{ github.event.inputs.version }}
+  AWS_REGION: ${{ github.event.inputs.aws_region }}
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  build-layer:
+    environment: Release
+    runs-on: ubuntu-latest
+    outputs:
+      aws_regions_json: ${{ steps.set-matrix.outputs.aws_regions_json }}
+    steps:
+      - name: Set up regions matrix
+        id: set-matrix
+        env:
+          AWS_REGIONS: ${{ env.AWS_REGION }}
+        run: |
+          IFS=',' read -ra REGIONS <<< "$AWS_REGIONS"
+          MATRIX="["
+          for region in "${REGIONS[@]}"; do
+            trimmed_region=$(echo "$region" | xargs)
+            MATRIX+="\"$trimmed_region\","
+          done
+          MATRIX="${MATRIX%,}]"
+          echo ${MATRIX}
+          echo "aws_regions_json=${MATRIX}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: 'temurin'
+
+      - name: Build layers
+        working-directory: lambda-layer
+        run: |
+          ./build-layer.sh
+
+      - name: Upload layer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: layer.zip
+          path: lambda-layer/build/distributions/${{ env.LAYER_ARTIFACT_NAME }}
+
+  publish-layer-prod:
+    runs-on: ubuntu-latest
+    needs: build-layer
+    strategy:
+      matrix:
+        aws_region: ${{ fromJson(needs.build-layer.outputs.aws_regions_json) }}
+    steps:
+      - name: role arn
+        env:
+          LEGACY_COMMERCIAL_REGIONS: ${{ env.LEGACY_COMMERCIAL_REGIONS }}
+        run: |
+          LEGACY_COMMERCIAL_REGIONS_ARRAY=(${LEGACY_COMMERCIAL_REGIONS//,/ })
+          FOUND=false
+          for REGION in "${LEGACY_COMMERCIAL_REGIONS_ARRAY[@]}"; do
+            if [[ "$REGION" == "${{ matrix.aws_region }}" ]]; then
+              FOUND=true
+              break
+            fi
+          done
+          if [ "$FOUND" = true ]; then
+            echo "Found ${{ matrix.aws_region }} in LEGACY_COMMERCIAL_REGIONS"
+            SECRET_KEY="LAMBDA_LAYER_RELEASE"
+          else
+            echo "Not found ${{ matrix.aws_region }} in LEGACY_COMMERCIAL_REGIONS"
+            SECRET_KEY="${{ matrix.aws_region }}_LAMBDA_LAYER_RELEASE"
+          fi
+          SECRET_KEY=${SECRET_KEY//-/_}
+          echo "SECRET_KEY=${SECRET_KEY}" >> $GITHUB_ENV
+
+      - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
+        with:
+          role-to-assume: ${{ secrets[env.SECRET_KEY] }}
+          role-duration-seconds: 1200
+          aws-region: ${{ matrix.aws_region }}
+
+      - name: Get s3 bucket name for release
+        run: |
+          echo BUCKET_NAME=java-lambda-layer-${{ github.run_id }}-${{ matrix.aws_region }} | tee --append $GITHUB_ENV
+
+      - name: download layer.zip
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          name: layer.zip
+
+      - name: Upload to S3 and Sign
+        continue-on-error: true
+        run: |
+          aws s3 mb s3://${{ env.BUCKET_NAME }}
+          aws s3 cp ${{ env.LAYER_ARTIFACT_NAME }} s3://${{ env.BUCKET_NAME }}
+          
+          # Sign the layer
+          echo "Checking for signing profile..."
+          PROFILE=$(aws signer list-signing-profiles --query "profiles[?profileName=='ADOTLambdaLayerSigningProfile'].arn" --output text 2>/dev/null)
+          [ -z "$PROFILE" ] && echo "No signing profile found, skipping" && exit 0
+          
+          echo "Starting signing job..."
+          JOB_ID=$(aws signer start-signing-job \
+            --source "s3={bucketName=${{ env.BUCKET_NAME }},key=${{ env.LAYER_ARTIFACT_NAME }},version=null}" \
+            --destination "s3={bucketName=${{ env.BUCKET_NAME }},prefix=signed-}" \
+            --profile-name ADOTLambdaLayerSigningProfile \
+            --query 'jobId' --output text 2>/dev/null) || exit 0
+          [ -z "$JOB_ID" ] && echo "No job ID returned" && exit 0
+          echo "Job ID: $JOB_ID"
+          
+          echo "Waiting for signing job to complete..."
+          aws signer wait successful-signing-job --job-id "$JOB_ID" || exit 0
+          echo "Signing completed"
+          
+          echo "Moving signed layer..."
+          SIGNED=$(aws signer describe-signing-job --job-id "$JOB_ID" --query 'signedObject.s3.key' --output text 2>/dev/null)
+          echo "SIGNED value: '$SIGNED'"
+          if [ -n "$SIGNED" ]; then
+            aws s3 mv "s3://${{ env.BUCKET_NAME }}/$SIGNED" "s3://${{ env.BUCKET_NAME }}/${{ env.LAYER_ARTIFACT_NAME }} --clobber"
+            echo "Signed layer moved successfully"
+          else
+            echo "No SIGNED value returned, skipping move"
+          fi
+
+      - name: Publish Layer Version
+        run: |
+          layerARN=$(
+            aws lambda publish-layer-version \
+              --layer-name ${{ env.LAYER_NAME }} \
+              --content S3Bucket=${{ env.BUCKET_NAME }},S3Key=${{ env.LAYER_ARTIFACT_NAME }} \
+              --compatible-runtimes java11 java17 java21 \
+              --compatible-architectures "arm64" "x86_64" \
+              --license-info "Apache-2.0" \
+              --description "AWS Distro of OpenTelemetry Lambda Layer for Java Runtime" \
+              --query 'LayerVersionArn' \
+              --output text
+          )
+          echo $layerARN
+          echo "LAYER_ARN=${layerARN}" >> $GITHUB_ENV
+          mkdir ${{ env.LAYER_NAME }}
+          echo $layerARN > ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+          cat ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+          
+          # Output SigningProfileVersionArn
+          aws lambda get-layer-version-by-arn \
+            --arn $layerARN \
+            --output json | jq -r '.Content.SigningProfileVersionArn'
+
+      - name: public layer
+        run: |
+          layerVersion=$(
+            aws lambda list-layer-versions \
+              --layer-name ${{ env.LAYER_NAME }} \
+              --query 'max_by(LayerVersions, &Version).Version'
+          )
+          aws lambda add-layer-version-permission \
+            --layer-name ${{ env.LAYER_NAME }} \
+            --version-number $layerVersion \
+            --principal "*" \
+            --statement-id publish \
+            --action lambda:GetLayerVersion
+
+      - name: upload layer arn artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: ${{ env.LAYER_NAME }}-${{ matrix.aws_region }}
+          path: ${{ env.LAYER_NAME }}/${{ matrix.aws_region }}
+
+      - name: clean s3
+        if: always()
+        run: |
+          aws s3 rb --force s3://${{ env.BUCKET_NAME }}
+
+  generate-lambda-release-note:
+    runs-on: ubuntu-latest
+    needs: publish-layer-prod
+    outputs:
+      layer-note: ${{ steps.layer-note.outputs.layer-note }}
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd #v3.1.2
+      - name: download layerARNs
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          pattern: ${{ env.LAYER_NAME }}-*
+          path: ${{ env.LAYER_NAME }}
+          merge-multiple: true
+      - name: show layerARNs
+        run: |
+          for file in ${{ env.LAYER_NAME }}/*
+          do
+          echo $file
+          cat $file
+          done
+      - name: generate layer-note
+        id: layer-note
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "| Region | Layer ARN |" >> ../layer-note
+          echo "|  ----  | ----  |" >> ../layer-note
+          for file in *
+          do
+          read arn < $file
+          echo "| " $file " | " $arn " |" >> ../layer-note
+          done
+          cd ..
+          {
+            echo "layer-note<<EOF"
+            cat layer-note
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          cat layer-note
+      - name: generate tf layer
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "locals {" >> ../layer_arns.tf
+          echo "  sdk_layer_arns = {" >> ../layer_arns.tf
+          for file in *
+          do
+          read arn < $file
+          echo "    \""$file"\" = \""$arn"\"" >> ../layer_arns.tf
+          done
+          cd ..
+          echo "  }" >> layer_arns.tf
+          echo "}" >> layer_arns.tf
+          terraform fmt layer_arns.tf
+          cat layer_arns.tf
+      - name: generate layer ARN constants for CDK
+        working-directory: ${{ env.LAYER_NAME }}
+        run: |
+          echo "{" > ../layer_cdk
+          for file in *; do
+            read arn < "$file"
+            echo "    \"$file\": \"$arn\"," >> ../layer_cdk
+          done
+          echo "}" >> ../layer_cdk
+          cat ../layer_cdk

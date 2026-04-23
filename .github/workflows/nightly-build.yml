@@ -145,8 +145,10 @@ jobs:
         ${{ needs.update-dependencies.outputs.breaking_changes_info }}"
         
         if gh pr view "$BRANCH_NAME" --json state --jq '.state' 2>/dev/null | grep -q "OPEN"; then
-          echo "Open PR already exists, updating description..."
-          gh pr edit "$BRANCH_NAME" --body "$PR_BODY"
+          echo "Open PR already exists, updating title and description..."
+          gh pr edit "$BRANCH_NAME" \
+            --title "Nightly dependency update: OpenTelemetry ${{ needs.update-dependencies.outputs.otel_java_instrumentation_version }}/${{ needs.update-dependencies.outputs.otel_java_contrib_version }}" \
+            --body "$PR_BODY"
         else
           echo "Creating new PR..."
           gh pr create \
