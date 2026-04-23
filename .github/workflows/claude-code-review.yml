@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 #v1.0.73
+        uses: anthropics/claude-code-action@0766301cba8671db92e3025984e2fd038ad48ff7 #v1.0.104
         with:
           use_bedrock: "true"
           direct_api: "true"
