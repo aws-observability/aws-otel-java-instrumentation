@@ -46,6 +46,6 @@ jobs:
           direct_api: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --model us.anthropic.claude-opus-4-7 --allowedTools "Bash(gh pr diff ${{ github.event.pull_request.number }}*),Bash(gh pr view ${{ github.event.pull_request.number }}*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews*)"
+            --model us.anthropic.claude-opus-4-7 --allowedTools "Bash(gh pr diff ${{ github.event.pull_request.number }}),Bash(gh pr diff ${{ github.event.pull_request.number }} *),Bash(gh pr view ${{ github.event.pull_request.number }}),Bash(gh pr view ${{ github.event.pull_request.number }} *),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews*)"
           prompt: |
             Review PR #${{ github.event.pull_request.number }} in this repository for bugs, security issues, and code quality. Post your findings as inline review comments on the relevant lines of this PR only. Do not modify, comment on, or interact with any other PR.
