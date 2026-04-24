@@ -40,12 +40,12 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 #v1.0.73
+        uses: anthropics/claude-code-action@0766301cba8671db92e3025984e2fd038ad48ff7 #v1.0.104
         with:
           use_bedrock: "true"
           direct_api: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --model us.anthropic.claude-opus-4-6-v1 --allowedTools "Bash(gh pr diff *),Bash(gh pr view *),Bash(gh api repos/*/pulls/*/comments*),Bash(gh api repos/*/pulls/*/reviews*)"
+            --model us.anthropic.claude-opus-4-7 --allowedTools "Bash(gh pr diff ${{ github.event.pull_request.number }}),Bash(gh pr diff ${{ github.event.pull_request.number }} *),Bash(gh pr view ${{ github.event.pull_request.number }}),Bash(gh pr view ${{ github.event.pull_request.number }} *),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews*)"
           prompt: |
-            Review this PR for bugs, security issues, and code quality. Post your findings as inline review comments on the relevant lines.
+            Review PR #${{ github.event.pull_request.number }} in this repository for bugs, security issues, and code quality. Post your findings as inline review comments on the relevant lines of this PR only. Do not modify, comment on, or interact with any other PR.
