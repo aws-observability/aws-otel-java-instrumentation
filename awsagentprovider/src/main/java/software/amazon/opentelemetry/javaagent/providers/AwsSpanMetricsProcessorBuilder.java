@@ -54,6 +54,7 @@ public final class AwsSpanMetricsProcessorBuilder {
   private MetricAttributeGenerator generator = DEFAULT_GENERATOR;
   private Sampler sampler;
   private String scopeName = DEFAULT_SCOPE_NAME;
+  private MeterProvider customMeterProvider;
 
   public static AwsSpanMetricsProcessorBuilder create(
       MeterProvider meterProvider,
@@ -104,6 +105,12 @@ public final class AwsSpanMetricsProcessorBuilder {
     return this;
   }
 
+  @CanIgnoreReturnValue
+  public AwsSpanMetricsProcessorBuilder setCustomMeterProvider(MeterProvider customMeterProvider) {
+    this.customMeterProvider = customMeterProvider;
+    return this;
+  }
+
   public AwsSpanMetricsProcessor build() {
     Meter meter = meterProvider.get(scopeName);
     LongHistogram errorHistogram = meter.histogramBuilder(ERROR).ofLongs().build();
@@ -111,10 +118,23 @@ public final class AwsSpanMetricsProcessorBuilder {
     DoubleHistogram latencyHistogram =
         meter.histogramBuilder(LATENCY).setUnit(LATENCY_UNITS).build();
 
+    LongHistogram customErrorHistogram = null;
+    LongHistogram customFaultHistogram = null;
+    DoubleHistogram customLatencyHistogram = null;
+    if (customMeterProvider != null) {
+      Meter customMeter = customMeterProvider.get(scopeName);
+      customErrorHistogram = customMeter.histogramBuilder(ERROR).ofLongs().build();
+      customFaultHistogram = customMeter.histogramBuilder(FAULT).ofLongs().build();
+      customLatencyHistogram = customMeter.histogramBuilder(LATENCY).setUnit(LATENCY_UNITS).build();
+    }
+
     return AwsSpanMetricsProcessor.create(
         errorHistogram,
         faultHistogram,
         latencyHistogram,
+        customErrorHistogram,
+        customFaultHistogram,
+        customLatencyHistogram,
         generator,
         resource,
         sampler,
