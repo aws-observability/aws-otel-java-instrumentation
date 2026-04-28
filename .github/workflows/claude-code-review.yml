@@ -1,0 +1,51 @@
+name: Claude Code Review
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types: [opened, synchronize, ready_for_review, reopened]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "**/*.java"
+    #   - "**/*.gradle"
+    #   - "**/*.kt"
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    if: ${{ !github.event.pull_request.draft }}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4.3.1
+        with:
+          fetch-depth: 50
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #5.0.0
+        with:
+          role-to-assume: ${{ secrets.TELEGEN_AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_DEFAULT_REGION || 'us-east-1' }}
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@0766301cba8671db92e3025984e2fd038ad48ff7 #v1.0.104
+        with:
+          use_bedrock: "true"
+          direct_api: "true"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --model us.anthropic.claude-opus-4-7 --allowedTools "Bash(gh pr diff ${{ github.event.pull_request.number }}),Bash(gh pr diff ${{ github.event.pull_request.number }} *),Bash(gh pr view ${{ github.event.pull_request.number }}),Bash(gh pr view ${{ github.event.pull_request.number }} *),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews*)"
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} in this repository for bugs, security issues, and code quality. Post your findings as inline review comments on the relevant lines of this PR only. Do not modify, comment on, or interact with any other PR.
