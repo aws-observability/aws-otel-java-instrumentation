@@ -94,7 +94,7 @@ jobs:
         id: high_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.25.1"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.26.2"
           severity: 'CRITICAL,HIGH'
           logout: 'false'
           trivyignore-file: .github/trivy/daily-scan.trivyignore.yaml
@@ -104,7 +104,7 @@ jobs:
         id: low_scan_v2
         uses: ./.github/actions/image_scan
         with:
-          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.25.1"
+          image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.26.2"
           severity: 'MEDIUM,LOW,UNKNOWN'
           logout: 'false'
           trivyignore-file: .github/trivy/daily-scan.trivyignore.yaml

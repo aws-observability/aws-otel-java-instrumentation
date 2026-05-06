@@ -13,6 +13,11 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Support environment-configured endpoint visibility for HTTP operation names
+  ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
+- Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
+  ([#1348](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1348))
+
 ## v2.26.2 - 2026-04-20
 
 - Support environment-configured endpoint visibility for HTTP operation names
@@ -26,6 +31,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1342](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1342))
 - End support for ADOT Java 1.x: remove v1 image scans and update README#1339
   ([#1339](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1339))
+- Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
+  ([#1347](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1347))
 
 ## v2.25.1 - 2026-03-11
 
