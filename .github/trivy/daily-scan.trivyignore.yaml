@@ -10,4 +10,10 @@
 #    statement: "<Why are we excluding?> <link to CVE where we can we status>"
 #    expired_at: <required - YYYY-MM-DD>
 
-vulnerabilities: []
+vulnerabilities:
+  - id: CVE-2026-33870
+    statement: "Netty HTTP/1.1 Request Smuggling. Fix: bump netty-bom to 4.1.132.Final. https://github.com/aws-observability/aws-otel-java-instrumentation/issues/1346"
+    expired_at: 2026-04-28
+  - id: CVE-2026-33871
+    statement: "Netty HTTP/2 CONTINUATION frame flood DoS. Fix: bump netty-bom to 4.1.132.Final. https://github.com/aws-observability/aws-otel-java-instrumentation/issues/1346"
+    expired_at: 2026-04-28
