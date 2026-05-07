@@ -40,9 +40,7 @@ val dependencyBoms = listOf(
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
   "io.grpc:grpc-bom:1.59.1",
-  // netty-bom pins to fix CVE-2026-33870 and CVE-2026-33871.
-  // Remove once https://github.com/aws/aws-sdk-java-v2/pull/6635 is released and
-  // AWS SDK for Java (v1) is upgraded to 1.12.796 at least.
+  // netty-bom pins to fix CVE-2026-41417
   "io.netty:netty-bom:4.1.133.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",

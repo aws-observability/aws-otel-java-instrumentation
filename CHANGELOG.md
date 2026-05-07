@@ -13,7 +13,7 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
-- Bump Netty to 4.1.133.Final to fix CVE-2026-411417
+- Bump Netty to 4.1.133.Final to fix CVE-2026-41417
   ([#1374](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1374))
 - Support environment-configured endpoint visibility for HTTP operation names
   ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
