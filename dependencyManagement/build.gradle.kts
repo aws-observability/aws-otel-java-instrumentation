@@ -43,7 +43,7 @@ val dependencyBoms = listOf(
   // netty-bom pins to fix CVE-2026-33870 and CVE-2026-33871.
   // Remove once https://github.com/aws/aws-sdk-java-v2/pull/6635 is released and
   // AWS SDK for Java (v1) is upgraded to 1.12.796 at least.
-  "io.netty:netty-bom:4.1.132.Final",
+  "io.netty:netty-bom:4.1.133.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
   "org.junit:junit-bom:5.10.1",
