@@ -488,7 +488,9 @@ jobs:
           if version_match:
               entries = version_match.group(1).strip()
               if entries:
-                  print(entries)
+                  # Join continuation lines (indented lines) with the previous line
+                  joined = re.sub(r'\n  +', ' ', entries)
+                  print(joined)
           ")
 
           # Create release notes
