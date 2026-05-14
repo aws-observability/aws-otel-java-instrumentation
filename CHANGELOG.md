@@ -24,6 +24,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
 - Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
   ([#1348](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1348))
+ - fix(lambda-layer): Standardize CompactConsoleLogRecordExporter output with CloudWatch OTLP backend schema.
+  ([#1358](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1358))
 
 ## v2.26.1 - 2026-03-27
 

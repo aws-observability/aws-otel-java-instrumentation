@@ -146,6 +146,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
       "otel.bsp.max.export.batch.size";
 
+  static final String SYSTEM_OUT_LOG_RECORD_EXPORTER_NAME = "SystemOutLogRecordExporter";
   static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
   static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
   static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
@@ -525,36 +526,23 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   LogRecordExporter customizeLogsExporter(
       LogRecordExporter logsExporter, ConfigProperties configProps) {
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledLogs(configProps)) {
-      // can cast here since we've checked that the configuration for OTEL_LOGS_EXPORTER is otlp and
-      // OTEL_EXPORTER_OTLP_LOGS_PROTOCOL is http/protobuf
-      // so the given logsExporter will be an instance of OtlpHttpLogRecorderExporter
-
-      // get compression method from environment
+    // Wrap OTLP exporter with SigV4 signing for AWS CloudWatch OTLP endpoint
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledLogs(configProps)
+        && logsExporter instanceof OtlpHttpLogRecordExporter) {
       String compression =
           configProps.getString(
               OTEL_EXPORTER_OTLP_LOGS_COMPRESSION_CONFIG,
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
-      try {
-        return OtlpAwsLogRecordExporterBuilder.create(
-                (OtlpHttpLogRecordExporter) logsExporter,
-                configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
-            .setCompression(compression)
-            .build();
-      } catch (Exception e) {
-        // This technically should never happen as the validator checks for the correct env
-        // variables
-        throw new IllegalStateException(
-            "Given LogsExporter is not an instance of OtlpHttpLogRecordExporter, please check that you have the correct environment variables: ",
-            e);
-      }
+      return OtlpAwsLogRecordExporterBuilder.create(
+              (OtlpHttpLogRecordExporter) logsExporter,
+              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT))
+          .setCompression(compression)
+          .build();
     }
-    String logsExporterConfig = configProps.getString(OTEL_LOGS_EXPORTER);
 
     if (isLambdaEnvironment(configProps)
-        && logsExporterConfig != null
-        && logsExporterConfig.equals("console")) {
+        && logsExporter.getClass().getSimpleName().equals(SYSTEM_OUT_LOG_RECORD_EXPORTER_NAME)) {
       return new CompactConsoleLogRecordExporter();
     }
 
