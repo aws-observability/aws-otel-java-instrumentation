@@ -146,6 +146,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_BSP_MAX_EXPORT_BATCH_SIZE_CONFIG =
       "otel.bsp.max.export.batch.size";
 
+  static final String SYSTEM_OUT_LOG_RECORD_EXPORTER_NAME = "SystemOutLogRecordExporter";
   static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
   static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
   static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
@@ -540,10 +541,8 @@ public final class AwsApplicationSignalsCustomizerProvider
           .build();
     }
 
-    // Replace the default SystemOutLogRecordExporter with CompactConsoleLogRecordExporter
-    // in Lambda when the console exporter is enabled
     if (isLambdaEnvironment(configProps)
-        && logsExporter.getClass().getSimpleName().equals("SystemOutLogRecordExporter")) {
+        && logsExporter.getClass().getSimpleName().equals(SYSTEM_OUT_LOG_RECORD_EXPORTER_NAME)) {
       return new CompactConsoleLogRecordExporter();
     }
 
