@@ -9,9 +9,15 @@
 #    expired_at: <required - YYYY-MM-DD>
 
 vulnerabilities:
-  - id: CVE-2026-33870
-    statement: "Netty HTTP/1.1 Request Smuggling. Fix: bump netty-bom to 4.1.132.Final. https://github.com/aws-observability/aws-otel-java-instrumentation/issues/1346"
-    expired_at: 2026-04-28
-  - id: CVE-2026-33871
-    statement: "Netty HTTP/2 CONTINUATION frame flood DoS. Fix: bump netty-bom to 4.1.132.Final. https://github.com/aws-observability/aws-otel-java-instrumentation/issues/1346"
-    expired_at: 2026-04-28
+  - id: CVE-2026-41417
+    statement: "Netty request-line validation bypass via setUri() enables CRLF injection/request smuggling. Low risk for ADOT Java agent (URIs are operator-configured, no attacker-controlled input reaches setUri()). Fix: bump netty-bom to 4.1.133.Final. https://nvd.nist.gov/vuln/detail/CVE-2026-41417"
+    expired_at: 2026-05-22
+  - id: CVE-2026-42583
+    statement: "Netty Lz4FrameDecoder resource exhaustion. Fix: bump netty-bom to 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42583"
+    expired_at: 2026-05-22
+  - id: CVE-2026-42584
+    statement: "Netty HttpClientCodec response desynchronization. Fix: bump netty-bom to 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42584"
+    expired_at: 2026-05-22
+  - id: CVE-2026-42587
+    statement: "Netty HttpContentDecompressor maxAllocation bypass with br/zstd/snappy Content-Encoding leads to decompression bomb. Fix: bump netty-bom to 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42587"
+    expired_at: 2026-05-22
