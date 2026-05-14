@@ -22,6 +22,7 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs;
  * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -155,7 +156,8 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
     private final int flags;
 
     @JsonProperty("exportPath")
-    private final String exportPath = "console";
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String exportPath;
 
     private LogRecordDataTemplate(
         String body,
@@ -182,6 +184,8 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
       this.traceId = traceId;
       this.spanId = spanId;
       this.flags = traceFlags;
+      this.exportPath =
+          "true".equals(System.getenv("ADOT_TEST_EXPORT_PATH_ENABLED")) ? "console" : null;
     }
 
     private static LogRecordDataTemplate parse(LogRecordData log) {
