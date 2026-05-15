@@ -72,7 +72,7 @@ val dependencySets = listOf(
 )
 
 val dependencyLists = listOf(
-  "commons-logging:commons-logging:1.2",
+  "commons-logging:commons-logging:1.3.4",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.12.0",
   "io.opentelemetry.contrib:opentelemetry-aws-xray:1.54.0-adot1",
