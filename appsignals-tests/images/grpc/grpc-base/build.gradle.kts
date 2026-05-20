@@ -27,7 +27,7 @@ dependencies {
 
   compileOnly("io.grpc:grpc-api:1.56.1")
   compileOnly("io.grpc:grpc-protobuf:1.56.1")
-  compileOnly("io.grpc:grpc-stub:1.56.1")
+  compileOnly("io.grpc:grpc-stub:1.72.0")
 }
 
 protobuf {
