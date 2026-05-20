@@ -256,7 +256,7 @@ jobs:
 
           # Tag attestation manifests (architecture=unknown) with their sha hex
           for DIGEST in $(echo "$MANIFEST_INDEX" | jq -r '.manifests[] | select(.platform.architecture=="unknown") | .digest'); do
-            SHA_HEX=$(echo "$DIGEST" | sed 's/sha256://')
+            SHA_HEX="${DIGEST#sha256:}"
             MANIFEST=$(aws ecr batch-get-image \
               --repository-name "${REPO_NAME}" \
               --image-ids imageDigest="${DIGEST}" \
