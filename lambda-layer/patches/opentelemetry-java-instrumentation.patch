@@ -108,7 +108,16 @@ index 9341bf6f79..f719c1ea93 100644
  import java.util.Map;
  import javax.annotation.Nullable;
 
-@@ -47,8 +46,8 @@ public class AwsLambdaFunctionInstrumenter {
+@@ -22,8 +21,6 @@ import javax.annotation.Nullable;
+  */
+ public class AwsLambdaFunctionInstrumenter {
+
+-  private static final MapGetter mapGetter = new MapGetter();
+-
+   private final OpenTelemetry openTelemetry;
+   final Instrumenter<AwsLambdaRequest, Object> instrumenter;
+
+@@ -49,8 +46,8 @@ public class AwsLambdaFunctionInstrumenter {
      instrumenter.end(context, input, response, error);
    }
 
@@ -119,36 +128,39 @@ index 9341bf6f79..f719c1ea93 100644
      // Look in both the http headers and the custom client context
      Map<String, String> headers = input.getHeaders();
      if (input.getAwsContext() != null && input.getAwsContext().getClientContext() != null) {
-@@ -59,23 +58,15 @@ public class AwsLambdaFunctionInstrumenter {
+@@ -61,26 +58,15 @@ public class AwsLambdaFunctionInstrumenter {
        }
      }
 
--    return openTelemetry
--        .getPropagators()
--        .getTextMapPropagator()
--        .extract(Context.root(), headers, MapGetter.INSTANCE);
 +    return ParentContextExtractor.extract(headers, this, lambdaContext);
++  }
++
++  public Context extract(Map<String, String> headers, TextMapGetter<Map<String, String>> getter) {
++    ContextPropagationDebug.debugContextLeakIfEnabled();
++
+     return openTelemetry
+         .getPropagators()
+         .getTextMapPropagator()
+-        .extract(Context.root(), headers, mapGetter);
++        .extract(Context.root(), headers, getter);
    }
-
--  private enum MapGetter implements TextMapGetter<Map<String, String>> {
--    INSTANCE;
+-
+-  private static class MapGetter implements TextMapGetter<Map<String, String>> {
 -
 -    @Override
 -    public Iterable<String> keys(Map<String, String> map) {
 -      return map.keySet();
 -    }
-+  public Context extract(Map<String, String> headers, TextMapGetter<Map<String, String>> getter) {
-+    ContextPropagationDebug.debugContextLeakIfEnabled();
-
+-
 -    @Override
--    public String get(Map<String, String> map, String s) {
+-    @Nullable
+-    public String get(@Nullable Map<String, String> map, String s) {
+-      if (map == null) {
+-        return null;
+-      }
 -      return map.get(s.toLowerCase(Locale.ROOT));
 -    }
-+    return openTelemetry
-+        .getPropagators()
-+        .getTextMapPropagator()
-+        .extract(Context.root(), headers, getter);
-   }
+-  }
  }
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
 new file mode 100644
