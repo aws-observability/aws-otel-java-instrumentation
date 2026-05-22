@@ -23,3 +23,12 @@ vulnerabilities:
   - id: CVE-2026-42587
     statement: "Netty HttpContentDecompressor maxAllocation bypass with br/zstd/snappy Content-Encoding leads to decompression bomb. Fix: bump netty-bom to 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42587"
     expired_at: 2026-05-22
+  - id: CVE-2026-42580
+    statement: "Netty netty-codec-http vulnerability - pending image rebuild with netty-bom 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42580"
+    expired_at: 2026-06-04
+  - id: CVE-2026-42581
+    statement: "Netty netty-codec-http vulnerability - pending image rebuild with netty-bom 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42581"
+    expired_at: 2026-06-04
+  - id: CVE-2026-42585
+    statement: "Netty netty-codec-http vulnerability - pending image rebuild with netty-bom 4.1.133.Final. https://avd.aquasec.com/nvd/cve-2026-42585"
+    expired_at: 2026-06-04
