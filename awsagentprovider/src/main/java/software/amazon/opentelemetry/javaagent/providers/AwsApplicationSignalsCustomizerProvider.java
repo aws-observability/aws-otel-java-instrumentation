@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.contrib.awsxray.AwsXrayAdaptiveSamplingConfig;
@@ -49,6 +50,7 @@ import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
+import io.opentelemetry.semconv.ServiceAttributes;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -102,6 +104,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       "LAMBDA_APPLICATION_SIGNALS_REMOTE_ENVIRONMENT";
 
   private static final Duration DEFAULT_METRIC_EXPORT_INTERVAL = Duration.ofMinutes(1);
+  static final AttributeKey<String> CUSTOM_METRIC_SERVICE_KEY = AttributeKey.stringKey("Service");
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
 
@@ -153,6 +156,8 @@ public final class AwsApplicationSignalsCustomizerProvider
   static final String OTEL_EXPORTER_OTLP_LOGS_PROTOCOL = "otel.exporter.otlp.logs.protocol";
   private static final String OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT =
       "otel.aws.application.signals.exporter.endpoint";
+  private static final String APPLICATION_SIGNALS_CUSTOM_METRICS_EXPORTER_ENDPOINT_CONFIG =
+      "otel.aws.application.signals.custom.metrics.exporter.endpoint";
   private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
   static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = "otel.exporter.otlp.traces.endpoint";
   static final String OTEL_EXPORTER_OTLP_LOGS_ENDPOINT = "otel.exporter.otlp.logs.endpoint";
@@ -258,6 +263,12 @@ public final class AwsApplicationSignalsCustomizerProvider
         if (configProps.getString(OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT) == null) {
           propsOverride.put(
               OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT, "http://localhost:4316/v1/metrics");
+        }
+        if (configProps.getString(APPLICATION_SIGNALS_CUSTOM_METRICS_EXPORTER_ENDPOINT_CONFIG)
+            == null) {
+          propsOverride.put(
+              APPLICATION_SIGNALS_CUSTOM_METRICS_EXPORTER_ENDPOINT_CONFIG,
+              "http://localhost:4318/v1/metrics");
         }
         if (configProps.getString(OTEL_EXPORTER_OTLP_PROTOCOL) == null) {
           propsOverride.put(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf");
@@ -425,10 +436,46 @@ public final class AwsApplicationSignalsCustomizerProvider
                   View.builder().setAggregation(Aggregation.drop()).build())
               .build();
 
+      // Construct custom metrics MeterProvider -> port 4317/4318
+      // Only created when service.name is available in the Resource.
+      // Uses a minimal Resource with only service.name + optional deployment.environment
+      // to prevent other OTEL_RESOURCE_ATTRIBUTES from becoming CW dimensions.
+      Resource customResource = buildCustomMetricsResource(ResourceHolder.getResource());
+
       // Construct and set application signals metrics processor
       AwsSpanMetricsProcessorBuilder awsSpanMetricsProcessorBuilder =
           AwsSpanMetricsProcessorBuilder.create(
               meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush);
+
+      String serviceName = customResource.getAttribute(CUSTOM_METRIC_SERVICE_KEY);
+      if (serviceName != null && !serviceName.isEmpty()) {
+        MetricExporter customMetricsExporter =
+            ApplicationSignalsExporterProvider.INSTANCE.createCustomMetricsExporter(configProps);
+        MetricReader customMetricReader =
+            PeriodicMetricReader.builder(customMetricsExporter).setInterval(exportInterval).build();
+        SdkMeterProvider customMeterProvider =
+            SdkMeterProvider.builder()
+                .setResource(customResource)
+                .registerMetricReader(customMetricReader)
+                .build();
+        awsSpanMetricsProcessorBuilder.setCustomMeterProvider(customMeterProvider);
+
+        // Register shutdown hook so buffered custom metrics are flushed on application exit.
+        // The standard meterProvider is managed by the OTel SDK lifecycle, but this custom one
+        // is not registered with the SDK and needs its own shutdown hook.
+        Runtime.getRuntime()
+            .addShutdownHook(
+                new Thread(
+                    () -> {
+                      customMeterProvider.forceFlush().join(10, java.util.concurrent.TimeUnit.SECONDS);
+                      customMeterProvider.shutdown().join(10, java.util.concurrent.TimeUnit.SECONDS);
+                    },
+                    "custom-metrics-shutdown"));
+      } else {
+        logger.log(
+            Level.WARNING,
+            "service.name not found in Resource. Custom dimension metrics will be disabled.");
+      }
       if (this.sampler != null) {
         awsSpanMetricsProcessorBuilder.setSampler(this.sampler);
       }
@@ -650,6 +697,24 @@ public final class AwsApplicationSignalsCustomizerProvider
     return yamlMapper.readValue(config, AwsXrayAdaptiveSamplingConfig.class);
   }
 
+  /**
+   * Build a minimal Resource for the custom metrics MeterProvider with only {@code Service} from
+   * the application Resource.
+   *
+   * <p>Only {@code Service} is included to prevent cloud.*, host.*, process.*, telemetry.*, and
+   * deployment.environment from becoming CloudWatch dimensions via resource_to_telemetry_conversion.
+   */
+  static Resource buildCustomMetricsResource(Resource appResource) {
+    AttributesBuilder builder = Attributes.builder();
+
+    String serviceName = appResource.getAttribute(ServiceAttributes.SERVICE_NAME);
+    if (serviceName != null && !serviceName.isEmpty()) {
+      builder.put(CUSTOM_METRIC_SERVICE_KEY, serviceName);
+    }
+
+    return Resource.create(builder.build());
+  }
+
   private enum ApplicationSignalsExporterProvider {
     INSTANCE;
 
@@ -698,6 +763,49 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
       throw new ConfigurationException(
           "Unsupported AWS Application Signals export protocol: " + protocol);
+    }
+
+    public MetricExporter createCustomMetricsExporter(ConfigProperties configProps) {
+      String protocol =
+          OtlpConfigUtil.getOtlpProtocol(OtlpConfigUtil.DATA_TYPE_METRICS, configProps);
+      logger.log(
+          Level.FINE,
+          String.format("AWS Application Signals custom metrics export protocol: %s", protocol));
+
+      String customMetricsEndpoint;
+      if (protocol.equals(OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF)) {
+        customMetricsEndpoint =
+            configProps.getString(
+                APPLICATION_SIGNALS_CUSTOM_METRICS_EXPORTER_ENDPOINT_CONFIG,
+                "http://localhost:4318/v1/metrics");
+        logger.log(
+            Level.FINE,
+            String.format(
+                "AWS Application Signals custom metrics export endpoint: %s",
+                customMetricsEndpoint));
+        return OtlpHttpMetricExporter.builder()
+            .setEndpoint(customMetricsEndpoint)
+            .setDefaultAggregationSelector(this::getAggregation)
+            .setAggregationTemporalitySelector(CloudWatchTemporalitySelector.alwaysDelta())
+            .build();
+      } else if (protocol.equals(OtlpConfigUtil.PROTOCOL_GRPC)) {
+        customMetricsEndpoint =
+            configProps.getString(
+                APPLICATION_SIGNALS_CUSTOM_METRICS_EXPORTER_ENDPOINT_CONFIG,
+                "http://localhost:4317");
+        logger.log(
+            Level.FINE,
+            String.format(
+                "AWS Application Signals custom metrics export endpoint: %s",
+                customMetricsEndpoint));
+        return OtlpGrpcMetricExporter.builder()
+            .setEndpoint(customMetricsEndpoint)
+            .setDefaultAggregationSelector(this::getAggregation)
+            .setAggregationTemporalitySelector(CloudWatchTemporalitySelector.alwaysDelta())
+            .build();
+      }
+      throw new ConfigurationException(
+          "Unsupported AWS Application Signals custom metrics export protocol: " + protocol);
     }
 
     private Aggregation getAggregation(InstrumentType instrumentType) {

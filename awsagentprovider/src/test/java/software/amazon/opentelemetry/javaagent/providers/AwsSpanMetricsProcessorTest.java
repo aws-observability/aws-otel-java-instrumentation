@@ -78,6 +78,9 @@ class AwsSpanMetricsProcessorTest {
   private LongHistogram errorHistogramMock;
   private LongHistogram faultHistogramMock;
   private DoubleHistogram latencyHistogramMock;
+  private LongHistogram customErrorHistogramMock;
+  private LongHistogram customFaultHistogramMock;
+  private DoubleHistogram customLatencyHistogramMock;
   private MetricAttributeGenerator generatorMock;
   private AwsXrayRemoteSampler samplerMock;
   private AwsSpanMetricsProcessor awsSpanMetricsProcessor;
@@ -93,6 +96,9 @@ class AwsSpanMetricsProcessorTest {
     errorHistogramMock = mock(LongHistogram.class);
     faultHistogramMock = mock(LongHistogram.class);
     latencyHistogramMock = mock(DoubleHistogram.class);
+    customErrorHistogramMock = mock(LongHistogram.class);
+    customFaultHistogramMock = mock(LongHistogram.class);
+    customLatencyHistogramMock = mock(DoubleHistogram.class);
     generatorMock = mock(MetricAttributeGenerator.class);
     samplerMock = mock(AwsXrayRemoteSampler.class);
 
@@ -101,6 +107,9 @@ class AwsSpanMetricsProcessorTest {
             errorHistogramMock,
             faultHistogramMock,
             latencyHistogramMock,
+            customErrorHistogramMock,
+            customFaultHistogramMock,
+            customLatencyHistogramMock,
             generatorMock,
             testResource,
             samplerMock,
@@ -463,6 +472,13 @@ class AwsSpanMetricsProcessorTest {
     when(mockSpanData.getParentSpanContext()).thenReturn(parentSpanContext);
     when(mockSpanData.getStatus()).thenReturn(statusData);
 
+    // Mock own SpanContext with a traceId so custom dim logic works
+    SpanContext ownSpanContext = mock(SpanContext.class);
+    when(ownSpanContext.getTraceId()).thenReturn("default-test-trace-id");
+    when(ownSpanContext.getSpanId()).thenReturn("default-test-span-id");
+    when(ownSpanContext.isValid()).thenReturn(true);
+    when(mockSpanData.getSpanContext()).thenReturn(ownSpanContext);
+
     when(readableSpanMock.toSpanData()).thenReturn(mockSpanData);
 
     return readableSpanMock;
@@ -663,5 +679,328 @@ class AwsSpanMetricsProcessorTest {
           .generateMetricAttributeMapFromSpan(spanCaptor.capture(), eq(testResource));
       assertThat(spanCaptor.getValue().getName()).isEqualTo("GET /api/users/{userId}/stats");
     }
+  }
+
+  // ===== Tests for Custom Dimension Metrics (Simplified, no dim_sets) =====
+
+  @Test
+  public void testCustomDim_SingleDimTriggersCustomMetrics() {
+    // A SERVER span with one custom RED dim should produce 2 custom metric recordings
+    // (with Operation + without Operation) plus standard metrics
+    Attributes spanAttributes =
+        Attributes.builder().put("aws.application_signals.custom.dim.CarrierId", "Fedex").build();
+
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(spanAttributes, SpanKind.SERVER, null, StatusData.ok());
+
+    // Build metric attributes with Operation so custom metrics can use it
+    Map<String, Attributes> metricAttributesMap = new HashMap<>();
+    metricAttributesMap.put(
+        SERVICE_METRIC, Attributes.of(AwsAttributeKeys.AWS_LOCAL_OPERATION, "GET /api"));
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+
+    // Standard histograms should receive 1 recording (SERVICE_METRIC)
+    verify(errorHistogramMock, times(1)).record(eq(0L), any(Attributes.class));
+    verify(faultHistogramMock, times(1)).record(eq(0L), any(Attributes.class));
+    verify(latencyHistogramMock, times(1)).record(eq(TEST_LATENCY_MILLIS), any(Attributes.class));
+
+    // Custom histograms: 2 recordings (with Operation, without Operation)
+    verify(customErrorHistogramMock, times(2)).record(eq(0L), any(Attributes.class));
+    verify(customFaultHistogramMock, times(2)).record(eq(0L), any(Attributes.class));
+    verify(customLatencyHistogramMock, times(2))
+        .record(eq(TEST_LATENCY_MILLIS), any(Attributes.class));
+  }
+
+  @Test
+  public void testCustomDim_NoCustomDimsNoCustomMetrics() {
+    // No custom dims -> no custom metrics
+    Attributes spanAttributes = buildSpanAttributes(CONTAINS_NO_ATTRIBUTES);
+    ReadableSpan readableSpanMock = buildReadableSpanMock(spanAttributes);
+    Map<String, Attributes> metricAttributesMap =
+        buildMetricAttributes(CONTAINS_ATTRIBUTES, readableSpanMock.toSpanData());
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+
+    // Standard histograms should receive metrics
+    verify(errorHistogramMock, times(1))
+        .record(eq(0L), eq(metricAttributesMap.get(SERVICE_METRIC)));
+    // Custom histograms should NOT receive metrics
+    verifyNoInteractions(customErrorHistogramMock);
+    verifyNoInteractions(customFaultHistogramMock);
+    verifyNoInteractions(customLatencyHistogramMock);
+  }
+
+  @Test
+  public void testCustomDim_ClientSpanNoCustomMetrics() {
+    // CLIENT span with custom dims -> no custom metrics (only SERVICE type generates custom)
+    SpanContext mockSpanContext = mock(SpanContext.class);
+    when(mockSpanContext.isValid()).thenReturn(true);
+    when(mockSpanContext.isRemote()).thenReturn(false);
+
+    Attributes spanAttributes =
+        Attributes.builder().put("aws.application_signals.custom.dim.CarrierId", "Fedex").build();
+
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(spanAttributes, SpanKind.CLIENT, mockSpanContext, StatusData.ok());
+    Map<String, Attributes> metricAttributesMap =
+        buildMetricAttributes(CONTAINS_ATTRIBUTES, readableSpanMock.toSpanData());
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+
+    // Standard histograms should receive metrics (dependency)
+    verify(errorHistogramMock, times(1)).record(eq(0L), any(Attributes.class));
+    // Custom histograms should NOT (CLIENT is DEPENDENCY, not SERVICE)
+    verifyNoInteractions(customErrorHistogramMock);
+    verifyNoInteractions(customFaultHistogramMock);
+    verifyNoInteractions(customLatencyHistogramMock);
+  }
+
+  @Test
+  public void testCustomDim_MultipleDims_SeparateDimSets() {
+    // 2 custom dims -> 4 recordings (2 per dim: with/without Operation)
+    Attributes spanAttributes =
+        Attributes.builder()
+            .put("aws.application_signals.custom.dim.CarrierId", "Fedex")
+            .put("aws.application_signals.custom.dim.Region", "US-West")
+            .build();
+
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(spanAttributes, SpanKind.SERVER, null, StatusData.ok());
+
+    Map<String, Attributes> metricAttributesMap = new HashMap<>();
+    metricAttributesMap.put(
+        SERVICE_METRIC, Attributes.of(AwsAttributeKeys.AWS_LOCAL_OPERATION, "GET /api"));
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+
+    // Standard: 1 recording
+    verify(errorHistogramMock, times(1)).record(eq(0L), any(Attributes.class));
+
+    // Custom: 4 recordings (2 dims * 2 sets each)
+    verify(customErrorHistogramMock, times(4)).record(eq(0L), any(Attributes.class));
+    verify(customFaultHistogramMock, times(4)).record(eq(0L), any(Attributes.class));
+    verify(customLatencyHistogramMock, times(4))
+        .record(eq(TEST_LATENCY_MILLIS), any(Attributes.class));
+  }
+
+  @Test
+  public void testCustomDim_NullCustomHistograms_NoCrash() {
+    // Null custom histograms should not crash, standard metrics still generated
+    AwsSpanMetricsProcessor processorWithoutCustom =
+        AwsSpanMetricsProcessor.create(
+            errorHistogramMock,
+            faultHistogramMock,
+            latencyHistogramMock,
+            null,
+            null,
+            null,
+            generatorMock,
+            testResource,
+            samplerMock,
+            this::forceFlushAction);
+
+    Attributes spanAttributes =
+        Attributes.builder().put("aws.application_signals.custom.dim.CarrierId", "Fedex").build();
+
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(spanAttributes, SpanKind.SERVER, null, StatusData.ok());
+    Map<String, Attributes> metricAttributesMap = new HashMap<>();
+    metricAttributesMap.put(
+        SERVICE_METRIC, Attributes.of(AwsAttributeKeys.AWS_LOCAL_OPERATION, "GET /api"));
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    processorWithoutCustom.onEnd(readableSpanMock);
+
+    // Standard histograms should still receive metrics
+    verify(errorHistogramMock, times(1)).record(eq(0L), any(Attributes.class));
+    verify(faultHistogramMock, times(1)).record(eq(0L), any(Attributes.class));
+    verify(latencyHistogramMock, times(1)).record(eq(TEST_LATENCY_MILLIS), any(Attributes.class));
+  }
+
+  @Test
+  public void testCustomDim_StandardMetricsAlwaysGenerated() {
+    // Standard metrics always generated regardless of custom dims
+    Attributes spanAttributes =
+        Attributes.builder().put("aws.application_signals.custom.dim.CarrierId", "Fedex").build();
+
+    ReadableSpan readableSpanMock =
+        buildReadableSpanMock(spanAttributes, SpanKind.SERVER, null, StatusData.ok());
+    Map<String, Attributes> metricAttributesMap =
+        buildMetricAttributes(CONTAINS_ATTRIBUTES, readableSpanMock.toSpanData());
+    configureMocksForOnEnd(readableSpanMock, metricAttributesMap);
+
+    awsSpanMetricsProcessor.onEnd(readableSpanMock);
+
+    // Standard histograms should receive metrics
+    verify(errorHistogramMock, times(1))
+        .record(eq(0L), eq(metricAttributesMap.get(SERVICE_METRIC)));
+    verify(faultHistogramMock, times(1))
+        .record(eq(0L), eq(metricAttributesMap.get(SERVICE_METRIC)));
+    verify(latencyHistogramMock, times(1))
+        .record(eq(TEST_LATENCY_MILLIS), eq(metricAttributesMap.get(SERVICE_METRIC)));
+  }
+
+  @Test
+  public void testCustomDim_TraceIdPropagation_ChildToParent() {
+    // Child INTERNAL span has custom dim, parent SERVER span (same traceId, local root)
+    // should pick up dims and generate custom metrics
+    String sharedTraceId = "trace-id-aabbccdd";
+
+    // Child span context (not local root: parent valid + not remote)
+    SpanContext childOwnCtx = mock(SpanContext.class);
+    when(childOwnCtx.getTraceId()).thenReturn(sharedTraceId);
+    when(childOwnCtx.getSpanId()).thenReturn("child-span-id");
+    when(childOwnCtx.isValid()).thenReturn(true);
+
+    SpanContext childParentCtx = mock(SpanContext.class);
+    when(childParentCtx.isValid()).thenReturn(true);
+    when(childParentCtx.isRemote()).thenReturn(false);
+
+    Attributes childAttrs =
+        Attributes.builder().put("aws.application_signals.custom.dim.CarrierId", "Fedex").build();
+    SpanData childData = mock(SpanData.class);
+    when(childData.getAttributes()).thenReturn(childAttrs);
+    when(childData.getKind()).thenReturn(SpanKind.INTERNAL);
+    when(childData.getParentSpanContext()).thenReturn(childParentCtx);
+    when(childData.getSpanContext()).thenReturn(childOwnCtx);
+    when(childData.getStatus()).thenReturn(StatusData.ok());
+    when(childData.getName()).thenReturn("getCarrierId");
+    ReadableSpan childMock = mock(ReadableSpan.class);
+    when(childMock.getLatencyNanos()).thenReturn(TEST_LATENCY_NANOS);
+    when(childMock.toSpanData()).thenReturn(childData);
+    when(generatorMock.generateMetricAttributeMapFromSpan(eq(childData), eq(testResource)))
+        .thenReturn(new HashMap<>());
+
+    // Process child -> stores CarrierId under traceId
+    awsSpanMetricsProcessor.onEnd(childMock);
+    verifyNoInteractions(customErrorHistogramMock);
+
+    // Parent SERVER span (local root: parent invalid)
+    SpanContext parentOwnCtx = mock(SpanContext.class);
+    when(parentOwnCtx.getTraceId()).thenReturn(sharedTraceId);
+    when(parentOwnCtx.getSpanId()).thenReturn("parent-span-id");
+    when(parentOwnCtx.isValid()).thenReturn(true);
+
+    SpanData parentData = mock(SpanData.class);
+    when(parentData.getAttributes()).thenReturn(Attributes.empty());
+    when(parentData.getKind()).thenReturn(SpanKind.SERVER);
+    when(parentData.getParentSpanContext()).thenReturn(SpanContext.getInvalid());
+    when(parentData.getSpanContext()).thenReturn(parentOwnCtx);
+    when(parentData.getStatus()).thenReturn(StatusData.ok());
+    when(parentData.getName()).thenReturn("GET /api");
+    ReadableSpan parentMock = mock(ReadableSpan.class);
+    when(parentMock.getLatencyNanos()).thenReturn(TEST_LATENCY_NANOS);
+    when(parentMock.toSpanData()).thenReturn(parentData);
+
+    Map<String, Attributes> parentMetricAttrs = new HashMap<>();
+    parentMetricAttrs.put(
+        SERVICE_METRIC, Attributes.of(AwsAttributeKeys.AWS_LOCAL_OPERATION, "GET /api"));
+    when(generatorMock.generateMetricAttributeMapFromSpan(eq(parentData), eq(testResource)))
+        .thenReturn(parentMetricAttrs);
+
+    // Process parent (local root) -> picks up dims by traceId
+    awsSpanMetricsProcessor.onEnd(parentMock);
+
+    // 1 dim * 2 sets = 2 custom recordings
+    verify(customErrorHistogramMock, times(2)).record(eq(0L), any(Attributes.class));
+    verify(customFaultHistogramMock, times(2)).record(eq(0L), any(Attributes.class));
+    verify(customLatencyHistogramMock, times(2))
+        .record(eq(TEST_LATENCY_MILLIS), any(Attributes.class));
+  }
+
+  @Test
+  public void testCustomDim_TraceIdPropagation_MultipleChildren() {
+    // Two children with different dims, same traceId -> parent gets both
+    String sharedTraceId = "trace-id-11223344";
+
+    // Child 1
+    SpanContext child1Ctx = mock(SpanContext.class);
+    when(child1Ctx.getTraceId()).thenReturn(sharedTraceId);
+    when(child1Ctx.getSpanId()).thenReturn("child1-id");
+    when(child1Ctx.isValid()).thenReturn(true);
+    SpanContext child1ParentCtx = mock(SpanContext.class);
+    when(child1ParentCtx.isValid()).thenReturn(true);
+    when(child1ParentCtx.isRemote()).thenReturn(false);
+
+    Attributes child1Attrs =
+        Attributes.of(
+            AttributeKey.stringKey("aws.application_signals.custom.dim.CarrierId"), "Fedex");
+    SpanData child1Data = mock(SpanData.class);
+    when(child1Data.getAttributes()).thenReturn(child1Attrs);
+    when(child1Data.getKind()).thenReturn(SpanKind.INTERNAL);
+    when(child1Data.getParentSpanContext()).thenReturn(child1ParentCtx);
+    when(child1Data.getSpanContext()).thenReturn(child1Ctx);
+    when(child1Data.getStatus()).thenReturn(StatusData.ok());
+    when(child1Data.getName()).thenReturn("child1");
+    ReadableSpan child1Mock = mock(ReadableSpan.class);
+    when(child1Mock.getLatencyNanos()).thenReturn(TEST_LATENCY_NANOS);
+    when(child1Mock.toSpanData()).thenReturn(child1Data);
+    when(generatorMock.generateMetricAttributeMapFromSpan(eq(child1Data), eq(testResource)))
+        .thenReturn(new HashMap<>());
+
+    // Child 2
+    SpanContext child2Ctx = mock(SpanContext.class);
+    when(child2Ctx.getTraceId()).thenReturn(sharedTraceId);
+    when(child2Ctx.getSpanId()).thenReturn("child2-id");
+    when(child2Ctx.isValid()).thenReturn(true);
+    SpanContext child2ParentCtx = mock(SpanContext.class);
+    when(child2ParentCtx.isValid()).thenReturn(true);
+    when(child2ParentCtx.isRemote()).thenReturn(false);
+
+    Attributes child2Attrs =
+        Attributes.of(
+            AttributeKey.stringKey("aws.application_signals.custom.dim.Region"), "US-West");
+    SpanData child2Data = mock(SpanData.class);
+    when(child2Data.getAttributes()).thenReturn(child2Attrs);
+    when(child2Data.getKind()).thenReturn(SpanKind.INTERNAL);
+    when(child2Data.getParentSpanContext()).thenReturn(child2ParentCtx);
+    when(child2Data.getSpanContext()).thenReturn(child2Ctx);
+    when(child2Data.getStatus()).thenReturn(StatusData.ok());
+    when(child2Data.getName()).thenReturn("child2");
+    ReadableSpan child2Mock = mock(ReadableSpan.class);
+    when(child2Mock.getLatencyNanos()).thenReturn(TEST_LATENCY_NANOS);
+    when(child2Mock.toSpanData()).thenReturn(child2Data);
+    when(generatorMock.generateMetricAttributeMapFromSpan(eq(child2Data), eq(testResource)))
+        .thenReturn(new HashMap<>());
+
+    awsSpanMetricsProcessor.onEnd(child1Mock);
+    awsSpanMetricsProcessor.onEnd(child2Mock);
+    verifyNoInteractions(customErrorHistogramMock);
+
+    // Parent SERVER span (local root, same traceId)
+    SpanContext parentCtx = mock(SpanContext.class);
+    when(parentCtx.getTraceId()).thenReturn(sharedTraceId);
+    when(parentCtx.getSpanId()).thenReturn("parent-id");
+    when(parentCtx.isValid()).thenReturn(true);
+
+    SpanData parentData = mock(SpanData.class);
+    when(parentData.getAttributes()).thenReturn(Attributes.empty());
+    when(parentData.getKind()).thenReturn(SpanKind.SERVER);
+    when(parentData.getParentSpanContext()).thenReturn(SpanContext.getInvalid());
+    when(parentData.getSpanContext()).thenReturn(parentCtx);
+    when(parentData.getStatus()).thenReturn(StatusData.ok());
+    when(parentData.getName()).thenReturn("GET /api");
+    ReadableSpan parentMock = mock(ReadableSpan.class);
+    when(parentMock.getLatencyNanos()).thenReturn(TEST_LATENCY_NANOS);
+    when(parentMock.toSpanData()).thenReturn(parentData);
+
+    Map<String, Attributes> parentMetricAttrs = new HashMap<>();
+    parentMetricAttrs.put(
+        SERVICE_METRIC, Attributes.of(AwsAttributeKeys.AWS_LOCAL_OPERATION, "GET /api"));
+    when(generatorMock.generateMetricAttributeMapFromSpan(eq(parentData), eq(testResource)))
+        .thenReturn(parentMetricAttrs);
+
+    awsSpanMetricsProcessor.onEnd(parentMock);
+
+    // 2 dims * 2 sets = 4 custom recordings
+    verify(customErrorHistogramMock, times(4)).record(eq(0L), any(Attributes.class));
+    verify(customFaultHistogramMock, times(4)).record(eq(0L), any(Attributes.class));
+    verify(customLatencyHistogramMock, times(4))
+        .record(eq(TEST_LATENCY_MILLIS), any(Attributes.class));
   }
 }
