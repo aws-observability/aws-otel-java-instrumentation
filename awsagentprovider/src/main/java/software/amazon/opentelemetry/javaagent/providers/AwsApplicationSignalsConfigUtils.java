@@ -167,10 +167,10 @@ public final class AwsApplicationSignalsConfigUtils {
       if (isValidOtlpEndpoint) {
         logger.log(Level.INFO, String.format("Detected using AWS OTLP Endpoint: %s.", endpoint));
 
-        if (exporter != null && !exporter.equals("otlp")) {
+        if (exporter != null && !exporter.contains("otlp")) {
           logger.warning(
               String.format(
-                  "Improper configuration: Please configure your environment variables and export/set %s=otlp",
+                  "Improper configuration: Please configure your environment variables and export/set %s to include otlp",
                   exporterType));
           return false;
         }

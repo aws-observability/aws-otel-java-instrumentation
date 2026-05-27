@@ -23,6 +23,11 @@ public class LambdaHandler implements RequestHandler<Object, Map<String, Object>
 
   @Override
   public Map<String, Object> handleRequest(Object input, Context context) {
+    logger.fine("debug-level-test-message");
+    logger.info("info-level-test-message");
+    logger.warning("warn-level-test-message");
+    logger.severe("error-level-test-message");
+
     logger.info("Executing LambdaHandler");
 
     // https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html#configuration-envvars-runtime
