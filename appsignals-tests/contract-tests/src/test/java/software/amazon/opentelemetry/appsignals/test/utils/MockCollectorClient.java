@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.linecorp.armeria.client.WebClient;
 import io.netty.buffer.ByteBufAllocator;
+import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.IOException;
@@ -57,6 +58,8 @@ public class MockCollectorClient {
       EXPORT_TRACE_SERVICE_REQUEST_LIST = new TypeReference<>() {};
   private static final TypeReference<List<ExportMetricsServiceRequest>>
       EXPORT_METRICS_SERVICE_REQUEST_LIST = new TypeReference<>() {};
+  private static final TypeReference<List<ExportLogsServiceRequest>>
+      EXPORT_LOGS_SERVICE_REQUEST_LIST = new TypeReference<>() {};
   private static final int WAIT_INTERVAL_MS = 100;
 
   private static final JsonMapper OBJECT_MAPPER;
@@ -66,6 +69,7 @@ public class MockCollectorClient {
         MessageMarshaller.builder()
             .register(ExportTraceServiceRequest.getDefaultInstance())
             .register(ExportMetricsServiceRequest.getDefaultInstance())
+            .register(ExportLogsServiceRequest.getDefaultInstance())
             .build();
 
     var mapper = JsonMapper.builder();
@@ -93,6 +97,18 @@ public class MockCollectorClient {
               JsonParser parser, DeserializationContext ctxt)
               throws IOException, JsonProcessingException {
             var builder = ExportMetricsServiceRequest.newBuilder();
+            marshaller.mergeValue(parser, builder);
+            return builder.build();
+          }
+        });
+    deserializers.addDeserializer(
+        ExportLogsServiceRequest.class,
+        new StdDeserializer<ExportLogsServiceRequest>(ExportLogsServiceRequest.class) {
+          @Override
+          public ExportLogsServiceRequest deserialize(
+              JsonParser parser, DeserializationContext ctxt)
+              throws IOException, JsonProcessingException {
+            var builder = ExportLogsServiceRequest.newBuilder();
             marshaller.mergeValue(parser, builder);
             return builder.build();
           }
@@ -139,6 +155,44 @@ public class MockCollectorClient {
 
   public List<ResourceScopeMetric> getMetrics(Set<String> presentMetrics) {
     return fetchMetrics(presentMetrics, true);
+  }
+
+  /**
+   * Get all log records that are currently stored in the mock collector.
+   *
+   * @return List of `ResourceScopeLog` which is a flat list containing all log records and their
+   *     related scope and resources.
+   */
+  public List<ResourceScopeLog> getLogs() {
+    List<ExportLogsServiceRequest> exportedLogs =
+        waitForContent("/get-logs", EXPORT_LOGS_SERVICE_REQUEST_LIST);
+
+    return exportedLogs.stream()
+        .flatMap(req -> req.getResourceLogsList().stream())
+        .flatMap(rl -> rl.getScopeLogsList().stream().map(x -> new Pair<>(rl, x)))
+        .flatMap(
+            sl ->
+                sl.getSecond().getLogRecordsList().stream()
+                    .map(x -> new ResourceScopeLog(sl.getFirst(), sl.getSecond(), x)))
+        .collect(toImmutableList());
+  }
+
+  /**
+   * Get log records matching a specific event name attribute.
+   *
+   * @param eventName The event.name attribute value to filter by
+   * @return Filtered list of ResourceScopeLog
+   */
+  public List<ResourceScopeLog> getLogsByEventName(String eventName) {
+    return getLogs().stream()
+        .filter(
+            rsl ->
+                rsl.getLog().getAttributesList().stream()
+                    .anyMatch(
+                        kv ->
+                            "event.name".equals(kv.getKey())
+                                && eventName.equals(kv.getValue().getStringValue())))
+        .collect(toImmutableList());
   }
 
   /**

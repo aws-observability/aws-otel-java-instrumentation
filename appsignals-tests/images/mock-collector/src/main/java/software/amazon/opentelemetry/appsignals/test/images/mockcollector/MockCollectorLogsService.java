@@ -22,23 +22,24 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.annotation.Post;
 import com.linecorp.armeria.server.annotation.RequestConverter;
 import com.linecorp.armeria.server.annotation.RequestConverterFunction;
-import io.grpc.stub.StreamObserver;
-import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
-import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse;
-import io.opentelemetry.proto.collector.metrics.v1.MetricsServiceGrpc;
+import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
-class MockCollectorMetricsService extends MetricsServiceGrpc.MetricsServiceImplBase {
+/**
+ * Mock collector service for OTLP HTTP log records. Accepts POST /v1/logs (protobuf) and stores
+ * requests for later retrieval.
+ */
+class MockCollectorLogsService {
 
   protected final HttpService HTTP_INSTANCE = new HttpService();
 
-  private final BlockingQueue<ExportMetricsServiceRequest> exportRequests =
+  private final BlockingQueue<ExportLogsServiceRequest> exportRequests =
       new LinkedBlockingDeque<>();
 
-  List<ExportMetricsServiceRequest> getRequests() {
+  List<ExportLogsServiceRequest> getRequests() {
     return ImmutableList.copyOf(exportRequests);
   }
 
@@ -46,24 +47,15 @@ class MockCollectorMetricsService extends MetricsServiceGrpc.MetricsServiceImplB
     exportRequests.clear();
   }
 
-  @Override
-  public void export(
-      ExportMetricsServiceRequest request,
-      StreamObserver<ExportMetricsServiceResponse> responseObserver) {
-    exportRequests.add(request);
-    responseObserver.onNext(ExportMetricsServiceResponse.getDefaultInstance());
-    responseObserver.onCompleted();
-  }
-
   class HttpService {
-    @Post("/v1/metrics")
-    @RequestConverter(ExportMetricsServiceRequestConverter.class)
-    public void consumeMetrics(ExportMetricsServiceRequest request) {
+    @Post("/v1/logs")
+    @RequestConverter(ExportLogsServiceRequestConverter.class)
+    public void consumeLogs(ExportLogsServiceRequest request) {
       exportRequests.add(request);
     }
   }
 
-  static class ExportMetricsServiceRequestConverter implements RequestConverterFunction {
+  static class ExportLogsServiceRequestConverter implements RequestConverterFunction {
 
     @Override
     public @Nullable Object convertRequest(
@@ -72,12 +64,12 @@ class MockCollectorMetricsService extends MetricsServiceGrpc.MetricsServiceImplB
         Class<?> expectedResultType,
         @Nullable ParameterizedType expectedParameterizedResultType)
         throws Exception {
-      if (expectedResultType == ExportMetricsServiceRequest.class) {
+      if (expectedResultType == ExportLogsServiceRequest.class) {
         try (var content = request.content()) {
           byte[] payload =
               MockCollectorHttpUtil.decodeIfCompressed(
                   content.array(), request.headers().get("content-encoding"));
-          return ExportMetricsServiceRequest.parseFrom(payload);
+          return ExportLogsServiceRequest.parseFrom(payload);
         }
       }
       return RequestConverterFunction.fallthrough();

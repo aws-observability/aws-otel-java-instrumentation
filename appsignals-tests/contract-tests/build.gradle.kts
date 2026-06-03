@@ -60,6 +60,9 @@ dependencies {
   testImplementation("org.testcontainers:postgresql:1.21.3")
   testImplementation("org.testcontainers:mysql:1.21.3")
   testImplementation("com.mysql:mysql-connector-j:8.4.0")
+  // Used by Dynamic Instrumentation contract tests to parse/validate captured snapshot JSON.
+  testImplementation("com.fasterxml.jackson.core:jackson-databind")
+  testImplementation("com.github.luben:zstd-jni:1.5.6-4")
 }
 
 project.evaluationDependsOn(":otelagent")
@@ -69,10 +72,28 @@ tasks {
   withType<Test>().configureEach {
     dependsOn(otelAgentJarTask)
 
+    val agentPath = otelAgentJarTask.get().archiveFile.get().getAsFile().absolutePath
     jvmArgs(
-      "-Dio.awsobservability.instrumentation.contracttests.agentPath=${otelAgentJarTask.get().archiveFile.get()
-        .getAsFile().absolutePath}",
+      "-Dio.awsobservability.instrumentation.contracttests.agentPath=$agentPath",
+      "-Dio.awsobservability.di.contracttests.agentPath=$agentPath",
     )
+
+    // Forward Docker-related env vars to the test JVM for Testcontainers.
+    listOf("DOCKER_HOST", "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "TESTCONTAINERS_RYUK_DISABLED").forEach { envVar ->
+      System.getenv(envVar)?.let { environment(envVar, it) }
+    }
+    System.getenv("DOCKER_API_VERSION")?.let { systemProperty("api.version", it) }
+
+    // On macOS (Docker Desktop), set defaults for Testcontainers compatibility.
+    if (System.getProperty("os.name").lowercase().contains("mac")) {
+      if (System.getenv("DOCKER_HOST") == null) {
+        environment("DOCKER_HOST", "unix:///var/run/docker.sock")
+      }
+      if (System.getenv("DOCKER_API_VERSION") == null) {
+        environment("DOCKER_API_VERSION", "1.44")
+        systemProperty("api.version", "1.44")
+      }
+    }
   }
 
   // Disable the test task from the java plugin
@@ -82,6 +103,15 @@ tasks {
 
   register<Test>("contractTests") {
     dependsOn("contractTestsImages")
+    // Dynamic Instrumentation tests have their own task (diContractTests) and their own test image,
+    // which contractTestsImages does not build. Exclude them here so they are not run (and fail with
+    // a missing-image initialization error) as part of the standard contract test suite.
+    exclude("**/di/**")
+  }
+
+  register<Test>("diContractTests") {
+    dependsOn("diContractTestsImages")
+    include("**/di/**")
   }
 
   withType<KotlinCompile>().configureEach {
@@ -105,5 +135,10 @@ tasks {
     dependsOn(":appsignals-tests:images:jdbc:jibDockerBuild")
     dependsOn(":appsignals-tests:images:kafka:kafka-producers:jibDockerBuild")
     dependsOn(":appsignals-tests:images:kafka:kafka-consumers:jibDockerBuild")
+  }
+
+  register("diContractTestsImages") {
+    dependsOn(":appsignals-tests:images:di:di-spring-boot:jibDockerBuild")
+    dependsOn(":appsignals-tests:images:mock-collector:jibDockerBuild")
   }
 }

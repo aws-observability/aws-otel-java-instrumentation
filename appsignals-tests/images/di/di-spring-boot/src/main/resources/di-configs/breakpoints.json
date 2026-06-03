@@ -1,0 +1,168 @@
+{
+  "LatestConfigurations": [
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "processData",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "BREAKPOINT",
+      "LocationHash": "aabb000000000002",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": true,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {
+            "MaxStringLength": 1024,
+            "MaxCollectionWidth": 100,
+            "MaxCollectionDepth": 3,
+            "MaxObjectDepth": 3,
+            "MaxFieldsPerObject": 20,
+            "MaxStackFrames": 20
+          }
+        }
+      }
+    },
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "calculateSum",
+          "LineNumber": 62,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "BREAKPOINT",
+      "LocationHash": "aabb000000000003",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": false,
+          "CaptureStackTrace": true,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {
+            "MaxStringLength": 1024,
+            "MaxCollectionWidth": 100,
+            "MaxCollectionDepth": 3,
+            "MaxObjectDepth": 3,
+            "MaxFieldsPerObject": 20,
+            "MaxStackFrames": 20
+          }
+        }
+      }
+    },
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "limitedFunction",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "BREAKPOINT",
+      "LocationHash": "aabb000000000004",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": true,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {
+            "MaxHits": 3,
+            "MaxStringLength": 1024,
+            "MaxCollectionWidth": 100,
+            "MaxCollectionDepth": 3,
+            "MaxObjectDepth": 3,
+            "MaxFieldsPerObject": 20,
+            "MaxStackFrames": 20
+          }
+        }
+      }
+    },
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "sharedFunction",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "BREAKPOINT",
+      "LocationHash": "aabb000000000006",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": true,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {}
+        }
+      }
+    },
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "processLongString",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "BREAKPOINT",
+      "LocationHash": "aabb000000000007",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": false,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {
+            "MaxStringLength": 9999
+          }
+        }
+      }
+    },
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "processLargeCollection",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "BREAKPOINT",
+      "LocationHash": "aabb000000000008",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": false,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {
+            "MaxCollectionWidth": 9999
+          }
+        }
+      }
+    }
+  ]
+}

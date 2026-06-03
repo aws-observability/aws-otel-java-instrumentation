@@ -46,6 +46,11 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
   // YAML file reader
   implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
+  // HTTP client for dynamic instrumentation configuration polling
+  implementation("com.squareup.okhttp3:okhttp")
+  // ASM for line-level instrumentation (relocated/shaded at build time)
+  implementation("org.ow2.asm:asm:9.7")
+  implementation("org.ow2.asm:asm-tree:9.7")
   // Import AWS SDK v1 core for ARN parsing utilities
   implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
   // Export configuration
@@ -76,5 +81,8 @@ dependencies {
 tasks {
   val shadowJar by existing(ShadowJar::class) {
     archiveClassifier.set("")
+
+    // Relocate ASM to avoid conflicts with the application's ASM or ByteBuddy's internal ASM.
+    relocate("org.objectweb.asm", "software.amazon.opentelemetry.javaagent.shaded.org.objectweb.asm")
   }
 }
