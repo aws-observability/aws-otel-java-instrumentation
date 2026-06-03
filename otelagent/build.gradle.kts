@@ -52,6 +52,12 @@ val shadowClasspath by configurations.creating {
   }
 }
 
+// Bootstrap bridge JARs to be embedded at the root of the agent JAR (bootstrap classpath).
+val bootstrapBridge by configurations.creating {
+  isCanBeResolved = true
+  isCanBeConsumed = false
+}
+
 dependencies {
   // Ensure dependency doesn't leak into POMs by using compileOnly and shadow-specific configuration.
   val agentDep = create("io.opentelemetry.javaagent", "opentelemetry-javaagent")
@@ -63,6 +69,9 @@ dependencies {
   javaagentLibs(project(":instrumentation:aws-sdk"))
   javaagentLibs(project(":instrumentation:logback-1.0"))
   javaagentLibs(project(":instrumentation:jmx-metrics"))
+
+  // Bootstrap bridge for Dynamic Instrumentation cross-classloader support.
+  bootstrapBridge(project(":di-bootstrap-bridge"))
 }
 
 tasks {
@@ -76,12 +85,22 @@ tasks {
 
   val shadowJar by existing(ShadowJar::class) {
     dependsOn(relocateJavaagentLibs)
+    dependsOn(":di-bootstrap-bridge:jar")
 
     archiveClassifier.set("")
 
     configurations = listOf(shadowClasspath)
 
     isolateClasses(relocateJavaagentLibs.get().outputs.files)
+
+    // Embed the di-bootstrap-bridge classes at the ROOT of the agent JAR (not under inst/) so they
+    // are on the bootstrap classpath and visible to all classloaders. AwsAgentBootstrap appends the
+    // agent JAR to the bootstrap classloader search at premain, which is what makes them resolvable.
+    val diBridgeJarTask = project(":di-bootstrap-bridge").tasks.named<Jar>("jar")
+    from(zipTree(diBridgeJarTask.map { it.archiveFile })) {
+      include("**/*.class")
+      exclude("META-INF/**")
+    }
 
     exclude("**/module-info.class")
 

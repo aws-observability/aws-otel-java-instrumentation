@@ -25,6 +25,10 @@ base {
 }
 
 dependencies {
+  // Dynamic Instrumentation bootstrap bridge (compileOnly: it is embedded in the agent JAR root by
+  // the otelagent module and loaded via the bootstrap classloader at runtime).
+  compileOnly(project(":di-bootstrap-bridge"))
+  testImplementation(project(":di-bootstrap-bridge"))
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry.semconv:opentelemetry-semconv")
   compileOnly("io.opentelemetry.semconv:opentelemetry-semconv-incubating")
