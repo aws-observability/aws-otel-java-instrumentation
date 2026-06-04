@@ -133,7 +133,12 @@ public class AwsDynamicInstrumentationCustomizerProvider
       // Schedule manager initialization with 100ms delay
       // This ensures TracerProvider is fully built before we access it
       ScheduledExecutorService scheduler =
-          Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "aws-di-initializer"));
+          Executors.newSingleThreadScheduledExecutor(
+              r -> {
+                Thread t = new Thread(r, "aws-di-initializer");
+                t.setDaemon(true);
+                return t;
+              });
       scheduler.schedule(
           () -> {
             try {
