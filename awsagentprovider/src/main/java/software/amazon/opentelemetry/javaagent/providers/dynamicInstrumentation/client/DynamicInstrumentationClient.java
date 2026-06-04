@@ -329,6 +329,14 @@ public final class DynamicInstrumentationClient {
 
     poller.stop();
     poller = null;
+
+    try {
+      httpClient.dispatcher().executorService().shutdown();
+      httpClient.connectionPool().evictAll();
+    } catch (Throwable t) {
+      logger.log(Level.FINE, "Error releasing OkHttp resources", t);
+    }
+
     logger.fine("Stopped configuration polling");
   }
 
