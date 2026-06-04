@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.bootstrap;
 
 import java.lang.instrument.Instrumentation;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Holds the Instrumentation reference for global access by AWS Dynamic Instrumentation.
@@ -31,7 +32,7 @@ import java.lang.instrument.Instrumentation;
  */
 public final class AwsInstrumentationHolder {
 
-  private static volatile Instrumentation instrumentation;
+  private static final AtomicReference<Instrumentation> instrumentation = new AtomicReference<>();
 
   private AwsInstrumentationHolder() {
     // Utility class - no instantiation
@@ -48,9 +49,7 @@ public final class AwsInstrumentationHolder {
    * @param inst The Instrumentation instance from premain/agentmain
    */
   public static void setInstrumentation(Instrumentation inst) {
-    if (instrumentation == null) {
-      instrumentation = inst;
-    }
+    instrumentation.compareAndSet(null, inst);
   }
 
   /**
@@ -59,6 +58,6 @@ public final class AwsInstrumentationHolder {
    * @return The Instrumentation instance, or null if not yet set
    */
   public static Instrumentation getInstrumentation() {
-    return instrumentation;
+    return instrumentation.get();
   }
 }
