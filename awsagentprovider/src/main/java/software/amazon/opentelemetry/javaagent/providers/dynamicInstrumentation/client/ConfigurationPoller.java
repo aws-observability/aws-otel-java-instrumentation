@@ -81,10 +81,10 @@ public final class ConfigurationPoller {
   private Set<String> lastAppliedFingerprint = new HashSet<>();
 
   // State tracking
-  private Long probeLastSyncTime;
-  private Long breakpointLastSyncTime;
-  private Long probeLastSuccessTime;
-  private Long breakpointLastSuccessTime;
+  private volatile Long probeLastSyncTime;
+  private volatile Long breakpointLastSyncTime;
+  private volatile Long probeLastSuccessTime;
+  private volatile Long breakpointLastSuccessTime;
 
   public ConfigurationPoller(DynamicInstrumentationClient client) {
     this.client = client;
