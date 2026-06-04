@@ -352,6 +352,7 @@ public final class DynamicInstrumentationManager {
       } catch (Exception e) {
         logger.log(Level.WARNING, "AWS DI: Error stopping DISnapshotCollector", e);
       }
+      collector = null;
     }
 
     if (otlpEmitter != null) {
@@ -375,6 +376,7 @@ public final class DynamicInstrumentationManager {
       } catch (Exception e) {
         logger.log(Level.WARNING, "AWS DI: Error stopping status reporter", e);
       }
+      statusReporter = null;
     }
 
     if (client != null) {
@@ -384,7 +386,15 @@ public final class DynamicInstrumentationManager {
       } catch (Exception e) {
         logger.log(Level.WARNING, "AWS DI: Error stopping client", e);
       }
+      client = null;
     }
+
+    // Drop remaining references so a retry after a failed initialize() starts from a clean
+    // singleton instead of inheriting partially-built state.
+    engine = null;
+    tracer = null;
+    tracerProvider = null;
+    config = null;
   }
 
   /** Check if manager is initialized. */
