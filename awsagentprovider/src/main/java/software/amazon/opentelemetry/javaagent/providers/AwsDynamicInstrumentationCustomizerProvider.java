@@ -218,7 +218,6 @@ public class AwsDynamicInstrumentationCustomizerProvider
       return inst;
     } catch (Exception e) {
       logger.log(Level.SEVERE, "AWS DI: Failed to get Instrumentation via reflection", e);
-      e.printStackTrace();
       return null;
     }
   }
