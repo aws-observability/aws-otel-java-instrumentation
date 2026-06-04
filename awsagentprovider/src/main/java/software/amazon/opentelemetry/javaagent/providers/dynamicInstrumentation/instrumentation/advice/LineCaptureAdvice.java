@@ -39,60 +39,65 @@ public class LineCaptureAdvice {
    */
   public static void onLineBreakpointHit(
       String instrumentationKey, Map<String, Object> localVariables) {
-    if (!DIDataStore.recordHit(instrumentationKey)) return;
-
-    // Check captureLocals filter:
-    // null = do not capture locals (but still produce snapshot with empty captures)
-    // empty = capture all, non-empty = capture only those
-    String[] captureLocalsFilter = DIDataStore.getCaptureLocals(instrumentationKey);
-
-    int[] limits = DIDataStore.getLimits(instrumentationKey);
-    Thread t = Thread.currentThread();
-    String traceId = null, spanId = null;
     try {
-      io.opentelemetry.api.trace.Span span = io.opentelemetry.api.trace.Span.current();
-      if (span != null && span.getSpanContext().isValid()) {
-        traceId = span.getSpanContext().getTraceId();
-        spanId = span.getSpanContext().getSpanId();
-      }
-    } catch (Throwable ignored) {
-      // Catch Throwable (not just Exception) because this code runs inside user methods.
-      // NoClassDefFoundError is common if OTel API is not on the user's classpath.
-    }
+      if (!DIDataStore.recordHit(instrumentationKey)) return;
 
-    // Apply capture filtering:
-    // null = pass empty map (no locals captured, but snapshot still produced)
-    // [] = pass all locals through
-    // [names] = filter to specific names
-    Map<String, Object> filteredLocals;
-    if (captureLocalsFilter == null) {
-      filteredLocals = new java.util.HashMap<>(); // empty - no locals captured
-    } else if (captureLocalsFilter.length > 0 && localVariables != null) {
-      filteredLocals = new java.util.HashMap<>();
-      for (String name : captureLocalsFilter) {
-        if (localVariables.containsKey(name)) {
-          filteredLocals.put(name, localVariables.get(name));
+      // Check captureLocals filter:
+      // null = do not capture locals (but still produce snapshot with empty captures)
+      // empty = capture all, non-empty = capture only those
+      String[] captureLocalsFilter = DIDataStore.getCaptureLocals(instrumentationKey);
+
+      int[] limits = DIDataStore.getLimits(instrumentationKey);
+      Thread t = Thread.currentThread();
+      String traceId = null, spanId = null;
+      try {
+        io.opentelemetry.api.trace.Span span = io.opentelemetry.api.trace.Span.current();
+        if (span != null && span.getSpanContext().isValid()) {
+          traceId = span.getSpanContext().getTraceId();
+          spanId = span.getSpanContext().getSpanId();
         }
+      } catch (Throwable ignored) {
+        // Catch Throwable (not just Exception) because this code runs inside user methods.
+        // NoClassDefFoundError is common if OTel API is not on the user's classpath.
       }
-    } else {
-      filteredLocals = localVariables; // [] = capture all
-    }
 
-    int lineNumber = extractLineNumber(instrumentationKey);
-    software.amazon.opentelemetry.javaagent.bootstrap.di.DIDataStore.captureLocals(
-        instrumentationKey,
-        filteredLocals,
-        lineNumber,
-        limits[0],
-        limits[1],
-        limits[2],
-        limits[4],
-        limits[3],
-        System.currentTimeMillis(),
-        traceId,
-        spanId,
-        t.getId(),
-        t.getName());
+      // Apply capture filtering:
+      // null = pass empty map (no locals captured, but snapshot still produced)
+      // [] = pass all locals through
+      // [names] = filter to specific names
+      Map<String, Object> filteredLocals;
+      if (captureLocalsFilter == null) {
+        filteredLocals = new java.util.HashMap<>(); // empty - no locals captured
+      } else if (captureLocalsFilter.length > 0 && localVariables != null) {
+        filteredLocals = new java.util.HashMap<>();
+        for (String name : captureLocalsFilter) {
+          if (localVariables.containsKey(name)) {
+            filteredLocals.put(name, localVariables.get(name));
+          }
+        }
+      } else {
+        filteredLocals = localVariables; // [] = capture all
+      }
+
+      int lineNumber = extractLineNumber(instrumentationKey);
+      software.amazon.opentelemetry.javaagent.bootstrap.di.DIDataStore.captureLocals(
+          instrumentationKey,
+          filteredLocals,
+          lineNumber,
+          limits[0],
+          limits[1],
+          limits[2],
+          limits[4],
+          limits[3],
+          System.currentTimeMillis(),
+          traceId,
+          spanId,
+          t.getId(),
+          t.getName());
+    } catch (Throwable t) {
+      System.err.println("[LineCaptureAdvice] onLineBreakpointHit ERROR: " + t);
+      t.printStackTrace(System.err);
+    }
   }
 
   /** Extracts line number from instrumentation key (format: pkg.Class.method:lineNumber). */
