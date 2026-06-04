@@ -26,7 +26,8 @@ public final class CapturedValue {
     DEPTH,
     FIELD_COUNT,
     COLLECTION_SIZE,
-    TIMEOUT
+    TIMEOUT,
+    ALREADY_CAPTURED
   }
 
   private final String type;

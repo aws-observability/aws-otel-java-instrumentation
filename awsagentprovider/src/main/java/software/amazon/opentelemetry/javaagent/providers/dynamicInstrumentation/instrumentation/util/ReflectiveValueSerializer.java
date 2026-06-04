@@ -62,7 +62,7 @@ public final class ReflectiveValueSerializer {
     String typeName = value.getClass().getName();
 
     if (!isPrimitiveOrWrapper(value) && !(value instanceof String) && visited.containsKey(value)) {
-      return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
+      return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.ALREADY_CAPTURED);
     }
 
     if (isPrimitiveOrWrapper(value)) {
@@ -79,38 +79,33 @@ public final class ReflectiveValueSerializer {
 
     visited.put(value, Boolean.TRUE);
 
-    try {
-      if (value.getClass().isArray()) {
-        if (collectionDepth >= config.getMaxCollectionDepth()) {
-          return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
-        }
-        return serializeArray(value, config, objectDepth, collectionDepth, visited, deadline);
-      }
-
-      if (value instanceof Collection) {
-        if (collectionDepth >= config.getMaxCollectionDepth()) {
-          return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
-        }
-        return serializeCollection(
-            (Collection<?>) value, config, objectDepth, collectionDepth, visited, deadline);
-      }
-
-      if (value instanceof Map) {
-        if (collectionDepth >= config.getMaxCollectionDepth()) {
-          return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
-        }
-        return serializeMap(
-            (Map<?, ?>) value, config, objectDepth, collectionDepth, visited, deadline);
-      }
-
-      if (objectDepth >= config.getMaxObjectDepth()) {
+    if (value.getClass().isArray()) {
+      if (collectionDepth >= config.getMaxCollectionDepth()) {
         return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
       }
-      return serializeObject(value, config, objectDepth, collectionDepth, visited, deadline);
-
-    } finally {
-      visited.remove(value);
+      return serializeArray(value, config, objectDepth, collectionDepth, visited, deadline);
     }
+
+    if (value instanceof Collection) {
+      if (collectionDepth >= config.getMaxCollectionDepth()) {
+        return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
+      }
+      return serializeCollection(
+          (Collection<?>) value, config, objectDepth, collectionDepth, visited, deadline);
+    }
+
+    if (value instanceof Map) {
+      if (collectionDepth >= config.getMaxCollectionDepth()) {
+        return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
+      }
+      return serializeMap(
+          (Map<?, ?>) value, config, objectDepth, collectionDepth, visited, deadline);
+    }
+
+    if (objectDepth >= config.getMaxObjectDepth()) {
+      return CapturedValue.notCaptured(typeName, CapturedValue.NotCapturedReason.DEPTH);
+    }
+    return serializeObject(value, config, objectDepth, collectionDepth, visited, deadline);
   }
 
   private static CapturedValue serializeArray(
