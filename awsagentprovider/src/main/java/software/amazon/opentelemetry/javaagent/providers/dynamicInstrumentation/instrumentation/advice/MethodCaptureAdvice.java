@@ -43,7 +43,7 @@ public class MethodCaptureAdvice {
   }
 
   /** Executed at method entry to capture arguments. */
-  @Advice.OnMethodEnter
+  @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onMethodEnter(
       @Advice.Origin String method, @Advice.AllArguments Object[] args) {
 
