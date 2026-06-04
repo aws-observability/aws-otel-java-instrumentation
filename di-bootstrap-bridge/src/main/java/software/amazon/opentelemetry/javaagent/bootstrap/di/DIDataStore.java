@@ -404,6 +404,9 @@ public final class DIDataStore {
         return true;
       }
       windowCount.decrementAndGet();
+      // Rate-limited: roll back the hitCount increment so maxHits counts only successful
+      // captures, not all attempts.
+      hitCount.decrementAndGet();
       return false;
     }
 
