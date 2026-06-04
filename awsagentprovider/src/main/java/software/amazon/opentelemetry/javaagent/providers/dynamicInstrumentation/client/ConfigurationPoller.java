@@ -19,9 +19,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,7 +58,6 @@ public final class ConfigurationPoller {
       300; // 5 minutes — used when API endpoint is unreachable
 
   private final DynamicInstrumentationClient client;
-  private final Random random = new Random();
 
   // Thread management
   private Thread probeThread;
@@ -311,6 +310,7 @@ public final class ConfigurationPoller {
 
   /** Calculate wait interval with exponential backoff for initial fetches. */
   private long calculateWaitInterval(boolean isFirstFetch, int attempt, int regularInterval) {
+    ThreadLocalRandom random = ThreadLocalRandom.current();
     if (isFirstFetch) {
       if (attempt >= MAX_INITIAL_FETCH_ATTEMPTS) {
         // Degraded mode: API endpoint unreachable, poll slowly until it becomes available
