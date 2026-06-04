@@ -15,6 +15,8 @@
 
 package software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation.advice;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -23,7 +25,8 @@ import software.amazon.opentelemetry.javaagent.bootstrap.di.DIDataStore;
 /** ByteBuddy Advice class that captures method arguments and return values via DIDataStore. */
 public class MethodCaptureAdvice {
 
-  public static final ThreadLocal<EntryData> entryDataThreadLocal = new ThreadLocal<>();
+  public static final ThreadLocal<Deque<EntryData>> entryDataThreadLocal =
+      ThreadLocal.withInitial(ArrayDeque::new);
 
   public static class EntryData {
     public final long startTime;
@@ -112,7 +115,9 @@ public class MethodCaptureAdvice {
             t.getName());
       }
 
-      entryDataThreadLocal.set(new EntryData(System.nanoTime(), methodKey, limits, captureReturn));
+      entryDataThreadLocal
+          .get()
+          .push(new EntryData(System.nanoTime(), methodKey, limits, captureReturn));
 
     } catch (Throwable t) {
       System.err.println("[MethodCaptureAdvice] onMethodEnter ERROR: " + t);
@@ -131,11 +136,13 @@ public class MethodCaptureAdvice {
       @Advice.Thrown Throwable throwable) {
 
     try {
-      EntryData entryData = entryDataThreadLocal.get();
-      if (entryData == null) {
+      Deque<EntryData> stack = entryDataThreadLocal.get();
+      EntryData entryData = stack.peekFirst();
+      String methodKey = extractMethodKey(method);
+      if (entryData == null || !methodKey.equals(entryData.methodKey)) {
         return;
       }
-      entryDataThreadLocal.remove();
+      stack.pollFirst();
 
       long durationNanos = System.nanoTime() - entryData.startTime;
 
