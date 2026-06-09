@@ -41,9 +41,9 @@ import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.
  * deterministically with no scheduler timing and no test containers.
  *
  * <p>This is the regression guard for the defect where the Advice path only ever incremented {@code
- * DIDataStore.HitState} (bootstrap classloader) while the reporter read {@code InstrumentationState}
- * (agent classloader). The two stores were never reconciled, so ACTIVE and DISABLED never emitted —
- * only READY was ever sent.
+ * DIDataStore.HitState} (bootstrap classloader) while the reporter read {@code
+ * InstrumentationState} (agent classloader). The two stores were never reconciled, so ACTIVE and
+ * DISABLED never emitted — only READY was ever sent.
  */
 class StatusReporterTest {
 
@@ -97,13 +97,7 @@ class StatusReporterTest {
     // Register the live runtime store on the bootstrap classloader (what the Advice path hits).
     // limits values are irrelevant to status reporting; expiry disabled (0).
     DIDataStore.registerConfig(
-        key,
-        new int[] {3, 20, 20, 255, 3},
-        new String[0],
-        null,
-        true,
-        MAX_HITS,
-        0L);
+        key, new int[] {3, 20, 20, 255, 3}, new String[0], null, true, MAX_HITS, 0L);
 
     sink = new CapturingSink();
     reporter = new StatusReporter(sink, 60);

@@ -20,9 +20,9 @@ import java.time.Instant;
 /**
  * Holds the static metadata of an instrumentation configuration for status reporting.
  *
- * <p>Runtime hit tracking (hit counting, disable on maxHits/expiry, and capture rate limiting) lives
- * on the bootstrap classloader in {@code DIDataStore.HitState}, which is the single source of truth
- * incremented by the Advice path. The {@code StatusReporter} reads dynamic state (hitCount,
+ * <p>Runtime hit tracking (hit counting, disable on maxHits/expiry, and capture rate limiting)
+ * lives on the bootstrap classloader in {@code DIDataStore.HitState}, which is the single source of
+ * truth incremented by the Advice path. The {@code StatusReporter} reads dynamic state (hitCount,
  * disabled, hitInLastPeriod) from there and combines it with the static metadata held here
  * (locationHash, instrumentationType, etc.) when emitting status.
  */

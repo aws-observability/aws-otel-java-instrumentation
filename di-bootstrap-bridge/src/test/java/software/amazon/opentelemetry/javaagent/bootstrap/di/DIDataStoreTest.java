@@ -29,8 +29,8 @@ import org.junit.jupiter.api.Test;
  * {@code hitInLastPeriod} flag and {@link DIDataStore#snapshotAll(boolean)} used for status
  * reporting.
  *
- * <p>This logic previously lived in the agent-classloader {@code InstrumentationState}; it now lives
- * on the bootstrap classloader as the single source of truth incremented by the Advice path.
+ * <p>This logic previously lived in the agent-classloader {@code InstrumentationState}; it now
+ * lives on the bootstrap classloader as the single source of truth incremented by the Advice path.
  */
 class DIDataStoreTest {
 
@@ -227,13 +227,14 @@ class DIDataStoreTest {
   }
 
   private void methodExit(String key, Object returnValue) {
-    DIDataStore.captureMethodExit(key, returnValue, null, 3, 20, 20, 3, 255, 0L, 0L, null, null, 1L, "t");
+    DIDataStore.captureMethodExit(
+        key, returnValue, null, 3, 20, 20, 3, 255, 0L, 0L, null, null, 1L, "t");
   }
 
   /**
-   * Minimal {@link DISerializer} for tests: serializes each value to a {@link SerializedValue} whose
-   * {@code value} is the object's string form, so tests can assert which frame's arguments landed in
-   * each capture.
+   * Minimal {@link DISerializer} for tests: serializes each value to a {@link SerializedValue}
+   * whose {@code value} is the object's string form, so tests can assert which frame's arguments
+   * landed in each capture.
    */
   private static final class EchoSerializer implements DISerializer {
     @Override

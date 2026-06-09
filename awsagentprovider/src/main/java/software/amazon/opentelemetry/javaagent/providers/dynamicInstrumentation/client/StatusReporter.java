@@ -170,15 +170,18 @@ public class StatusReporter {
   void pullAndReportStatuses(boolean isInitialReport) {
     List<StatusEntry> entries = new ArrayList<>();
 
-    // Static metadata (locationHash, instrumentationType) comes from the agent-classloader registry.
+    // Static metadata (locationHash, instrumentationType) comes from the agent-classloader
+    // registry.
     Map<String, InstrumentationState> agentStates = InstrumentationRegistry.getAllStates();
 
-    // Dynamic runtime data (hitCount, disabled, hitInLastPeriod) comes from the bootstrap-classloader
+    // Dynamic runtime data (hitCount, disabled, hitInLastPeriod) comes from the
+    // bootstrap-classloader
     // HitState — the single source of truth incremented by the live Advice path. Only the periodic
     // cycle (!isInitialReport) clears each per-period "hit" flag, since only it emits ACTIVE; an
     // out-of-band initial report must read the flag without consuming it, or the next periodic
     // report would miss a genuine ACTIVE signal.
-    Map<String, DIDataStore.HitSnapshot> runtimeSnapshots = DIDataStore.snapshotAll(!isInitialReport);
+    Map<String, DIDataStore.HitSnapshot> runtimeSnapshots =
+        DIDataStore.snapshotAll(!isInitialReport);
 
     for (Map.Entry<String, InstrumentationState> agentEntry : agentStates.entrySet()) {
       String key = agentEntry.getKey();

@@ -32,11 +32,11 @@ import org.junit.jupiter.api.TestMethodOrder;
  * locationHash {@code aabb000000000004}, endpoint GET /limited. Driving it past its cap lets us
  * observe the DISABLED transition end-to-end.
  *
- * <p>The exhaustive, deterministic lifecycle assertions live in the fast in-process
- * {@code StatusReporterTest}. This test only confirms the full pipeline is connected: hits recorded
- * on the bootstrap-classloader store flow through the reporter and arrive at the control plane.
- * Because the report interval is 60s (not test-configurable by design), periodic ACTIVE/DISABLED
- * statuses are awaited with a generous timeout.
+ * <p>The exhaustive, deterministic lifecycle assertions live in the fast in-process {@code
+ * StatusReporterTest}. This test only confirms the full pipeline is connected: hits recorded on the
+ * bootstrap-classloader store flow through the reporter and arrive at the control plane. Because
+ * the report interval is 60s (not test-configurable by design), periodic ACTIVE/DISABLED statuses
+ * are awaited with a generous timeout.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DIStatusReportingTest extends DIContractTestBase {
@@ -79,8 +79,6 @@ class DIStatusReportingTest extends DIContractTestBase {
     // DISABLED is a one-time status: it must not be reported more than once.
     long disabledCount =
         reportedStatusesFor(LIMITED_LOCATION_HASH).stream().filter("DISABLED"::equals).count();
-    assertTrue(
-        disabledCount == 1,
-        "Expected exactly one DISABLED report, got: " + disabledCount);
+    assertTrue(disabledCount == 1, "Expected exactly one DISABLED report, got: " + disabledCount);
   }
 }
