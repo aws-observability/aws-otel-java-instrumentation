@@ -17,6 +17,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   application without a restart or redeploy. Opt-in and disabled by default via
   `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
   ([#1384](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1384))
+- Add ServiceEvents instrumentation: emit endpoint summaries, function-call duration metrics,
+  deployment events, and incident snapshots to CloudWatch Application Signals via OTLP.
+  ([#1386](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1386))
 
 ## v2.28.1 - 2026-05-26
 
