@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.semconv.ServiceAttributes;
+import java.util.concurrent.CyclicBarrier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.config.DynamicInstrumentationConfig;
@@ -105,6 +106,57 @@ class ConfigurationPollerTest {
     poller.stop();
 
     assertThat(poller.isRunning()).isFalse();
+  }
+
+  @Test
+  void concurrentStartCreatesPollerThreadsOnlyOnce() throws Exception {
+    ConfigurationPoller poller = new ConfigurationPoller(client);
+
+    // Count the poller threads created by this poller's concurrent start storm via a before/after
+    // delta — robust to poller threads left over from other tests in this class. With an atomic
+    // check-and-set only one start() wins, so exactly two threads (ProbePoller + BreakpointPoller)
+    // are added; a non-atomic check-then-act could let multiple callers through and spawn extras.
+    int beforeProbe = countThreadsNamed("ProbePoller");
+    int beforeBreakpoint = countThreadsNamed("BreakpointPoller");
+
+    int callers = 8;
+    CyclicBarrier barrier = new CyclicBarrier(callers);
+    Thread[] threads = new Thread[callers];
+    for (int i = 0; i < callers; i++) {
+      threads[i] =
+          new Thread(
+              () -> {
+                try {
+                  barrier.await();
+                  poller.start();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      threads[i].start();
+    }
+    for (Thread t : threads) {
+      t.join();
+    }
+
+    try {
+      assertThat(poller.isRunning()).isTrue();
+      assertThat(countThreadsNamed("ProbePoller") - beforeProbe).isEqualTo(1);
+      assertThat(countThreadsNamed("BreakpointPoller") - beforeBreakpoint).isEqualTo(1);
+    } finally {
+      poller.stop();
+    }
+  }
+
+  /** Count live threads with the exact given name. */
+  private static int countThreadsNamed(String name) {
+    int count = 0;
+    for (Thread t : Thread.getAllStackTraces().keySet()) {
+      if (name.equals(t.getName()) && t.isAlive()) {
+        count++;
+      }
+    }
+    return count;
   }
 
   @Test

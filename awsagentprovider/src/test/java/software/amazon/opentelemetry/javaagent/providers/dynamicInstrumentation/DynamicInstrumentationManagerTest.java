@@ -217,6 +217,51 @@ class DynamicInstrumentationManagerTest {
   }
 
   @Test
+  void testApplyConfigurations_beforeInitialize_isNoOp() {
+    DynamicInstrumentationManager manager = DynamicInstrumentationManager.getInstance();
+    assertThat(manager.isInitialized()).isFalse();
+
+    java.util.Map<String, Object> apiConfig = new java.util.HashMap<>();
+    java.util.Map<String, Object> location = new java.util.HashMap<>();
+    location.put("Language", "Java");
+    location.put("CodeUnit", "com.example");
+    location.put("ClassName", "TestClass");
+    location.put("MethodName", "processOrder");
+    location.put("LineNumber", 0);
+    java.util.Map<String, Object> locationWrapper = new java.util.HashMap<>();
+    locationWrapper.put("CodeLocation", location);
+    apiConfig.put("Location", locationWrapper);
+    apiConfig.put("LocationHash", "hash-preinit");
+    apiConfig.put("InstrumentationType", "BREAKPOINT");
+    java.util.Map<String, Object> captureWrapper = new java.util.HashMap<>();
+    captureWrapper.put("CodeCapture", java.util.Map.of());
+    apiConfig.put("CaptureConfiguration", captureWrapper);
+
+    InstrumentationConfiguration instrConfig =
+        InstrumentationConfiguration.fromApiConfig(apiConfig);
+
+    // Before initialize(), applyConfigurations must be a guarded no-op (no NPE, nothing
+    // registered).
+    manager.applyConfigurations(java.util.List.of(instrConfig));
+
+    assertThat(
+            software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation
+                .InstrumentationRegistry.contains("com.example.TestClass.processOrder"))
+        .isFalse();
+  }
+
+  @Test
+  void testRemoveInstrumentations_beforeInitialize_isNoOp() {
+    DynamicInstrumentationManager manager = DynamicInstrumentationManager.getInstance();
+    assertThat(manager.isInitialized()).isFalse();
+
+    // Before initialize(), removeInstrumentations must be a guarded no-op (no NPE).
+    manager.removeInstrumentations(java.util.Set.of("com.example.TestClass.processOrder"));
+
+    assertThat(manager.isInitialized()).isFalse();
+  }
+
+  @Test
   void testApplyConfigurations_rejectsConstructorInit() {
     TracerProvider tracerProvider = mock(TracerProvider.class);
     Tracer mockTracer = mock(Tracer.class);

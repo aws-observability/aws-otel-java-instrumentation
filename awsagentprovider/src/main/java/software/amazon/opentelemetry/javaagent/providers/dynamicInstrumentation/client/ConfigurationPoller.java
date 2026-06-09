@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -62,7 +63,7 @@ public final class ConfigurationPoller {
   // Thread management
   private Thread probeThread;
   private Thread breakpointThread;
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
   private CountDownLatch stopLatch;
 
   // Synchronization for PROBE/BREAKPOINT cache and registry updates
@@ -93,12 +94,12 @@ public final class ConfigurationPoller {
 
   /** Start all polling threads. */
   public void start() {
-    if (running) {
+    // Atomic check-and-set so two concurrent start() calls cannot both create poller threads.
+    if (!running.compareAndSet(false, true)) {
       logger.warning("Configuration poller already running");
       return;
     }
 
-    running = true;
     stopLatch = new CountDownLatch(2);
 
     // Start PROBE polling thread
@@ -124,13 +125,13 @@ public final class ConfigurationPoller {
 
   /** Stop all polling threads and wait for completion. */
   public void stop() {
-    if (!running) {
+    // Atomic check-and-set so a concurrent stop() runs the shutdown sequence only once.
+    if (!running.compareAndSet(true, false)) {
       logger.warning("Configuration poller not running");
       return;
     }
 
     logger.fine("Stopping configuration poller...");
-    running = false;
 
     try {
       if (!stopLatch.await(10, TimeUnit.SECONDS)) {
@@ -155,7 +156,7 @@ public final class ConfigurationPoller {
     int attempt = 0;
 
     try {
-      while (running) {
+      while (running.get()) {
         try {
           long waitMs =
               calculateWaitInterval(
@@ -165,7 +166,7 @@ public final class ConfigurationPoller {
             Thread.sleep(waitMs);
           }
 
-          if (!running) break;
+          if (!running.get()) break;
 
           logger.fine("Fetching PROBE configuration");
           ApiResponse response =
@@ -235,7 +236,7 @@ public final class ConfigurationPoller {
     int attempt = 0;
 
     try {
-      while (running) {
+      while (running.get()) {
         try {
           long waitMs =
               calculateWaitInterval(
@@ -245,7 +246,7 @@ public final class ConfigurationPoller {
             Thread.sleep(waitMs);
           }
 
-          if (!running) break;
+          if (!running.get()) break;
 
           logger.fine("Fetching BREAKPOINT configuration");
           ApiResponse response =
@@ -475,6 +476,6 @@ public final class ConfigurationPoller {
 
   /** Check if poller is running. */
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 }

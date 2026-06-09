@@ -130,8 +130,10 @@ public class AwsDynamicInstrumentationCustomizerProvider
               .instrumentation(instrumentation)
               .build();
 
-      // Schedule manager initialization with 100ms delay
-      // This ensures TracerProvider is fully built before we access it
+      // Schedule manager initialization off the customizer callback with a short delay so it runs
+      // after the SDK autoconfiguration callback returns. This is NOT a synchronization mechanism:
+      // the manager intentionally uses TracerProvider.noop() (see below) and does not depend on the
+      // global TracerProvider being ready, so the exact delay is not load-bearing for correctness.
       ScheduledExecutorService scheduler =
           Executors.newSingleThreadScheduledExecutor(
               r -> {

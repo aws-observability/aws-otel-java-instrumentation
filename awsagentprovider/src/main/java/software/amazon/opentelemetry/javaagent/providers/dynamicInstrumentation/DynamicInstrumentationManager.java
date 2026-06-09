@@ -70,14 +70,17 @@ public final class DynamicInstrumentationManager {
   private static volatile DynamicInstrumentationManager INSTANCE;
   private static final AtomicBoolean initialized = new AtomicBoolean(false);
 
-  private DynamicInstrumentationConfig config;
-  private TracerProvider tracerProvider;
-  private Tracer tracer;
-  private DynamicInstrumentationClient client;
-  private ByteBuddyInstrumentationEngine engine;
-  private StatusReporter statusReporter;
-  private DISnapshotCollector collector;
-  private DISnapshotOtlpEmitter otlpEmitter;
+  // volatile: written in initialize() (one thread) and read/cleared from poller and shutdown
+  // threads. volatile guarantees the writes from initialize() are visible to those readers and that
+  // the nulling done in cleanup() is observed.
+  private volatile DynamicInstrumentationConfig config;
+  private volatile TracerProvider tracerProvider;
+  private volatile Tracer tracer;
+  private volatile DynamicInstrumentationClient client;
+  private volatile ByteBuddyInstrumentationEngine engine;
+  private volatile StatusReporter statusReporter;
+  private volatile DISnapshotCollector collector;
+  private volatile DISnapshotOtlpEmitter otlpEmitter;
 
   private DynamicInstrumentationManager() {}
 
@@ -189,6 +192,14 @@ public final class DynamicInstrumentationManager {
    * @param configurations List of instrumentation configurations to apply
    */
   public void applyConfigurations(List<InstrumentationConfiguration> configurations) {
+    // Bail if not initialized (or already shut down). Reading the AtomicBoolean is also a memory
+    // fence that makes the fields written in initialize() visible, and prevents operating on
+    // fields that cleanup() may be nulling out concurrently.
+    if (!initialized.get()) {
+      logger.fine("AWS DI: Manager not initialized, ignoring applyConfigurations");
+      return;
+    }
+
     logger.log(Level.FINE, "AWS DI: Received {0} configurations to apply", configurations.size());
 
     if (engine == null) {
@@ -304,6 +315,12 @@ public final class DynamicInstrumentationManager {
       return;
     }
 
+    // Bail if not initialized (or already shut down) — see applyConfigurations for rationale.
+    if (!initialized.get()) {
+      logger.fine("AWS DI: Manager not initialized, ignoring removeInstrumentations");
+      return;
+    }
+
     logger.log(Level.INFO, "AWS DI: Removing {0} instrumentations", methodKeys.size());
 
     if (engine == null) {
@@ -338,8 +355,10 @@ public final class DynamicInstrumentationManager {
     }
 
     logger.info("AWS DI: Shutting down manager");
-    cleanup();
+    // Flip the flag BEFORE cleanup() so that applyConfigurations/removeInstrumentations (which
+    // check initialized) stop operating before cleanup() begins nulling the fields they read.
     initialized.set(false);
+    cleanup();
     logger.fine("AWS DI: Manager shutdown complete");
   }
 
