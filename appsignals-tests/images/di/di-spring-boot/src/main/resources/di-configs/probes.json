@@ -1,0 +1,57 @@
+{
+  "LatestConfigurations": [
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "computeTotal",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "PROBE",
+      "LocationHash": "aabb000000000001",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": true,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {
+            "MaxStringLength": 1024,
+            "MaxCollectionWidth": 100,
+            "MaxCollectionDepth": 3,
+            "MaxObjectDepth": 3,
+            "MaxFieldsPerObject": 20,
+            "MaxStackFrames": 20
+          }
+        }
+      }
+    },
+    {
+      "Location": {
+        "CodeLocation": {
+          "Language": "java",
+          "CodeUnit": "software.amazon.opentelemetry.di.app.service",
+          "ClassName": "InstrumentedService",
+          "MethodName": "sharedFunction",
+          "LineNumber": 0,
+          "FilePath": "InstrumentedService.java"
+        }
+      },
+      "InstrumentationType": "PROBE",
+      "LocationHash": "aabb000000000005",
+      "CaptureConfiguration": {
+        "CodeCapture": {
+          "CaptureReturn": true,
+          "CaptureStackTrace": true,
+          "CaptureArguments": [],
+          "CaptureLocals": [],
+          "CaptureLimits": {}
+        }
+      }
+    }
+  ]
+}

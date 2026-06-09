@@ -1,5 +1,8 @@
 package software.amazon.opentelemetry.appsignals.test.utils
 
+import io.opentelemetry.proto.logs.v1.LogRecord
+import io.opentelemetry.proto.logs.v1.ResourceLogs
+import io.opentelemetry.proto.logs.v1.ScopeLogs
 import io.opentelemetry.proto.metrics.v1.Metric
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics
 import io.opentelemetry.proto.metrics.v1.ScopeMetrics
@@ -16,3 +19,6 @@ data class ResourceScopeSpan(val resource: ResourceSpans, val scope: ScopeSpans,
 
 // Correlate resource, scope and metric
 data class ResourceScopeMetric(val resource: ResourceMetrics, val scope: ScopeMetrics, val metric: Metric)
+
+// Correlate resource, scope and log record
+data class ResourceScopeLog(val resource: ResourceLogs, val scope: ScopeLogs, val log: LogRecord)
