@@ -17,6 +17,8 @@ package software.amazon.opentelemetry.javaagent.bootstrap.di;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,9 @@ class DIDataStoreTest {
         new String[] {"maxHits", "noLimit", "maxHitsOne", "expired", "rate", "period", "snap"}) {
       DIDataStore.removeConfig(key);
     }
+    // Drain any leftover captures and reset the serializer so static state does not leak.
+    DIDataStore.drain();
+    DIDataStore.setSerializer(null);
   }
 
   private void register(String key, int maxHits, long expiresAtMillis) {
@@ -171,5 +176,92 @@ class DIDataStoreTest {
   @Test
   void snapshotAllIsEmptyWhenNoConfigs() {
     assertThat(DIDataStore.snapshotAll(true)).isEmpty();
+  }
+
+  // ─── Method entry/exit argument pairing (recursion) ──────────────────────────
+
+  /**
+   * A recursive method produces one entry and one exit per frame, all sharing the same method key.
+   * Each frame's captured arguments must survive to its own exit — they must not be overwritten by
+   * deeper frames sharing the key. Regression test for the flat per-key map that only retained the
+   * last frame's entry data.
+   */
+  @Test
+  void recursiveMethodPairsEachFramesArgumentsWithItsOwnExit() {
+    DIDataStore.setSerializer(new EchoSerializer());
+    String key = "com.example.Math.recursiveSum";
+
+    // Simulate recursiveSum(4): four nested entries, then four exits unwinding LIFO.
+    // Entry order (outer -> inner): n=4,3,2,1. Exit order (inner -> outer): n=1,2,3,4.
+    for (int n = 4; n >= 1; n--) {
+      methodEntry(key, "n", String.valueOf(n));
+    }
+    for (int n = 1; n <= 4; n++) {
+      methodExit(key, "sum=" + n);
+    }
+
+    List<PendingCapture> captures = DIDataStore.drain();
+    assertThat(captures).isNotNull();
+    assertThat(captures).hasSize(4);
+
+    // Each of the four METHOD captures must carry the argument of the frame that produced it,
+    // in exit order: n=1, n=2, n=3, n=4.
+    for (int i = 0; i < 4; i++) {
+      PendingCapture c = captures.get(i);
+      assertThat(c.getCaptureType()).isEqualTo(PendingCapture.CaptureType.METHOD);
+      Map<String, SerializedValue> args = c.getArguments();
+      assertThat(args)
+          .as("capture %d (exit-order frame n=%d) must carry its own arguments", i, i + 1)
+          .isNotNull();
+      assertThat(args.get("n")).isNotNull();
+      assertThat(args.get("n").getValue()).isEqualTo(String.valueOf(i + 1));
+      assertThat(c.getReturnValue()).isNotNull();
+      assertThat(c.getReturnValue().getValue()).isEqualTo("sum=" + (i + 1));
+    }
+  }
+
+  private void methodEntry(String key, String argName, String argValue) {
+    Map<String, Object> args = new HashMap<>();
+    args.put(argName, argValue);
+    DIDataStore.captureMethodEntry(key, args, 3, 20, 20, 3, 255, 0L, null, null, 1L, "t");
+  }
+
+  private void methodExit(String key, Object returnValue) {
+    DIDataStore.captureMethodExit(key, returnValue, null, 3, 20, 20, 3, 255, 0L, 0L, null, null, 1L, "t");
+  }
+
+  /**
+   * Minimal {@link DISerializer} for tests: serializes each value to a {@link SerializedValue} whose
+   * {@code value} is the object's string form, so tests can assert which frame's arguments landed in
+   * each capture.
+   */
+  private static final class EchoSerializer implements DISerializer {
+    @Override
+    public Map<String, SerializedValue> serialize(
+        Map<String, Object> values,
+        int maxDepth,
+        int maxFields,
+        int maxCollWidth,
+        int maxCollDepth,
+        int maxStrLen,
+        long timeoutMs) {
+      Map<String, SerializedValue> out = new HashMap<>();
+      for (Map.Entry<String, Object> e : values.entrySet()) {
+        Object v = e.getValue();
+        out.put(
+            e.getKey(),
+            new SerializedValue(
+                v == null ? "null" : v.getClass().getName(),
+                v == null ? null : v.toString(),
+                null,
+                null,
+                null,
+                v == null,
+                null,
+                false,
+                null));
+      }
+      return out;
+    }
   }
 }

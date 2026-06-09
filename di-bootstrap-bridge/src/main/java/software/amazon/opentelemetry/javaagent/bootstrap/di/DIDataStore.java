@@ -15,7 +15,9 @@
 
 package software.amazon.opentelemetry.javaagent.bootstrap.di;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,12 +33,17 @@ public final class DIDataStore {
   private static final ConcurrentLinkedQueue<PendingCapture> queue =
       new ConcurrentLinkedQueue<PendingCapture>();
 
-  /** Holds pending method entry data per thread, keyed by method key. */
-  private static final ThreadLocal<Map<String, PendingEntryData>> pendingEntries =
-      new ThreadLocal<Map<String, PendingEntryData>>() {
+  /**
+   * Holds pending method entry data per thread, keyed by method key. Each key maps to a LIFO stack
+   * of frames so that recursion and re-entrancy are handled correctly: a deeper frame pushes its
+   * own entry data without overwriting the enclosing frame's, and each exit pops the frame that
+   * matches it (innermost first).
+   */
+  private static final ThreadLocal<Map<String, Deque<PendingEntryData>>> pendingEntries =
+      new ThreadLocal<Map<String, Deque<PendingEntryData>>>() {
         @Override
-        protected Map<String, PendingEntryData> initialValue() {
-          return new HashMap<String, PendingEntryData>();
+        protected Map<String, Deque<PendingEntryData>> initialValue() {
+          return new HashMap<String, Deque<PendingEntryData>>();
         }
       };
 
@@ -127,12 +134,17 @@ public final class DIDataStore {
       Map<String, SerializedValue> serialized =
           s.serialize(arguments, maxDepth, maxFields, maxCollWidth, maxCollDepth, maxStrLen, 100L);
       StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-      pendingEntries
-          .get()
-          .put(
-              key,
-              new PendingEntryData(
-                  serialized, timestamp, traceId, spanId, threadId, threadName, stackTrace));
+      // Push onto this method key's per-thread frame stack so recursive/re-entrant calls each
+      // retain their own entry data (popped by the matching exit, innermost first).
+      Map<String, Deque<PendingEntryData>> frames = pendingEntries.get();
+      Deque<PendingEntryData> stack = frames.get(key);
+      if (stack == null) {
+        stack = new ArrayDeque<PendingEntryData>();
+        frames.put(key, stack);
+      }
+      stack.push(
+          new PendingEntryData(
+              serialized, timestamp, traceId, spanId, threadId, threadName, stackTrace));
     } catch (Exception e) {
       // Never break the application
     }
@@ -160,8 +172,15 @@ public final class DIDataStore {
     DISerializer s = serializer;
     if (s == null) return;
     try {
-      // Retrieve and remove the pending entry for this method
-      PendingEntryData entry = pendingEntries.get().remove(key);
+      // Pop the innermost pending entry for this method key (matches this exit in LIFO order).
+      // May be null if entry capture was skipped for this frame (e.g. no arguments to capture);
+      // in that case we fall back to exit-only data below.
+      Map<String, Deque<PendingEntryData>> frames = pendingEntries.get();
+      Deque<PendingEntryData> stack = frames.get(key);
+      PendingEntryData entry = stack != null ? stack.poll() : null;
+      if (stack != null && stack.isEmpty()) {
+        frames.remove(key); // avoid leaking empty stacks on the ThreadLocal
+      }
 
       // Serialize return value
       SerializedValue rv = null;
