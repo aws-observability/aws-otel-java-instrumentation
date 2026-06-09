@@ -39,7 +39,7 @@ import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.
  * SDK client for fetching instrumentation configurations from backend API. Handles HTTP
  * communication, pagination, and response parsing.
  */
-public final class DynamicInstrumentationClient {
+public final class DynamicInstrumentationClient implements StatusReportSink {
   private static final Logger logger =
       Logger.getLogger(DynamicInstrumentationClient.class.getName());
   private static final int MAX_PAGES = 3; // API returns max 50 results per page
@@ -355,6 +355,7 @@ public final class DynamicInstrumentationClient {
    *
    * @param statusEntries List of status entries to report
    */
+  @Override
   public void reportConfigurationStatus(
       List<
               software

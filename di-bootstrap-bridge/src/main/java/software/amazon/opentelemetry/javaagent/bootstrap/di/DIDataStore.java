@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -291,6 +292,30 @@ public final class DIDataStore {
     return state.tryHit();
   }
 
+  /**
+   * Take a point-in-time snapshot of every instrumentation's runtime hit state, for status
+   * reporting. Reads from the bootstrap-classloader {@link HitState} — the single source of truth
+   * for hit activity (incremented by the Advice path via {@link #recordHit}).
+   *
+   * <p>When {@code resetPeriodFlag} is true, the per-period "hit since last report" flag is
+   * read-and-cleared in the same pass (used by the periodic reporting cycle that emits ACTIVE).
+   * When false, the flag is read without clearing (used by out-of-band/initial reports, which must
+   * not consume the flag — otherwise the next periodic report would miss a genuine ACTIVE signal).
+   * The clear uses {@link java.util.concurrent.atomic.AtomicBoolean#getAndSet} so concurrent report
+   * cycles (the scheduled reporter thread and the out-of-band caller) cannot both observe the same
+   * hit as new.
+   *
+   * @param resetPeriodFlag whether to clear each config's per-period hit flag after reading it
+   * @return snapshots keyed by instrumentation key (empty if no configs registered)
+   */
+  public static Map<String, HitSnapshot> snapshotAll(boolean resetPeriodFlag) {
+    Map<String, HitSnapshot> result = new HashMap<String, HitSnapshot>();
+    for (Map.Entry<String, HitState> entry : hitStates.entrySet()) {
+      result.put(entry.getKey(), entry.getValue().snapshot(resetPeriodFlag));
+    }
+    return result;
+  }
+
   public static int[] getLimits(String key) {
     int[] l = limits.get(key);
     return l != null ? l : new int[] {3, 20, 20, 255, 3};
@@ -355,6 +380,13 @@ public final class DIDataStore {
     final long expiresAtMillis;
     private volatile boolean disabled = false;
 
+    // Set true on every hit (including gated/disabled hits); read-and-reset each report period by
+    // the status reporter to emit ACTIVE. Tracks "was this location touched at all this period".
+    // AtomicBoolean (not a plain volatile) so the read-and-clear in snapshot() is atomic: the
+    // scheduled reporter thread and an out-of-band reportNow() caller may both snapshot, and
+    // getAndSet ensures at most one of them sees a given hit as new.
+    private final AtomicBoolean hitInLastPeriod = new AtomicBoolean(false);
+
     // Rate limiter: 5 captures per 1-second window (CAS-based rollover, monotonic clock)
     private final AtomicLong windowStartNanos;
     private final AtomicInteger windowCount = new AtomicInteger(0);
@@ -371,6 +403,10 @@ public final class DIDataStore {
      * @return true if capture is allowed, false if disabled/expired/rate-limited
      */
     public boolean tryHit() {
+      // Mark traffic for ACTIVE reporting before any gating — a breakpoint hitting its maxHits cap
+      // or being rate-limited is still receiving traffic.
+      hitInLastPeriod.set(true);
+
       if (disabled) {
         return false;
       }
@@ -416,6 +452,31 @@ public final class DIDataStore {
 
     public int getHitCount() {
       return hitCount.get();
+    }
+
+    /**
+     * Capture a snapshot of this hit state. When {@code resetPeriodFlag} is true, the per-period
+     * hit flag is atomically read-and-cleared; when false it is read without clearing.
+     */
+    HitSnapshot snapshot(boolean resetPeriodFlag) {
+      boolean hit = resetPeriodFlag ? hitInLastPeriod.getAndSet(false) : hitInLastPeriod.get();
+      return new HitSnapshot(hitCount.get(), disabled, hit);
+    }
+  }
+
+  /**
+   * Immutable point-in-time view of a {@link HitState} for status reporting. Read by the agent
+   * classloader; lives on the bootstrap classpath with no dependencies on agent model classes.
+   */
+  public static final class HitSnapshot {
+    public final int hitCount;
+    public final boolean disabled;
+    public final boolean hitInLastPeriod;
+
+    public HitSnapshot(int hitCount, boolean disabled, boolean hitInLastPeriod) {
+      this.hitCount = hitCount;
+      this.disabled = disabled;
+      this.hitInLastPeriod = hitInLastPeriod;
     }
   }
 }

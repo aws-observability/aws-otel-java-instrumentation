@@ -18,12 +18,15 @@ package software.amazon.opentelemetry.di.app.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +46,12 @@ public class MockDIApiController {
   @Autowired private ObjectMapper objectMapper;
 
   private Map<String, List<Map<String, Object>>> configCache;
+
+  // Records every status entry the SDK reports, so contract tests can assert the
+  // READY -> ACTIVE -> DISABLED reporting lifecycle end-to-end. Thread-safe: status reports arrive
+  // on the SDK's background reporter thread while tests read via the HTTP endpoint below.
+  private final ConcurrentLinkedQueue<Map<String, Object>> reportedStatuses =
+      new ConcurrentLinkedQueue<>();
 
   @PostMapping("/list-instrumentation-configurations")
   @SuppressWarnings("unchecked")
@@ -67,10 +76,28 @@ public class MockDIApiController {
   }
 
   @PostMapping("/report-instrumentation-configuration-status")
+  @SuppressWarnings("unchecked")
   public ResponseEntity<Map<String, Object>> reportStatus(
       @RequestBody Map<String, Object> request) {
-    // Accept and ignore status reports
+    // Record each reported status entry for contract-test assertions.
+    Object configurations = request.get("Configurations");
+    if (configurations instanceof List) {
+      for (Object entry : (List<Object>) configurations) {
+        if (entry instanceof Map) {
+          reportedStatuses.add((Map<String, Object>) entry);
+        }
+      }
+    }
     return ResponseEntity.ok(Map.of("status", "ok"));
+  }
+
+  /**
+   * Test-only endpoint: returns every instrumentation status entry reported so far, in arrival
+   * order. Used by DI contract tests to verify the READY/ACTIVE/DISABLED reporting lifecycle.
+   */
+  @GetMapping("/reported-instrumentation-statuses")
+  public ResponseEntity<List<Map<String, Object>>> getReportedStatuses() {
+    return ResponseEntity.ok(new ArrayList<>(reportedStatuses));
   }
 
   @SuppressWarnings("unchecked")

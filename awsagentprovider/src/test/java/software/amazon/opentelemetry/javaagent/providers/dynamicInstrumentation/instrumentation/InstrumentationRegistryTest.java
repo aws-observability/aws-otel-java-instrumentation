@@ -25,6 +25,7 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationConfiguration;
+import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationState;
 
 class InstrumentationRegistryTest {
 
@@ -302,13 +303,7 @@ class InstrumentationRegistryTest {
             "com.example", "OrderService", "processOrder", 0, "BREAKPOINT", "hash1", t1);
     String key = config1.getMethodKey();
     InstrumentationRegistry.register(key, config1);
-
-    // Record some hits to build up hitCount
-    InstrumentationRegistry.recordHit(key);
-    InstrumentationRegistry.recordHit(key);
-    InstrumentationRegistry.recordHit(key);
-
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(3);
+    InstrumentationState stateBefore = InstrumentationRegistry.getState(key);
 
     // Register NEW config with SAME key, SAME locationHash, but DIFFERENT createdAt=T2
     InstrumentationConfiguration config2 =
@@ -316,9 +311,10 @@ class InstrumentationRegistryTest {
             "com.example", "OrderService", "processOrder", 0, "BREAKPOINT", "hash1", t2);
     InstrumentationRegistry.register(key, config2);
 
-    // Assert state was reset (hit count back to 0)
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(0);
-    assertThat(InstrumentationRegistry.getState(key).getCreatedAt()).isEqualTo(t2);
+    // Assert state was replaced (fresh instance) and reflects the new config
+    InstrumentationState stateAfter = InstrumentationRegistry.getState(key);
+    assertThat(stateAfter).isNotSameAs(stateBefore);
+    assertThat(stateAfter.getCreatedAt()).isEqualTo(t2);
   }
 
   @Test
@@ -331,13 +327,7 @@ class InstrumentationRegistryTest {
             "com.example", "OrderService", "processOrder", 0, "BREAKPOINT", "hash1", t1);
     String key = config1.getMethodKey();
     InstrumentationRegistry.register(key, config1);
-
-    // Record some hits
-    InstrumentationRegistry.recordHit(key);
-    InstrumentationRegistry.recordHit(key);
-    InstrumentationRegistry.recordHit(key);
-
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(3);
+    InstrumentationState stateBefore = InstrumentationRegistry.getState(key);
 
     // Register config with SAME key, SAME locationHash, SAME createdAt
     InstrumentationConfiguration config2 =
@@ -345,8 +335,8 @@ class InstrumentationRegistryTest {
             "com.example", "OrderService", "processOrder", 0, "BREAKPOINT", "hash1", t1);
     InstrumentationRegistry.register(key, config2);
 
-    // Assert hitCount is preserved
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(3);
+    // Assert the existing state instance is preserved (not replaced)
+    assertThat(InstrumentationRegistry.getState(key)).isSameAs(stateBefore);
   }
 
   @Test
@@ -357,12 +347,7 @@ class InstrumentationRegistryTest {
             "com.example", "OrderService", "processOrder", 0, "BREAKPOINT", "hash1", null);
     String key = config1.getMethodKey();
     InstrumentationRegistry.register(key, config1);
-
-    // Record some hits
-    InstrumentationRegistry.recordHit(key);
-    InstrumentationRegistry.recordHit(key);
-
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(2);
+    InstrumentationState stateBefore = InstrumentationRegistry.getState(key);
 
     // Register config with SAME key, SAME locationHash, createdAt=null
     InstrumentationConfiguration config2 =
@@ -371,7 +356,7 @@ class InstrumentationRegistryTest {
     InstrumentationRegistry.register(key, config2);
 
     // Assert state is preserved (same locationHash)
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(2);
+    assertThat(InstrumentationRegistry.getState(key)).isSameAs(stateBefore);
 
     // Register config with SAME key but DIFFERENT locationHash, createdAt=null
     InstrumentationConfiguration config3 =
@@ -379,9 +364,10 @@ class InstrumentationRegistryTest {
             "com.example", "OrderService", "processOrder", 0, "BREAKPOINT", "hash2", null);
     InstrumentationRegistry.register(key, config3);
 
-    // Assert state is reset (different locationHash)
-    assertThat(InstrumentationRegistry.getState(key).getHitCount()).isEqualTo(0);
-    assertThat(InstrumentationRegistry.getState(key).getLocationHash()).isEqualTo("hash2");
+    // Assert state is reset (different locationHash -> fresh instance reflecting hash2)
+    InstrumentationState stateAfter = InstrumentationRegistry.getState(key);
+    assertThat(stateAfter).isNotSameAs(stateBefore);
+    assertThat(stateAfter.getLocationHash()).isEqualTo("hash2");
   }
 
   private InstrumentationConfiguration createConfig(

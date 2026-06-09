@@ -24,9 +24,20 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-// This module should have NO dependencies - it goes into bootstrap classloader
+// This module must have NO runtime/compile dependencies — it is loaded by the bootstrap
+// classloader and embedded in every application regardless of whether DI is enabled.
+//
+// Test-only dependencies are permitted: they are scoped to the test classpath and never shipped in
+// the jar. They are declared with explicit versions here because this module is intentionally
+// excluded from the shared dependencyManagement platform (see the root build.gradle.kts), so the
+// unversioned test dependencies the root applies to all java projects cannot be resolved otherwise.
 dependencies {
-  // No dependencies allowed!
+  // No main (compile/runtime) dependencies allowed!
+
+  testImplementation(platform("org.junit:junit-bom:5.10.1"))
+  testImplementation("org.junit.jupiter:junit-jupiter-api")
+  testImplementation("org.assertj:assertj-core:3.24.2")
+  testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
 tasks {

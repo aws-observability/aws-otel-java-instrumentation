@@ -178,6 +178,58 @@ public abstract class DIContractTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // Status report retrieval (from the in-app mock DI control plane)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fetch all instrumentation status entries the SDK has reported to the mock control plane so far.
+   * Each entry is the status map sent by the SDK (keys: LocationHash, Status, InstrumentationType,
+   * Time, ...).
+   */
+  @SuppressWarnings("unchecked")
+  protected List<Map<String, Object>> getReportedStatuses() throws Exception {
+    String json = sendRequest("/reported-instrumentation-statuses");
+    if (json == null || json.isEmpty()) {
+      return List.of();
+    }
+    return MAPPER.readValue(json, List.class);
+  }
+
+  /** Reported statuses for a given location hash, in arrival order. */
+  protected List<String> reportedStatusesFor(String locationHash) throws Exception {
+    return getReportedStatuses().stream()
+        .filter(e -> locationHash.equals(e.get("LocationHash")))
+        .map(e -> String.valueOf(e.get("Status")))
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Poll the mock control plane until a status of the given type has been reported for the given
+   * location hash, or fail after the timeout.
+   *
+   * @param timeout how long to wait (periodic ACTIVE/DISABLED reports require a full report period)
+   */
+  protected void waitForReportedStatus(String locationHash, String status, Duration timeout)
+      throws Exception {
+    long deadline = System.currentTimeMillis() + timeout.toMillis();
+    while (System.currentTimeMillis() < deadline) {
+      if (reportedStatusesFor(locationHash).contains(status)) {
+        return;
+      }
+      Thread.sleep(POLL_INTERVAL.toMillis());
+    }
+    fail(
+        "Timed out after "
+            + timeout.toSeconds()
+            + "s waiting for status "
+            + status
+            + " for location "
+            + locationHash
+            + ". Reported so far: "
+            + reportedStatusesFor(locationHash));
+  }
+
+  // ---------------------------------------------------------------------------
   // OTLP snapshot retrieval
   // ---------------------------------------------------------------------------
 

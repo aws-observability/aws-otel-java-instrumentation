@@ -16,27 +16,18 @@
 package software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model;
 
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Tracks runtime state of an instrumentation configuration.
+ * Holds the static metadata of an instrumentation configuration for status reporting.
  *
- * <p>Maintains hit counting, disable logic, and status reporting state for each instrumentation
- * point. Thread-safe for concurrent hits from instrumented code.
+ * <p>Runtime hit tracking (hit counting, disable on maxHits/expiry, and capture rate limiting) lives
+ * on the bootstrap classloader in {@code DIDataStore.HitState}, which is the single source of truth
+ * incremented by the Advice path. The {@code StatusReporter} reads dynamic state (hitCount,
+ * disabled, hitInLastPeriod) from there and combines it with the static metadata held here
+ * (locationHash, instrumentationType, etc.) when emitting status.
  */
 public class InstrumentationState {
-  // Hit tracking
-  private final AtomicInteger hitCount = new AtomicInteger(0);
-  private volatile boolean hitInLastPeriod = false;
   private final Instant createdAt;
-  private volatile Instant lastHitAt;
-
-  // Disable tracking
-  private volatile boolean isDisabled = false;
-  private volatile DisableReason disableReason;
-
-  // Rate limiting
-  private final CaptureRateLimiter rateLimiter;
 
   // Configuration metadata
   private final String locationHash;
@@ -55,112 +46,24 @@ public class InstrumentationState {
     this.expiresAt = expiresAt;
     this.instrumentationType = instrumentationType;
     this.createdAt = createdAt;
-    this.rateLimiter = new CaptureRateLimiter(CaptureRateLimiter.DEFAULT_MAX_CAPTURES_PER_SECOND);
   }
 
   /**
-   * Record a hit and check if instrumentation should be disabled or rate-limited.
+   * Check if instrumentation is within its active window (not expired).
    *
-   * <p>Called from Advice classes on each instrumentation hit. Thread-safe.
-   *
-   * <p>Checks are performed in order: disabled → expired → maxHits → rate limit. The rate limit
-   * check uses a per-instrumentation token bucket that allows a fixed number of captures per
-   * second.
-   *
-   * @return true if disabled or rate-limited (caller should stop capturing), false if capture is
-   *     allowed
-   */
-  public boolean incrementAndCheckDisable() {
-    // Fast path: already disabled
-    if (isDisabled) {
-      hitCount.incrementAndGet();
-      lastHitAt = Instant.now();
-      hitInLastPeriod = true;
-      return true;
-    }
-
-    int newCount = hitCount.incrementAndGet();
-    lastHitAt = Instant.now();
-    hitInLastPeriod = true;
-
-    // Check maxHits disable condition (BREAKPOINT only, not PROBE)
-    // Use > instead of >= to allow exactly maxHits captures before disabling
-    if (maxHits > 0 && newCount > maxHits) {
-      disable(DisableReason.MAX_HITS_REACHED);
-      return true; // disabled
-    }
-
-    // Check expiry disable condition (BREAKPOINT only, PROBE has null expiresAt)
-    if (expiresAt != null && Instant.now().isAfter(expiresAt)) {
-      disable(DisableReason.EXPIRED);
-      return true; // disabled
-    }
-
-    // Check rate limit — allows maxCapturesPerSecond through per 1-second window
-    if (!rateLimiter.tryAcquire()) {
-      return true; // rate-limited, skip this capture
-    }
-
-    return false; // capture allowed
-  }
-
-  /**
-   * Mark instrumentation as disabled.
-   *
-   * @param reason Why it was disabled
-   */
-  public synchronized void disable(DisableReason reason) {
-    if (!isDisabled) {
-      isDisabled = true;
-      disableReason = reason;
-    }
-  }
-
-  /**
-   * Reset hitInLastPeriod flag after status report.
-   *
-   * <p>Called by StatusReporter after reporting ACTIVE status.
-   */
-  public void resetHitInLastPeriod() {
-    hitInLastPeriod = false;
-  }
-
-  /**
-   * Check if instrumentation is active (not disabled and not expired).
-   *
-   * @return true if active
+   * @return true if not past expiry
    */
   public boolean isActive() {
-    return !isDisabled && (expiresAt == null || Instant.now().isBefore(expiresAt));
+    return expiresAt == null || Instant.now().isBefore(expiresAt);
   }
 
   // Getters
-  public int getHitCount() {
-    return hitCount.get();
-  }
-
-  public boolean isHitInLastPeriod() {
-    return hitInLastPeriod;
-  }
-
-  public boolean isDisabled() {
-    return isDisabled;
-  }
-
-  public DisableReason getDisableReason() {
-    return disableReason;
-  }
-
   public String getLocationHash() {
     return locationHash;
   }
 
   public Instant getCreatedAt() {
     return createdAt;
-  }
-
-  public Instant getLastHitAt() {
-    return lastHitAt;
   }
 
   public int getMaxHits() {
@@ -173,9 +76,5 @@ public class InstrumentationState {
 
   public InstrumentationType getInstrumentationType() {
     return instrumentationType;
-  }
-
-  public CaptureRateLimiter getRateLimiter() {
-    return rateLimiter;
   }
 }

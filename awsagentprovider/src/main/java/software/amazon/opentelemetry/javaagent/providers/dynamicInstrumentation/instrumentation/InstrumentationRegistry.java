@@ -74,15 +74,14 @@ public final class InstrumentationRegistry {
   public static void register(String methodKey, InstrumentationConfiguration config) {
     configurations.put(methodKey, config);
 
-    // Atomic check-and-replace under ConcurrentHashMap's per-key lock.
-    // Note: a recordHit() thread may briefly hold a reference to a replaced
-    // InstrumentationState and increment its counter — this is tolerable since
-    // the stale state is no longer in the map and won't affect future lookups.
+    // Atomic check-and-replace under ConcurrentHashMap's per-key lock. InstrumentationState holds
+    // only static metadata (runtime hit state lives in DIDataStore.HitState); replacing it on a
+    // config change just refreshes that metadata.
     states.compute(
         methodKey,
         (key, existing) -> {
           if (existing == null || hasConfigChanged(existing, config)) {
-            // New config or recreated config — create fresh state (reset hit count)
+            // New or recreated config — refresh the metadata snapshot.
             return new InstrumentationState(
                 config.getLocationHash(),
                 config.getMaxHits(),
@@ -90,7 +89,7 @@ public final class InstrumentationRegistry {
                 config.getInstrumentationType(),
                 config.getCreatedAt());
           }
-          // Same config — preserve existing state (hit count, etc.)
+          // Same config — preserve existing state.
           return existing;
         });
   }
@@ -399,22 +398,6 @@ public final class InstrumentationRegistry {
       cc.getMaxStringLength(),
       cc.getMaxCollectionDepth()
     };
-  }
-
-  /**
-   * Record a hit for an instrumentation and check disable conditions.
-   *
-   * <p>Called from Advice classes. Returns false if instrumentation is disabled.
-   *
-   * @param key Instrumentation key
-   * @return true if should continue capturing, false if disabled
-   */
-  public static boolean recordHit(String key) {
-    InstrumentationState state = states.get(key);
-    if (state == null) {
-      return true; // No state tracking, allow hit
-    }
-    return !state.incrementAndCheckDisable(); // Returns true if still active
   }
 
   /**

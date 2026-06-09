@@ -389,11 +389,6 @@ public class ByteBuddyInstrumentationEngine {
     return InstrumentationRegistry.size();
   }
 
-  /** Get classloaders that have been injected with Advice classes. */
-  public Set<ClassLoader> getInjectedClassLoaders() {
-    return new HashSet<>(injectedClassLoaders);
-  }
-
   /**
    * Clear all instrumentations and remove transformers.
    *
@@ -522,20 +517,6 @@ public class ByteBuddyInstrumentationEngine {
           locator
               .locate(
                   "software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationState")
-              .resolve());
-      injectClass(
-          targetClassLoader,
-          "software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.DisableReason",
-          locator
-              .locate(
-                  "software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.DisableReason")
-              .resolve());
-      injectClass(
-          targetClassLoader,
-          "software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.CaptureRateLimiter",
-          locator
-              .locate(
-                  "software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.CaptureRateLimiter")
               .resolve());
 
       // Mark as injected

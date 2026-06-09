@@ -26,7 +26,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation.ByteBuddyInstrumentationEngine;
+import software.amazon.opentelemetry.javaagent.bootstrap.di.DIDataStore;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation.InstrumentationRegistry;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.ConfigurationStatus;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.ErrorCause;
@@ -52,9 +52,8 @@ public class StatusReporter {
   private static final Logger logger = Logger.getLogger(StatusReporter.class.getName());
   private static final int BATCH_SIZE = 100;
 
-  private final DynamicInstrumentationClient client;
+  private final StatusReportSink client;
   private final int reportIntervalSeconds;
-  private final ByteBuddyInstrumentationEngine engine;
 
   // Track reported configurations to avoid duplicate reports for one-time statuses
   private final Set<String> reportedConfigs = ConcurrentHashMap.newKeySet();
@@ -73,17 +72,12 @@ public class StatusReporter {
   /**
    * Create status reporter.
    *
-   * @param client HTTP client for sending reports
+   * @param client Sink for sending reports (production: DynamicInstrumentationClient)
    * @param reportIntervalSeconds Interval for periodic reporting (default 60)
-   * @param engine ByteBuddy instrumentation engine for tracking injected classloaders
    */
-  public StatusReporter(
-      DynamicInstrumentationClient client,
-      int reportIntervalSeconds,
-      ByteBuddyInstrumentationEngine engine) {
+  public StatusReporter(StatusReportSink client, int reportIntervalSeconds) {
     this.client = client;
     this.reportIntervalSeconds = reportIntervalSeconds;
-    this.engine = engine;
     logger.fine("StatusReporter initialized with report interval: " + reportIntervalSeconds + "s");
   }
 
@@ -171,11 +165,20 @@ public class StatusReporter {
    * @param isInitialReport True for out-of-band reports when configs are applied, False for
    *     periodic 60s reports
    */
-  private void pullAndReportStatuses(boolean isInitialReport) {
+  // Package-private (not private) so same-package tests can drive the periodic reporting logic
+  // deterministically without waiting for the scheduled 60s interval.
+  void pullAndReportStatuses(boolean isInitialReport) {
     List<StatusEntry> entries = new ArrayList<>();
 
-    // Get all states from agent classloader (has static metadata)
+    // Static metadata (locationHash, instrumentationType) comes from the agent-classloader registry.
     Map<String, InstrumentationState> agentStates = InstrumentationRegistry.getAllStates();
+
+    // Dynamic runtime data (hitCount, disabled, hitInLastPeriod) comes from the bootstrap-classloader
+    // HitState — the single source of truth incremented by the live Advice path. Only the periodic
+    // cycle (!isInitialReport) clears each per-period "hit" flag, since only it emits ACTIVE; an
+    // out-of-band initial report must read the flag without consuming it, or the next periodic
+    // report would miss a genuine ACTIVE signal.
+    Map<String, DIDataStore.HitSnapshot> runtimeSnapshots = DIDataStore.snapshotAll(!isInitialReport);
 
     for (Map.Entry<String, InstrumentationState> agentEntry : agentStates.entrySet()) {
       String key = agentEntry.getKey();
@@ -185,27 +188,16 @@ public class StatusReporter {
       String locationHash = agentState.getLocationHash();
       String instrumentationType = agentState.getInstrumentationType().name();
 
-      // Pull dynamic runtime data from app classloader
-      RuntimeStateData runtimeData = pullRuntimeDataFromApp(key, isInitialReport);
+      // Dynamic runtime data: defaults (no hits) if no runtime state exists for this key yet.
+      DIDataStore.HitSnapshot runtime = runtimeSnapshots.get(key);
+      int hitCount = runtime != null ? runtime.hitCount : 0;
+      boolean disabled = runtime != null && runtime.disabled;
+      boolean hitInLastPeriod = runtime != null && runtime.hitInLastPeriod;
 
-      // Merge: use runtime data if available, otherwise fall back to agent state
-      int hitCount = runtimeData != null ? runtimeData.hitCount : agentState.getHitCount();
-      boolean disabled = runtimeData != null ? runtimeData.disabled : agentState.isDisabled();
-      boolean hitInLastPeriod =
-          runtimeData != null ? runtimeData.hitInLastPeriod : agentState.isHitInLastPeriod();
-      String disableReason =
-          runtimeData != null
-              ? runtimeData.disableReason
-              : (agentState.getDisableReason() != null
-                  ? agentState.getDisableReason().name()
-                  : null);
-
-      // Log state data source and values
-      String source = runtimeData != null ? "app CL" : "agent CL";
       logger.fine(
           String.format(
-              "State for %s (from %s): hitCount=%d, disabled=%s, hitInLastPeriod=%s",
-              locationHash, source, hitCount, disabled, hitInLastPeriod));
+              "State for %s: hitCount=%d, disabled=%s, hitInLastPeriod=%s",
+              locationHash, hitCount, disabled, hitInLastPeriod));
 
       // DISABLED: Check and report first (mutually exclusive with other statuses)
       if (disabled && !isInitialReport) {
@@ -215,10 +207,7 @@ public class StatusReporter {
           entries.add(
               new StatusEntry(
                   instrumentationType, locationHash, ConfigurationStatus.DISABLED, Instant.now()));
-          logger.log(
-              Level.FINE,
-              "Reporting DISABLED status for: {0} (reason: {1})",
-              new Object[] {locationHash, disableReason});
+          logger.log(Level.FINE, "Reporting DISABLED status for: {0}", locationHash);
         }
         // Skip all other status checks for this config - once disabled, no more reports
         continue;
@@ -287,83 +276,5 @@ public class StatusReporter {
       return locationHash + ":" + status.name();
     }
     return locationHash; // For ACTIVE - allow continuous reporting
-  }
-
-  /**
-   * Pull runtime state fields from application classloader via reflection. Searches all injected
-   * classloaders to find the state.
-   *
-   * @param key Instrumentation key
-   * @param isInitialReport Whether this is initial report (for resetting hitInLastPeriod)
-   * @return Runtime state data, or null if not found
-   */
-  private RuntimeStateData pullRuntimeDataFromApp(String key, boolean isInitialReport) {
-    if (engine == null) {
-      return null; // No engine, can't query app classloaders
-    }
-
-    for (ClassLoader appCL : engine.getInjectedClassLoaders()) {
-      try {
-        // Load InstrumentationRegistry from app classloader
-        Class<?> registryClass =
-            appCL.loadClass(
-                "software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation.InstrumentationRegistry");
-
-        // Get the specific state
-        java.lang.reflect.Method getStateMethod = registryClass.getMethod("getState", String.class);
-        Object appStateObj = getStateMethod.invoke(null, key);
-
-        if (appStateObj == null) {
-          continue; // Not in this classloader, try next
-        }
-
-        // Extract runtime fields via reflection
-        Class<?> stateClass = appStateObj.getClass();
-
-        int hitCount = (Integer) stateClass.getMethod("getHitCount").invoke(appStateObj);
-        boolean disabled = (Boolean) stateClass.getMethod("isDisabled").invoke(appStateObj);
-        boolean hitInLastPeriod =
-            (Boolean) stateClass.getMethod("isHitInLastPeriod").invoke(appStateObj);
-
-        Object disableReasonObj = stateClass.getMethod("getDisableReason").invoke(appStateObj);
-        String disableReason = disableReasonObj != null ? disableReasonObj.toString() : null;
-
-        // Reset hitInLastPeriod flag after reading (for ACTIVE status tracking)
-        if (hitInLastPeriod && !isInitialReport) {
-          java.lang.reflect.Method resetMethod = stateClass.getMethod("resetHitInLastPeriod");
-          resetMethod.invoke(appStateObj);
-        }
-
-        return new RuntimeStateData(hitCount, disabled, disableReason, hitInLastPeriod);
-
-      } catch (ClassNotFoundException e) {
-        // This classloader doesn't have registry yet
-        continue;
-      } catch (Exception e) {
-        logger.log(Level.FINE, "Error pulling runtime data from classloader: " + e.getMessage(), e);
-        continue;
-      }
-    }
-
-    return null; // Not found in any app classloader
-  }
-
-  /**
-   * Container for runtime state fields pulled from application classloader. Only contains dynamic
-   * fields that change during execution.
-   */
-  private static class RuntimeStateData {
-    final int hitCount;
-    final boolean disabled;
-    final String disableReason;
-    final boolean hitInLastPeriod;
-
-    RuntimeStateData(
-        int hitCount, boolean disabled, String disableReason, boolean hitInLastPeriod) {
-      this.hitCount = hitCount;
-      this.disabled = disabled;
-      this.disableReason = disableReason;
-      this.hitInLastPeriod = hitInLastPeriod;
-    }
   }
 }

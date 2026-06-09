@@ -139,7 +139,7 @@ public final class DynamicInstrumentationManager {
       this.client.startPolling();
 
       // Create and start status reporter
-      this.statusReporter = new StatusReporter(client, 60, engine);
+      this.statusReporter = new StatusReporter(client, 60);
       this.statusReporter.start();
 
       // Create OTLP emitter for DI snapshots (dedicated, isolated LoggerProvider)
