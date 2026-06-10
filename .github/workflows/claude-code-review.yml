@@ -17,7 +17,12 @@ concurrency:
 
 jobs:
   claude-review:
-    if: ${{ !github.event.pull_request.draft && !contains(github.event.pull_request.title, '[skip-claude]') }}
+    if: >-
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.title, '[skip-claude]') &&
+      github.event.pull_request.user.type != 'Bot' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+               github.event.pull_request.author_association)
     timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
@@ -30,6 +35,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4.3.1
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 50
 
       - name: Configure AWS Credentials
@@ -47,7 +53,7 @@ jobs:
           use_sticky_comment: "true"
           track_progress: "true"
           claude_args: |
-            --model us.anthropic.claude-opus-4-6-v1 --allowedTools "Read,Glob,Grep,Bash(gh pr diff ${{ github.event.pull_request.number }}),Bash(gh pr diff ${{ github.event.pull_request.number }} *),Bash(gh pr view ${{ github.event.pull_request.number }}),Bash(gh pr view ${{ github.event.pull_request.number }} *),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files*),Bash(gh api repos/${{ github.repository }}/contents/*)"
+            --model us.anthropic.claude-opus-4-6-v1 --allowedTools "Read,Glob,Grep,Bash(gh pr diff ${{ github.event.pull_request.number }}),Bash(gh pr diff ${{ github.event.pull_request.number }} *),Bash(gh pr view ${{ github.event.pull_request.number }}),Bash(gh pr view ${{ github.event.pull_request.number }} *),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files*)"
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
 
