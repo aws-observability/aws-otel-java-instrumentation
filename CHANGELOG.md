@@ -17,6 +17,7 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   application without a restart or redeploy. Opt-in and disabled by default via
   `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
   ([#1384](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1384))
+- Bump Netty to 4.1.135.Final to fix CVE-2026-45416 and CVE-2026-44249
 
 ## v2.28.1 - 2026-05-26
 
