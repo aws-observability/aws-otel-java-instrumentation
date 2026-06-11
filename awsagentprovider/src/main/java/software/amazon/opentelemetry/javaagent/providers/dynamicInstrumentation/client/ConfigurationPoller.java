@@ -92,8 +92,13 @@ public final class ConfigurationPoller {
     logger.fine("Initialized ConfigurationPoller");
   }
 
-  /** Start all polling threads. */
-  public void start() {
+  /**
+   * Start all polling threads.
+   *
+   * <p>Synchronized with {@link #stop()} so that a stop() racing a start() always observes fully
+   * initialized thread references and stop latch.
+   */
+  public synchronized void start() {
     // Atomic check-and-set so two concurrent start() calls cannot both create poller threads.
     if (!running.compareAndSet(false, true)) {
       logger.warning("Configuration poller already running");
@@ -123,8 +128,13 @@ public final class ConfigurationPoller {
     logger.fine("Configuration poller started");
   }
 
-  /** Stop all polling threads and wait for completion. */
-  public void stop() {
+  /**
+   * Stop all polling threads and wait for completion.
+   *
+   * <p>Synchronized with {@link #start()} so that a stop() racing a start() always observes fully
+   * initialized thread references and stop latch.
+   */
+  public synchronized void stop() {
     // Atomic check-and-set so a concurrent stop() runs the shutdown sequence only once.
     if (!running.compareAndSet(true, false)) {
       logger.warning("Configuration poller not running");
@@ -132,6 +142,15 @@ public final class ConfigurationPoller {
     }
 
     logger.fine("Stopping configuration poller...");
+
+    // Interrupt the poller threads so they wake from their poll-interval sleeps immediately
+    // instead of lingering until the next running-flag check (up to a full poll interval).
+    if (probeThread != null) {
+      probeThread.interrupt();
+    }
+    if (breakpointThread != null) {
+      breakpointThread.interrupt();
+    }
 
     try {
       if (!stopLatch.await(10, TimeUnit.SECONDS)) {
