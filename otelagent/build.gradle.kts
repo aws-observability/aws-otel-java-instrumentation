@@ -69,9 +69,11 @@ dependencies {
   javaagentLibs(project(":instrumentation:aws-sdk"))
   javaagentLibs(project(":instrumentation:logback-1.0"))
   javaagentLibs(project(":instrumentation:jmx-metrics"))
+  javaagentLibs(project(":instrumentation:serviceevents"))
 
-  // Bootstrap bridge for Dynamic Instrumentation cross-classloader support.
+  // Bootstrap bridges for cross-classloader support.
   bootstrapBridge(project(":di-bootstrap-bridge"))
+  bootstrapBridge(project(":serviceevents-bootstrap-bridge"))
 }
 
 tasks {
@@ -86,6 +88,7 @@ tasks {
   val shadowJar by existing(ShadowJar::class) {
     dependsOn(relocateJavaagentLibs)
     dependsOn(":di-bootstrap-bridge:jar")
+    dependsOn(":serviceevents-bootstrap-bridge:jar")
 
     archiveClassifier.set("")
 
@@ -93,11 +96,17 @@ tasks {
 
     isolateClasses(relocateJavaagentLibs.get().outputs.files)
 
-    // Embed the di-bootstrap-bridge classes at the ROOT of the agent JAR (not under inst/) so they
-    // are on the bootstrap classpath and visible to all classloaders. AwsAgentBootstrap appends the
-    // agent JAR to the bootstrap classloader search at premain, which is what makes them resolvable.
+    // Embed the bootstrap-bridge classes at the ROOT of the agent JAR (not under inst/) so they are
+    // on the bootstrap classpath and visible to all classloaders. AwsAgentBootstrap appends the
+    // agent JAR to the bootstrap classloader search at premain, which is what makes them resolvable
+    // from ByteBuddy advice (application classloader) and the collectors (agent classloader).
     val diBridgeJarTask = project(":di-bootstrap-bridge").tasks.named<Jar>("jar")
     from(zipTree(diBridgeJarTask.map { it.archiveFile })) {
+      include("**/*.class")
+      exclude("META-INF/**")
+    }
+    val serviceeventsBridgeJarTask = project(":serviceevents-bootstrap-bridge").tasks.named<Jar>("jar")
+    from(zipTree(serviceeventsBridgeJarTask.map { it.archiveFile })) {
       include("**/*.class")
       exclude("META-INF/**")
     }
