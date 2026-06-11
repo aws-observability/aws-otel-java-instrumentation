@@ -34,7 +34,9 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>Bridge receives only sampled calls (matches the histogram-only spec).
  *   <li>SEH aggregation map stays empty (so {@code FunctionCallCollector} no-ops).
- *   <li>Non-sampled calls fast-path return {@code null} from {@code methodEnter} (zero overhead).
+ *   <li>methodEnter returns a context for every call (carrying the sampled flag in {@code ctx[1]})
+ *       so the call-stack frame is always pushed/popped and caller attribution stays correct;
+ *       metrics are still recorded for sampled calls only.
  *   <li>When the bridge is null, the legacy SEH path is preserved.
  * </ul>
  */
@@ -94,30 +96,33 @@ class ServiceEventsDataStoreFunctionMetricsBridgeTest {
   }
 
   @Test
-  void bridgeWired_nonSampledCallsAreFastPathSkipped() {
+  void bridgeWired_onlySampledCallsAreRecorded() {
     ServiceEventsDataStore.setFunctionMetricsBridge(bridge);
     String functionId = "com.example.HotMethod.run";
 
     // Burn through tier1 (100 sampled) so subsequent calls fall into tier2 (1-in-10) and beyond.
+    // methodEnter now returns a context for EVERY call (so the frame is always pushed and popped
+    // and caller attribution stays correct); the sampled flag is carried in ctx[1] rather than
+    // signalled by a null context.
     int sampledCallsObserved = 0;
-    int nullContexts = 0;
+    int nonSampledCallsObserved = 0;
     for (int i = 0; i < 1500; i++) {
       Object ctx = ServiceEventsDataStore.methodEnter(functionId);
-      if (ctx == null) {
-        nullContexts++;
-      } else {
+      assertNotNull(
+          ctx, "methodEnter must always return a context so methodExit can pop the frame");
+      boolean sampled = ((long[]) ctx)[1] != 0L;
+      if (sampled) {
         sampledCallsObserved++;
+      } else {
+        nonSampledCallsObserved++;
       }
       ServiceEventsDataStore.methodExit(functionId, ctx, null);
     }
 
     assertTrue(sampledCallsObserved > 0, "Should observe some sampled calls (tier1)");
-    assertTrue(
-        nullContexts > 0,
-        "Non-sampled calls must return null context — bridge does not need them since the "
-            + "histogram only records sampled calls");
+    assertTrue(nonSampledCallsObserved > 0, "Should observe some non-sampled calls (tier2+)");
 
-    // Bridge sees only sampled calls.
+    // Bridge still sees only sampled calls — the histogram records sampled calls only.
     assertEquals(
         sampledCallsObserved,
         bridge.records.size(),

@@ -393,18 +393,19 @@ public final class ServiceEventsDataStore {
       }
     }
     long callCount = counter.incrementAndGet();
+    boolean sampled = MethodAggregationStore.shouldSample(callCount);
 
-    // C3: If not sampled, skip entirely — no ThreadLocal reads, no allocations.
-    // Investigation data now only captures sampled calls.
-    if (!MethodAggregationStore.shouldSample(callCount)) {
-      return null;
-    }
-
-    // Push to call stack (only for sampled calls)
+    // The call stack must be maintained for EVERY call, not just sampled ones: sampling decides
+    // whether metrics are recorded, not whether a frame exists in the call graph. If we skipped the
+    // push for unsampled frames, methodExit would read the wrong caller (stack.get(size-2)) for the
+    // next sampled call — e.g. in A -> B -> C with B unsampled, C's caller would resolve to A.
+    // Mirrors the Python monitor (__enter__ pushes unconditionally; only timing is gated on
+    // is_sampled). Only the nanoTime read is gated, to keep unsampled calls cheap.
     callStack.get().add(functionId);
 
-    // C5: Return lightweight long[] context — avoids Object[] + Long boxing overhead
-    return new long[] {System.nanoTime()};
+    // C5: Return lightweight long[] context — avoids Object[] + Long boxing overhead.
+    // ctx[0] = startTimeNs (0 when unsampled), ctx[1] = sampled flag (1/0).
+    return new long[] {sampled ? System.nanoTime() : 0L, sampled ? 1L : 0L};
   }
 
   /**
@@ -420,24 +421,33 @@ public final class ServiceEventsDataStore {
    */
   public static void methodExit(String functionId, Object context, String exceptionType) {
     if (context == null) {
+      // Defensive: methodEnter always returns a context now, but guard against nulls.
       return;
     }
 
-    // C5: lightweight long[] context — no unboxing needed
+    // C5: lightweight long[] context — ctx[0]=startTimeNs (0 if unsampled), ctx[1]=sampled flag.
     long[] ctx = (long[]) context;
-    long startTimeNs = ctx[0];
-    long durationNs = System.nanoTime() - startTimeNs;
+    boolean sampled = ctx[1] != 0L;
 
-    // Get caller from call stack BEFORE popping (caller is element below current)
+    // Get caller from call stack BEFORE popping (caller is element below current).
     List<String> stack = callStack.get();
     String caller = stack.size() > 1 ? stack.get(stack.size() - 2) : null;
 
-    // Pop from call stack
+    // Pop from call stack UNCONDITIONALLY (mirrors methodEnter's unconditional push). This is what
+    // keeps caller attribution correct: every frame that was pushed is popped, regardless of
+    // sampling, so the next call reads the right caller.
     if (!stack.isEmpty()) {
       stack.remove(stack.size() - 1);
     }
 
-    // C6: context is only non-null for sampled calls — always record
+    // Metrics/investigation are recorded for sampled calls only (unchanged behavior). The push/pop
+    // above already ran for every call, so skipping the rest here no longer corrupts the graph.
+    if (!sampled) {
+      return;
+    }
+
+    long durationNs = System.nanoTime() - ctx[0];
+
     String operation = currentOperation.get();
     if (operation == null) {
       operation = "unknown";
@@ -454,7 +464,7 @@ public final class ServiceEventsDataStore {
           operation, functionId, durationNs, caller, exceptionType);
     }
 
-    // Record to investigation data (only for sampled calls now — C3)
+    // Record to investigation data (sampled calls only — unchanged).
     InvestigationData investigation = investigationData.get();
     if (investigation != null) {
       boolean error = exceptionType != null;
