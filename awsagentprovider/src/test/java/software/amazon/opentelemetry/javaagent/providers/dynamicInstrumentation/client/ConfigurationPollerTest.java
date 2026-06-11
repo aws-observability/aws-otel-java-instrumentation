@@ -112,10 +112,16 @@ class ConfigurationPollerTest {
   void concurrentStartCreatesPollerThreadsOnlyOnce() throws Exception {
     ConfigurationPoller poller = new ConfigurationPoller(client);
 
+    // Wait out any poller threads leaked by other tests in this class. A leftover thread that
+    // dies between the baseline count below and the assertion would offset the +1 from this
+    // poller's new thread and make the delta read 0 (the CI flake this guards against).
+    awaitNoThreadsNamed("ProbePoller");
+    awaitNoThreadsNamed("BreakpointPoller");
+
     // Count the poller threads created by this poller's concurrent start storm via a before/after
-    // delta — robust to poller threads left over from other tests in this class. With an atomic
-    // check-and-set only one start() wins, so exactly two threads (ProbePoller + BreakpointPoller)
-    // are added; a non-atomic check-then-act could let multiple callers through and spawn extras.
+    // delta. With an atomic check-and-set only one start() wins, so exactly one thread of each
+    // name (ProbePoller + BreakpointPoller) is added; a non-atomic check-then-act could let
+    // multiple callers through and spawn extras.
     int beforeProbe = countThreadsNamed("ProbePoller");
     int beforeBreakpoint = countThreadsNamed("BreakpointPoller");
 
@@ -157,6 +163,17 @@ class ConfigurationPollerTest {
       }
     }
     return count;
+  }
+
+  /** Wait until no live thread with the exact given name remains, failing after a timeout. */
+  private static void awaitNoThreadsNamed(String name) throws InterruptedException {
+    long deadline = System.currentTimeMillis() + 15_000;
+    while (countThreadsNamed(name) > 0) {
+      if (System.currentTimeMillis() > deadline) {
+        throw new AssertionError("Timed out waiting for leftover " + name + " threads to exit");
+      }
+      Thread.sleep(50);
+    }
   }
 
   @Test
