@@ -103,10 +103,12 @@ tasks {
 
   register<Test>("contractTests") {
     dependsOn("contractTestsImages")
-    // Dynamic Instrumentation tests have their own task (diContractTests) and their own test image,
-    // which contractTestsImages does not build. Exclude them here so they are not run (and fail with
-    // a missing-image initialization error) as part of the standard contract test suite.
+    // Dynamic Instrumentation and ServiceEvents tests each have their own task (diContractTests,
+    // serviceeventsContractTests) and their own test image, which contractTestsImages does not
+    // build. Exclude them here so they are not run (and fail with a missing-image initialization
+    // error) as part of the standard contract test suite.
     exclude("**/di/**")
+    exclude("**/serviceevents/**")
   }
 
   register<Test>("diContractTests") {
@@ -116,6 +118,16 @@ tasks {
 
   withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
+  }
+
+  register<Test>("serviceeventsContractTests") {
+    dependsOn("serviceeventsContractTestsImages")
+    include("**/serviceevents/**")
+  }
+
+  register("serviceeventsContractTestsImages") {
+    dependsOn(":appsignals-tests:images:serviceevents:spring-mvc-serviceevents:jibDockerBuild")
+    dependsOn(":appsignals-tests:images:mock-collector:jibDockerBuild")
   }
 
   register("contractTestsImages") {

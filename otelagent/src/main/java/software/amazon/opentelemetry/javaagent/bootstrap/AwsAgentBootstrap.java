@@ -25,10 +25,11 @@ public class AwsAgentBootstrap {
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     // CRITICAL: Add the agent JAR to the bootstrap classloader search path FIRST (before any
-    // other class loading). This makes the di-bootstrap-bridge classes (embedded at the root of
-    // the agent JAR) visible to all classloaders, enabling cross-classloader data sharing between
-    // ByteBuddy advice (application classloader) and the Dynamic Instrumentation collectors (agent
-    // classloader). A failure here is logged and swallowed so it can never abort agent startup.
+    // other class loading). This makes the di-bootstrap-bridge and serviceevents-bootstrap-bridge
+    // classes (embedded at the root of the agent JAR) visible to all classloaders, enabling
+    // cross-classloader data sharing between ByteBuddy advice (application classloader) and the
+    // collectors (agent classloader). A failure here is logged and swallowed so it can never abort
+    // agent startup.
     try {
       addAgentJarToBootstrap(inst);
     } catch (Exception e) {
