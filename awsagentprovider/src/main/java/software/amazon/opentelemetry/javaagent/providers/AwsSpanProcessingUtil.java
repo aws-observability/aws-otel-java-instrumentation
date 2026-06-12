@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /** Utility class designed to support shared logic across AWS Span Processors. */
-final class AwsSpanProcessingUtil {
+public final class AwsSpanProcessingUtil {
 
   // Default attribute values if no valid span attribute value is identified
   static final String UNKNOWN_SERVICE = "UnknownService";
@@ -248,7 +248,7 @@ final class AwsSpanProcessingUtil {
    * null, UnknownOperation or http.method value. If running in Lambda, the ingress operation will
    * be the function name + /FunctionHandler.
    */
-  static String getIngressOperation(SpanData span) {
+  public static String getIngressOperation(SpanData span) {
     if (isLambdaEnvironment()) {
       /*
        * By default the local operation of a Lambda span is hard-coded to "<FunctionName>/FunctionHandler".

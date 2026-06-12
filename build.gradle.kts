@@ -100,7 +100,13 @@ allprojects {
       dependencyManagement(platform(project(":dependencyManagement")))
       afterEvaluate {
         configurations.configureEach {
-          if (isCanBeResolved && !isCanBeConsumed) {
+          // The bootstrap bridges must have NO managed dependencies — they are loaded by the
+          // bootstrap classloader and must stay dependency-free.
+          if (isCanBeResolved &&
+            !isCanBeConsumed &&
+            project.name != "di-bootstrap-bridge" &&
+            project.name != "serviceevents-bootstrap-bridge"
+          ) {
             extendsFrom(dependencyManagement)
           }
         }

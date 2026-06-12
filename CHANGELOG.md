@@ -13,10 +13,20 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Add Dynamic Instrumentation (Preview): capture additional runtime telemetry from a running
+  application without a restart or redeploy. Opt-in and disabled by default via
+  `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
+  ([#1384](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1384))
+- Add ServiceEvents instrumentation: emit endpoint summaries, function-call duration metrics,
+  deployment events, and incident snapshots to CloudWatch Application Signals via OTLP.
+  ([#1386](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1386))
+- Bump Netty to 4.1.135.Final to fix CVE-2026-45416 and CVE-2026-44249
+  ([#1389](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1389))
+
+## v2.28.1 - 2026-05-26
+
 - Bump Netty to 4.1.133.Final to fix CVE-2026-41417
   ([#1374](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1374))
-- Support environment-configured endpoint visibility for HTTP operation names
-  ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
 
 ## v2.26.2 - 2026-04-20
 
@@ -24,6 +34,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
 - Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
   ([#1348](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1348))
+ - fix(lambda-layer): Standardize CompactConsoleLogRecordExporter output with CloudWatch OTLP backend schema.
+  ([#1358](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1358))
 
 ## v2.26.1 - 2026-03-27
 
