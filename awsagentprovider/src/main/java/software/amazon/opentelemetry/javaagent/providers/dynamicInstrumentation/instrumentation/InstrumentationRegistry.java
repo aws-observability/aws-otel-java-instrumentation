@@ -285,7 +285,6 @@ public final class InstrumentationRegistry {
               CaptureConfiguration.class,
               String.class,
               InstrumentationType.class,
-              String.class,
               java.time.Instant.class,
               int.class,
               List.class,
@@ -304,7 +303,6 @@ public final class InstrumentationRegistry {
               captureConfig,
               locationHash, // Use actual locationHash parameter
               InstrumentationType.valueOf(instrumentationType),
-              "", // instrumentationName
               null, // expiresAt
               maxHits,
               new ArrayList<>(), // attributeFilters

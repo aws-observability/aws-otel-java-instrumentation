@@ -62,13 +62,11 @@ class InstrumentationConfigurationTest {
   void testFromApiConfig_validProbe() {
     Map<String, Object> apiConfig =
         createValidApiConfig("PROBE", "com.example", "OrderService", "processOrder", 0);
-    apiConfig.put("InstrumentationName", "order-processing-probe");
 
     InstrumentationConfiguration config = InstrumentationConfiguration.fromApiConfig(apiConfig);
 
     assertThat(config).isNotNull();
     assertThat(config.getInstrumentationType()).isEqualTo(InstrumentationType.PROBE);
-    assertThat(config.getInstrumentationName()).isEqualTo("order-processing-probe");
     assertThat(config.isPermanent()).isTrue();
     assertThat(config.isTemporary()).isFalse();
   }
@@ -77,27 +75,12 @@ class InstrumentationConfigurationTest {
   void testFromApiConfig_probeWithLineNumberForcedToZero() {
     Map<String, Object> apiConfig =
         createValidApiConfig("PROBE", "com.example", "OrderService", "processOrder", 42);
-    apiConfig.put("InstrumentationName", "test-probe");
 
     InstrumentationConfiguration config = InstrumentationConfiguration.fromApiConfig(apiConfig);
 
     assertThat(config).isNotNull();
     assertThat(config.getLineNumber()).isEqualTo(0);
     assertThat(config.isMethodLevel()).isTrue();
-  }
-
-  @Test
-  void testFromApiConfig_probeMissingInstrumentationName() {
-    Map<String, Object> apiConfig =
-        createValidApiConfig("PROBE", "com.example", "OrderService", "processOrder", 0);
-    // No InstrumentationName set
-
-    InstrumentationConfiguration config = InstrumentationConfiguration.fromApiConfig(apiConfig);
-
-    // InstrumentationName is now optional - should return valid config with empty name
-    assertThat(config).isNotNull();
-    assertThat(config.getInstrumentationType()).isEqualTo(InstrumentationType.PROBE);
-    assertThat(config.getInstrumentationName()).isEmpty();
   }
 
   @Test
@@ -214,7 +197,6 @@ class InstrumentationConfigurationTest {
   void testFromApiConfig_probeIgnoresExpiresAt() {
     Map<String, Object> apiConfig =
         createValidApiConfig("PROBE", "com.example", "OrderService", "processOrder", 0);
-    apiConfig.put("InstrumentationName", "test-probe");
     apiConfig.put("ExpiresAt", "2026-01-23T10:36:51Z");
 
     InstrumentationConfiguration config = InstrumentationConfiguration.fromApiConfig(apiConfig);
@@ -344,7 +326,6 @@ class InstrumentationConfigurationTest {
   void testFromApiConfig_probeIgnoresMaxHits() {
     Map<String, Object> apiConfig =
         createValidApiConfig("PROBE", "com.example", "OrderService", "processOrder", 0);
-    apiConfig.put("InstrumentationName", "test-probe");
 
     Map<String, Object> captureConfig = new HashMap<>();
     Map<String, Object> captureLimits = new HashMap<>();
