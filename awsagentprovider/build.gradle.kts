@@ -52,7 +52,7 @@ dependencies {
   implementation("org.ow2.asm:asm:9.7")
   implementation("org.ow2.asm:asm-tree:9.7")
   // Import AWS SDK v1 core for ARN parsing utilities
-  implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
+  implementation("com.amazonaws:aws-java-sdk-core:1.12.793")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
   // For Udp emitter
