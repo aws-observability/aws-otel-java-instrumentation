@@ -391,10 +391,6 @@ class InstrumentationRegistryTest {
     apiConfig.put("LocationHash", "test-hash");
     apiConfig.put("InstrumentationType", type);
     apiConfig.put("CaptureConfiguration", captureWrapper);
-
-    if ("PROBE".equals(type)) {
-    }
-
     return InstrumentationConfiguration.fromApiConfig(apiConfig);
   }
 
@@ -425,10 +421,6 @@ class InstrumentationRegistryTest {
     apiConfig.put("LocationHash", locationHash);
     apiConfig.put("InstrumentationType", type);
     apiConfig.put("CaptureConfiguration", captureWrapper);
-
-    if ("PROBE".equals(type)) {
-    }
-
     if (createdAt != null) {
       apiConfig.put("CreatedAt", createdAt.toString());
     }
