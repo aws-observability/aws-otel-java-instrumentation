@@ -211,7 +211,6 @@ class InstrumentationGrouperTest {
     apiConfig.put("CaptureConfiguration", captureWrapper);
 
     if ("PROBE".equals(type)) {
-      apiConfig.put("InstrumentationName", "test-probe");
     }
 
     return InstrumentationConfiguration.fromApiConfig(apiConfig);
