@@ -53,7 +53,6 @@ public final class InstrumentationConfiguration {
   private final CaptureConfiguration captureConfig;
   private final String locationHash;
   private final InstrumentationType instrumentationType;
-  private final String instrumentationName;
   private final Instant expiresAt;
   private final int maxHits;
   private final List<Map<String, String>> attributeFilters;
@@ -70,7 +69,6 @@ public final class InstrumentationConfiguration {
       CaptureConfiguration captureConfig,
       String locationHash,
       InstrumentationType instrumentationType,
-      String instrumentationName,
       Instant expiresAt,
       int maxHits,
       List<Map<String, String>> attributeFilters,
@@ -85,7 +83,6 @@ public final class InstrumentationConfiguration {
     this.captureConfig = captureConfig;
     this.locationHash = locationHash;
     this.instrumentationType = instrumentationType;
-    this.instrumentationName = instrumentationName;
     this.expiresAt = expiresAt;
     this.maxHits = maxHits;
     this.attributeFilters = Collections.unmodifiableList(new ArrayList<>(attributeFilters));
@@ -181,12 +178,6 @@ public final class InstrumentationConfiguration {
         }
       }
 
-      // Parse instrumentation name (optional for PROBE)
-      String instrName = (String) apiConfig.get("InstrumentationName");
-      if (instrName == null) {
-        instrName = ""; // Default to empty string
-      }
-
       // Parse line number (optional - 0 if missing means method-level)
       int lineNum = safeInt(location.get("LineNumber"), 0);
       if (type == InstrumentationType.PROBE && lineNum > 0) {
@@ -280,7 +271,6 @@ public final class InstrumentationConfiguration {
           captureConfig,
           locationHash,
           type,
-          instrName,
           expiresAt,
           maxHits,
           filters,
@@ -483,10 +473,6 @@ public final class InstrumentationConfiguration {
 
   public InstrumentationType getInstrumentationType() {
     return instrumentationType;
-  }
-
-  public String getInstrumentationName() {
-    return instrumentationName;
   }
 
   public Instant getExpiresAt() {

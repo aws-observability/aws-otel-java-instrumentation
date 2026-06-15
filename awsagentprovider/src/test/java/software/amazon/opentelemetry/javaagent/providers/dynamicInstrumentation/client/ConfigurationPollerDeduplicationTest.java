@@ -377,11 +377,6 @@ class ConfigurationPollerDeduplicationTest {
     apiConfig.put("LocationHash", locationHash);
     apiConfig.put("InstrumentationType", type);
     apiConfig.put("CaptureConfiguration", captureWrapper);
-
-    if ("PROBE".equals(type)) {
-      apiConfig.put("InstrumentationName", "test-probe");
-    }
-
     if (createdAt != null) {
       apiConfig.put("CreatedAt", createdAt.toString());
     }

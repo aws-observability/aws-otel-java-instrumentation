@@ -306,7 +306,6 @@ class DISnapshotOtlpEmitterTest {
 
     apiConfig.put("LocationHash", "hash123");
     apiConfig.put("InstrumentationType", instrumentationType);
-    apiConfig.put("InstrumentationName", "test-config");
 
     Map<String, Object> captureWrapper = new HashMap<>();
     captureWrapper.put("CodeCapture", Map.of());

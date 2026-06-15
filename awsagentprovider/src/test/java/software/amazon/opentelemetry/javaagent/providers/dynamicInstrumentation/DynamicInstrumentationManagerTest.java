@@ -164,7 +164,6 @@ class DynamicInstrumentationManagerTest {
     apiConfig.put("Location", locationWrapper);
     apiConfig.put("LocationHash", "test-hash");
     apiConfig.put("InstrumentationType", "PROBE");
-    apiConfig.put("InstrumentationName", "test-probe");
     java.util.Map<String, Object> captureWrapper = new java.util.HashMap<>();
     captureWrapper.put("CodeCapture", java.util.Map.of());
     apiConfig.put("CaptureConfiguration", captureWrapper);
@@ -293,7 +292,6 @@ class DynamicInstrumentationManagerTest {
     apiConfig.put("Location", locationWrapperInit);
     apiConfig.put("LocationHash", "hash-init");
     apiConfig.put("InstrumentationType", "BREAKPOINT");
-    apiConfig.put("InstrumentationName", "test-init");
     java.util.Map<String, Object> captureWrapperInit = new java.util.HashMap<>();
     captureWrapperInit.put("CodeCapture", java.util.Map.of());
     apiConfig.put("CaptureConfiguration", captureWrapperInit);
@@ -342,7 +340,6 @@ class DynamicInstrumentationManagerTest {
     apiConfig.put("Location", locationWrapperClinit);
     apiConfig.put("LocationHash", "hash-clinit");
     apiConfig.put("InstrumentationType", "BREAKPOINT");
-    apiConfig.put("InstrumentationName", "test-clinit");
     java.util.Map<String, Object> captureWrapperClinit = new java.util.HashMap<>();
     captureWrapperClinit.put("CodeCapture", java.util.Map.of());
     apiConfig.put("CaptureConfiguration", captureWrapperClinit);
@@ -391,7 +388,6 @@ class DynamicInstrumentationManagerTest {
     initConfig.put("Location", initLocationWrapper);
     initConfig.put("LocationHash", "hash-init");
     initConfig.put("InstrumentationType", "BREAKPOINT");
-    initConfig.put("InstrumentationName", "test-init");
     java.util.Map<String, Object> initCaptureWrapper = new java.util.HashMap<>();
     initCaptureWrapper.put("CodeCapture", java.util.Map.of());
     initConfig.put("CaptureConfiguration", initCaptureWrapper);
@@ -408,7 +404,6 @@ class DynamicInstrumentationManagerTest {
     normalConfig.put("Location", normalLocationWrapper);
     normalConfig.put("LocationHash", "hash-normal");
     normalConfig.put("InstrumentationType", "BREAKPOINT");
-    normalConfig.put("InstrumentationName", "test-normal");
     java.util.Map<String, Object> normalCaptureWrapper = new java.util.HashMap<>();
     normalCaptureWrapper.put("CodeCapture", java.util.Map.of());
     normalConfig.put("CaptureConfiguration", normalCaptureWrapper);
