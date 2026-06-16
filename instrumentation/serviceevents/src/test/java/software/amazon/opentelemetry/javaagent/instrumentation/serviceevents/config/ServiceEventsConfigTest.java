@@ -84,10 +84,10 @@ class ServiceEventsConfigTest {
   }
 
   @Test
-  void latencyThresholds_pipeDelimited_parsedAndTrimmed() {
+  void latencyThresholds_commaDelimited_parsedAndTrimmed() {
     System.setProperty(
         "otel.aws.service_events.latency.thresholds",
-        "  POST /api/checkout:500  |  GET /api/health:50  |  GET /api/reports:5000");
+        "  POST /api/checkout:500  ,  GET /api/health:50  ,  GET /api/reports:5000");
     ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
     List<String> entries = cfg.getLatencyThresholds();
     assertEquals(3, entries.size());
@@ -97,21 +97,26 @@ class ServiceEventsConfigTest {
   }
 
   @Test
-  void latencyThresholds_emptySegmentsBetweenPipes_skipped() {
+  void latencyThresholds_emptySegmentsBetweenCommas_skipped() {
     System.setProperty(
-        "otel.aws.service_events.latency.thresholds", "||POST /api/checkout:500||GET /ok:100||");
+        "otel.aws.service_events.latency.thresholds", ",,POST /api/checkout:500,,GET /ok:100,,");
     ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
     assertEquals(2, cfg.getLatencyThresholds().size());
   }
 
   @Test
-  void latencyThresholds_routeContainingComma_preservedByPipeDelimiter() {
+  void latencyThresholds_routeContainingComma_splitByCommaDelimiter() {
+    // Comma is the list separator (matching the Python and JS SDKs), so a route containing a
+    // literal comma is split across entries — it cannot be expressed verbatim. Use a glob
+    // (e.g. "GET /search*:750") to match such routes instead.
     System.setProperty(
-        "otel.aws.service_events.latency.thresholds", "GET /search?q=a,b,c:750|POST /orders:900");
+        "otel.aws.service_events.latency.thresholds", "GET /search?q=a,b,c:750,POST /orders:900");
     List<String> entries = ServiceEventsConfig.fromEnv().getLatencyThresholds();
-    assertEquals(2, entries.size());
-    assertEquals("GET /search?q=a,b,c:750", entries.get(0));
-    assertEquals("POST /orders:900", entries.get(1));
+    assertEquals(4, entries.size());
+    assertEquals("GET /search?q=a", entries.get(0));
+    assertEquals("b", entries.get(1));
+    assertEquals("c:750", entries.get(2));
+    assertEquals("POST /orders:900", entries.get(3));
   }
 
   @Test
