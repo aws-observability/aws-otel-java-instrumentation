@@ -24,12 +24,14 @@ import java.util.regex.Pattern;
 import software.amazon.opentelemetry.serviceevents.LatencyThresholdBridge;
 
 /**
- * Resolves per-endpoint latency thresholds from a pipe-delimited list of glob patterns.
+ * Resolves per-endpoint latency thresholds from a comma-separated list of glob patterns.
  *
  * <p>Each entry has the form {@code METHOD /route:threshold_ms}. The threshold is parsed from the
  * text after the LAST {@code :}, so routes may contain colons. The pattern part supports glob
  * wildcards {@code *} (zero or more chars) and {@code ?} (single char) on both the method and the
- * route; all other regex metacharacters are escaped.
+ * route; all other regex metacharacters are escaped. Because the list separator is a comma, a route
+ * containing a literal comma (e.g. {@code ?q=a,b,c}) cannot be expressed verbatim — use a glob such
+ * as {@code GET /search*} instead. This matches the comma delimiter used by the Python and JS SDKs.
  *
  * <p>Lookup matches {@code METHOD} (uppercased) + " " + {@code route} against the compiled patterns
  * in insertion order — first match wins. No match returns {@link Double#NaN}, signaling the caller

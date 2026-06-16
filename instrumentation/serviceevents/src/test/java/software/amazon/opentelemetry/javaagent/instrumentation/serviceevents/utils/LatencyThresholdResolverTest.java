@@ -67,8 +67,10 @@ class LatencyThresholdResolverTest {
 
   @Test
   void routeWithComma_parsesCorrectly() {
-    // Pipe is the outer delimiter in ServiceEventsConfig, so an entry with a comma reaches the
-    // resolver intact.
+    // The resolver receives already-split entries, so it parses a comma-bearing route fine on its
+    // own. Note that ServiceEventsConfig now splits the env var on commas, so such an entry can no
+    // longer be produced verbatim from configuration — a comma route must be matched with a glob
+    // (e.g. "GET /search*:750"). This test pins the resolver's own behavior in isolation.
     LatencyThresholdResolver r =
         new LatencyThresholdResolver(Collections.singletonList("GET /search?q=a,b,c:750"));
     assertEquals(750.0, r.resolveThresholdMs("GET", "/search?q=a,b,c"));

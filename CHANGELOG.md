@@ -22,6 +22,10 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1386](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1386))
 - Bump Netty to 4.1.135.Final to fix CVE-2026-45416 and CVE-2026-44249
   ([#1389](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1389))
+- ServiceEvents: parse `OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS` as a comma-separated list to
+  match the Python and JS SDKs (was pipe-separated). Routes containing a literal comma must now be
+  matched with a glob, e.g. `GET /search*:750`.
+  ([#1393](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1393))
 
 ## v2.28.1 - 2026-05-26
 
