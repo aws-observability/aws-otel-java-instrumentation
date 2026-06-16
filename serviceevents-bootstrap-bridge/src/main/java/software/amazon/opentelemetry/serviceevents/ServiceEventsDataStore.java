@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -128,13 +129,12 @@ public final class ServiceEventsDataStore {
   }
 
   // =========================================================================
-  // Adaptive Sampling (delegated to MethodAggregationStore)
+  // Function-Call Sampling (delegated to MethodAggregationStore)
   // =========================================================================
 
   /**
-   * Set the sampling mode for function-call records. Accepted values: {@code "auto"} (default,
-   * tiered), {@code "adaptive"} (tiered + hot-endpoint boost), {@code "always"}, {@code "never"}.
-   * Invalid values are silently ignored.
+   * Set the sampling mode for function-call records. Accepted values: {@code "always"} (default),
+   * {@code "auto"} (tiered cost cap), {@code "never"}. Invalid values are silently ignored.
    */
   public static void setSamplingMode(String mode) {
     MethodAggregationStore.setSamplingMode(mode);
@@ -149,30 +149,13 @@ public final class ServiceEventsDataStore {
   }
 
   /**
-   * Set the tiered-sampling thresholds and hot-endpoint cycle length. Non-positive values for any
+   * Set the tiered-sampling thresholds (used by {@code auto} mode). Non-positive values for any
    * parameter are silently ignored (current setting retained).
    */
   public static void setSamplingThresholds(
-      long tier1Threshold, long tier2Threshold, int tier2Rate, int tier3Rate, int hotCycles) {
+      long tier1Threshold, long tier2Threshold, int tier2Rate, int tier3Rate) {
     MethodAggregationStore.setSamplingThresholds(
-        tier1Threshold, tier2Threshold, tier2Rate, tier3Rate, hotCycles);
-  }
-
-  /**
-   * Mark an operation "hot" for adaptive-mode sampling. Subsequent function calls within this
-   * operation are 100% sampled for the next {@code HOT_ENDPOINT_CYCLES} flush cycles. Called after
-   * an incident is recorded against the operation.
-   */
-  public static void markOperationHot(String operation) {
-    MethodAggregationStore.markOperationHot(operation);
-  }
-
-  /**
-   * Decrement every hot-operation countdown by one. Called once per function-call collector flush
-   * cycle. Operations at zero are removed.
-   */
-  public static void tickHotOperations() {
-    MethodAggregationStore.tickHotOperations();
+        tier1Threshold, tier2Threshold, tier2Rate, tier3Rate);
   }
 
   // =========================================================================
@@ -202,6 +185,17 @@ public final class ServiceEventsDataStore {
   /** Thread-local investigation data for incident snapshots. */
   private static final ThreadLocal<InvestigationData> investigationData =
       new ThreadLocal<InvestigationData>();
+
+  /**
+   * Count of threads with an active investigation. The hoisted {@link #methodExit} records a
+   * call_path entry for EVERY instrumented call (not just sampled ones), which would otherwise pay
+   * a {@link ThreadLocal#get()} on the hottest path even when no incident investigation is in
+   * flight (the common case). This process-wide counter lets the hot path skip that lookup when no
+   * thread is investigating — mirroring the JS distro's {@code _investigationActiveCount} gate.
+   * Incremented only when {@link #beginInvestigation()} actually creates new data (so nested
+   * servlet dispatch doesn't double-count) and decremented on the matching clear/get.
+   */
+  private static final AtomicInteger investigationActiveCount = new AtomicInteger(0);
 
   /** Endpoint aggregation: endpointKey -> EndpointAggregation. */
   private static final AtomicReference<ConcurrentHashMap<String, EndpointAggregation>>
@@ -440,13 +434,28 @@ public final class ServiceEventsDataStore {
       stack.remove(stack.size() - 1);
     }
 
-    // Metrics/investigation are recorded for sampled calls only (unchanged behavior). The push/pop
-    // above already ran for every call, so skipping the rest here no longer corrupts the graph.
+    // durationNs is only meaningful for sampled calls (methodEnter records startTime only when
+    // sampled); unsampled calls carry 0. Computed up front so the investigation call_path entry
+    // below can record it regardless of sampling.
+    long durationNs = sampled ? System.nanoTime() - ctx[0] : 0L;
+
+    // Record the call_path entry for EVERY call, not just sampled ones — mirrors Python/JS, where
+    // the investigation call graph must survive in "never"/unsampled modes so incident snapshots
+    // still capture who-called-whom (durationNs is 0 for unsampled frames). Only the duration
+    // METRIC below is sampling-gated. The active-count check gates the ThreadLocal lookup so the
+    // common case (no investigation in flight) skips it on this hot path — same gate as JS.
+    if (investigationActiveCount.get() > 0) {
+      InvestigationData investigation = investigationData.get();
+      if (investigation != null) {
+        boolean error = exceptionType != null;
+        investigation.addEntry(functionId, caller, durationNs, error, false);
+      }
+    }
+
+    // The service.function.duration metric is recorded for sampled calls only (unchanged behavior).
     if (!sampled) {
       return;
     }
-
-    long durationNs = System.nanoTime() - ctx[0];
 
     String operation = currentOperation.get();
     if (operation == null) {
@@ -462,13 +471,6 @@ public final class ServiceEventsDataStore {
       // SEH pre-aggregation fallback, used only when the bridge failed to wire.
       MethodAggregationStore.recordMethodInvocation(
           operation, functionId, durationNs, caller, exceptionType);
-    }
-
-    // Record to investigation data (sampled calls only — unchanged).
-    InvestigationData investigation = investigationData.get();
-    if (investigation != null) {
-      boolean error = exceptionType != null;
-      investigation.addEntry(functionId, caller, durationNs, error, false);
     }
   }
 
@@ -721,9 +723,10 @@ public final class ServiceEventsDataStore {
    */
   public static boolean beginInvestigation() {
     if (investigationData.get() != null) {
-      return false; // nested servlet dispatch — outer request's call path wins
+      return false; // nested servlet dispatch — outer request's call path wins (no double-count)
     }
     investigationData.set(new InvestigationData());
+    investigationActiveCount.incrementAndGet();
     return true;
   }
 
@@ -758,12 +761,29 @@ public final class ServiceEventsDataStore {
   public static InvestigationData getAndClearInvestigationData() {
     InvestigationData investigation = investigationData.get();
     investigationData.remove();
+    if (investigation != null) {
+      decrementInvestigationCount();
+    }
     return investigation;
   }
 
   /** Clear investigation data without returning it. */
   public static void clearInvestigation() {
+    if (investigationData.get() != null) {
+      decrementInvestigationCount();
+    }
     investigationData.remove();
+  }
+
+  /**
+   * Decrement {@link #investigationActiveCount}, clamping at zero. Clamping keeps the counter from
+   * going negative if a clear is ever unbalanced (e.g. a clear with no prior begin on this thread).
+   * A spuriously-high count only costs an extra ThreadLocal lookup on the hot path (it degrades to
+   * the pre-guard behavior); a negative count would wrongly disable call_path capture, so we guard
+   * against that direction.
+   */
+  private static void decrementInvestigationCount() {
+    investigationActiveCount.updateAndGet(n -> n > 0 ? n - 1 : 0);
   }
 
   // =========================================================================
@@ -816,6 +836,7 @@ public final class ServiceEventsDataStore {
     currentOperation.remove();
     callStack.remove();
     investigationData.remove();
+    investigationActiveCount.set(0);
     IncidentRateLimiter.resetState();
   }
 }

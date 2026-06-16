@@ -214,7 +214,8 @@ public final class LiteIncidentDrainer extends BaseCollector implements Metadata
           exceptionMessage,
           stackTrace,
           traceId,
-          spanId);
+          spanId,
+          /* isPartial= */ false); // lite mode carries no call_path, so timing is never partial
     }
   }
 }

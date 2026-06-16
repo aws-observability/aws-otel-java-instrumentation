@@ -79,15 +79,14 @@ public class ServiceEventsConfig {
   private final int incidentSnapshotMaxPerMinute;
   private final int incidentSnapshotMaxSameError;
 
-  // Adaptive sampling for aws.service_events.function_call records (gates MethodAdvice hot path).
-  // Default mode is "adaptive": tiered sampling + 100% sampling on hot endpoints
-  // (those that recently incident-fired). Mirrors Python/JS sampling shape.
+  // Sampling for aws.service_events.function_call records (gates MethodAdvice hot path).
+  // Default mode is "always" (every call sampled); "auto" applies tiered sampling as a
+  // high-volume cost cap; "never" disables the duration metric. Mirrors Python/JS sampling shape.
   private final String samplingMode;
   private final int sampleTier1Threshold;
   private final int sampleTier2Threshold;
   private final int sampleTier2Rate;
   private final int sampleTier3Rate;
-  private final int hotEndpointCycles;
 
   // OTLP Export
   private final String logsEndpoint;
@@ -129,7 +128,6 @@ public class ServiceEventsConfig {
     this.sampleTier2Threshold = builder.sampleTier2Threshold;
     this.sampleTier2Rate = builder.sampleTier2Rate;
     this.sampleTier3Rate = builder.sampleTier3Rate;
-    this.hotEndpointCycles = builder.hotEndpointCycles;
     this.logsEndpoint = builder.logsEndpoint;
     this.metricsEndpoint = builder.metricsEndpoint;
     this.logGroup = builder.logGroup;
@@ -219,8 +217,8 @@ public class ServiceEventsConfig {
             .deploymentUrl(getStringEnv("OTEL_AWS_SERVICE_EVENTS_DEPLOYMENT_URL", ""))
             .gitCommitSha(getStringEnv("OTEL_AWS_SERVICE_EVENTS_GIT_COMMIT_SHA", ""))
             .gitRepoUrl(getStringEnv("OTEL_AWS_SERVICE_EVENTS_GIT_REPO_URL", ""))
-            // serviceCodeNamespace, deploymentEventFlushInterval, and hotEndpointCycles are
-            // internal with no override — Builder defaults stand.
+            // serviceCodeNamespace and deploymentEventFlushInterval are internal with no
+            // override — Builder defaults stand.
             .functionCallFlushInterval(hookInt(hook, "FUNCTION_CALL_FLUSH_INTERVAL", 30000))
             .endpointFlushInterval(hookInt(hook, "ENDPOINT_FLUSH_INTERVAL", 30000))
             .bytecodeEnabled(
@@ -246,7 +244,7 @@ public class ServiceEventsConfig {
                 getIntEnv("OTEL_AWS_SERVICE_EVENTS_INCIDENT_SNAPSHOT_MAX_PER_MINUTE", 100))
             .incidentSnapshotMaxSameError(
                 getIntEnv("OTEL_AWS_SERVICE_EVENTS_INCIDENT_SNAPSHOT_MAX_SAME_ERROR", 1))
-            .samplingMode(getStringEnv("OTEL_AWS_SERVICE_EVENTS_SAMPLING_MODE", "adaptive"))
+            .samplingMode(getStringEnv("OTEL_AWS_SERVICE_EVENTS_SAMPLING_MODE", "always"))
             .sampleTier1Threshold(hookInt(hook, "SAMPLE_TIER1_THRESHOLD", 100))
             .sampleTier2Threshold(hookInt(hook, "SAMPLE_TIER2_THRESHOLD", 1000))
             .sampleTier2Rate(hookInt(hook, "SAMPLE_TIER2_RATE", 10))
@@ -623,8 +621,8 @@ public class ServiceEventsConfig {
   }
 
   /**
-   * Adaptive-sampling mode for {@code aws.service_events.function_call} records: {@code "auto"},
-   * {@code "adaptive"} (default), {@code "always"}, or {@code "never"}. Only gates MethodAdvice;
+   * Sampling mode for {@code aws.service_events.function_call} records: {@code "always"} (default),
+   * {@code "auto"} (tiered cost cap), or {@code "never"}. Only gates MethodAdvice;
    * endpoint/incident signals are unaffected.
    */
   public String getSamplingMode() {
@@ -645,10 +643,6 @@ public class ServiceEventsConfig {
 
   public int getSampleTier3Rate() {
     return sampleTier3Rate;
-  }
-
-  public int getHotEndpointCycles() {
-    return hotEndpointCycles;
   }
 
   public String getLogsEndpoint() {
@@ -702,12 +696,11 @@ public class ServiceEventsConfig {
     private List<String> endpointExcludePatterns = new ArrayList<>();
     private int incidentSnapshotMaxPerMinute = 100;
     private int incidentSnapshotMaxSameError = 1;
-    private String samplingMode = "adaptive";
+    private String samplingMode = "always";
     private int sampleTier1Threshold = 100;
     private int sampleTier2Threshold = 1000;
     private int sampleTier2Rate = 10;
     private int sampleTier3Rate = 100;
-    private int hotEndpointCycles = 100;
     private String logsEndpoint = "http://localhost:4316/v1/logs";
     private String metricsEndpoint = "http://localhost:4316/v1/metrics";
     private String logGroup = "/serviceevents/telemetry";
@@ -844,11 +837,6 @@ public class ServiceEventsConfig {
     public Builder sampleTier3Rate(int sampleTier3Rate) {
       // Clamp to >= 1 — see sampleTier2Rate.
       this.sampleTier3Rate = Math.max(1, sampleTier3Rate);
-      return this;
-    }
-
-    public Builder hotEndpointCycles(int hotEndpointCycles) {
-      this.hotEndpointCycles = hotEndpointCycles;
       return this;
     }
 

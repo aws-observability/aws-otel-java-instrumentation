@@ -39,7 +39,6 @@ class ServiceEventsConfigTest {
     "otel.aws.service_events.sample.tier2.threshold",
     "otel.aws.service_events.sample.tier2.rate",
     "otel.aws.service_events.sample.tier3.rate",
-    "otel.aws.service_events.hot.endpoint.cycles",
     "otel.aws.service_events.function.call.flush.interval",
     "otel.aws.service_events.endpoint.flush.interval",
     "otel.aws.service_events.deployment.event.flush.interval",
@@ -417,12 +416,12 @@ class ServiceEventsConfigTest {
     assertEquals(100, cfg.getIncidentSnapshotMaxPerMinute());
   }
 
-  // ───── Adaptive sampling for function-call records ─────
+  // ───── Sampling mode for function-call records ─────
 
   @Test
-  void samplingMode_defaultIsAdaptive() {
+  void samplingMode_defaultIsAlways() {
     ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
-    assertEquals("adaptive", cfg.getSamplingMode());
+    assertEquals("always", cfg.getSamplingMode());
   }
 
   @Test
@@ -438,24 +437,21 @@ class ServiceEventsConfigTest {
     assertEquals(1000, cfg.getSampleTier2Threshold());
     assertEquals(10, cfg.getSampleTier2Rate());
     assertEquals(100, cfg.getSampleTier3Rate());
-    assertEquals(100, cfg.getHotEndpointCycles());
   }
 
   @Test
   void samplingThresholds_envIsIgnored() {
-    // Sampling tiers + hot-endpoint cycles are internal now — the former sysprops/env vars have
-    // no effect. (Tier thresholds/rates are reachable via the test-config hook; see below.)
+    // Sampling tiers are internal now — the former sysprops/env vars have no effect.
+    // (Tier thresholds/rates are reachable via the test-config hook; see below.)
     System.setProperty("otel.aws.service_events.sample.tier1.threshold", "50");
     System.setProperty("otel.aws.service_events.sample.tier2.threshold", "500");
     System.setProperty("otel.aws.service_events.sample.tier2.rate", "5");
     System.setProperty("otel.aws.service_events.sample.tier3.rate", "50");
-    System.setProperty("otel.aws.service_events.hot.endpoint.cycles", "20");
     ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
     assertEquals(100, cfg.getSampleTier1Threshold());
     assertEquals(1000, cfg.getSampleTier2Threshold());
     assertEquals(10, cfg.getSampleTier2Rate());
     assertEquals(100, cfg.getSampleTier3Rate());
-    assertEquals(100, cfg.getHotEndpointCycles());
   }
 
   // ───── Flush intervals + log group/stream are internal (no env override) ─────

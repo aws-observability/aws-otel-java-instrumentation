@@ -34,6 +34,14 @@ public class IncidentMetadata {
   public final String traceId;
   public final String spanId;
 
+  /**
+   * True when at least one captured call_path frame lacks timing (durationNs == 0) — i.e. an
+   * unsampled frame or the truncation sentinel. Computed from the call path (matches the Python/JS
+   * distros' {@code any(duration_ns == 0)} rule) rather than hardcoded, so a fully-timed snapshot
+   * (the {@code always}-mode default) correctly reports {@code false}.
+   */
+  public final boolean isPartial;
+
   public IncidentMetadata(
       String threadName,
       long startNs,
@@ -50,7 +58,8 @@ public class IncidentMetadata {
       String exceptionMessage,
       String stackTrace,
       String traceId,
-      String spanId) {
+      String spanId,
+      boolean isPartial) {
     this.threadName = threadName;
     this.startNs = startNs;
     this.endNs = endNs;
@@ -67,5 +76,6 @@ public class IncidentMetadata {
     this.stackTrace = stackTrace;
     this.traceId = traceId;
     this.spanId = spanId;
+    this.isPartial = isPartial;
   }
 }
