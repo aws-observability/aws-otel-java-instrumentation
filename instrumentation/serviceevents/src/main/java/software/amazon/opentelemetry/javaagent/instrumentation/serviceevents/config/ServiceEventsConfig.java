@@ -65,7 +65,7 @@ public class ServiceEventsConfig {
   private final List<String> packagesExclude;
   private final List<String> packagesInclude;
 
-  // Per-endpoint latency thresholds (pipe-delimited entries, each "METHOD /route:threshold_ms")
+  // Per-endpoint latency thresholds (comma-separated entries, each "METHOD /route:threshold_ms")
   private final List<String> latencyThresholds;
 
   // Endpoint filter glob patterns. Format: "METHOD /route" (e.g. "GET /api/*",
@@ -235,7 +235,7 @@ public class ServiceEventsConfig {
                     getListEnv("OTEL_AWS_SERVICE_EVENTS_PACKAGES_INCLUDE", new ArrayList<>()),
                     "OTEL_AWS_SERVICE_EVENTS_PACKAGES_INCLUDE"))
             .latencyThresholds(
-                getPipeListEnv("OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS", new ArrayList<>()))
+                getListEnv("OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS", new ArrayList<>()))
             .endpointIncludePatterns(
                 getListEnv("OTEL_AWS_SERVICE_EVENTS_ENDPOINT_INCLUDE_PATTERNS", new ArrayList<>()))
             .endpointExcludePatterns(
@@ -483,10 +483,6 @@ public class ServiceEventsConfig {
     return normalized;
   }
 
-  private static List<String> getPipeListEnv(String name, List<String> defaultValue) {
-    return getDelimitedListEnv(name, "\\|", defaultValue);
-  }
-
   private static List<String> getDelimitedListEnv(
       String name, String delimiterRegex, List<String> defaultValue) {
     String value = getConfigValue(name);
@@ -592,9 +588,11 @@ public class ServiceEventsConfig {
               "software.amazon.opentelemetry.di."));
 
   /**
-   * Raw pipe-delimited entries parsed from {@code OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS}. Each
-   * entry is of the form {@code METHOD /route:threshold_ms} (glob on method and route allowed;
-   * threshold parsed from the text after the last {@code :}). Empty by default.
+   * Raw comma-separated entries parsed from {@code OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS}.
+   * Each entry is of the form {@code METHOD /route:threshold_ms} (glob on method and route allowed;
+   * threshold parsed from the text after the last {@code :}). Empty by default. Matches the comma
+   * delimiter used by the Python and JS SDKs; routes containing literal commas (e.g. query strings
+   * like {@code ?q=a,b,c}) must be expressed with a glob (e.g. {@code GET /search*}).
    */
   public List<String> getLatencyThresholds() {
     return latencyThresholds;
