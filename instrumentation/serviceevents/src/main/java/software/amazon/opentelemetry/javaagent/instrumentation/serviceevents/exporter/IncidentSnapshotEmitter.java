@@ -69,7 +69,20 @@ public class IncidentSnapshotEmitter implements IncidentSnapshotEmitterBridge {
       String spanId,
       List<CallPathEntry> callPath) {
     try {
-      List<Map<String, Object>> serializedCallPath = serializeCallPath(callPath);
+      // is_partial: at least one frame lacks timing (unsampled frame or truncation sentinel,
+      // both durationNs == 0). Matches the Python/JS `any(duration_ns == 0)` rule; an empty
+      // call path is not partial. Used both to drive the strip below and the OTLP attribute.
+      boolean isPartial = false;
+      if (callPath != null) {
+        for (CallPathEntry entry : callPath) {
+          if (entry.durationNs == 0) {
+            isPartial = true;
+            break;
+          }
+        }
+      }
+
+      List<Map<String, Object>> serializedCallPath = serializeCallPath(callPath, isPartial);
 
       IncidentSnapshotRecordBuilder.Inputs inputs =
           new IncidentSnapshotRecordBuilder.Inputs(
@@ -90,24 +103,6 @@ public class IncidentSnapshotEmitter implements IncidentSnapshotEmitterBridge {
       long timestamp = System.currentTimeMillis();
       Map<String, Object> record = recordBuilder.build(inputs, serializedCallPath, timestamp);
 
-      // Adaptive sampling boost: mark this operation "hot" so subsequent
-      // function-call records inside it are 100%-sampled for the next
-      // hotEndpointCycles flush rounds. No-op when sampling mode != "adaptive".
-      //
-      // Placed AFTER recordBuilder.build() succeeds but BEFORE the emit:
-      //   - build/serializeCallPath failure → caught below, no hot-mark
-      //     (avoids "phantom incident" boost when no record was actually
-      //     produced).
-      //   - null otlpEmitter (file-export mode, test harness) → still
-      //     fires (the incident was successfully recorded locally).
-      //   - emit throws (network blip, serialization error in transport)
-      //     → still fires (rate-limit/dedup slot was consumed upstream;
-      //     in-process feedback loop should activate).
-      // Fired post-rate-limit/post-dedup so suppressed incidents don't mark
-      // hot — matches Python/JS placement.
-      software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.markOperationHot(
-          operation);
-
       if (otlpEmitter != null) {
         IncidentMetadata meta =
             new IncidentMetadata(
@@ -126,7 +121,8 @@ public class IncidentSnapshotEmitter implements IncidentSnapshotEmitterBridge {
                 exceptionMessage,
                 stackTrace,
                 traceId,
-                spanId);
+                spanId,
+                isPartial);
         otlpEmitter.emitIncidentSnapshot(record, meta);
       }
     } catch (Throwable t) {
@@ -134,7 +130,8 @@ public class IncidentSnapshotEmitter implements IncidentSnapshotEmitterBridge {
     }
   }
 
-  private static List<Map<String, Object>> serializeCallPath(List<CallPathEntry> callPath) {
+  private static List<Map<String, Object>> serializeCallPath(
+      List<CallPathEntry> callPath, boolean isPartial) {
     if (callPath == null || callPath.isEmpty()) {
       return new ArrayList<>();
     }
@@ -145,7 +142,12 @@ public class IncidentSnapshotEmitter implements IncidentSnapshotEmitterBridge {
       // ArrayDeque#push, which rejects null children.
       m.put("function_name", entry.functionId != null ? entry.functionId : "");
       m.put("caller_function_name", entry.caller != null ? entry.caller : "");
-      m.put("duration_ns", entry.durationNs);
+      // On a partial snapshot, omit the misleading zero durations (unsampled frames + the
+      // truncation sentinel) so only the genuine per-frame timings that WERE captured survive;
+      // a fully-timed snapshot keeps every duration. Mirrors the Python/JS to_dict strip.
+      if (!isPartial || entry.durationNs != 0) {
+        m.put("duration_ns", entry.durationNs);
+      }
       m.put("error", entry.error);
       m.put("is_async", entry.isAsync);
       out.add(m);

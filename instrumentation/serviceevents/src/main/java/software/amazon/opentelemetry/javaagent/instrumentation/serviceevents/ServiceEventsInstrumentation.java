@@ -175,22 +175,21 @@ public class ServiceEventsInstrumentation {
       // is no function call data to collect)
       FunctionCallCollector functionCallCollector = null;
       if (config.isBytecodeEnabled()) {
-        // Apply adaptive-sampling startup defaults from env BEFORE the collector
-        // begins ticking — ensures the very first flush already reflects the
-        // configured tier thresholds and hot-endpoint cycle length.
+        // Apply sampling startup defaults from env BEFORE the collector begins
+        // ticking — ensures the very first flush already reflects the configured
+        // mode and (for "auto") the tier thresholds.
         software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.setSamplingMode(
             config.getSamplingMode());
         software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.setSamplingThresholds(
             config.getSampleTier1Threshold(),
             config.getSampleTier2Threshold(),
             config.getSampleTier2Rate(),
-            config.getSampleTier3Rate(),
-            config.getHotEndpointCycles());
+            config.getSampleTier3Rate());
         // Read back the effective mode after setSamplingMode's internal
-        // validation. If the operator-supplied value was rejected (e.g.
-        // OTEL_AWS_SERVICE_EVENTS_SAMPLING_MODE=fast), the effective mode falls
-        // back to the prior default ("adaptive"); surfacing the mismatch
-        // here helps operators debug misconfiguration.
+        // validation. If the operator-supplied value was rejected (e.g. the
+        // removed "adaptive", or OTEL_AWS_SERVICE_EVENTS_SAMPLING_MODE=fast),
+        // the effective mode falls back to the default ("always"); surfacing the
+        // mismatch here helps operators debug misconfiguration.
         String requestedMode = config.getSamplingMode();
         String effectiveMode =
             software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.getSamplingMode();
@@ -200,7 +199,7 @@ public class ServiceEventsInstrumentation {
                 : effectiveMode + " (config requested '" + requestedMode + "', invalid)";
         logger()
             .info(
-                "Adaptive sampling: mode="
+                "ServiceEvents sampling: mode="
                     + modeReport
                     + ", tier1="
                     + config.getSampleTier1Threshold()
@@ -209,9 +208,7 @@ public class ServiceEventsInstrumentation {
                     + ", tier2Rate="
                     + config.getSampleTier2Rate()
                     + ", tier3Rate="
-                    + config.getSampleTier3Rate()
-                    + ", hotCycles="
-                    + config.getHotEndpointCycles());
+                    + config.getSampleTier3Rate());
 
         // Wire the OTel histogram bridge for direct in-line metric recording at
         // __exit__. Gated on `otlpEmitter != null && !output_file` (network OTLP

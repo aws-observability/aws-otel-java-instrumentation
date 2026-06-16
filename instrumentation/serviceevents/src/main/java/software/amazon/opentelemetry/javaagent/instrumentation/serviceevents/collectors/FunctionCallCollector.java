@@ -97,13 +97,6 @@ public class FunctionCallCollector extends BaseCollector {
     Map<String, Map<String, AggregationData>> aggregations =
         ServiceEventsDataStore.getAndSwapAggregations();
 
-    // Adaptive-sampling lifecycle: decrement every hot-operation countdown by
-    // one. Operations recently incident-marked stay 100%-sampled for
-    // hotEndpointCycles flushes; this is the only place countdowns advance.
-    // Run unconditionally — cheap (CHM iteration over typically empty map),
-    // and a no-op when sampling mode != "adaptive" or no incidents have fired.
-    ServiceEventsDataStore.tickHotOperations();
-
     if (aggregations == null || aggregations.isEmpty()) {
       // Either no function call captured, or methodExit is recording into the
       // OTel histogram bridge directly (in which case the
