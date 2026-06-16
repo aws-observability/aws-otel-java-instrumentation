@@ -164,8 +164,9 @@ public abstract class ServiceEventsContractTestBase {
     env.put("OTEL_AWS_SERVICE_EVENTS_INCIDENT_SNAPSHOT_DURATION_THRESHOLD_MS", "30000");
     // Per-endpoint override: trigger a latency incident when /slow-success exceeds 500ms.
     // The trailing "bad-entry:notanumber" malformed segment exercises the skip-and-log path.
+    // Entries are comma-separated (matching the Python and JS SDKs).
     env.put(
-        "OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS", "GET /slow-success:500|bad-entry:notanumber");
+        "OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS", "GET /slow-success:500,bad-entry:notanumber");
     env.put(
         "OTEL_AWS_SERVICE_EVENTS_PACKAGES_INCLUDE",
         "software.amazon.opentelemetry.appsignals.tests.images.serviceevents");
