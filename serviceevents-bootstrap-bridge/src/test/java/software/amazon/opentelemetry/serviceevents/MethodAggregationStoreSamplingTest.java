@@ -17,23 +17,28 @@ package software.amazon.opentelemetry.serviceevents;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests adaptive sampling: mode dispatch, tier thresholds, hot-operation lifecycle. Mirrors
- * Python/JS sampling semantics (see python_monitor_impl.py and serviceevents-monitor.ts).
+ * Tests ServiceEvents sampling: mode dispatch (always/auto/never), tier thresholds, and the
+ * never-mode call_path capture. Mirrors Python/JS sampling semantics (see python_monitor_impl.py
+ * and serviceevents-monitor.ts).
  */
 class MethodAggregationStoreSamplingTest {
 
   @BeforeEach
   @AfterEach
   void resetState() {
-    MethodAggregationStore.resetState();
-    ServiceEventsDataStore.setCurrentOperation(null);
+    // Full reset: clears sampling config, counters, call stack, and investigation data so the
+    // never-mode call_path tests below start from a clean thread-local state.
+    ServiceEventsDataStore.resetState();
   }
 
   // ───── Mode dispatch ─────────────────────────────────────────────────
@@ -56,11 +61,14 @@ class MethodAggregationStoreSamplingTest {
 
   @Test
   void mode_invalidValue_silentlyIgnored() {
-    // Default is "adaptive"; invalid mode shouldn't change it.
+    // Default is "always"; invalid modes leave it unchanged. The removed "adaptive" mode is now
+    // just another invalid value — this doubles as the hard-removal regression check.
     ServiceEventsDataStore.setSamplingMode("BOGUS");
-    assertEquals("adaptive", MethodAggregationStore.samplingMode);
+    assertEquals("always", MethodAggregationStore.samplingMode);
+    ServiceEventsDataStore.setSamplingMode("adaptive");
+    assertEquals("always", MethodAggregationStore.samplingMode);
     ServiceEventsDataStore.setSamplingMode(null);
-    assertEquals("adaptive", MethodAggregationStore.samplingMode);
+    assertEquals("always", MethodAggregationStore.samplingMode);
   }
 
   @Test
@@ -69,7 +77,7 @@ class MethodAggregationStoreSamplingTest {
     assertTrue(MethodAggregationStore.shouldSample(99_999));
   }
 
-  // ───── Tiered sampling (auto + adaptive when not hot) ────────────────
+  // ───── Tiered sampling (auto mode) ───────────────────────────────────
 
   @Test
   void auto_tier1_belowThresholdAlwaysSampled() {
@@ -103,92 +111,134 @@ class MethodAggregationStoreSamplingTest {
   @Test
   void thresholds_setterUpdatesTiers() {
     ServiceEventsDataStore.setSamplingMode("auto");
-    ServiceEventsDataStore.setSamplingThresholds(5, 20, 4, 50, 7);
+    ServiceEventsDataStore.setSamplingThresholds(5, 20, 4, 50);
     assertTrue(MethodAggregationStore.shouldSample(5)); // tier1
     assertFalse(MethodAggregationStore.shouldSample(6)); // tier2 first call
     assertTrue(MethodAggregationStore.shouldSample(8)); // tier2: 8 % 4 == 0
-    assertEquals(7, MethodAggregationStore.hotEndpointCycles);
   }
 
   @Test
   void thresholds_nonPositiveIgnored() {
     int origTier1 = (int) MethodAggregationStore.sampleTier1Threshold;
-    ServiceEventsDataStore.setSamplingThresholds(0, -1, 0, 0, -5);
+    ServiceEventsDataStore.setSamplingThresholds(0, -1, 0, 0);
     assertEquals(origTier1, (int) MethodAggregationStore.sampleTier1Threshold);
   }
 
-  // ───── Adaptive mode + hot-operation lifecycle ───────────────────────
-
   @Test
-  void adaptive_hotOperation_samplesEvenInTier3() {
-    ServiceEventsDataStore.setSamplingMode("adaptive");
-    ServiceEventsDataStore.markOperationHot("GET /api/checkout");
-    ServiceEventsDataStore.setCurrentOperation("GET /api/checkout");
+  void auto_zeroRate_samplesNoneInThatTierWithoutCrashing() {
+    // The public setter rejects non-positive rates, but the internal test-config hook (and direct
+    // field writes) don't validate, so shouldSample must not divide by zero. A zero rate degrades
+    // to "sample none in this tier" — mirrors Python/JS, which guard the modulo the same way.
+    ServiceEventsDataStore.setSamplingMode("auto");
+    MethodAggregationStore.sampleTier2Rate = 0;
+    MethodAggregationStore.sampleTier3Rate = 0;
 
-    // Tier3 territory — would normally only sample 1 in 100.
-    assertTrue(MethodAggregationStore.shouldSample(1101));
-    assertTrue(MethodAggregationStore.shouldSample(50_000));
+    // tier1 still samples everything up to its threshold (unaffected by the rates).
+    assertTrue(MethodAggregationStore.shouldSample(1));
+    // tier2 (100 < n <= 1000) and tier3 (n > 1000): zero rate → no crash, sample none.
+    assertFalse(MethodAggregationStore.shouldSample(500));
+    assertFalse(MethodAggregationStore.shouldSample(5000));
   }
 
-  @Test
-  void adaptive_coldOperation_fallsBackToTieredSampling() {
-    ServiceEventsDataStore.setSamplingMode("adaptive");
-    ServiceEventsDataStore.setCurrentOperation("GET /api/cold");
-    // No markOperationHot — should follow tier rules.
-    assertTrue(MethodAggregationStore.shouldSample(50)); // tier1
-    assertFalse(MethodAggregationStore.shouldSample(111)); // tier2 not on rate
-  }
+  // ───── never-mode call_path capture (Python/JS parity) ───────────────
 
   @Test
-  void hotOperation_tickDecrements() {
-    ServiceEventsDataStore.setSamplingMode("adaptive");
-    // Set thresholds BEFORE marking hot — markOperationHot snapshots the
-    // current hotEndpointCycles into the operation's countdown.
-    ServiceEventsDataStore.setSamplingThresholds(100, 1000, 10, 100, 3); // 3 cycles
-    ServiceEventsDataStore.markOperationHot("GET /api/op");
+  void never_recordsCallPathWithZeroDuration() {
+    ServiceEventsDataStore.setSamplingMode("never");
+    ServiceEventsDataStore.beginInvestigation();
     ServiceEventsDataStore.setCurrentOperation("GET /api/op");
 
-    // Pick a callCount in tier3 that's NOT a tier3-rate hit (1101 % 100 != 0)
-    // so a "true" result can only come from the hot-operation boost.
-    long off = 1101;
+    // A single instrumented call under "never": no duration metric is recorded, but the call_path
+    // entry must still be captured (durationNs == 0) so incident snapshots retain who-called-whom.
+    Object ctx = ServiceEventsDataStore.methodEnter("com.example.Svc.handle");
+    ServiceEventsDataStore.methodExit("com.example.Svc.handle", ctx, null);
 
-    // Cycle 0: hot.
-    assertTrue(MethodAggregationStore.shouldSample(off));
-    ServiceEventsDataStore.tickHotOperations();
-    // Cycle 1: still hot (countdown was 3, now 2).
-    assertTrue(MethodAggregationStore.shouldSample(off));
-    ServiceEventsDataStore.tickHotOperations();
-    // Cycle 2: still hot (countdown 1).
-    assertTrue(MethodAggregationStore.shouldSample(off));
-    ServiceEventsDataStore.tickHotOperations();
-    // Cycle 3: cold (countdown reached 0, removed) — falls back to tier rules,
-    // and 1101 is not on the tier3 rate.
-    assertFalse(MethodAggregationStore.shouldSample(off));
+    InvestigationData inv = ServiceEventsDataStore.peekInvestigationData();
+    assertNotNull(inv);
+    List<CallPathEntry> path = inv.getCallPath();
+    assertEquals(1, path.size());
+    CallPathEntry entry = path.get(0);
+    assertEquals("com.example.Svc.handle", entry.functionId);
+    assertNull(entry.caller);
+    assertEquals(0L, entry.durationNs);
+    assertFalse(entry.error);
+
+    // The duration metric path is sampling-gated, so the aggregation map stays empty under "never".
+    assertNull(MethodAggregationStore.getAndSwapAggregations());
   }
 
   @Test
-  void hotOperation_remarkResetsCountdown() {
-    ServiceEventsDataStore.setSamplingMode("adaptive");
-    // Set thresholds BEFORE marking hot.
-    ServiceEventsDataStore.setSamplingThresholds(100, 1000, 10, 100, 2);
-    ServiceEventsDataStore.markOperationHot("GET /api/op");
+  void never_nestedCallsPreserveCallerAttribution() {
+    ServiceEventsDataStore.setSamplingMode("never");
+    ServiceEventsDataStore.beginInvestigation();
     ServiceEventsDataStore.setCurrentOperation("GET /api/op");
 
-    long off = 5001; // tier3, not on rate (5001 % 100 != 0)
-    ServiceEventsDataStore.tickHotOperations(); // 1 left
-    ServiceEventsDataStore.markOperationHot("GET /api/op"); // back to 2
-    ServiceEventsDataStore.tickHotOperations(); // 1
-    assertTrue(MethodAggregationStore.shouldSample(off));
+    // A -> B, both unsampled. The call stack is still maintained for every frame, so B resolves its
+    // caller to A even though neither call produced a duration metric.
+    Object ctxA = ServiceEventsDataStore.methodEnter("A");
+    Object ctxB = ServiceEventsDataStore.methodEnter("B");
+    ServiceEventsDataStore.methodExit("B", ctxB, null);
+    ServiceEventsDataStore.methodExit("A", ctxA, null);
+
+    List<CallPathEntry> path = ServiceEventsDataStore.peekInvestigationData().getCallPath();
+    assertEquals(2, path.size());
+    // B exits first (caller A), then A (no caller).
+    assertEquals("B", path.get(0).functionId);
+    assertEquals("A", path.get(0).caller);
+    assertEquals(0L, path.get(0).durationNs);
+    assertEquals("A", path.get(1).functionId);
+    assertNull(path.get(1).caller);
   }
 
   @Test
-  void markOperationHot_nullOrEmpty_isNoop() {
-    ServiceEventsDataStore.markOperationHot(null);
-    ServiceEventsDataStore.markOperationHot("");
-    ServiceEventsDataStore.setSamplingMode("adaptive");
+  void never_errorEntryFlaggedInCallPath() {
+    ServiceEventsDataStore.setSamplingMode("never");
+    ServiceEventsDataStore.beginInvestigation();
     ServiceEventsDataStore.setCurrentOperation("GET /api/op");
-    // Pick a tier3 callCount that's NOT on the rate so a hot-boost could be
-    // distinguished from a regular tier3 hit (1501 % 100 != 0).
-    assertFalse(MethodAggregationStore.shouldSample(1501));
+
+    // An exception on an unsampled call still flags the call_path entry as an error.
+    Object ctx = ServiceEventsDataStore.methodEnter("com.example.Svc.boom");
+    ServiceEventsDataStore.methodExit("com.example.Svc.boom", ctx, "java.lang.RuntimeException");
+
+    List<CallPathEntry> path = ServiceEventsDataStore.peekInvestigationData().getCallPath();
+    assertEquals(1, path.size());
+    assertTrue(path.get(0).error);
+    assertEquals(0L, path.get(0).durationNs);
+  }
+
+  // ───── active-count gate on the methodExit call_path lookup (JS parity) ──
+
+  @Test
+  void noInvestigation_methodExitDoesNotCaptureCallPath() {
+    // With no beginInvestigation(), the active-count gate keeps methodExit from recording anything.
+    // (beginInvestigation also short-circuits on a null ThreadLocal, but the gate is what lets the
+    // hot path skip the ThreadLocal lookup entirely — this asserts the no-capture behavior.)
+    ServiceEventsDataStore.setSamplingMode("always");
+    ServiceEventsDataStore.setCurrentOperation("GET /api/op");
+
+    Object ctx = ServiceEventsDataStore.methodEnter("com.example.Svc.handle");
+    ServiceEventsDataStore.methodExit("com.example.Svc.handle", ctx, null);
+
+    assertNull(ServiceEventsDataStore.peekInvestigationData());
+  }
+
+  @Test
+  void investigationClearedMidFlight_subsequentCallsDoNotCapture() {
+    // After the investigation is cleared, the active-count returns to zero, so a stray instrumented
+    // call exiting on the same thread (e.g. cleanup code) records nothing — no resurrected data.
+    ServiceEventsDataStore.setSamplingMode("always");
+    ServiceEventsDataStore.beginInvestigation();
+    ServiceEventsDataStore.setCurrentOperation("GET /api/op");
+
+    Object ctx1 = ServiceEventsDataStore.methodEnter("com.example.Svc.handle");
+    ServiceEventsDataStore.methodExit("com.example.Svc.handle", ctx1, null);
+    assertEquals(1, ServiceEventsDataStore.peekInvestigationData().getCallPath().size());
+
+    ServiceEventsDataStore.clearInvestigation();
+
+    // A late call after clear must not re-create or append to investigation data.
+    Object ctx2 = ServiceEventsDataStore.methodEnter("com.example.Svc.cleanup");
+    ServiceEventsDataStore.methodExit("com.example.Svc.cleanup", ctx2, null);
+    assertNull(ServiceEventsDataStore.peekInvestigationData());
   }
 }

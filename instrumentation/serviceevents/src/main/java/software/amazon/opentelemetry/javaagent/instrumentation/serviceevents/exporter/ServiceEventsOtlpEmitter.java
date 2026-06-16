@@ -312,7 +312,7 @@ public class ServiceEventsOtlpEmitter {
     attrs.put("aws.service_events.trigger_type", incident.triggerType);
     attrs.put("aws.service_events.operation", incident.operation);
     attrs.put("aws.service_events.duration_ms", incident.durationMs);
-    attrs.put("aws.service_events.is_partial", true);
+    attrs.put("aws.service_events.is_partial", incident.isPartial);
     attrs.put("http.request.method", incident.method);
     attrs.put("url.route", incident.route);
     attrs.put("http.response.status_code", (long) incident.statusCode);

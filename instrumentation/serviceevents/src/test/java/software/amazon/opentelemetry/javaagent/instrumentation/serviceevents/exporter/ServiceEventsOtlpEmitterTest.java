@@ -228,7 +228,8 @@ class ServiceEventsOtlpEmitterTest {
             "null reference", // exceptionMessage
             "at com.example.Foo.bar(Foo.java:42)", // stackTrace
             "0af7651916cd43dd8448eb211c80319c", // traceId
-            "b7ad6b7169203331"); // spanId
+            "b7ad6b7169203331", // spanId
+            true); // isPartial
 
     emitter.emitIncidentSnapshot(record, incident);
 
@@ -247,6 +248,8 @@ class ServiceEventsOtlpEmitterTest {
     assertEquals("exception", attrs.get(AttributeKey.stringKey("aws.service_events.trigger_type")));
     assertEquals(
         "GET /api/data", attrs.get(AttributeKey.stringKey("aws.service_events.operation")));
+    // is_partial now reflects the IncidentMetadata flag (passed true above) rather than a
+    // hardcoded constant — a fully-timed snapshot would report false.
     assertEquals(true, attrs.get(AttributeKey.booleanKey("aws.service_events.is_partial")));
     assertEquals("GET", attrs.get(AttributeKey.stringKey("http.request.method")));
     assertEquals("/api/data", attrs.get(AttributeKey.stringKey("url.route")));
@@ -285,7 +288,8 @@ class ServiceEventsOtlpEmitterTest {
             null,
             null,
             null,
-            null);
+            null,
+            false); // isPartial
 
     emitter.emitIncidentSnapshot(record, incident);
 
