@@ -24,6 +24,14 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+// This bridge is loaded by the bootstrap classloader and must run on Java 8+. source/target
+// compatibility only controls the bytecode version, not the API surface — pin the release flag so a
+// Java 9+ JDK API reference (e.g. ProcessHandle, String.repeat) fails the build instead of throwing
+// NoClassDefFoundError/NoSuchMethodError at runtime on Java 8.
+tasks.named<JavaCompile>("compileJava") {
+  options.release.set(8)
+}
+
 // This module should have NO dependencies - it goes into bootstrap classloader
 dependencies {
   // No dependencies allowed!
