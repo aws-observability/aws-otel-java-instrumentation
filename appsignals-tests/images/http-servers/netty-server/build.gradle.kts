@@ -27,7 +27,7 @@ java {
 }
 
 dependencies {
-  implementation("io.netty:netty-all:4.1.94.Final")
+  implementation("io.netty:netty-all:4.1.135.Final")
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("org.slf4j:slf4j-simple:1.7.30")
   implementation("io.opentelemetry:opentelemetry-api")

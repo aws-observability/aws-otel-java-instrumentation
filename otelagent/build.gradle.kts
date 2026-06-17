@@ -42,6 +42,16 @@ val javaagentLibs by configurations.creating {
   exclude("io.opentelemetry", "opentelemetry-sdk-common")
   exclude("io.opentelemetry.semconv", "opentelemetry-semconv")
   exclude("io.opentelemetry", "opentelemetry-api-incubator")
+
+  // Dynamic Instrumentation (in :awsagentprovider) declares org.ow2.asm:asm for its line-level
+  // instrumentation transformer. We must NOT bundle that copy: it lands at inst/org/objectweb/asm
+  // and collides with the ASM the upstream OpenTelemetry javaagent already ships there. The pulled
+  // version (9.7) only understands class-file versions up to Java 24 (v68), so on Java 25 (v69) its
+  // ClassReader throws "Unsupported class file major version 69" for EVERY class ByteBuddy tries to
+  // match — silently disabling ALL instrumentation (no spans/metrics). Excluding it makes DI's
+  // plain `org.objectweb.asm.*` references resolve to the agent's own (newer, v69-capable) ASM,
+  // which lives in the same inst/org/objectweb/asm namespace.
+  exclude("org.ow2.asm")
 }
 
 val shadowClasspath by configurations.creating {
@@ -50,6 +60,12 @@ val shadowClasspath by configurations.creating {
   attributes {
     attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))
   }
+}
+
+// Bootstrap bridge JARs to be embedded at the root of the agent JAR (bootstrap classpath).
+val bootstrapBridge by configurations.creating {
+  isCanBeResolved = true
+  isCanBeConsumed = false
 }
 
 dependencies {
@@ -63,6 +79,11 @@ dependencies {
   javaagentLibs(project(":instrumentation:aws-sdk"))
   javaagentLibs(project(":instrumentation:logback-1.0"))
   javaagentLibs(project(":instrumentation:jmx-metrics"))
+  javaagentLibs(project(":instrumentation:serviceevents"))
+
+  // Bootstrap bridges for cross-classloader support.
+  bootstrapBridge(project(":di-bootstrap-bridge"))
+  bootstrapBridge(project(":serviceevents-bootstrap-bridge"))
 }
 
 tasks {
@@ -76,12 +97,29 @@ tasks {
 
   val shadowJar by existing(ShadowJar::class) {
     dependsOn(relocateJavaagentLibs)
+    dependsOn(":di-bootstrap-bridge:jar")
+    dependsOn(":serviceevents-bootstrap-bridge:jar")
 
     archiveClassifier.set("")
 
     configurations = listOf(shadowClasspath)
 
     isolateClasses(relocateJavaagentLibs.get().outputs.files)
+
+    // Embed the bootstrap-bridge classes at the ROOT of the agent JAR (not under inst/) so they are
+    // on the bootstrap classpath and visible to all classloaders. AwsAgentBootstrap appends the
+    // agent JAR to the bootstrap classloader search at premain, which is what makes them resolvable
+    // from ByteBuddy advice (application classloader) and the collectors (agent classloader).
+    val diBridgeJarTask = project(":di-bootstrap-bridge").tasks.named<Jar>("jar")
+    from(zipTree(diBridgeJarTask.map { it.archiveFile })) {
+      include("**/*.class")
+      exclude("META-INF/**")
+    }
+    val serviceeventsBridgeJarTask = project(":serviceevents-bootstrap-bridge").tasks.named<Jar>("jar")
+    from(zipTree(serviceeventsBridgeJarTask.map { it.archiveFile })) {
+      include("**/*.class")
+      exclude("META-INF/**")
+    }
 
     exclude("**/module-info.class")
 

@@ -86,9 +86,11 @@ public class Main {
   public static void main(String[] args) {
     var traceCollector = new MockCollectorTraceService();
     var metricsCollector = new MockCollectorMetricsService();
+    var logsCollector = new MockCollectorLogsService();
     var server =
         Server.builder()
             .http(4317)
+            .maxRequestLength(0)
             .service(
                 GrpcService.builder()
                     .addService(traceCollector)
@@ -99,6 +101,7 @@ public class Main {
                 (ctx, req) -> {
                   traceCollector.clearRequests();
                   metricsCollector.clearRequests();
+                  logsCollector.clearRequests();
                   return HttpResponse.of(HttpStatus.OK);
                 })
             .service(
@@ -119,8 +122,18 @@ public class Main {
                   return HttpResponse.of(
                       HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
                 })
+            .service(
+                "/get-logs",
+                (ctx, req) -> {
+                  var requests = logsCollector.getRequests();
+                  var buf = new ByteBufOutputStream(ctx.alloc().buffer());
+                  OBJECT_MAPPER.writeValue((OutputStream) buf, requests);
+                  return HttpResponse.of(
+                      HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
+                })
             .service("/health", HealthCheckService.of())
             .annotatedService(metricsCollector.HTTP_INSTANCE)
+            .annotatedService(logsCollector.HTTP_INSTANCE)
             .build();
 
     server.start().join();
