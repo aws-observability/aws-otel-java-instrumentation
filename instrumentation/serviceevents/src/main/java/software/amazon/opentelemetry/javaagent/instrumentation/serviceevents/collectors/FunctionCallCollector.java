@@ -29,6 +29,7 @@ import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exp
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.models.CloudWatchMetadata;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.models.DurationMetrics;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.models.FunctionCallMetrics;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProcessUtils;
 import software.amazon.opentelemetry.serviceevents.AggregationData;
 import software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore;
 
@@ -87,7 +88,7 @@ public class FunctionCallCollector extends BaseCollector {
     this.deploymentUrl = deploymentUrl != null ? deploymentUrl : "";
     this.gitCommitSha = gitCommitSha != null ? gitCommitSha : "";
     this.gitRepoUrl = gitRepoUrl != null ? gitRepoUrl : "";
-    this.pid = ProcessHandle.current().pid();
+    this.pid = ProcessUtils.currentPid();
     this.objectMapper = new ObjectMapper();
   }
 
@@ -203,9 +204,9 @@ public class FunctionCallCollector extends BaseCollector {
   }
 
   private void exportToConsole(List<FunctionCallMetrics> events) {
-    System.out.println("\n" + "=".repeat(80));
+    System.out.println("\n" + ProcessUtils.repeat("=", 80));
     System.out.println("SERVICE_EVENTS FUNCTION CALL TELEMETRY (EMF FORMAT)");
-    System.out.println("=".repeat(80));
+    System.out.println(ProcessUtils.repeat("=", 80));
 
     for (FunctionCallMetrics event : events) {
       try {
@@ -216,6 +217,6 @@ public class FunctionCallCollector extends BaseCollector {
       }
     }
 
-    System.out.println("\n" + "=".repeat(80) + "\n");
+    System.out.println("\n" + ProcessUtils.repeat("=", 80) + "\n");
   }
 }

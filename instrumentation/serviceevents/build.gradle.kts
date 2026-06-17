@@ -20,6 +20,14 @@ plugins {
 
 base.archivesBaseName = "aws-instrumentation-serviceevents"
 
+// ServiceEvents runs on Java 8+. The root build only sets source/targetCompatibility = 8, which
+// controls the emitted bytecode version but NOT the API surface — Java 9+ JDK API references (e.g.
+// ProcessHandle) compile fine and then throw NoClassDefFoundError at runtime on Java 8, aborting the
+// whole agent. Pinning the release flag makes the compiler reject Java 9+ JDK APIs at build time.
+tasks.named<JavaCompile>("compileJava") {
+  options.release.set(8)
+}
+
 dependencies {
   // Bootstrap bridge for cross-classloader communication (compile-only since it's loaded via bootstrap)
   compileOnly(project(":serviceevents-bootstrap-bridge"))

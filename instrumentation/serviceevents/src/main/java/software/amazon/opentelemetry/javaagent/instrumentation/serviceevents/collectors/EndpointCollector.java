@@ -34,6 +34,7 @@ import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.mod
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.models.EndpointMetricEvent.ErrorDetail;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.models.ExceptionMetricEvent;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.EndpointIdGenerator;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProcessUtils;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.SehHistogram;
 import software.amazon.opentelemetry.serviceevents.EndpointAggregation;
 import software.amazon.opentelemetry.serviceevents.EndpointErrorData;
@@ -101,7 +102,7 @@ public class EndpointCollector extends BaseCollector {
     this.deploymentUrl = deploymentUrl != null ? deploymentUrl : "";
     this.gitCommitSha = gitCommitSha != null ? gitCommitSha : "";
     this.gitRepoUrl = gitRepoUrl != null ? gitRepoUrl : "";
-    this.pid = ProcessHandle.current().pid();
+    this.pid = ProcessUtils.currentPid();
     this.objectMapper = new ObjectMapper();
     this.suppressEndpointSummary = suppressEndpointSummary;
   }
@@ -299,9 +300,9 @@ public class EndpointCollector extends BaseCollector {
   }
 
   private void exportToConsole(List<EndpointMetricEvent> events) {
-    System.out.println("\n" + "=".repeat(80));
+    System.out.println("\n" + ProcessUtils.repeat("=", 80));
     System.out.println("SERVICE_EVENTS ENDPOINT TELEMETRY");
-    System.out.println("=".repeat(80));
+    System.out.println(ProcessUtils.repeat("=", 80));
 
     for (EndpointMetricEvent event : events) {
       try {
@@ -312,13 +313,13 @@ public class EndpointCollector extends BaseCollector {
       }
     }
 
-    System.out.println("\n" + "=".repeat(80) + "\n");
+    System.out.println("\n" + ProcessUtils.repeat("=", 80) + "\n");
   }
 
   private void exportExceptionMetricsToConsole(List<ExceptionMetricEvent> events) {
-    System.out.println("\n" + "=".repeat(80));
+    System.out.println("\n" + ProcessUtils.repeat("=", 80));
     System.out.println("SERVICE_EVENTS EXCEPTION EMF METRICS");
-    System.out.println("=".repeat(80));
+    System.out.println(ProcessUtils.repeat("=", 80));
 
     for (ExceptionMetricEvent event : events) {
       try {
@@ -329,7 +330,7 @@ public class EndpointCollector extends BaseCollector {
       }
     }
 
-    System.out.println("\n" + "=".repeat(80) + "\n");
+    System.out.println("\n" + ProcessUtils.repeat("=", 80) + "\n");
   }
 
   /** Error info container. */

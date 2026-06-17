@@ -341,7 +341,8 @@ public class ServiceEventsInstrumentation {
                   config.getDeploymentUrl(),
                   config.getGitCommitSha(),
                   config.getGitRepoUrl(),
-                  ProcessHandle.current().pid());
+                  software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
+                      .ProcessUtils.currentPid());
 
       // Apply incident-snapshot rate-limit startup defaults from env. Applied for any mode
       // that emits IncidentSnapshots (bytecode + lite). The rate-limit window is fixed at 1 minute.
