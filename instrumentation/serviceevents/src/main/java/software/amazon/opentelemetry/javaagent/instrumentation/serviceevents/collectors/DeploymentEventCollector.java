@@ -27,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsOtlpEmitter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.models.DeploymentEvent;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProcessUtils;
 
 /**
  * Collector for deployment event telemetry.
@@ -89,7 +90,7 @@ public class DeploymentEventCollector extends BaseCollector {
     this.deploymentUrl = deploymentUrl != null ? deploymentUrl : "";
     this.gitCommitSha = gitCommitSha != null ? gitCommitSha : "";
     this.gitRepoUrl = gitRepoUrl != null ? gitRepoUrl : "";
-    this.pid = ProcessHandle.current().pid();
+    this.pid = ProcessUtils.currentPid();
     this.sdkVersion = loadSdkVersion();
     this.objectMapper = new ObjectMapper();
   }
@@ -130,9 +131,9 @@ public class DeploymentEventCollector extends BaseCollector {
   }
 
   private void exportToConsole(DeploymentEvent event) {
-    System.out.println("\n" + "=".repeat(80));
+    System.out.println("\n" + ProcessUtils.repeat("=", 80));
     System.out.println("SERVICE_EVENTS DEPLOYMENT EVENT TELEMETRY");
-    System.out.println("=".repeat(80));
+    System.out.println(ProcessUtils.repeat("=", 80));
 
     try {
       String json = objectMapper.writeValueAsString(event.toMap());
@@ -141,7 +142,7 @@ public class DeploymentEventCollector extends BaseCollector {
       logger.log(Level.WARNING, "Failed to serialize deployment event", e);
     }
 
-    System.out.println("\n" + "=".repeat(80) + "\n");
+    System.out.println("\n" + ProcessUtils.repeat("=", 80) + "\n");
   }
 
   private static String loadSdkVersion() {
