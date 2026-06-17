@@ -42,6 +42,16 @@ val javaagentLibs by configurations.creating {
   exclude("io.opentelemetry", "opentelemetry-sdk-common")
   exclude("io.opentelemetry.semconv", "opentelemetry-semconv")
   exclude("io.opentelemetry", "opentelemetry-api-incubator")
+
+  // Dynamic Instrumentation (in :awsagentprovider) declares org.ow2.asm:asm for its line-level
+  // instrumentation transformer. We must NOT bundle that copy: it lands at inst/org/objectweb/asm
+  // and collides with the ASM the upstream OpenTelemetry javaagent already ships there. The pulled
+  // version (9.7) only understands class-file versions up to Java 24 (v68), so on Java 25 (v69) its
+  // ClassReader throws "Unsupported class file major version 69" for EVERY class ByteBuddy tries to
+  // match — silently disabling ALL instrumentation (no spans/metrics). Excluding it makes DI's
+  // plain `org.objectweb.asm.*` references resolve to the agent's own (newer, v69-capable) ASM,
+  // which lives in the same inst/org/objectweb/asm namespace.
+  exclude("org.ow2.asm")
 }
 
 val shadowClasspath by configurations.creating {
