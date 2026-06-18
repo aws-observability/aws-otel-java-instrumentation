@@ -178,6 +178,28 @@ class DIDataStoreTest {
     assertThat(DIDataStore.snapshotAll(true)).isEmpty();
   }
 
+  @Test
+  void removeConfigDropsPerSignatureParameterNames() {
+    // Per-overload names are keyed by "<methodKey>(<types>)"; removing the methodKey must drop all
+    // of its per-signature entries (and not touch an unrelated method's entries).
+    String methodKey = "com.pkg.Svc.process";
+    String otherKey = "com.pkg.Svc.handle";
+    DIDataStore.registerParameterNamesForSignature(methodKey + "(int)", new String[] {"count"});
+    DIDataStore.registerParameterNamesForSignature(
+        methodKey + "(java.lang.String)", new String[] {"label"});
+    DIDataStore.registerParameterNamesForSignature(otherKey + "(int)", new String[] {"id"});
+
+    DIDataStore.removeConfig(methodKey);
+
+    assertThat(DIDataStore.getParameterNamesForSignature(methodKey + "(int)")).isNull();
+    assertThat(DIDataStore.getParameterNamesForSignature(methodKey + "(java.lang.String)"))
+        .isNull();
+    // Unrelated method's per-signature entry is untouched.
+    assertThat(DIDataStore.getParameterNamesForSignature(otherKey + "(int)")).containsExactly("id");
+
+    DIDataStore.removeConfig(otherKey); // cleanup
+  }
+
   // ─── Method entry/exit argument pairing (recursion) ──────────────────────────
 
   /**

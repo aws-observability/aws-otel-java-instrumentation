@@ -118,7 +118,9 @@ public final class InstrumentationGrouper {
 
     for (InstrumentationConfiguration config : configs) {
       try {
-        if (config != null && config.getFullyQualifiedClassName().equals(className)) {
+        // Match exact FQN or a nested class addressed by simple name (binary `className` here is
+        // the runtime name, e.g. com.pkg.Outer$Inner). matchesRuntimeClass handles both.
+        if (config != null && config.matchesRuntimeClass(className)) {
           String functionKey = config.getFullyQualifiedClassName() + "." + config.getMethodName();
 
           FunctionInstrumentationSet funcSet = grouped.get(functionKey);

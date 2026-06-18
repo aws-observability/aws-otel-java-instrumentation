@@ -129,7 +129,22 @@ public final class InstrumentationRegistry {
    * @return The configuration, or null if not found
    */
   public static InstrumentationConfiguration get(String methodKey) {
-    return configurations.get(methodKey);
+    InstrumentationConfiguration exact = configurations.get(methodKey);
+    if (exact != null) {
+      return exact;
+    }
+    // Fall back to a runtime-key match so a capture from a nested class addressed by its SIMPLE
+    // name (runtime key carries the binary name Outer$Inner, configs are keyed by the simple FQN)
+    // still resolves to its configuration instead of being silently dropped. Only the
+    // nested-class case (key contains '$') incurs this scan; exact lookups are unaffected.
+    if (methodKey != null && methodKey.indexOf('$') >= 0) {
+      for (InstrumentationConfiguration config : configurations.values()) {
+        if (config.matchesRuntimeInstrumentationKey(methodKey)) {
+          return config;
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -169,8 +184,11 @@ public final class InstrumentationRegistry {
    * @return List of configurations for the class (empty if none)
    */
   public static List<InstrumentationConfiguration> getConfigsForClass(String className) {
+    // Matches exact fully-qualified name, and also a nested class addressed by its simple name
+    // when {@code className} is the runtime binary name (e.g. com.pkg.Outer$Inner). The exact-FQN
+    // path is unchanged; the nested-name path only activates for names containing '$'.
     return configurations.values().stream()
-        .filter(config -> config.getFullyQualifiedClassName().equals(className))
+        .filter(config -> config.matchesRuntimeClass(className))
         .collect(Collectors.toList());
   }
 

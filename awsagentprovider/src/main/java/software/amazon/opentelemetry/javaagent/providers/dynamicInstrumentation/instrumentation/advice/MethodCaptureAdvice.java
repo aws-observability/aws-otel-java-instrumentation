@@ -63,7 +63,14 @@ public class MethodCaptureAdvice {
       Map<String, Object> arguments = null;
       if (captureArgsFilter != null && args != null && args.length > 0) {
         arguments = new HashMap<>();
-        String[] paramNames = DIDataStore.getParameterNames(methodKey);
+        // Prefer parameter names for the SPECIFIC executing overload (keyed by the full
+        // signature from @Advice.Origin); fall back to the per-methodKey names for
+        // non-overloaded methods or when per-overload resolution was unavailable. Without this,
+        // every overload would be labeled with the first-declared overload's parameter names.
+        String[] paramNames = DIDataStore.getParameterNamesForSignature(signatureKey(method));
+        if (paramNames == null) {
+          paramNames = DIDataStore.getParameterNames(methodKey);
+        }
         for (int i = 0; i < args.length; i++) {
           String name =
               (paramNames != null
@@ -198,5 +205,23 @@ public class MethodCaptureAdvice {
 
     // Extract "com.example.Class.method"
     return origin.substring(lastSpace + 1, openParen);
+  }
+
+  /**
+   * Builds the per-overload signature key "&lt;methodKey&gt;(&lt;param types&gt;)" from an
+   * {@code @Advice.Origin} string, matching the key the engine registered for this overload. This
+   * disambiguates overloaded methods so each captures its OWN parameter names. Returns the bare
+   * methodKey if the origin has no parameter list (then per-signature lookup simply misses and the
+   * caller falls back to the shared names).
+   */
+  public static String signatureKey(String origin) {
+    int openParen = origin.indexOf('(');
+    if (openParen < 0) {
+      return extractMethodKey(origin);
+    }
+    // "com.example.Class.method" + "(param,types)" — the substring from '(' to the matching ')'.
+    int closeParen = origin.indexOf(')', openParen);
+    String argList = closeParen > openParen ? origin.substring(openParen, closeParen + 1) : "()";
+    return extractMethodKey(origin) + argList;
   }
 }

@@ -36,6 +36,7 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation.advice.MethodCaptureAdvice;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.CaptureConfiguration;
+import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.ErrorCause;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationConfiguration;
 
 /**
@@ -172,7 +173,13 @@ public class ByteBuddyInstrumentationEngine {
     }
     lineTransformers.clear();
 
-    // Get all classes with line-level instrumentations
+    // Get all classes with line-level instrumentations.
+    // NOTE: line-level transformers are keyed by the config's fully-qualified name
+    // (codeUnit.className). A nested class addressed by its SIMPLE name (className="Inner") is
+    // handled at the function level via matchesRuntimeClass, but the LINE-level path here still
+    // keys on the dotted FQN and so does not yet bind a line breakpoint on a nested class given
+    // only its simple name. Function-level breakpoints on such classes work; line-level on
+    // nested-simple-name targets remains a known gap (tracked separately).
     java.util.Map<String, List<InstrumentationConfiguration>> classToLineConfigs =
         new java.util.HashMap<>();
 
@@ -356,6 +363,27 @@ public class ByteBuddyInstrumentationEngine {
       }
     }
 
+    // A config may name a NESTED class by its simple name (e.g. ClassName="Inner"), whose dotted
+    // FQN "com.pkg.Inner" never equals the runtime binary name "com.pkg.Outer$Inner", so the
+    // exact-name lookup above misses it and the class is never retransformed -> the breakpoint
+    // silently never fires. Additionally scan loaded classes for binary names ('$') that a
+    // registered config matches as a nested simple-name target.
+    List<InstrumentationConfiguration> configs = InstrumentationRegistry.getAllConfigurations();
+    if (!configs.isEmpty()) {
+      for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
+        String binaryName = clazz.getName();
+        if (binaryName.indexOf('$') < 0) {
+          continue; // not a nested class; exact-name pass already handled it
+        }
+        for (InstrumentationConfiguration cfg : configs) {
+          if (cfg.matchesRuntimeClass(binaryName)) {
+            loadedClasses.add(clazz);
+            break;
+          }
+        }
+      }
+    }
+
     return loadedClasses;
   }
 
@@ -426,6 +454,109 @@ public class ByteBuddyInstrumentationEngine {
       }
     }
     return null;
+  }
+
+  /**
+   * Diagnoses whether a config's target method can possibly bind on its (loaded) target class, so a
+   * non-bindable target can be reported as ERROR instead of being silently reported READY (a
+   * breakpoint that can never fire). Inheritance-aware: a method inherited from a superclass or
+   * interface counts as present (it binds on the declaring type), so legitimate inherited-method
+   * targets are NOT flagged.
+   *
+   * <p>Conservative by design — only returns a cause when we can prove the target is non-bindable:
+   *
+   * <ul>
+   *   <li>{@link ErrorCause#RUNTIME_ERROR} — the class is loaded but the JVM cannot retransform it
+   *       (e.g. a bootstrap/JDK class). Reused rather than a new cause to keep the control-plane
+   *       status contract stable.
+   *   <li>{@link ErrorCause#METHOD_NOT_FOUND} — the class is loaded and modifiable, but no method
+   *       of that name exists anywhere in its type hierarchy (a "ghost" method).
+   *   <li>{@code null} — bindable, or the class is not yet loaded (cannot conclude; it may load and
+   *       bind later, so we must not false-error it).
+   * </ul>
+   *
+   * @param config The configuration to diagnose
+   * @return The error cause if the target is provably non-bindable, otherwise {@code null}
+   */
+  public ErrorCause diagnoseBindingError(InstrumentationConfiguration config) {
+    Class<?> target = findTargetClass(config);
+    if (target == null) {
+      return null; // Class not loaded yet — can't conclude; will (re)transform if/when it loads.
+    }
+    if (!instrumentation.isModifiableClass(target)) {
+      return ErrorCause.RUNTIME_ERROR;
+    }
+    if (!methodExistsInHierarchy(target, config.getMethodName())) {
+      return ErrorCause.METHOD_NOT_FOUND;
+    }
+    return null;
+  }
+
+  /**
+   * Finds the loaded class a config targets, honoring nested-class-by-simple-name matching (the
+   * runtime binary name carries '$', the config supplies only the simple name).
+   */
+  private Class<?> findTargetClass(InstrumentationConfiguration config) {
+    Class<?> exact = findLoadedClass(config.getFullyQualifiedClassName());
+    if (exact != null) {
+      return exact;
+    }
+    for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
+      String binaryName = clazz.getName();
+      if (binaryName.indexOf('$') >= 0 && config.matchesRuntimeClass(binaryName)) {
+        return clazz;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Whether a CONCRETE (non-abstract, non-native) method of the given name is declared on the class
+   * or any of its superclasses or (transitively) implemented interfaces. Walks declared methods
+   * (not just public) so private and package-private targets are recognized too.
+   *
+   * <p>Concreteness matters: ByteBuddy {@code Advice} cannot weave into abstract or native methods
+   * (no bytecode body), so a name that resolves only to abstract/native declarations (e.g. the
+   * target is an interface, or an abstract method never overridden by a concrete type) is NOT
+   * bindable and should be treated as non-existent for diagnosis purposes. If introspection is
+   * inconclusive (reflection throws) we return {@code true} to stay conservative and avoid a false
+   * ERROR.
+   */
+  private static boolean methodExistsInHierarchy(Class<?> clazz, String methodName) {
+    Set<Class<?>> visited = new HashSet<>();
+    java.util.ArrayDeque<Class<?>> queue = new java.util.ArrayDeque<>();
+    queue.add(clazz);
+    while (!queue.isEmpty()) {
+      Class<?> current = queue.poll();
+      if (current == null || !visited.add(current)) {
+        continue;
+      }
+      try {
+        for (java.lang.reflect.Method m : current.getDeclaredMethods()) {
+          if (m.getName().equals(methodName)) {
+            int mods = m.getModifiers();
+            if (!java.lang.reflect.Modifier.isAbstract(mods)
+                && !java.lang.reflect.Modifier.isNative(mods)) {
+              return true; // a concrete declaration exists -> bindable
+            }
+            // abstract/native match: not bindable on its own; keep scanning for a concrete one.
+          }
+        }
+      } catch (Throwable t) {
+        // getDeclaredMethods can throw (e.g. NoClassDefFoundError resolving a parameter type).
+        // Inconclusive for this type — stay conservative: treat the target as bindable so we
+        // don't emit a false ERROR for a target we simply couldn't introspect.
+        logger.log(Level.FINE, "Could not introspect methods of " + current.getName(), t);
+        return true;
+      }
+      if (current.getSuperclass() != null) {
+        queue.add(current.getSuperclass());
+      }
+      for (Class<?> iface : current.getInterfaces()) {
+        queue.add(iface);
+      }
+    }
+    return false;
   }
 
   /**
@@ -575,6 +706,120 @@ public class ByteBuddyInstrumentationEngine {
           "No parameter names available for {0}; advice will fall back to argN",
           methodKey);
     }
+
+    // Additionally register per-OVERLOAD parameter names keyed by full signature, so an
+    // overloaded method captures each overload's own argument names at runtime instead of the
+    // first-declared overload's (the per-methodKey map above can only hold one overload's names).
+    registerParameterNamesPerOverload(
+        typeDescription, classLoader, className, methodName, methodKey);
+  }
+
+  /**
+   * For each overload of {@code methodName}, register its parameter names under the signature key
+   * "&lt;methodKey&gt;(&lt;Advice.Origin arg list&gt;)" so {@code MethodCaptureAdvice} can resolve
+   * the EXECUTING overload's names from {@code @Advice.Origin} at runtime. Best-effort: any failure
+   * leaves the single-list fallback in place.
+   */
+  private void registerParameterNamesPerOverload(
+      net.bytebuddy.description.type.TypeDescription suppliedType,
+      ClassLoader classLoader,
+      String className,
+      String methodName,
+      String methodKey) {
+    try {
+      // Prefer the byte-based type (deterministic MethodParameters), fall back to supplied type.
+      net.bytebuddy.description.type.TypeDescription typeDescription = null;
+      try {
+        ClassFileLocator locator =
+            classLoader != null
+                ? ClassFileLocator.ForClassLoader.of(classLoader)
+                : ClassFileLocator.ForClassLoader.ofBootLoader();
+        net.bytebuddy.pool.TypePool pool =
+            new net.bytebuddy.pool.TypePool.Default(
+                net.bytebuddy.pool.TypePool.CacheProvider.NoOp.INSTANCE,
+                locator,
+                net.bytebuddy.pool.TypePool.Default.ReaderMode.EXTENDED);
+        net.bytebuddy.pool.TypePool.Resolution resolution = pool.describe(className);
+        if (resolution.isResolved()) {
+          typeDescription = resolution.resolve();
+        }
+      } catch (Throwable ignored) {
+        // fall through to supplied type
+      }
+      if (typeDescription == null) {
+        typeDescription = suppliedType;
+      }
+      if (typeDescription == null) {
+        return;
+      }
+
+      for (net.bytebuddy.description.method.MethodDescription method :
+          typeDescription.getDeclaredMethods().filter(named(methodName))) {
+        net.bytebuddy.description.method.ParameterList<?> params = method.getParameters();
+        if (params.isEmpty()) {
+          continue;
+        }
+        String[] names = new String[params.size()];
+        boolean anyNamed = false;
+        for (int i = 0; i < params.size(); i++) {
+          if (params.get(i).isNamed()) {
+            names[i] = params.get(i).getName();
+            anyNamed = true;
+          } else {
+            names[i] = "";
+          }
+        }
+        if (!anyNamed) {
+          continue;
+        }
+        // The signature key uses MethodDescription.toString(), which is exactly the string
+        // ByteBuddy renders for @Advice.Origin (default) for this overload at runtime.
+        String signatureKey = methodKey + signatureSuffix(method);
+        software.amazon.opentelemetry.javaagent.bootstrap.di.DIDataStore
+            .registerParameterNamesForSignature(signatureKey, names);
+        logger.log(
+            Level.FINE,
+            "Resolved per-overload parameter names for {0}: {1}",
+            new Object[] {signatureKey, java.util.Arrays.toString(names)});
+      }
+    } catch (Throwable t) {
+      logger.log(
+          Level.FINE,
+          "Could not register per-overload parameter names for {0}.{1}: {2}",
+          new Object[] {className, methodName, t.toString()});
+    }
+  }
+
+  /**
+   * Builds the "(paramType1,paramType2)" suffix matching the argument list ByteBuddy's
+   * {@code @Advice.Origin} renders for this method (comma separated, no spaces), so the
+   * registration-time key matches the runtime key derived from the Origin string.
+   *
+   * <p>Uses {@code getActualName()} (the source-style rendering, e.g. {@code java.lang.String[]},
+   * {@code int[]}) rather than {@code getName()} (the JVM descriptor-style {@code
+   * [Ljava.lang.String;}, {@code [I}). {@code @Advice.Origin}'s default value is {@code
+   * MethodDescription.toString()}, which renders parameter types via the source-style name — so for
+   * ARRAY parameters the two disagree and the per-overload key would never match, silently falling
+   * back to the wrong overload's parameter names.
+   *
+   * <p>This matches {@code @Advice.Origin} for ordinary (including array) parameter types. For a
+   * method with a type-variable parameter (e.g. {@code <T> void foo(T t)}), {@code asErasure()}
+   * here yields the erased upper bound (e.g. {@code java.lang.Object}) while {@code
+   * MethodDescription.toString()} on the generic declaration renders the type variable name ({@code
+   * T}); the keys then differ and the per-signature lookup simply misses, falling back to the
+   * shared method-level names (no mis-capture, just no per-overload disambiguation for that rare
+   * case).
+   */
+  static String signatureSuffix(net.bytebuddy.description.method.MethodDescription method) {
+    StringBuilder sb = new StringBuilder("(");
+    net.bytebuddy.description.method.ParameterList<?> params = method.getParameters();
+    for (int i = 0; i < params.size(); i++) {
+      if (i > 0) {
+        sb.append(',');
+      }
+      sb.append(params.get(i).getType().asErasure().getActualName());
+    }
+    return sb.append(')').toString();
   }
 
   /**

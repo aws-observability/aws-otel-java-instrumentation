@@ -24,6 +24,7 @@ import io.opentelemetry.sdk.logs.SdkLoggerProvider;
 import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
 import io.opentelemetry.sdk.resources.Resource;
 import java.lang.instrument.Instrumentation;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -210,6 +211,10 @@ public final class DynamicInstrumentationManager {
     int registered = 0;
     int skipped = 0;
 
+    // Configs accepted into the registry — diagnosed for binding errors after the transformer is
+    // rebuilt, so a non-bindable target reports ERROR instead of a misleading READY.
+    List<InstrumentationConfiguration> registeredConfigs = new ArrayList<>();
+
     // Register all configurations in registry
     for (InstrumentationConfiguration config : configurations) {
       // Reject constructors and static initializers — ByteBuddy Advice cannot instrument them
@@ -276,6 +281,7 @@ public final class DynamicInstrumentationManager {
           config.getExpiresAt() != null ? config.getExpiresAt().toEpochMilli() : 0L);
 
       registered++;
+      registeredConfigs.add(config);
 
       logger.log(
           Level.FINE,
@@ -292,8 +298,25 @@ public final class DynamicInstrumentationManager {
     try {
       engine.rebuildAndApplyTransformer();
 
-      // Report READY status immediately after applying configurations
+      // Diagnose non-bindable targets BEFORE reporting READY, so a config whose method does not
+      // exist on the (loaded) target class, or whose class is not modifiable, is reported as ERROR
+      // rather than a misleading READY. Inheritance-aware and conservative: a not-yet-loaded class
+      // is left untouched (it may bind when it loads). Must precede reportNow() because the status
+      // reporter suppresses READY for any locationHash already reported as ERROR.
       if (statusReporter != null) {
+        for (InstrumentationConfiguration config : registeredConfigs) {
+          ErrorCause cause = engine.diagnoseBindingError(config);
+          if (cause != null) {
+            logger.log(
+                Level.WARNING,
+                "AWS DI: Target {0}.{1} cannot bind ({2}); reporting ERROR",
+                new Object[] {config.getFullyQualifiedClassName(), config.getMethodName(), cause});
+            statusReporter.reportError(
+                config.getInstrumentationType().name(), config.getLocationHash(), cause);
+          }
+        }
+
+        // Report READY status immediately after applying configurations
         statusReporter.reportNow();
       }
     } catch (Exception e) {
@@ -331,8 +354,15 @@ public final class DynamicInstrumentationManager {
     // Remove from registry
     int removed = 0;
     for (String methodKey : methodKeys) {
-      if (InstrumentationRegistry.remove(methodKey) != null) {
+      InstrumentationConfiguration removedConfig = InstrumentationRegistry.remove(methodKey);
+      if (removedConfig != null) {
         DIDataStore.removeConfig(methodKey);
+        // Clear the status reporter's one-time-report bookkeeping for this location hash, so a
+        // later re-applied config with the same hash (e.g. a now-bindable target) is not kept
+        // permanently suppressed by a prior ERROR.
+        if (statusReporter != null) {
+          statusReporter.forget(removedConfig.getLocationHash());
+        }
         removed++;
       }
     }
