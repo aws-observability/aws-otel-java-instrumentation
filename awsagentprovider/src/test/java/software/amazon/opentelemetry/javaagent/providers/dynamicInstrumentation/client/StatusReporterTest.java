@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.opentelemetry.javaagent.bootstrap.di.DIDataStore;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation.InstrumentationRegistry;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.ConfigurationStatus;
+import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.ErrorCause;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationConfiguration;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.StatusEntry;
 
@@ -228,6 +229,56 @@ class StatusReporterTest {
     assertThat(statuses).contains(ConfigurationStatus.DISABLED);
     assertThat(sink.countOf(LOCATION_HASH, ConfigurationStatus.READY)).isEqualTo(1);
     assertThat(sink.countOf(LOCATION_HASH, ConfigurationStatus.DISABLED)).isEqualTo(1);
+  }
+
+  @Test
+  void readyIsSuppressedAfterErrorForSameConfig() {
+    // A non-bindable target (e.g. a ghost method) is reported as ERROR before the initial READY
+    // sweep. READY must then be suppressed for that locationHash, so the control plane never shows
+    // a healthy breakpoint that can never fire.
+    reporter.reportError("BREAKPOINT", LOCATION_HASH, ErrorCause.METHOD_NOT_FOUND);
+
+    reporter.pullAndReportStatuses(true); // initial sweep would otherwise emit READY
+
+    assertThat(sink.statusesFor(LOCATION_HASH)).containsExactly(ConfigurationStatus.ERROR);
+    assertThat(sink.countOf(LOCATION_HASH, ConfigurationStatus.READY)).isZero();
+  }
+
+  @Test
+  void errorIsReportedExactlyOnce() {
+    reporter.reportError("BREAKPOINT", LOCATION_HASH, ErrorCause.METHOD_NOT_FOUND);
+    reporter.reportError("BREAKPOINT", LOCATION_HASH, ErrorCause.METHOD_NOT_FOUND);
+
+    assertThat(sink.countOf(LOCATION_HASH, ConfigurationStatus.ERROR)).isEqualTo(1);
+  }
+
+  @Test
+  void bindableConfigStillReportsReady() {
+    // No error reported -> the normal READY path is unaffected by the suppression logic.
+    reporter.pullAndReportStatuses(true);
+
+    assertThat(sink.statusesFor(LOCATION_HASH)).containsExactly(ConfigurationStatus.READY);
+  }
+
+  @Test
+  void forgetAllowsReadyToFireAgainAfterReApply() {
+    // A config reported ERROR, then removed (forget), then re-applied with the same location hash
+    // (now bindable) must be able to report READY again — not stay permanently suppressed.
+    reporter.reportError("BREAKPOINT", LOCATION_HASH, ErrorCause.METHOD_NOT_FOUND);
+    reporter.pullAndReportStatuses(true);
+    assertThat(sink.statusesFor(LOCATION_HASH)).containsExactly(ConfigurationStatus.ERROR);
+
+    reporter.forget(LOCATION_HASH); // config removed
+    sink.clear();
+
+    // Re-applied and now bindable: the initial sweep should emit READY.
+    reporter.pullAndReportStatuses(true);
+    assertThat(sink.statusesFor(LOCATION_HASH)).containsExactly(ConfigurationStatus.READY);
+  }
+
+  @Test
+  void forgetIsNullSafe() {
+    reporter.forget(null); // must not throw
   }
 
   /** Build a method-level (lineNumber 0) BREAKPOINT config with the given maxHits. */
