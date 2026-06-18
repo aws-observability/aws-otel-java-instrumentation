@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.28.2 - 2026-06-18
+
 - Add Dynamic Instrumentation (Preview): capture additional runtime telemetry from a running
   application without a restart or redeploy. Opt-in and disabled by default via
   `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
