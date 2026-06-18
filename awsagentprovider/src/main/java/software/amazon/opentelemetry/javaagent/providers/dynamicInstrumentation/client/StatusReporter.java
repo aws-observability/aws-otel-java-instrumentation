@@ -58,6 +58,11 @@ public class StatusReporter {
   // Track reported configurations to avoid duplicate reports for one-time statuses
   private final Set<String> reportedConfigs = ConcurrentHashMap.newKeySet();
 
+  // LocationHashes already reported as ERROR. A config that failed to bind (e.g. its method does
+  // not exist on the target class, or the class is not modifiable) must NOT subsequently be
+  // reported as READY — otherwise the control plane shows a healthy breakpoint that can never fire.
+  private final Set<String> erroredLocationHashes = ConcurrentHashMap.newKeySet();
+
   // Background thread for periodic reporting
   private final ScheduledExecutorService scheduler =
       Executors.newSingleThreadScheduledExecutor(
@@ -128,6 +133,8 @@ public class StatusReporter {
    */
   public void reportError(String instrumentationType, String locationHash, ErrorCause cause) {
     String errorKey = getConfigKey(locationHash, ConfigurationStatus.ERROR);
+    // Mark this config as errored so a later periodic/initial sweep won't promote it to READY.
+    erroredLocationHashes.add(locationHash);
     if (reportedConfigs.add(errorKey)) {
       // First time reporting this error
       logger.log(
@@ -139,6 +146,24 @@ public class StatusReporter {
               instrumentationType, locationHash, ConfigurationStatus.ERROR, cause, Instant.now());
       sendReport(List.of(entry));
     }
+  }
+
+  /**
+   * Forget all one-time-report bookkeeping for a location hash. Called when its configuration is
+   * removed, so that a later re-applied configuration with the same location hash (e.g. a target
+   * that has since become bindable) can report READY again instead of staying permanently
+   * suppressed by a prior ERROR.
+   *
+   * @param locationHash Location hash of the removed configuration
+   */
+  public void forget(String locationHash) {
+    if (locationHash == null) {
+      return;
+    }
+    erroredLocationHashes.remove(locationHash);
+    reportedConfigs.remove(getConfigKey(locationHash, ConfigurationStatus.READY));
+    reportedConfigs.remove(getConfigKey(locationHash, ConfigurationStatus.ERROR));
+    reportedConfigs.remove(getConfigKey(locationHash, ConfigurationStatus.DISABLED));
   }
 
   /** Background loop for periodic status reporting. */
@@ -224,8 +249,10 @@ public class StatusReporter {
         logger.fine("Reporting ACTIVE status for: " + locationHash);
       }
 
-      // READY: Report once (initial reports only, hitCount==0, and NOT disabled)
-      if (hitCount == 0 && isInitialReport) {
+      // READY: Report once (initial reports only, hitCount==0, NOT disabled, and NOT already
+      // errored). Suppressing READY for an errored config keeps a non-bindable target (ghost
+      // method, unmodifiable class) from appearing healthy in the control plane.
+      if (hitCount == 0 && isInitialReport && !erroredLocationHashes.contains(locationHash)) {
         String readyKey = getConfigKey(locationHash, ConfigurationStatus.READY);
         if (reportedConfigs.add(readyKey)) {
           entries.add(

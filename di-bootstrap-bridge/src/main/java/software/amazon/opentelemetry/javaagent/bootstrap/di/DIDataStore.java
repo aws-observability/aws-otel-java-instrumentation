@@ -59,6 +59,12 @@ public final class DIDataStore {
       new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, String[]> parameterNames =
       new ConcurrentHashMap<>();
+  // Per-overload parameter names, keyed by the full signature key
+  // "<methodKey>(<comma-separated-param-types>)" so an overloaded method captures each
+  // overload's own argument names (the per-methodKey map above only holds one overload's
+  // names, which would mislabel every other overload's arguments).
+  private static final ConcurrentHashMap<String, String[]> parameterNamesBySignature =
+      new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, HitState> hitStates = new ConcurrentHashMap<>();
 
   private DIDataStore() {}
@@ -292,12 +298,30 @@ public final class DIDataStore {
     parameterNames.put(key, names);
   }
 
+  /**
+   * Register parameter names for a specific overload, keyed by its full signature
+   * "&lt;methodKey&gt;(&lt;comma-separated-param-types&gt;)". The param-type string must match the
+   * argument list produced by ByteBuddy's {@code @Advice.Origin} (fully-qualified types, comma
+   * separated, no spaces) so the runtime lookup resolves the executing overload's own names.
+   */
+  public static void registerParameterNamesForSignature(String signatureKey, String[] names) {
+    parameterNamesBySignature.put(signatureKey, names);
+  }
+
+  /** Look up parameter names for a specific overload signature; null if none registered. */
+  public static String[] getParameterNamesForSignature(String signatureKey) {
+    return parameterNamesBySignature.get(signatureKey);
+  }
+
   public static void removeConfig(String key) {
     limits.remove(key);
     captureArguments.remove(key);
     captureLocals.remove(key);
     captureReturnFlags.remove(key);
     parameterNames.remove(key);
+    // Drop any per-signature entries for this methodKey ("<methodKey>(...)").
+    String prefix = key + "(";
+    parameterNamesBySignature.keySet().removeIf(k -> k.startsWith(prefix));
     hitStates.remove(key);
   }
 

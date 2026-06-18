@@ -411,6 +411,46 @@ public final class InstrumentationConfiguration {
     return codeUnit + "." + className;
   }
 
+  /**
+   * Whether this configuration targets the given runtime class. {@code runtimeBinaryName} is the
+   * JVM binary name as seen during transformation (e.g. {@code com.pkg.Outer$Inner} for a nested
+   * class). Matches when it equals this config's fully-qualified name exactly, OR when this config
+   * names a NESTED class by its simple name: a user can only supply {@code className="Inner"} (the
+   * control plane has no separate enclosing-class field), which yields the FQN {@code
+   * com.pkg.Inner} and never matches the binary {@code com.pkg.Outer$Inner}. To still bind such
+   * targets, the binary name is normalized ({@code $} -&gt; {@code .}) and matched as
+   * "&lt;codeUnit&gt;.…&lt;className&gt;" within the same package (codeUnit). The exact-FQN case is
+   * always preferred and unchanged.
+   */
+  public boolean matchesRuntimeClass(String runtimeBinaryName) {
+    if (runtimeBinaryName == null) {
+      return false;
+    }
+    if (getFullyQualifiedClassName().equals(runtimeBinaryName)) {
+      return true; // top-level class, or a config already supplying the binary name
+    }
+    // Nested-class-by-simple-name. The user can only supply the simple ClassName, so "Inner"
+    // must bind to the binary "com.pkg.Outer$Inner". Match requires BOTH:
+    //   (a) the runtime class's package equals this config's codeUnit EXACTLY (not merely a
+    //       prefix — otherwise "com.pkg"/"Dog" would wrongly match "com.pkg.sub.Outer$Dog"); and
+    //   (b) the runtime simple name (final '$'/'.' segment) equals this config's className.
+    int dollar = runtimeBinaryName.indexOf('$');
+    if (dollar < 0) {
+      return false; // not a nested class; exact match above already decided it
+    }
+    // The enclosing top-level class is everything before the first '$'; its package is the
+    // substring before that class's last '.'.
+    String topLevel = runtimeBinaryName.substring(0, dollar);
+    int lastDotOfTopLevel = topLevel.lastIndexOf('.');
+    String runtimePackage = lastDotOfTopLevel < 0 ? "" : topLevel.substring(0, lastDotOfTopLevel);
+    if (!runtimePackage.equals(codeUnit)) {
+      return false;
+    }
+    // Simple name is the segment after the last '$' (nested classes are '$'-separated).
+    String simpleName = runtimeBinaryName.substring(runtimeBinaryName.lastIndexOf('$') + 1);
+    return simpleName.equals(className);
+  }
+
   /** Get unique key for the method: codeUnit.className.methodName */
   public String getMethodKey() {
     return codeUnit + "." + className + "." + methodName;
@@ -419,6 +459,61 @@ public final class InstrumentationConfiguration {
   /** Get unique key for this instrumentation point: methodKey:lineNumber */
   public String getInstrumentationKey() {
     return getMethodKey() + ":" + lineNumber;
+  }
+
+  /**
+   * Whether this configuration corresponds to the given RUNTIME method key, of the form
+   * "&lt;runtimeBinaryClass&gt;.&lt;method&gt;" as produced by the advice from
+   * {@code @Advice.Origin} (optionally with a ":&lt;line&gt;" suffix). Equals {@link
+   * #getMethodKey()} for top-level classes; for a nested class addressed by its simple name the
+   * runtime key carries the binary class name (Outer$Inner), reconciled via {@link
+   * #matchesRuntimeClass}. Used so a captured snapshot from a nested-simple-name target resolves
+   * back to its configuration (otherwise the collector finds no config and silently drops the
+   * snapshot).
+   */
+  public boolean matchesRuntimeInstrumentationKey(String runtimeKey) {
+    if (runtimeKey == null) {
+      return false;
+    }
+    if (getMethodKey().equals(runtimeKey) || getInstrumentationKey().equals(runtimeKey)) {
+      return true;
+    }
+    String key = runtimeKey;
+    int colon = key.lastIndexOf(':');
+    if (colon >= 0) {
+      // Optional ":<line>" suffix — if present it must match this config's line number.
+      String line = key.substring(colon + 1);
+      if (isInteger(line)) {
+        if (!line.equals(String.valueOf(lineNumber))) {
+          return false;
+        }
+        key = key.substring(0, colon);
+      }
+    }
+    int lastDot = key.lastIndexOf('.'); // split "<binaryClass>.<method>"
+    if (lastDot < 0) {
+      return false;
+    }
+    String runtimeBinaryClass = key.substring(0, lastDot);
+    String method = key.substring(lastDot + 1);
+    return method.equals(methodName) && matchesRuntimeClass(runtimeBinaryClass);
+  }
+
+  /** Whether {@code s} is a (optionally negative) base-10 integer. Avoids a per-call regex. */
+  private static boolean isInteger(String s) {
+    if (s.isEmpty()) {
+      return false;
+    }
+    int start = (s.charAt(0) == '-') ? 1 : 0;
+    if (start == s.length()) {
+      return false; // just "-"
+    }
+    for (int i = start; i < s.length(); i++) {
+      if (!Character.isDigit(s.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public boolean isValid() {
