@@ -110,7 +110,6 @@ import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.data.EventData;
 import io.opentelemetry.sdk.trace.data.ExceptionEventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import software.amazon.awssdk.arns.Arn;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -125,6 +124,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
+import software.amazon.awssdk.arns.Arn;
 
 /**
  * AwsMetricAttributeGenerator generates very specific metric attributes based on low-cardinality
@@ -707,7 +707,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getKinesisStreamNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.resourceAsString().split(":")[1]);
+      return Optional.of(getResourceName(resourceArn.resourceAsString()));
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse Kinesis stream name from ARN: %s", stringArn));
@@ -718,7 +718,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getDynamodbTableNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.resourceAsString().split(":")[1]);
+      return Optional.of(getResourceName(resourceArn.resourceAsString()));
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse DynamoDB table name from ARN: %s", stringArn));
@@ -730,7 +730,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     try {
       if (stringArn.isPresent() && stringArn.get().startsWith("arn:aws:lambda:")) {
         Arn resourceArn = Arn.fromString(stringArn.get());
-        return Optional.of(resourceArn.resourceAsString().split(":")[1]);
+        return Optional.of(getResourceName(resourceArn.resourceAsString()));
       }
     } catch (IllegalArgumentException e) {
       logger.log(
@@ -743,7 +743,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.resourceAsString().split(":")[1]);
+      return Optional.of(getResourceName(resourceArn.resourceAsString()));
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE,
@@ -755,7 +755,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getSfnResourceNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.resourceAsString().split(":")[1]);
+      return Optional.of(getResourceName(resourceArn.resourceAsString()));
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse Sfn resource name from ARN: %s", stringArn));
@@ -772,6 +772,28 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
           Level.FINE, String.format("Could not parse Sfn resource name from ARN: %s", stringArn));
     }
     return Optional.empty();
+  }
+
+  /**
+   * Extracts the resource name from the resource portion of an ARN. ARN resources can use either
+   * ':' or '/' as a separator between resource type and resource name (e.g.,
+   * "stream/my-stream-name" or "stateMachine:my-state-machine"). This method splits on the first
+   * occurrence of either separator and returns the name portion.
+   */
+  private static String getResourceName(String resource) {
+    int colonIdx = resource.indexOf(':');
+    int slashIdx = resource.indexOf('/');
+    int separatorIdx;
+    if (colonIdx < 0 && slashIdx < 0) {
+      return resource;
+    } else if (colonIdx < 0) {
+      separatorIdx = slashIdx;
+    } else if (slashIdx < 0) {
+      separatorIdx = colonIdx;
+    } else {
+      separatorIdx = Math.min(colonIdx, slashIdx);
+    }
+    return resource.substring(separatorIdx + 1);
   }
 
   /**
