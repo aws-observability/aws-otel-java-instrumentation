@@ -51,7 +51,7 @@ dependencies {
   // ASM for line-level instrumentation (relocated/shaded at build time)
   implementation("org.ow2.asm:asm:9.7")
   implementation("org.ow2.asm:asm-tree:9.7")
-  // ARN parsing utilities (replaces EOL aws-java-sdk-core dependency)
+  // ARN parsing utilities
   implementation("software.amazon.awssdk:arns")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
