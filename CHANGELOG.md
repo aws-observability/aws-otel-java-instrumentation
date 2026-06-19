@@ -26,6 +26,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   match the Python and JS SDKs (was pipe-separated). Routes containing a literal comma must now be
   matched with a glob, e.g. `GET /search*:750`.
   ([#1393](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1393))
+- fix: remove EOL AWS SDK v1 dependency for ARN parsing
+  ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
 
 ## v2.28.1 - 2026-05-26
 
