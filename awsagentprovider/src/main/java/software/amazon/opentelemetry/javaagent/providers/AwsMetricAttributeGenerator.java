@@ -102,7 +102,6 @@ import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessin
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresent;
 import static software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil.isKeyPresentWithFallback;
 
-import com.amazonaws.arn.Arn;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -125,6 +124,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
+import software.amazon.awssdk.arns.Arn;
 
 /**
  * AwsMetricAttributeGenerator generates very specific metric attributes based on low-cardinality
@@ -684,8 +684,8 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
           String stringArn = escapeDelimiters(span.getAttributes().get(attributeKey));
           try {
             Arn resourceArn = Arn.fromString(stringArn);
-            remoteResourceAccountId = Optional.of(resourceArn.getAccountId());
-            remoteResourceRegion = Optional.of(resourceArn.getRegion());
+            remoteResourceAccountId = resourceArn.accountId();
+            remoteResourceRegion = resourceArn.region();
           } catch (IllegalArgumentException e) {
             logger.log(
                 Level.FINE,
@@ -707,7 +707,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getKinesisStreamNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+      return Optional.of(resourceArn.resource().resource());
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse Kinesis stream name from ARN: %s", stringArn));
@@ -718,7 +718,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getDynamodbTableNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+      return Optional.of(resourceArn.resource().resource());
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse DynamoDB table name from ARN: %s", stringArn));
@@ -730,7 +730,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     try {
       if (stringArn.isPresent() && stringArn.get().startsWith("arn:aws:lambda:")) {
         Arn resourceArn = Arn.fromString(stringArn.get());
-        return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+        return Optional.of(resourceArn.resource().resource());
       }
     } catch (IllegalArgumentException e) {
       logger.log(
@@ -743,7 +743,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getSecretsManagerResourceNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+      return Optional.of(resourceArn.resource().resource());
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE,
@@ -755,7 +755,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getSfnResourceNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.getResource().toString().split(":")[1]);
+      return Optional.of(resourceArn.resource().resource());
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse Sfn resource name from ARN: %s", stringArn));
@@ -766,7 +766,7 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
   private static Optional<String> getSnsResourceNameFromArn(Optional<String> stringArn) {
     try {
       Arn resourceArn = Arn.fromString(stringArn.get());
-      return Optional.of(resourceArn.getResource().toString());
+      return Optional.of(resourceArn.resource().resource());
     } catch (IllegalArgumentException e) {
       logger.log(
           Level.FINE, String.format("Could not parse Sfn resource name from ARN: %s", stringArn));

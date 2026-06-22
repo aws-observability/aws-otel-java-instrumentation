@@ -13,19 +13,6 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
-- Add Dynamic Instrumentation (Preview): capture additional runtime telemetry from a running
-  application without a restart or redeploy. Opt-in and disabled by default via
-  `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
-  ([#1384](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1384))
-- Add ServiceEvents instrumentation: emit endpoint summaries, function-call duration metrics,
-  deployment events, and incident snapshots to CloudWatch Application Signals via OTLP.
-  ([#1386](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1386))
-- Bump Netty to 4.1.135.Final to fix CVE-2026-45416 and CVE-2026-44249
-  ([#1389](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1389))
-- ServiceEvents: parse `OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS` as a comma-separated list to
-  match the Python and JS SDKs (was pipe-separated). Routes containing a literal comma must now be
-  matched with a glob, e.g. `GET /search*:750`.
-  ([#1393](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1393))
 - fix: remove EOL AWS SDK v1 dependency for ARN parsing
   ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
 
