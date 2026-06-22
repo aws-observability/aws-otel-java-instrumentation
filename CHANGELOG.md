@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- Update Lambda layer compatible runtimes to include java25
+  ([#TBD](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/TBD))
 - Add Dynamic Instrumentation (Preview): capture additional runtime telemetry from a running
   application without a restart or redeploy. Opt-in and disabled by default via
   `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
