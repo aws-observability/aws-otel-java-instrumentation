@@ -163,19 +163,17 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
       }
     }
 
-    // Record endpoint/incident/span data directly from SpanData. This gives us the correct
-    // status code (set by the container after the servlet exits) and exception data in one
-    // place.
-    String route = spanData.getAttributes().get(HTTP_ROUTE);
-    if (route == null || route.isEmpty()) {
-      route = spanData.getAttributes().get(URL_PATH);
-    }
-    if (route == null || route.isEmpty()) {
+    String method = spanData.getAttributes().get(HTTP_REQUEST_METHOD);
+    if (method == null || method.isEmpty()) {
       return;
     }
 
-    String method = spanData.getAttributes().get(HTTP_REQUEST_METHOD);
-    if (method == null || method.isEmpty()) {
+    // Derive the operation via the shared App Signals path (span-name primary, first-path-segment
+    // fallback) — consistent with Python/JS and with what App Signals reports. Then back the
+    // route out of the operation so the collector rebuilds the identical operation string.
+    String operation = AwsSpanProcessingUtil.getIngressOperation(spanData);
+    String route = routeFromOperation(operation, method);
+    if (route == null) {
       return;
     }
 
@@ -198,8 +196,6 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
     if (threadName == null || threadName.isEmpty()) {
       threadName = Thread.currentThread().getName();
     }
-
-    String operation = AwsSpanProcessingUtil.getIngressOperation(spanData);
 
     // Derive simple error type from FQCN (e.g. "java.lang.RuntimeException" ->
     // "RuntimeException")
@@ -268,6 +264,42 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
   private static boolean isLocalRoot(ReadableSpan span) {
     SpanContext parentContext = span.getParentSpanContext();
     return !parentContext.isValid() || parentContext.isRemote();
+  }
+
+  /**
+   * Back the route out of the App Signals operation so the collector rebuilds the identical
+   * {@code method + " " + route} operation string.
+   *
+   * <p>Handles the three shapes {@code getIngressOperation} returns:
+   *
+   * <ul>
+   *   <li>{@code "METHOD /route"} — common case. Strip the method prefix.
+   *   <li>{@code "/route"} — bare path (no method prefix). Use verbatim.
+   *   <li>{@code InternalOperation / UnknownOperation / bare method / lambda} — no resolvable
+   *       route. Return null so the caller skips.
+   * </ul>
+   *
+   * <p>Matches Python's {@code _route_from_operation} and JS's {@code routeFromOperation}.
+   */
+  static String routeFromOperation(String operation, String method) {
+    if (operation == null || operation.isEmpty()) {
+      return null;
+    }
+    if ("InternalOperation".equals(operation) || "UnknownOperation".equals(operation)) {
+      return null;
+    }
+    if (operation.equals(method)) {
+      return null;
+    }
+    String prefix = method + " ";
+    if (operation.startsWith(prefix)) {
+      String route = operation.substring(prefix.length());
+      return route.isEmpty() ? null : route;
+    }
+    if (operation.startsWith("/")) {
+      return operation;
+    }
+    return null;
   }
 
   /**
