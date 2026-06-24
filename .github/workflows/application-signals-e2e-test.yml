@@ -258,6 +258,14 @@ jobs:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
 
+  service-events-ec2:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-service-events-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+
   # This validation is to ensure that all test workflows relevant to this repo are actually
   # being used in this repo, which is referring to all the other jobs in this file.
   #
