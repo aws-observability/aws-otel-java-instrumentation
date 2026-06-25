@@ -226,8 +226,12 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
     }
 
     // 1. Record endpoint request
-    ServiceEventsDataStore.recordEndpointRequest(
-        operation, route, method, statusCode, durationNs, errorType, errorFunctionId, operation);
+    try {
+      ServiceEventsDataStore.recordEndpointRequest(
+          operation, route, method, statusCode, durationNs, errorType, errorFunctionId, operation);
+    } catch (Exception e) {
+      logger().log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordEndpointRequest failed", e);
+    }
 
     // Set currentOperation so recordPotentialIncident can attach exemplars
     // to the EndpointAggregation. The thread-local may have been cleared by
@@ -237,22 +241,26 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
     ServiceEventsDataStore.setCurrentOperation(operation);
 
     // 2. Record potential incident
-    ServiceEventsDataStore.recordPotentialIncident(
-        route,
-        method,
-        statusCode,
-        durationMs,
-        exceptionType,
-        exceptionMessage,
-        stackTrace,
-        null, // headers
-        null, // queryParams
-        threadName,
-        startTimeNs,
-        endTimeNs,
-        traceId,
-        spanId,
-        operation);
+    try {
+      ServiceEventsDataStore.recordPotentialIncident(
+          route,
+          method,
+          statusCode,
+          durationMs,
+          exceptionType,
+          exceptionMessage,
+          stackTrace,
+          null, // headers
+          null, // queryParams
+          threadName,
+          startTimeNs,
+          endTimeNs,
+          traceId,
+          spanId,
+          operation);
+    } catch (Exception e) {
+      logger().log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordPotentialIncident failed", e);
+    }
   }
 
   /**
