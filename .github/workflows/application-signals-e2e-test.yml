@@ -98,6 +98,20 @@ jobs:
       java-version: '25'
       cpu-architecture: 'x86_64'
 
+  adot-di:
+    needs: [ upload-main-build ]
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ '8', '11', '17', '21', '25' ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-di-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: ${{ matrix.java-version }}
+      cpu-architecture: 'x86_64'
+
   java-ec2-adot-sigv4-test:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-sigv4-test.yml@main
