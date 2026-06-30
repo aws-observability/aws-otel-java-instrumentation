@@ -26,7 +26,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import io.opentelemetry.exporter.internal.otlp.IncubatingUtil;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.logs.data.LogRecordData;
@@ -192,10 +191,7 @@ public class CompactConsoleLogRecordExporter implements LogRecordExporter {
       Map<String, Object> attributes = new HashMap<>();
       log.getAttributes().forEach((key, value) -> attributes.put(key.getKey(), value));
 
-      int attributeSize =
-          IncubatingUtil.isExtendedLogRecordData(log)
-              ? IncubatingUtil.extendedAttributesSize(log)
-              : log.getAttributes().size();
+      int attributeSize = log.getAttributes().size();
 
       return new LogRecordDataTemplate(
           log.getBodyValue() != null ? log.getBodyValue().asString() : null,

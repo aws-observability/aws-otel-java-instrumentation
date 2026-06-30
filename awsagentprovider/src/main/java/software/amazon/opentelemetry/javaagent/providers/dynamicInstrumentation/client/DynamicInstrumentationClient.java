@@ -17,7 +17,7 @@ package software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.opentelemetry.api.internal.InstrumentationUtil;
+import io.opentelemetry.api.impl.InstrumentationUtil;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -419,7 +419,7 @@ public final class DynamicInstrumentationClient implements StatusReportSink {
     }
   }
 
-  // Uses io.opentelemetry.api.internal.InstrumentationUtil — the only mechanism to suppress
+  // Uses io.opentelemetry.api.impl.InstrumentationUtil — the only mechanism to suppress
   // auto-instrumentation on HTTP calls. The ContextKey is private to InstrumentationUtil and
   // uses identity matching, so the public Context API cannot replicate this. This is the same
   // approach used by OTel's own exporters (OkHttpHttpSender, ZipkinSpanExporter).
