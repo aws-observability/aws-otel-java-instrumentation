@@ -280,6 +280,17 @@ jobs:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
 
+  service-events-eks:
+    if: ${{ always() }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
   # This validation is to ensure that all test workflows relevant to this repo are actually
   # being used in this repo, which is referring to all the other jobs in this file.
   #
