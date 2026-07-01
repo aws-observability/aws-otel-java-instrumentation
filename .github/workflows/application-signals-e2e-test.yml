@@ -280,6 +280,21 @@ jobs:
       aws-region: us-east-1
       caller-workflow-name: 'main-build'
 
+  service-events-eks:
+    # Chain onto the tail of the eks-v* line (eks-v8..v25 -> metric-limiter-v11-amd64): they all
+    # target e2e-adot-test and the sample-app Service binds cluster-wide NodePort 30100, which this
+    # SE test also uses. Running in parallel would collide on that port ("provided port is already
+    # allocated"), so serialize after the last job that uses the cluster.
+    needs: [ metric-limiter-v11-amd64 ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+
   # This validation is to ensure that all test workflows relevant to this repo are actually
   # being used in this repo, which is referring to all the other jobs in this file.
   #
