@@ -281,7 +281,11 @@ jobs:
       caller-workflow-name: 'main-build'
 
   service-events-eks:
-    if: ${{ always() }}
+    # Chain onto the tail of the eks-v* line (eks-v8..v25 -> metric-limiter-v11-amd64): they all
+    # target e2e-adot-test and the sample-app Service binds cluster-wide NodePort 30100, which this
+    # SE test also uses. Running in parallel would collide on that port ("provided port is already
+    # allocated"), so serialize after the last job that uses the cluster.
+    needs: [ metric-limiter-v11-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-test.yml@main
     secrets: inherit
     with:
