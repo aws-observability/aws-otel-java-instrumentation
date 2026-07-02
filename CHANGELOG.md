@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.29.0 - 2026-07-02
+
 - fix: remove EOL AWS SDK v1 dependency for ARN parsing
   ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
 
