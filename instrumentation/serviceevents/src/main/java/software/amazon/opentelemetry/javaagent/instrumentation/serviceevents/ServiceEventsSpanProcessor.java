@@ -144,10 +144,16 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
   private void processRequestSpan(ReadableSpan span) {
     SpanData spanData = span.toSpanData();
 
-    // Extract trace context
+    // Extract trace context. Trace correlation is best-effort and sampling-conditional: under
+    // reduced sampling, AlwaysRecordSampler keeps this span recording (so App Signals metrics see
+    // every request) even though its trace was dropped before export — a valid but unsampled
+    // (RECORD_ONLY) span. Capturing its ids would emit a correlation link to a trace the backend
+    // never received, so gate on isSampled() in addition to isValid(). An unsampled request still
+    // emits a complete (self-contained) IncidentSnapshot, just without trace_id/span_id.
     SpanContext spanContext = spanData.getSpanContext();
-    String traceId = spanContext.isValid() ? spanContext.getTraceId() : null;
-    String spanId = spanContext.isValid() ? spanContext.getSpanId() : null;
+    boolean sampled = spanContext.isValid() && spanContext.isSampled();
+    String traceId = sampled ? spanContext.getTraceId() : null;
+    String spanId = sampled ? spanContext.getSpanId() : null;
 
     // Extract exception from span events
     String exceptionType = null;
@@ -230,7 +236,8 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
       ServiceEventsDataStore.recordEndpointRequest(
           operation, route, method, statusCode, durationNs, errorType, errorFunctionId, operation);
     } catch (Exception e) {
-      logger().log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordEndpointRequest failed", e);
+      logger()
+          .log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordEndpointRequest failed", e);
     }
 
     // Set currentOperation so recordPotentialIncident can attach exemplars
@@ -259,7 +266,8 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
           spanId,
           operation);
     } catch (Exception e) {
-      logger().log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordPotentialIncident failed", e);
+      logger()
+          .log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordPotentialIncident failed", e);
     }
   }
 
@@ -275,8 +283,8 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
   }
 
   /**
-   * Back the route out of the App Signals operation so the collector rebuilds the identical
-   * {@code method + " " + route} operation string.
+   * Back the route out of the App Signals operation so the collector rebuilds the identical {@code
+   * method + " " + route} operation string.
    *
    * <p>Handles the three shapes {@code getIngressOperation} returns:
    *

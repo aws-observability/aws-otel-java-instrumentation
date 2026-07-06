@@ -326,9 +326,8 @@ public class ServiceEventsInstrumentation {
         }
       }
 
-      // Build the shared IncidentSnapshotRecordBuilder. Used by:
-      //   - bytecode mode: synchronous IncidentSnapshotEmitter
-      //   - lite mode (no bytecode): asynchronous LiteIncidentDrainer
+      // Build the shared IncidentSnapshotRecordBuilder for the synchronous IncidentSnapshotEmitter
+      // (used in both bytecode and lite mode; lite mode simply omits the call_path).
       software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
               .IncidentSnapshotRecordBuilder
           incidentRecordBuilder =
@@ -357,8 +356,11 @@ public class ServiceEventsInstrumentation {
                   + ", maxSameError="
                   + config.getIncidentSnapshotMaxSameError());
 
-      // Always install the direct-emit IncidentSnapshot bridge so incidents emit synchronously.
-      // Call path is only captured when bytecode instrumentation is enabled.
+      // Install the direct-emit IncidentSnapshot bridge so incidents emit synchronously in both
+      // modes. Call path is only captured when bytecode instrumentation is enabled; in lite mode
+      // the
+      // snapshot carries exception_info.stack_trace but no call_path (matches Python lite-mode
+      // shape).
       software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter
               .IncidentSnapshotEmitter
           incidentEmitter =
@@ -367,29 +369,6 @@ public class ServiceEventsInstrumentation {
       software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
           .setIncidentSnapshotEmitterBridge(incidentEmitter);
       logger().info("Installed IncidentSnapshotEmitter: incidents emit synchronously");
-
-      if (!config.isBytecodeEnabled()) {
-        // Lite mode: no bytecode advice. Install the in-memory drainer as the
-        // MetadataWriterBridge so DataStore.recordPotentialIncident dispatches to its
-        // queue, and ticks records out via the existing OTLP path on the configured
-        // flush interval. Snapshots carry exception_info.stack_trace but no call_path
-        // (matches Python lite-mode shape).
-        software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors
-                .LiteIncidentDrainer
-            liteDrainer =
-                new software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors
-                    .LiteIncidentDrainer(10_000, incidentRecordBuilder, otlpEmitter);
-        software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.setMetadataWriterBridge(
-            liteDrainer);
-        collectors.add(liteDrainer);
-        liteDrainer.start();
-        logger()
-            .info(
-                "Installed LiteIncidentDrainer (lite mode: no bytecode). "
-                    + "Incidents queue in-memory and emit every "
-                    + 10_000
-                    + "ms.");
-      }
 
       initialized = true;
       logger()
