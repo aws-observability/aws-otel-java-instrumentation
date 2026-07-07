@@ -568,8 +568,8 @@ class ServiceEventsSpringMvcTest extends ServiceEventsContractTestBase {
 
   /**
    * Verifies telemetry_correlation on incident snapshots carries trace_id/span_id. Correlation is
-   * sampling-conditional; this suite forces always_on so both ids are always populated. See
-   * {@link ServiceEventsContractTestBase#assertTelemetryCorrelation} for the full rationale.
+   * sampling-conditional; this suite forces always_on so both ids are always populated. See {@link
+   * ServiceEventsContractTestBase#assertTelemetryCorrelation} for the full rationale.
    */
   @Test
   @Order(1)
