@@ -519,19 +519,24 @@ public abstract class ServiceEventsContractTestBase {
   /**
    * Assert that an IncidentSnapshot has valid telemetry correlation fields.
    *
-   * <p>Validates that request_id is present (always generated) and optionally checks trace/span
-   * IDs.
+   * <p>Trace correlation is sampling-conditional: the SpanProcessor only attaches trace_id/span_id
+   * when the request's trace was sampled (otherwise the link would point at a trace the backend
+   * never received). This suite forces OTEL_TRACES_SAMPLER=always_on, so every request IS sampled
+   * and both ids are always populated and non-empty. Under reduced sampling an unsampled request
+   * would still emit a complete IncidentSnapshot, but with the correlation ids omitted. (Matches
+   * the Node + Python serviceevents contract suites.)
    */
   protected void assertTelemetryCorrelation(JsonNode record) {
     JsonNode correlation = record.path("telemetry_correlation");
     assertThat(correlation.isMissingNode()).isFalse();
-    // telemetry_correlation should have at least one identifier present: the synchronous
-    // IncidentSnapshot path provides request_id, and trace_id/span_id when the request is sampled.
-    boolean hasAnyCorrelation =
-        correlation.has("request_id") || correlation.has("trace_id") || correlation.has("span_id");
-    assertThat(hasAnyCorrelation)
-        .as("telemetry_correlation should have at least one of: request_id, trace_id, span_id")
+    assertThat(correlation.has("trace_id"))
+        .as("telemetry_correlation should carry trace_id (request is sampled under always_on)")
         .isTrue();
+    assertThat(correlation.path("trace_id").asText()).isNotEmpty();
+    assertThat(correlation.has("span_id"))
+        .as("telemetry_correlation should carry span_id (request is sampled under always_on)")
+        .isTrue();
+    assertThat(correlation.path("span_id").asText()).isNotEmpty();
   }
 
   /**

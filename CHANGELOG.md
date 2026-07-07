@@ -13,6 +13,7 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix(serviceevents): gate incident trace correlation on the SAMPLED flag
 - fix: remove EOL AWS SDK v1 dependency for ARN parsing
   ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
 

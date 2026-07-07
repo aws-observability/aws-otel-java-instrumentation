@@ -66,33 +66,10 @@ class ServiceEventsDataStoreLatencyBridgeTest {
             incidentCount.incrementAndGet();
           }
         });
-
-    ServiceEventsDataStore.setMetadataWriterBridge(
-        new MetadataWriterBridge() {
-          @Override
-          public void writeIncident(
-              String threadName,
-              long startTimeNs,
-              long endTimeNs,
-              String route,
-              String method,
-              int statusCode,
-              double durationMs,
-              String triggerType,
-              String severity,
-              String snapshotId,
-              String exceptionType,
-              String exceptionMessage,
-              String stackTrace,
-              String traceId,
-              String spanId,
-              String operation) {}
-        });
   }
 
   @AfterEach
   void tearDown() throws Exception {
-    ServiceEventsDataStore.setMetadataWriterBridge(null);
     ServiceEventsDataStore.setIncidentSnapshotEmitterBridge(null);
     ServiceEventsDataStore.setLatencyThresholdBridge(null);
     setStaticField("INCIDENT_DURATION_THRESHOLD_MS", originalDurationThreshold);
