@@ -78,8 +78,6 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
       AttributeKey.stringKey("exception.stacktrace");
 
   // HTTP semantic convention attribute keys
-  private static final AttributeKey<String> HTTP_ROUTE = AttributeKey.stringKey("http.route");
-  private static final AttributeKey<String> URL_PATH = AttributeKey.stringKey("url.path");
   private static final AttributeKey<String> HTTP_REQUEST_METHOD =
       AttributeKey.stringKey("http.request.method");
   private static final AttributeKey<Long> HTTP_RESPONSE_STATUS_CODE =
