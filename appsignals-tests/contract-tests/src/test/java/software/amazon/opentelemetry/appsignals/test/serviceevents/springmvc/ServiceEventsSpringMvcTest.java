@@ -567,21 +567,16 @@ class ServiceEventsSpringMvcTest extends ServiceEventsContractTestBase {
   }
 
   /**
-   * Verifies telemetry_correlation field is present on incident snapshots. The correlation object
-   * may contain trace_id/span_id (from SpanProcessor) or request_id (from direct collector), or may
-   * be empty if correlation data was not available at capture time.
+   * Verifies telemetry_correlation on incident snapshots carries trace_id/span_id. Correlation is
+   * sampling-conditional; this suite forces always_on so both ids are always populated. See {@link
+   * ServiceEventsContractTestBase#assertTelemetryCorrelation} for the full rationale.
    */
   @Test
   @Order(1)
   void testIncidentSnapshotTelemetryCorrelation() {
     assumeFileSignalsPresent(incidentRecords, "IncidentSnapshot");
     assertThat(incidentRecords).isNotEmpty();
-    JsonNode correlation = incidentRecords.get(0).path("telemetry_correlation");
-    assertThat(correlation.isMissingNode()).isFalse();
-    // The telemetry_correlation object should exist as a JSON object.
-    // It may contain trace_id, span_id, request_id, or be empty if the incident
-    // was recorded without an active OTel span context.
-    assertThat(correlation.isObject()).isTrue();
+    assertTelemetryCorrelation(incidentRecords.get(0));
   }
 
   @Test
