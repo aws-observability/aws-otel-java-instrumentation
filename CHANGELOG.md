@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- feat(serviceevents): resolve `aws.local.environment` in the SDK (eks/k8s/ecs/ec2/generic) to align
+  ServiceEvents & Dynamic Instrumentation with the CloudWatch agent, with a custom EC2 ASG fetcher
+  ([#1417](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1417))
 - fix(serviceevents): gate incident trace correlation on the SAMPLED flag
 - fix: remove EOL AWS SDK v1 dependency for ARN parsing
   ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
