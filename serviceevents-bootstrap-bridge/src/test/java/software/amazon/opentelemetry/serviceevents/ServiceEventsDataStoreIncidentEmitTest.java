@@ -28,17 +28,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies that {@link ServiceEventsDataStore#recordPotentialIncident} routes to the direct emitter
- * bridge when byte-instrumentation mode is active, bypassing the metadata sidecar writer.
- *
- * <p>Byte-instrumentation activation is resolved from {@code
- * OTEL_AWS_SERVICE_EVENTS_FUNCTION_INSTRUMENT_ENABLED} at class-init time. Rather than fight that,
- * we verify behavior symmetry with whichever mode is active: if bytecode is enabled, the emitter
- * receives the call, the metadata writer does not; if disabled, the inverse.
+ * Verifies that {@link ServiceEventsDataStore#recordPotentialIncident} routes to the direct
+ * IncidentSnapshot emitter bridge — the single synchronous emit path used in both bytecode and lite
+ * mode.
  */
 class ServiceEventsDataStoreIncidentEmitTest {
 
-  private final AtomicInteger writeIncidentCount = new AtomicInteger(0);
   private final AtomicInteger emitIncidentCount = new AtomicInteger(0);
   private final AtomicReference<List<CallPathEntry>> lastCallPath = new AtomicReference<>();
   private final AtomicReference<String> lastSnapshotId = new AtomicReference<>();
@@ -46,34 +41,9 @@ class ServiceEventsDataStoreIncidentEmitTest {
   @BeforeEach
   void setUp() {
     ServiceEventsDataStore.resetState();
-    writeIncidentCount.set(0);
     emitIncidentCount.set(0);
     lastCallPath.set(null);
     lastSnapshotId.set(null);
-
-    ServiceEventsDataStore.setMetadataWriterBridge(
-        new MetadataWriterBridge() {
-          @Override
-          public void writeIncident(
-              String threadName,
-              long startTimeNs,
-              long endTimeNs,
-              String route,
-              String method,
-              int statusCode,
-              double durationMs,
-              String triggerType,
-              String severity,
-              String snapshotId,
-              String exceptionType,
-              String exceptionMessage,
-              String stackTrace,
-              String traceId,
-              String spanId,
-              String operation) {
-            writeIncidentCount.incrementAndGet();
-          }
-        });
 
     ServiceEventsDataStore.setIncidentSnapshotEmitterBridge(
         new IncidentSnapshotEmitterBridge() {
@@ -105,7 +75,6 @@ class ServiceEventsDataStoreIncidentEmitTest {
 
   @AfterEach
   void tearDown() {
-    ServiceEventsDataStore.setMetadataWriterBridge(null);
     ServiceEventsDataStore.setIncidentSnapshotEmitterBridge(null);
     ServiceEventsDataStore.resetState();
     ServiceEventsDataStore.setIncidentSnapshotMaxPerMinute(100);
@@ -136,7 +105,6 @@ class ServiceEventsDataStoreIncidentEmitTest {
 
     // Exception incidents always emit synchronously (emitter is always installed)
     assertEquals(1, emitIncidentCount.get(), "Exception incident should use the direct emitter");
-    assertEquals(0, writeIncidentCount.get(), "Exception incident must not write to sidecar");
     assertNotNull(lastSnapshotId.get());
     assertTrue(lastSnapshotId.get().startsWith("snap_"));
     assertNotNull(lastCallPath.get(), "Emitter must receive a (possibly empty) call path");

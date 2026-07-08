@@ -63,36 +63,11 @@ class ServiceEventsDataStoreIncidentRateLimitTest {
             emitIncidentCallCount.incrementAndGet();
           }
         });
-
-    // Install a test MetadataWriterBridge
-    ServiceEventsDataStore.setMetadataWriterBridge(
-        new MetadataWriterBridge() {
-          @Override
-          public void writeIncident(
-              String threadName,
-              long startTimeNs,
-              long endTimeNs,
-              String route,
-              String method,
-              int statusCode,
-              double durationMs,
-              String triggerType,
-              String severity,
-              String snapshotId,
-              String exceptionType,
-              String exceptionMessage,
-              String stackTrace,
-              String traceId,
-              String spanId,
-              String operation) {
-            emitIncidentCallCount.incrementAndGet();
-          }
-        });
   }
 
   @AfterEach
   void tearDown() {
-    ServiceEventsDataStore.setMetadataWriterBridge(null);
+    ServiceEventsDataStore.setIncidentSnapshotEmitterBridge(null);
     ServiceEventsDataStore.resetState();
     // Restore defaults
     ServiceEventsDataStore.setIncidentSnapshotMaxPerMinute(100);
