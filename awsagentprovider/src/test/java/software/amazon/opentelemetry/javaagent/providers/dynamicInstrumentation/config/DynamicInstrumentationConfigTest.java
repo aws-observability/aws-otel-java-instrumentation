@@ -146,7 +146,31 @@ class DynamicInstrumentationConfigTest {
             .resource(resource)
             .build();
 
+    // No platform context yet -> ec2:default is not cached; reported as UnknownEnvironment so a
+    // later-populated Resource is picked up on the next call.
     assertThat(config.getDeploymentEnvironment()).isEqualTo("UnknownEnvironment");
+  }
+
+  @Test
+  void testGetDeploymentEnvironment_resolvesEksFromResource() {
+    // SDK-only resolution: with no explicit env, DI uses the same eks:<cluster>/<namespace> the
+    // CloudWatch agent resolves for Application Signals.
+    Resource resource =
+        Resource.create(
+            Attributes.builder()
+                .put(ServiceAttributes.SERVICE_NAME, "test-service")
+                .put(AttributeKey.stringKey("cloud.platform"), "aws_eks")
+                .put(AttributeKey.stringKey("k8s.cluster.name"), "my-cluster")
+                .put(AttributeKey.stringKey("k8s.namespace.name"), "default")
+                .build());
+
+    DynamicInstrumentationConfig config =
+        DynamicInstrumentationConfig.builder()
+            .apiUrl("http://localhost:2000")
+            .resource(resource)
+            .build();
+
+    assertThat(config.getDeploymentEnvironment()).isEqualTo("eks:my-cluster/default");
   }
 
   @Test

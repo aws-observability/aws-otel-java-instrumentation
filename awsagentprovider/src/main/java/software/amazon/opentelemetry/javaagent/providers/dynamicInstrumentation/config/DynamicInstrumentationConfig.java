@@ -15,11 +15,11 @@
 
 package software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.config;
 
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.semconv.ServiceAttributes;
 import java.lang.instrument.Instrumentation;
 import java.util.logging.Logger;
+import software.amazon.opentelemetry.javaagent.providers.environment.EnvironmentResolver;
 
 /**
  * Configuration for the Dynamic Instrumentation feature. Holds all settings needed for
@@ -114,8 +114,19 @@ public final class DynamicInstrumentationConfig {
   }
 
   /**
-   * Extract deployment environment from resource with lazy-loading and caching. Only caches
-   * successful environment resolution to handle timing issues with Resource population.
+   * Compute {@code aws.local.environment} from the resource with lazy-loading and caching.
+   *
+   * <p>SDK-only environment resolution: rather than reading only an explicit {@code
+   * deployment.environment[.name]}, this computes the full {@code aws.local.environment} from the
+   * detected resource attributes using the same precedence as the CloudWatch agent (explicit &rarr;
+   * {@code eks/k8s:<cluster>/<namespace>} &rarr; {@code ecs:<cluster>} &rarr; {@code ec2:<asg>}
+   * &rarr; {@code ec2:default} &rarr; {@code generic:default}). This makes DI self-sufficient — the
+   * value used as the request's Environment lookup key matches Application Signals without relying
+   * on the agent proxy to inject it.
+   *
+   * <p>Only caches once the resource carries platform context, to handle timing issues with
+   * Resource population; until then returns {@code "UnknownEnvironment"} without caching, allowing
+   * automatic retry on the next call.
    */
   public String getDeploymentEnvironment() {
     // Return cached value if we successfully found it before
@@ -129,17 +140,21 @@ public final class DynamicInstrumentationConfig {
       return "UnknownEnvironment"; // Don't cache - Resource might appear later
     }
 
-    String env = resource.getAttribute(AttributeKey.stringKey("deployment.environment.name"));
-    if (env != null && !env.isEmpty()) {
-      // SUCCESS! Cache it so we never query again
+    String env = EnvironmentResolver.resolveLocalEnvironment(resource);
+
+    // Cache only once the resource has the platform context to resolve a concrete value.
+    // The fallback values ("ec2:default", "generic:default") are also what a still-populating
+    // resource momentarily yields (no cloud.platform / host / k8s attributes yet), so don't cache
+    // those cases — the Resource may still be filling in. A specific value is always safe to cache.
+    boolean isFallback = "ec2:default".equals(env) || "generic:default".equals(env);
+    if (!env.isEmpty() && (!isFallback || EnvironmentResolver.hasPlatformContext(resource))) {
       cachedDeploymentEnvironment = env;
       logger.fine("AWS DI: Deployment environment resolved and cached: " + env);
       return env;
     }
 
-    // Attribute not available yet - don't cache, try again next time
-    logger.fine(
-        "AWS DI: deployment.environment.name attribute not yet available, will retry on next call");
+    // Resource not populated yet - don't cache, try again next time
+    logger.fine("AWS DI: environment not yet resolvable from resource, will retry on next call");
     return "UnknownEnvironment";
   }
 

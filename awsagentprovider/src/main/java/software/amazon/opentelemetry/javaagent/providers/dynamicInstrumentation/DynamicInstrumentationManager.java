@@ -43,6 +43,7 @@ import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.output.DISerializerImpl;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.output.DISnapshotCollector;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.output.DISnapshotOtlpEmitter;
+import software.amazon.opentelemetry.javaagent.providers.environment.EnvironmentResolver;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 
 /**
@@ -481,13 +482,13 @@ public final class DynamicInstrumentationManager {
   private DISnapshotOtlpEmitter createOtlpEmitter(DynamicInstrumentationConfig diConfig) {
     String logsEndpoint = diConfig.getLogsEndpoint();
 
-    // Resource supplier: defers reading ResourceHolder until first emit
+    // Resource supplier: defers reading ResourceHolder until first emit. aws.local.environment is
+    // stamped via the SDK-only resolver (same precedence as the CloudWatch agent) so DI snapshot
+    // telemetry correlates with Application Signals.
     Resource fallbackResource =
-        Resource.create(
-            Attributes.of(
-                AttributeKey.stringKey("service.name"), diConfig.getServiceName(),
-                AttributeKey.stringKey("deployment.environment"),
-                    diConfig.getDeploymentEnvironment()));
+        EnvironmentResolver.withLocalEnvironment(
+            Resource.create(
+                Attributes.of(AttributeKey.stringKey("service.name"), diConfig.getServiceName())));
 
     java.util.function.Supplier<Resource> resourceSupplier =
         () -> {
@@ -496,7 +497,7 @@ public final class DynamicInstrumentationManager {
             java.lang.reflect.Method getResource = holderClass.getMethod("getResource");
             Resource holderResource = (Resource) getResource.invoke(null);
             if (holderResource != null && !holderResource.equals(Resource.getDefault())) {
-              return holderResource;
+              return EnvironmentResolver.withLocalEnvironment(holderResource);
             }
           } catch (Throwable ignored) {
             // ResourceHolder not available or not yet populated — use fallback

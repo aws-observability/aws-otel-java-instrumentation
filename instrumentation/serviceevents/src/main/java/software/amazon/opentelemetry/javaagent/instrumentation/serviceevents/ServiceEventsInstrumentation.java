@@ -44,6 +44,7 @@ import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exp
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsCloudWatchLogFileExporter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsCloudWatchMetricFileExporter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsOtlpEmitter;
+import software.amazon.opentelemetry.javaagent.providers.environment.EnvironmentResolver;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 
 /**
@@ -484,12 +485,16 @@ public class ServiceEventsInstrumentation {
               java.lang.reflect.Method getResource = holderClass.getMethod("getResource");
               Resource holderResource = (Resource) getResource.invoke(null);
               if (holderResource != null && !holderResource.equals(Resource.getDefault())) {
-                return holderResource;
+                // SDK-only environment resolution: stamp aws.local.environment computed from the
+                // detected resource using the same precedence as the CloudWatch agent, so
+                // ServiceEvents correlates with Application Signals. An explicit
+                // deployment.environment[.name] still wins via the resolver's precedence.
+                return EnvironmentResolver.withLocalEnvironment(holderResource);
               }
             } catch (Throwable ignored) {
               // ResourceHolder not available or not yet populated — use fallback
             }
-            return fallbackResource;
+            return EnvironmentResolver.withLocalEnvironment(fallbackResource);
           };
 
       // Log the endpoint mode now (before lazy init)
