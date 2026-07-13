@@ -266,10 +266,15 @@ jobs:
       java-version: '11'
 
   java-lambda-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [ java11, java17, java21, java25 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-lambda-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
+      runtime: ${{ matrix.runtime }}
       caller-workflow-name: 'main-build'
 
   service-events-ec2:
