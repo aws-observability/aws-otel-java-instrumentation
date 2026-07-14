@@ -328,10 +328,15 @@ jobs:
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
 
-      - name: Pull base image of DI Contract Tests Sample Apps
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: 23
+          distribution: temurin
+
+      - name: Pull base image of Contract Tests Sample Apps
         run: |
           for i in 1 2 3 4 5; do
-            docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine && break
+            docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine && break
             echo "Pull attempt $i failed, retrying in $((i * 15))s..."
             sleep $((i * 15))
           done
