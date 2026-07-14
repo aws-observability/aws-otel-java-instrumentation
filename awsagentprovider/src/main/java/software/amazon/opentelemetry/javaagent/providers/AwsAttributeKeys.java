@@ -132,4 +132,7 @@ final class AwsAttributeKeys {
 
   static final AttributeKey<Boolean> AWS_TRACE_LAMBDA_MULTIPLE_SERVER =
       AttributeKey.booleanKey("aws.trace.lambda.multiple-server");
+
+  static final String AWS_APPLICATION_SIGNALS_CUSTOM_DIM_PREFIX =
+      "aws.application_signals.custom.dim.";
 }
