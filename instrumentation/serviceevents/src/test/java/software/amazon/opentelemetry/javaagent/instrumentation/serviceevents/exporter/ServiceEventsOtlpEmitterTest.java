@@ -19,6 +19,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.KeyValue;
+import io.opentelemetry.api.common.Value;
+import io.opentelemetry.api.common.ValueType;
 import io.opentelemetry.sdk.logs.SdkLoggerProvider;
 import io.opentelemetry.sdk.logs.data.LogRecordData;
 import io.opentelemetry.sdk.logs.export.SimpleLogRecordProcessor;
@@ -300,6 +303,109 @@ class ServiceEventsOtlpEmitterTest {
 
     // Without traceId/spanId, span context should be invalid
     assertFalse(log.getSpanContext().isValid());
+  }
+
+  /**
+   * mapToValue must preserve the source map's insertion order when building the OTLP
+   * KeyValueList body. The e2e incident-snapshot validator asserts an ordered regex
+   * (exception_type ... function_name), and the App Signals / Python-JS schema expects
+   * exception_info fields in exception_type -> exception_message -> stack_trace -> call_path
+   * order. A reversing traversal emits call_path first / exception_type last, which fails that
+   * assertion, so pin the order here.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  void testEmitIncidentSnapshotPreservesExceptionInfoFieldOrder() {
+    // Build exception_info exactly as IncidentSnapshotRecordBuilder does: an ordered map wrapped
+    // in a single-element list, with a nested call_path entry.
+    Map<String, Object> callPathEntry = new LinkedHashMap<>();
+    callPathEntry.put("function_name", "com.amazon.sampleapp.FrontendServiceController.mysql");
+    callPathEntry.put("caller_function_name", "");
+    callPathEntry.put("duration_ns", 5123583L);
+    callPathEntry.put("error", true);
+    callPathEntry.put("is_async", false);
+
+    Map<String, Object> exInfo = new LinkedHashMap<>();
+    exInfo.put("exception_type", "java.lang.RuntimeException");
+    exInfo.put("exception_message", "The url cannot be null");
+    exInfo.put("stack_trace", "java.lang.RuntimeException: ...\n\tat Foo.bar(Foo.java:1)\n");
+    exInfo.put("call_path", Collections.singletonList(callPathEntry));
+
+    Map<String, Object> record = new LinkedHashMap<>();
+    record.put("exception_info", Collections.singletonList(exInfo));
+
+    IncidentMetadata incident =
+        new IncidentMetadata(
+            "main",
+            0L,
+            1000000L,
+            "/mysql",
+            "GET",
+            "GET /mysql",
+            500,
+            15.5,
+            "exception",
+            "high",
+            "snap-order",
+            "java.lang.RuntimeException",
+            "The url cannot be null",
+            "java.lang.RuntimeException: ...\n\tat Foo.bar(Foo.java:1)\n",
+            "0af7651916cd43dd8448eb211c80319c",
+            "b7ad6b7169203331",
+            false);
+
+    emitter.emitIncidentSnapshot(record, incident);
+
+    List<LogRecordData> logs = logExporter.getFinishedLogRecordItems();
+    assertEquals(1, logs.size());
+
+    // Drill into body.exception_info[0] and assert its keys are in source (forward) order.
+    Value<?> body = logs.get(0).getBodyValue();
+    assertEquals(ValueType.KEY_VALUE_LIST, body.getType());
+    Map<String, Value<?>> bodyMap = keyValueListToMap(body);
+    Value<?> exceptionInfo = bodyMap.get("exception_info");
+    assertEquals(ValueType.ARRAY, exceptionInfo.getType(), "exception_info must be an array");
+    List<Value<?>> exArray = (List<Value<?>>) exceptionInfo.getValue();
+    assertEquals(1, exArray.size());
+
+    List<KeyValue> exFields = (List<KeyValue>) exArray.get(0).getValue();
+    List<String> fieldOrder = new ArrayList<>();
+    for (KeyValue kv : exFields) {
+      fieldOrder.add(kv.getKey());
+    }
+    assertEquals(
+        Arrays.asList("exception_type", "exception_message", "stack_trace", "call_path"),
+        fieldOrder,
+        "exception_info fields must retain source order (exception_type first, call_path last)");
+
+    // The nested call_path entry must likewise keep its source field order.
+    Value<?> callPathValue = null;
+    for (KeyValue kv : exFields) {
+      if (kv.getKey().equals("call_path")) {
+        callPathValue = kv.getValue();
+      }
+    }
+    assertNotNull(callPathValue);
+    List<Value<?>> callPathArray = (List<Value<?>>) callPathValue.getValue();
+    List<KeyValue> entryFields = (List<KeyValue>) callPathArray.get(0).getValue();
+    List<String> entryOrder = new ArrayList<>();
+    for (KeyValue kv : entryFields) {
+      entryOrder.add(kv.getKey());
+    }
+    assertEquals(
+        Arrays.asList(
+            "function_name", "caller_function_name", "duration_ns", "error", "is_async"),
+        entryOrder,
+        "call_path entry fields must retain source order");
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Value<?>> keyValueListToMap(Value<?> kvList) {
+    Map<String, Value<?>> map = new LinkedHashMap<>();
+    for (KeyValue kv : (List<KeyValue>) kvList.getValue()) {
+      map.put(kv.getKey(), kv.getValue());
+    }
+    return map;
   }
 
   @Test
