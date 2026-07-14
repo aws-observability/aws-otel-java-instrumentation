@@ -248,7 +248,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
         with:
-          java-version: 23
+          java-version-file: .java-version
           distribution: 'temurin'
       - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a #v4.4.3
 
@@ -270,10 +270,10 @@ jobs:
             ~/.m2/repository/io/opentelemetry/
           key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
 
-      - name: Pull base image of Contract Tests Sample Apps
+      - name: Pull base image of DI Contract Tests Sample Apps
         run: |
           for i in 1 2 3 4 5; do
-            docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine && break
+            docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine && break
             echo "Pull attempt $i failed, retrying in $((i * 15))s..."
             sleep $((i * 15))
           done
