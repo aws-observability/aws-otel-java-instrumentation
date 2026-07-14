@@ -208,28 +208,6 @@ jobs:
         run: |
           ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
 
-      - name: Set up Java version for tests
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
-        with:
-          java-version: 23
-          distribution: temurin
-
-      - name: Pull base image of Contract Tests Sample Apps
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
-
-      - name: Run contract tests
-        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        with:
-          arguments: contractTests -PlocalDocker=true -i
-
-      - name: Set up Java version for image build
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
-        with:
-          java-version-file: .java-version
-          distribution: temurin
-
       - name: Get current version
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
@@ -278,6 +256,126 @@ jobs:
           arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
 
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: Clean up old installations
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+
+      - name: Cache local Maven repository
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: 23
+          distribution: temurin
+
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
+
+      - name: Run contract tests
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: contractTests -PlocalDocker=true -i
+
+  di-contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: Clean up old installations
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+
+      - name: Cache local Maven repository
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: 23
+          distribution: temurin
+
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
+
+      - name: Run DI contract tests
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: diContractTests -PlocalDocker=true -i
+
+  serviceevents-contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: Clean up old installations
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+
+      - name: Cache local Maven repository
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: 23
+          distribution: temurin
+
+      - name: Pull base image of Contract Tests Sample Apps
+        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
+
+      - name: Run Service Events contract tests
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: serviceeventsContractTests -PlocalDocker=true -i
+
   build-lambda:
     runs-on: ubuntu-latest
     steps:
@@ -290,13 +388,20 @@ jobs:
           java-version-file: .java-version
           distribution: temurin
 
+      - name: Cache local Maven repository
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+
       - name: Build layer
         working-directory: lambda-layer
         run: ./build-layer.sh
 
   all-pr-checks-pass:
     runs-on: ubuntu-latest
-    needs: [static-code-checks, testpatch, build, build-lambda]
+    needs: [static-code-checks, testpatch, build, contract-tests, di-contract-tests, serviceevents-contract-tests, build-lambda]
     if: always()
     steps:
       - name: Checkout to get workflow file
