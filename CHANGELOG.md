@@ -18,6 +18,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   ([#1421](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1421))
 - fix(serviceevents): gate incident correlation on SAMPLED + per-collector fault isolation
   ([#1416](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1416))
+- fix: redact AWS presigned URL credentials from span attributes
+  ([#1419](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1419))
 
 ## v2.29.0 - 2026-07-02
 
