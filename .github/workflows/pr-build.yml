@@ -192,7 +192,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch', '.github/patches/versions') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
@@ -258,6 +258,7 @@ jobs:
 
   pull-base-images:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Pull and export base images
         run: |
@@ -306,7 +307,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch', '.github/patches/versions') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
