@@ -288,18 +288,10 @@ jobs:
           java-version: 23
           distribution: temurin
 
-      - name: Pull base image of Contract Tests Sample Apps
-        run: |
-          for i in 1 2 3 4 5; do
-            docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine && break
-            echo "Pull attempt $i failed, retrying in $((i * 15))s..."
-            sleep $((i * 15))
-          done
-
       - name: Run contract tests
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
-          arguments: contractTests -PlocalDocker=true -i
+          arguments: contractTests -i
 
   di-contract-tests:
     runs-on: ubuntu-latest
@@ -333,20 +325,10 @@ jobs:
           java-version: 23
           distribution: temurin
 
-      - name: Pull base images for DI Contract Tests
-        run: |
-          for image in public.ecr.aws/docker/library/amazoncorretto:23-alpine public.ecr.aws/docker/library/amazoncorretto:17-alpine; do
-            for i in 1 2 3 4 5; do
-              docker pull $image && break
-              echo "Pull attempt $i for $image failed, retrying in $((i * 15))s..."
-              sleep $((i * 15))
-            done
-          done
-
       - name: Run DI contract tests
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
-          arguments: diContractTests -PlocalDocker=true -i
+          arguments: diContractTests -i
 
   serviceevents-contract-tests:
     runs-on: ubuntu-latest
@@ -380,18 +362,10 @@ jobs:
           java-version: 23
           distribution: temurin
 
-      - name: Pull base image of Contract Tests Sample Apps
-        run: |
-          for i in 1 2 3 4 5; do
-            docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine && break
-            echo "Pull attempt $i failed, retrying in $((i * 15))s..."
-            sleep $((i * 15))
-          done
-
       - name: Run Service Events contract tests
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
-          arguments: serviceeventsContractTests -PlocalDocker=true -i
+          arguments: serviceeventsContractTests -i
 
   build-lambda:
     runs-on: ubuntu-latest
