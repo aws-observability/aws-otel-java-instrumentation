@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix(serviceevents): preserve map key order in OTLP log body so incident snapshot fields
+  (e.g. `exception_info`) serialize in schema order instead of reversed
+  ([#1421](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1421))
 - fix(serviceevents): gate incident correlation on SAMPLED + per-collector fault isolation
   ([#1416](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1416))
 - fix: redact AWS presigned URL credentials from span attributes
