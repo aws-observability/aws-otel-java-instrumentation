@@ -306,12 +306,11 @@ class ServiceEventsOtlpEmitterTest {
   }
 
   /**
-   * mapToValue must preserve the source map's insertion order when building the OTLP
-   * KeyValueList body. The e2e incident-snapshot validator asserts an ordered regex
-   * (exception_type ... function_name), and the App Signals / Python-JS schema expects
-   * exception_info fields in exception_type -> exception_message -> stack_trace -> call_path
-   * order. A reversing traversal emits call_path first / exception_type last, which fails that
-   * assertion, so pin the order here.
+   * mapToValue must preserve the source map's insertion order when building the OTLP KeyValueList
+   * body. The e2e incident-snapshot validator asserts an ordered regex (exception_type ...
+   * function_name), and the App Signals / Python-JS schema expects exception_info fields in
+   * exception_type -> exception_message -> stack_trace -> call_path order. A reversing traversal
+   * emits call_path first / exception_type last, which fails that assertion, so pin the order here.
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -393,8 +392,7 @@ class ServiceEventsOtlpEmitterTest {
       entryOrder.add(kv.getKey());
     }
     assertEquals(
-        Arrays.asList(
-            "function_name", "caller_function_name", "duration_ns", "error", "is_async"),
+        Arrays.asList("function_name", "caller_function_name", "duration_ns", "error", "is_async"),
         entryOrder,
         "call_path entry fields must retain source order");
   }
