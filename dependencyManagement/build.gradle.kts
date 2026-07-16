@@ -27,15 +27,15 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "2.28.1"
-val otelSnapshotVersion = "2.29.0"
+val otelVersion = "2.29.0"
+val otelSnapshotVersion = "2.30.0"
 val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
 val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
 
 val dependencyBoms = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.599",
-  "com.fasterxml.jackson:jackson-bom:2.21.1",
+  "com.fasterxml.jackson:jackson-bom:2.21.4",
   "com.google.guava:guava-bom:33.0.0-jre",
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
@@ -74,8 +74,8 @@ val dependencyLists = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.12.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.57.0-adot1",
-  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.57.0-alpha",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.58.0-adot1",
+  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.58.0-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
   "io.opentelemetry:opentelemetry-extension-aws:1.20.1",

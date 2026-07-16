@@ -14,7 +14,22 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 ## Unreleased
 
 - Update Lambda layer compatible runtimes to include java25
-  ([#TBD](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/TBD))
+  ([#1407](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1407))
+- fix(serviceevents): preserve map key order in OTLP log body so incident snapshot fields
+  (e.g. `exception_info`) serialize in schema order instead of reversed
+  ([#1421](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1421))
+- fix(serviceevents): gate incident correlation on SAMPLED + per-collector fault isolation
+  ([#1416](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1416))
+- fix: redact AWS presigned URL credentials from span attributes
+  ([#1419](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1419))
+
+## v2.29.0 - 2026-07-02
+
+- fix: remove EOL AWS SDK v1 dependency for ARN parsing
+  ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
+
+## v2.28.2 - 2026-06-18
+
 - Add Dynamic Instrumentation (Preview): capture additional runtime telemetry from a running
   application without a restart or redeploy. Opt-in and disabled by default via
   `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
@@ -28,8 +43,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   match the Python and JS SDKs (was pipe-separated). Routes containing a literal comma must now be
   matched with a glob, e.g. `GET /search*:750`.
   ([#1393](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1393))
-- fix: remove EOL AWS SDK v1 dependency for ARN parsing
-  ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
+- fix(lambda-layer): Standardize CompactConsoleLogRecordExporter output with CloudWatch OTLP backend schema.
+  ([#1358](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1358))
 
 ## v2.28.1 - 2026-05-26
 

@@ -473,8 +473,16 @@ public class ServiceEventsOtlpEmitter {
       if (current instanceof MapMarker) {
         MapMarker m = (MapMarker) current;
         Map<String, Value<?>> map = new LinkedHashMap<>();
+        // The last-pushed child sits on top of the result stack, so pop into a temp array in
+        // reverse index order, then insert forward. This preserves the source map's insertion
+        // order (e.g. exception_type -> exception_message -> stack_trace -> call_path) instead
+        // of reversing it, matching the Python/JS serviceevents schema. Mirrors ListMarker below.
+        Value<?>[] vals = new Value<?>[m.keys.length];
         for (int i = m.keys.length - 1; i >= 0; i--) {
-          map.put(m.keys[i], resultStack.pop());
+          vals[i] = resultStack.pop();
+        }
+        for (int i = 0; i < m.keys.length; i++) {
+          map.put(m.keys[i], vals[i]);
         }
         resultStack.push(Value.of(map));
         continue;

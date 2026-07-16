@@ -204,15 +204,8 @@ public final class ServiceEventsDataStore {
               new ConcurrentHashMap<String, EndpointAggregation>());
 
   /**
-   * Reference to the metadata writer bridge implementation. Set by the agent classloader at
-   * initialization time. Called from advice code (app classloader) via the delegate methods below.
-   */
-  private static volatile MetadataWriterBridge metadataWriterBridge;
-
-  /**
-   * Reference to the incident-snapshot emitter bridge. Installed by the agent classloader when
-   * byte-instrumentation mode is enabled. When non-null, incident snapshots are emitted directly
-   * via this bridge instead of being written to the JFR metadata sidecar.
+   * Reference to the incident-snapshot emitter bridge. Installed by the agent classloader during
+   * initialization. When non-null, incident snapshots are emitted directly via this bridge.
    */
   private static volatile IncidentSnapshotEmitterBridge incidentSnapshotEmitterBridge;
 
@@ -232,19 +225,8 @@ public final class ServiceEventsDataStore {
   private static volatile LatencyThresholdBridge latencyThresholdBridge;
 
   // =========================================================================
-  // Metadata Writer Bridge
+  // Incident Snapshot Emitter Bridge
   // =========================================================================
-
-  /**
-   * Set the metadata writer bridge implementation.
-   *
-   * <p>Called once from the agent classloader during initialization.
-   *
-   * @param bridge The MetadataWriterBridge implementation (LiteIncidentDrainer)
-   */
-  public static void setMetadataWriterBridge(MetadataWriterBridge bridge) {
-    metadataWriterBridge = bridge;
-  }
 
   /**
    * Set the incident-snapshot emitter bridge implementation.
@@ -288,50 +270,6 @@ public final class ServiceEventsDataStore {
   /** Whether byte-instrumentation mode is active. Visible for tests and routing decisions. */
   public static boolean isBytecodeEnabled() {
     return BYTECODE_ENABLED;
-  }
-
-  /**
-   * Write an incident metadata record to the sidecar file.
-   *
-   * <p>Called from the incident recording path alongside recordPotentialIncident.
-   */
-  public static void metadataWriteIncident(
-      String threadName,
-      long startTimeNs,
-      long endTimeNs,
-      String route,
-      String method,
-      int statusCode,
-      double durationMs,
-      String triggerType,
-      String severity,
-      String snapshotId,
-      String exceptionType,
-      String exceptionMessage,
-      String stackTrace,
-      String traceId,
-      String spanId,
-      String operation) {
-    MetadataWriterBridge bridge = metadataWriterBridge;
-    if (bridge != null) {
-      bridge.writeIncident(
-          threadName,
-          startTimeNs,
-          endTimeNs,
-          route,
-          method,
-          statusCode,
-          durationMs,
-          triggerType,
-          severity,
-          snapshotId,
-          exceptionType,
-          exceptionMessage,
-          stackTrace,
-          traceId,
-          spanId,
-          operation);
-    }
   }
 
   // =========================================================================
