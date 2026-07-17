@@ -578,9 +578,17 @@ public final class ServiceEventsDataStore {
         return;
       }
 
-      // Deduplication: reject if the same error hash has been seen too many times this period
+      // Deduplication: reject if the same error hash has been seen too many times this period.
+      // Key on operation + exception type + throw-site method. The origin method is parsed from the
+      // stack trace here (Python/JS recover the equivalent file-qualified origin); it keeps
+      // distinct
+      // errors sharing one exception type apart without folding the unbounded exception message
+      // into
+      // the key.
       String effectiveOperation = operation != null ? operation : method + " " + route;
-      String errorHash = IncidentRateLimiter.generateErrorHash(effectiveOperation, exceptionType);
+      String originMethod = IncidentRateLimiter.extractOriginMethod(stackTrace);
+      String errorHash =
+          IncidentRateLimiter.generateErrorHash(effectiveOperation, exceptionType, originMethod);
       if (!IncidentRateLimiter.checkErrorDeduplication(errorHash)) {
         return;
       }

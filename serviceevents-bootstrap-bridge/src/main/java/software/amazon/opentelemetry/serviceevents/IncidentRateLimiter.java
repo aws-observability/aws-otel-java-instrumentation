@@ -102,19 +102,29 @@ final class IncidentRateLimiter {
   }
 
   /**
-   * Generate a hash for deduplication based on operation and exception type.
+   * Generate a hash for deduplication based on operation, exception type, and throw-site method.
    *
    * <p>Intentionally excludes exceptionMessage to avoid unbounded hash proliferation when messages
-   * contain request-specific data (user IDs, timestamps, etc.).
+   * contain request-specific data (user IDs, timestamps, etc.). The origin method (parsed from the
+   * stack trace by {@link #extractOriginMethod}) is a bounded, deploy-stable substitute that still
+   * keeps distinct errors sharing one exception type apart — mirroring the file-qualified
+   * throw-site origin the Python ({@code module/path.function}) and JS ({@code file.function})
+   * distros fold into their key.
    *
+   * @param operation the operation the incident occurred on (never null at the call site)
+   * @param exceptionType exception class name, or null for a latency incident
+   * @param originMethod fully-qualified throw-site method, or null/empty if unavailable
    * @return hex-encoded MD5 hash, or hashCode fallback if MD5 is unavailable
    */
-  static String generateErrorHash(String operation, String exceptionType) {
+  static String generateErrorHash(String operation, String exceptionType, String originMethod) {
     String hashInput;
     if (exceptionType == null) {
+      // Latency incident: no exception → operation-only key (matches the pre-refactor behavior).
       hashInput = "op:" + operation;
-    } else {
+    } else if (originMethod == null || originMethod.isEmpty()) {
       hashInput = "op:" + operation + "|exc:" + exceptionType;
+    } else {
+      hashInput = "op:" + operation + "|exc:" + exceptionType + ":" + originMethod;
     }
     try {
       java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
@@ -127,6 +137,41 @@ final class IncidentRateLimiter {
     } catch (java.security.NoSuchAlgorithmException e) {
       return String.valueOf(hashInput.hashCode());
     }
+  }
+
+  /**
+   * Extract the fully-qualified throw-site method from the top frame of a JVM stack trace string.
+   *
+   * <p>The stack trace text (as produced by {@code Throwable.printStackTrace}) lists the throw site
+   * first, on the first complete frame line — indented and of the form {@code "\tat
+   * com.example.Foo.bar(Foo.java:42)"}. This returns the {@code com.example.Foo.bar} portion —
+   * class + method, without the {@code (file:line)} suffix. The line number is deliberately
+   * dropped: it is the least stable field (any edit above the throw site shifts it), so including
+   * it would make a recurring error re-fire as a brand-new incident after every deploy.
+   *
+   * @param stackTrace the exception stack trace string, or null
+   * @return the {@code class.method} of the throw site, or empty string if unparseable/absent
+   */
+  static String extractOriginMethod(String stackTrace) {
+    if (stackTrace == null || stackTrace.isEmpty()) {
+      return "";
+    }
+    // Match a complete frame line, not the header. A real JVM frame is indented and has the full
+    // "at <class.method>(<source>)" grammar: a method reference (word chars, '.', '$', '/' for the
+    // module prefix, and '<>' for the <init>/<clinit> constructor and static-initializer names)
+    // followed by a balanced "(...)" running to end of line. Requiring the whole grammar — not just
+    // a bare "at X(" prefix — means a message that embeds a truncated fragment (e.g.
+    // "boom\n\tat evil.pwn(") cannot false-match the real top frame. (A message embedding a
+    // syntactically perfect, tab-indented full frame is indistinguishable from a real one in a flat
+    // string and would still match; that is an accepted residual for this seam, which only ever
+    // receives an already-formatted string.)
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("(?m)^\\s+at\\s+([\\w$.<>/]+)\\([^()]*\\)\\s*$")
+            .matcher(stackTrace);
+    if (m.find()) {
+      return m.group(1);
+    }
+    return "";
   }
 
   /**

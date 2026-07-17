@@ -211,6 +211,137 @@ class ServiceEventsDataStoreIncidentRateLimitTest {
   }
 
   // ========================================================================
+  // Origin-method keying (bounded substitute for the unbounded exception message)
+  // ========================================================================
+
+  @Test
+  void dedup_sameTypeDifferentOriginMethodsAreIndependent() {
+    ServiceEventsDataStore.setIncidentSnapshotMaxPerMinute(100);
+    ServiceEventsDataStore.setIncidentSnapshotMaxSameError(1);
+
+    // Same route + same exception type, but thrown from two different methods → distinct hashes.
+    recordExceptionIncidentWithStack(
+        "/api/test", "RuntimeException", "boom", "\tat com.example.Foo.alpha(Foo.java:10)\n");
+    recordExceptionIncidentWithStack(
+        "/api/test", "RuntimeException", "boom", "\tat com.example.Foo.beta(Foo.java:20)\n");
+
+    assertEquals(
+        2,
+        emitIncidentCallCount.get(),
+        "Same type from different origin methods should be independent dedup buckets");
+  }
+
+  @Test
+  void dedup_sameTypeAndOriginMethodDifferentMessagesCollapse() {
+    ServiceEventsDataStore.setIncidentSnapshotMaxPerMinute(100);
+    ServiceEventsDataStore.setIncidentSnapshotMaxSameError(1);
+
+    // Same route + type + origin method, differing only in request-specific message text. The
+    // message is NOT part of the key, so these dedup together (the unbounded-key fix).
+    recordExceptionIncidentWithStack(
+        "/api/test",
+        "RuntimeException",
+        "user 1 not found",
+        "\tat com.example.Foo.lookup(Foo.java:10)\n");
+    recordExceptionIncidentWithStack(
+        "/api/test",
+        "RuntimeException",
+        "user 2 not found",
+        "\tat com.example.Foo.lookup(Foo.java:10)\n");
+
+    assertEquals(
+        1,
+        emitIncidentCallCount.get(),
+        "Same type + origin method with different messages should dedup together");
+  }
+
+  @Test
+  void dedup_lineNumberDoesNotAffectHash() {
+    ServiceEventsDataStore.setIncidentSnapshotMaxPerMinute(100);
+    ServiceEventsDataStore.setIncidentSnapshotMaxSameError(1);
+
+    // Same class.method but a shifted line number (e.g. after an edit above the throw site) must
+    // still dedup — the line is deliberately excluded so a recurring bug doesn't re-fire per
+    // deploy.
+    recordExceptionIncidentWithStack(
+        "/api/test", "RuntimeException", "boom", "\tat com.example.Foo.lookup(Foo.java:10)\n");
+    recordExceptionIncidentWithStack(
+        "/api/test", "RuntimeException", "boom", "\tat com.example.Foo.lookup(Foo.java:99)\n");
+
+    assertEquals(
+        1, emitIncidentCallCount.get(), "A shifted line number must not change the dedup hash");
+  }
+
+  @Test
+  void extractOriginMethod_parsesTopFrameClassAndMethod() {
+    String stack =
+        "java.lang.RuntimeException: boom\n"
+            + "\tat com.example.Service.handle(Service.java:42)\n"
+            + "\tat com.example.Controller.route(Controller.java:7)\n";
+    assertEquals("com.example.Service.handle", IncidentRateLimiter.extractOriginMethod(stack));
+  }
+
+  @Test
+  void extractOriginMethod_ignoresHeaderMessageContainingAtToken() {
+    // The header line contains "at " inside the message; the parser must skip it and match the
+    // frame.
+    String stack =
+        "java.lang.IllegalStateException: failed at startup\n"
+            + "\tat com.example.Boot.start(Boot.java:1)\n";
+    assertEquals("com.example.Boot.start", IncidentRateLimiter.extractOriginMethod(stack));
+  }
+
+  @Test
+  void extractOriginMethod_ignoresMultiLineMessageWithTruncatedFrameFragment() {
+    // A wrapped exception whose MESSAGE embeds a truncated frame fragment ("\tat evil.pwn(") must
+    // not hijack the parse: the fragment lacks the full "(...)"-to-line-end grammar, so the parser
+    // skips it and matches the real top frame. Guards against request-specific text in the message
+    // re-inflating the dedup key.
+    String stack =
+        "java.lang.RuntimeException: db failed\n"
+            + "\tat evil.Injected.pwn(\n"
+            + "\tat com.example.Real.throwHere(Real.java:10)\n";
+    assertEquals("com.example.Real.throwHere", IncidentRateLimiter.extractOriginMethod(stack));
+  }
+
+  @Test
+  void extractOriginMethod_parsesConstructorAndStaticInitializerFrames() {
+    // Constructor (<init>) and static-initializer (<clinit>) throw sites are real top frames; the
+    // grammar must accept the angle-bracketed names, not skip past them to the caller.
+    assertEquals(
+        "com.example.Foo.<init>",
+        IncidentRateLimiter.extractOriginMethod(
+            "java.lang.IllegalArgumentException: bad\n"
+                + "\tat com.example.Foo.<init>(Foo.java:10)\n"
+                + "\tat com.example.Handler.build(Handler.java:5)\n"));
+    assertEquals(
+        "com.example.Foo.<clinit>",
+        IncidentRateLimiter.extractOriginMethod(
+            "X: y\n\tat com.example.Foo.<clinit>(Foo.java:3)\n"));
+  }
+
+  @Test
+  void extractOriginMethod_parsesModulePrefixedAndLambdaFrames() {
+    // Module-prefixed frames (java.base/...) and synthetic lambda methods are real JVM frame shapes
+    // the tightened grammar must still accept.
+    assertEquals(
+        "java.base/java.lang.Thread.run",
+        IncidentRateLimiter.extractOriginMethod(
+            "X: y\n\tat java.base/java.lang.Thread.run(Thread.java:829)\n"));
+    assertEquals(
+        "com.example.Svc.lambda$doWork$0",
+        IncidentRateLimiter.extractOriginMethod(
+            "X: y\n\tat com.example.Svc.lambda$doWork$0(Svc.java:42)\n"));
+  }
+
+  @Test
+  void extractOriginMethod_returnsEmptyForNullOrUnparseable() {
+    assertEquals("", IncidentRateLimiter.extractOriginMethod(null));
+    assertEquals("", IncidentRateLimiter.extractOriginMethod(""));
+    assertEquals("", IncidentRateLimiter.extractOriginMethod("no frames here"));
+  }
+
+  // ========================================================================
   // Setter validation
   // ========================================================================
 
@@ -230,6 +361,11 @@ class ServiceEventsDataStoreIncidentRateLimitTest {
   // ========================================================================
 
   private void recordExceptionIncident(String route, String exceptionType, String message) {
+    recordExceptionIncidentWithStack(route, exceptionType, message, "stack trace");
+  }
+
+  private void recordExceptionIncidentWithStack(
+      String route, String exceptionType, String message, String stackTrace) {
     ServiceEventsDataStore.recordPotentialIncident(
         route,
         "GET",
@@ -237,7 +373,7 @@ class ServiceEventsDataStoreIncidentRateLimitTest {
         5.0,
         exceptionType,
         message,
-        "stack trace",
+        stackTrace,
         Collections.<String, String>emptyMap(),
         Collections.<String, Object>emptyMap(),
         null,
