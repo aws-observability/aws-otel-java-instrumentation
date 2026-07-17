@@ -15,6 +15,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 - Update Lambda layer compatible runtimes to include java25
   ([#1407](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1407))
+- fix(serviceevents): fold throw-site origin (`class.method`) into the incident-snapshot dedup hash
+  ([#1422](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1422))
 - fix(serviceevents): preserve map key order in OTLP log body so incident snapshot fields
   (e.g. `exception_info`) serialize in schema order instead of reversed
   ([#1421](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1421))
