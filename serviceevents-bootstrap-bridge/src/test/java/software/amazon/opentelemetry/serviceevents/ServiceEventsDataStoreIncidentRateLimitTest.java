@@ -341,6 +341,37 @@ class ServiceEventsDataStoreIncidentRateLimitTest {
     assertEquals("", IncidentRateLimiter.extractOriginMethod("no frames here"));
   }
 
+  @Test
+  void generateErrorHash_distinguishesOperationExceptionAndOrigin() {
+    // Latency incident (null exception): keyed on operation alone, so a different exception type on
+    // the same operation cannot collide with it, and the same operation always maps to one hash.
+    String latency = IncidentRateLimiter.generateErrorHash("GET /a", null, "");
+    assertEquals(latency, IncidentRateLimiter.generateErrorHash("GET /a", null, "some.origin"));
+    assertNotEquals(latency, IncidentRateLimiter.generateErrorHash("GET /b", null, ""));
+
+    // Error incident: operation + exception type + throw-site origin all participate in the key.
+    String withOrigin =
+        IncidentRateLimiter.generateErrorHash("GET /a", "Boom", "com.example.Foo.f");
+    assertNotEquals(latency, withOrigin);
+    assertNotEquals(
+        withOrigin, IncidentRateLimiter.generateErrorHash("GET /a", "Boom", "com.example.Foo.g"));
+    assertNotEquals(
+        withOrigin, IncidentRateLimiter.generateErrorHash("POST /a", "Boom", "com.example.Foo.f"));
+    assertNotEquals(
+        withOrigin, IncidentRateLimiter.generateErrorHash("GET /a", "Other", "com.example.Foo.f"));
+  }
+
+  @Test
+  void generateErrorHash_nullAndEmptyOriginCollapseToTheSameKey() {
+    // The origin short-circuit (`origin == null || origin.isEmpty()`) must treat an absent origin
+    // and an empty-string origin (what extractOriginMethod returns when unparseable) identically —
+    // both drop the `:origin` segment, so an error with no recoverable throw site dedups on
+    // operation + exception type alone.
+    assertEquals(
+        IncidentRateLimiter.generateErrorHash("GET /a", "Boom", null),
+        IncidentRateLimiter.generateErrorHash("GET /a", "Boom", ""));
+  }
+
   // ========================================================================
   // Setter validation
   // ========================================================================
