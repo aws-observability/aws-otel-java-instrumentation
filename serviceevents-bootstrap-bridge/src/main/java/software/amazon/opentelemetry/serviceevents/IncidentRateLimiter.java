@@ -15,9 +15,12 @@
 
 package software.amazon.opentelemetry.serviceevents;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Rate limiter for incident snapshots. Handles global per-minute limiting and per-error-hash
@@ -54,6 +57,14 @@ final class IncidentRateLimiter {
 
   /** Maximum distinct error hashes tracked for deduplication. */
   private static final int MAX_ERROR_HASH_ENTRIES = 1000;
+
+  /**
+   * Matches a complete top JVM frame line: indented {@code "at <class.method>(<source>)"} running
+   * to end of line. Compiled once — {@link Pattern} is thread-safe and {@link #extractOriginMethod}
+   * runs on every recorded incident.
+   */
+  private static final Pattern TOP_FRAME_PATTERN =
+      Pattern.compile("(?m)^\\s+at\\s+([\\w$.<>/]+)\\([^()]*\\)\\s*$");
 
   /** All per-window rate-limiting state, atomically swapped on window boundaries. */
   private static final class Window {
@@ -128,7 +139,7 @@ final class IncidentRateLimiter {
     }
     try {
       java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
-      byte[] digest = md.digest(hashInput.getBytes());
+      byte[] digest = md.digest(hashInput.getBytes(StandardCharsets.UTF_8));
       StringBuilder sb = new StringBuilder();
       for (int i = 0; i < digest.length; i++) {
         sb.append(String.format("%02x", Byte.valueOf(digest[i])));
@@ -165,9 +176,7 @@ final class IncidentRateLimiter {
     // syntactically perfect, tab-indented full frame is indistinguishable from a real one in a flat
     // string and would still match; that is an accepted residual for this seam, which only ever
     // receives an already-formatted string.)
-    java.util.regex.Matcher m =
-        java.util.regex.Pattern.compile("(?m)^\\s+at\\s+([\\w$.<>/]+)\\([^()]*\\)\\s*$")
-            .matcher(stackTrace);
+    Matcher m = TOP_FRAME_PATTERN.matcher(stackTrace);
     if (m.find()) {
       return m.group(1);
     }
