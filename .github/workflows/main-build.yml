@@ -269,6 +269,31 @@ jobs:
         with:
           java-version-file: .java-version
           distribution: 'temurin'
+        # Cache the patched upstream OpenTelemetry artifacts (contrib + instrumentation)
+        # published to ~/.m2. The key hashes the pinned versions and the patch files, so the
+        # cache is reused until upstream versions or patches change, at which point it rebuilds.
+      - name: Restore patched upstream Maven artifacts
+        id: cache-upstream
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-lambda-upstream-${{ hashFiles('.github/patches/versions', '.github/patches/opentelemetry-java-contrib.patch', 'lambda-layer/patches/opentelemetry-java-instrumentation.patch') }}
+
+      - name: Build patched upstream dependencies
+        if: steps.cache-upstream.outputs.cache-hit != 'true'
+        working-directory: lambda-layer
+        run: |
+          ./build-upstream-deps.sh
+
+        # Save immediately after the upstream build and before the ADOT build below, so the
+        # cache contains only the upstream artifacts and never the per-commit ADOT jars.
+      - name: Save patched upstream Maven artifacts
+        if: steps.cache-upstream.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: ~/.m2/repository/io/opentelemetry/
+          key: ${{ steps.cache-upstream.outputs.cache-primary-key }}
+
       - name: Build Application Signals Lambda Layer
         working-directory: lambda-layer
         run: |

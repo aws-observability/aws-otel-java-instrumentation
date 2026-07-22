@@ -1,25 +1,14 @@
 #!/bin/bash
+# Builds the ADOT Java lambda layer from the current source and packages the layer zip.
+#
+# PREREQUISITE: the patched upstream OpenTelemetry dependencies (contrib + instrumentation)
+# must already be published to the local Maven repository (~/.m2). Run build-upstream-deps.sh
+# first, or restore them from an actions/cache. In CI these two steps are separated so the
+# rarely-changing upstream build can be cached while this (per-commit) build always runs.
 set -e
 
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 file="$SOURCEDIR/../.github/patches/versions"
-
-contrib_version=$(awk -F'=v' '/OTEL_JAVA_CONTRIB_VERSION/ {print $2}' "$file")
-if [[ -n "$contrib_version" ]]; then
-  echo "Found OTEL Contrib Version: ${contrib_version}"
-  ## Clone and Patch the OpenTelemetry Java contrib Repository
-  echo "Info: Cloning and Patching OpenTelemetry Java contrib Repository"
-  git clone https://github.com/open-telemetry/opentelemetry-java-contrib.git
-  pushd opentelemetry-java-contrib
-  git checkout v${contrib_version} -b tag-v${contrib_version}
-
-  # There is another patch in the .github/patches directory for other changes. We should apply them too for consistency.
-  patch -p1 < "$SOURCEDIR"/../.github/patches/opentelemetry-java-contrib.patch
-
-  ./gradlew publishToMavenLocal
-  popd
-  rm -rf opentelemetry-java-contrib
-fi
 
 ## Get OTel version
 echo "Info: Getting OTEL Version"
@@ -30,24 +19,6 @@ if [[ -z "$version" ]]; then
   echo "Error: Version could not be found in ${file}."
   exit 1
 fi
-
-
-## Clone and Patch the OpenTelemetry Java Instrumentation Repository
-echo "Info: Cloning and Patching OpenTelemetry Java Instrumentation Repository"
-git clone https://github.com/open-telemetry/opentelemetry-java-instrumentation.git
-pushd opentelemetry-java-instrumentation
-git checkout v${version} -b tag-v${version}
-
-if [ -f "$SOURCEDIR"/../.github/patches/opentelemetry-java-instrumentation.patch ]; then
-  patch -p1 < "$SOURCEDIR"/../.github/patches/opentelemetry-java-instrumentation.patch
-fi
-
-# This patch is for Lambda related context propagation
-patch -p1 < "$SOURCEDIR"/patches/opentelemetry-java-instrumentation.patch
-
-./gradlew publishToMavenLocal
-popd
-rm -rf opentelemetry-java-instrumentation
 
 ## Build the ADOT Java from current source
 echo "Info: Building ADOT Java from current source"
