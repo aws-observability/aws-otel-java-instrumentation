@@ -141,7 +141,6 @@ jobs:
       java-version: '8'
 
   eks-v11-amd64:
-    needs: eks-v8-amd64
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
@@ -152,7 +151,6 @@ jobs:
       java-version: '11'
 
   eks-v17-amd64:
-    needs: eks-v11-amd64
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
@@ -163,7 +161,6 @@ jobs:
       java-version: '17'
 
   eks-v21-amd64:
-    needs: eks-v17-amd64
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
@@ -174,7 +171,6 @@ jobs:
       java-version: '21'
 
   eks-v25-amd64:
-    needs: eks-v21-amd64
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
     secrets: inherit
     with:
@@ -255,7 +251,10 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    needs: [ eks-v25-amd64 ]
+    # The eks-v* jobs now run in parallel (each java version uses a distinct NodePort via the test
+    # framework terraform). This job shares cluster e2e-adot-test and binds NodePort 30100, so it must
+    # wait for all eks-v* jobs to finish and free the cluster before running.
+    needs: [ eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
