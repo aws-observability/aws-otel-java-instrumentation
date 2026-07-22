@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- feat: attribute presigned S3 URLs as `AWS::S3` dependencies in Application Signals, opt-in via
+  `otel.aws.application.signals.presigned-url-attribution.enabled`
+  ([#1423](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1423))
 - Update Lambda layer compatible runtimes to include java25
   ([#1407](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1407))
 - fix(serviceevents): fold throw-site origin (`class.method`) into the incident-snapshot dedup hash
