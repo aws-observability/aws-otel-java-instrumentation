@@ -1,0 +1,36 @@
+name: "Build Lambda Layer"
+description: |
+  Builds the ADOT Java Lambda layer with caching of patched upstream OTel dependencies.
+
+  The upstream OpenTelemetry contrib and instrumentation builds are cached in GitHub Actions
+  cache, keyed on the pinned versions and patch files. On a cache hit, only the ADOT build
+  (from current source) and the layer packaging run. On a miss, the full upstream build runs
+  first and the result is cached for future runs.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore patched upstream Maven artifacts
+      id: cache-upstream
+      uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+      with:
+        path: ~/.m2/repository/io/opentelemetry/
+        key: ${{ runner.os }}-lambda-upstream-${{ hashFiles('.github/patches/versions', '.github/patches/opentelemetry-java-contrib.patch', 'lambda-layer/patches/opentelemetry-java-instrumentation.patch') }}
+
+    - name: Build patched upstream dependencies
+      if: steps.cache-upstream.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: lambda-layer
+      run: ./build-upstream-deps.sh
+
+    - name: Save patched upstream Maven artifacts
+      if: steps.cache-upstream.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+      with:
+        path: ~/.m2/repository/io/opentelemetry/
+        key: ${{ steps.cache-upstream.outputs.cache-primary-key }}
+
+    - name: Build lambda layer
+      shell: bash
+      working-directory: lambda-layer
+      run: ./build-layer.sh
