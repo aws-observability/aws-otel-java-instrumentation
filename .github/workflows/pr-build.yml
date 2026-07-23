@@ -342,9 +342,8 @@ jobs:
           java-version-file: .java-version
           distribution: temurin
 
-      - name: Build layer
-        working-directory: lambda-layer
-        run: ./build-layer.sh
+      - name: Build lambda layer
+        uses: ./.github/actions/build-lambda-layer
 
   all-pr-checks-pass:
     runs-on: ubuntu-latest

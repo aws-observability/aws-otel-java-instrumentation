@@ -52,10 +52,8 @@ jobs:
           java-version-file: .java-version
           distribution: 'temurin'
 
-      - name: Build layers
-        working-directory: lambda-layer
-        run: |
-          ./build-layer.sh
+      - name: Build lambda layer
+        uses: ./.github/actions/build-lambda-layer
 
       - name: Upload layer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2

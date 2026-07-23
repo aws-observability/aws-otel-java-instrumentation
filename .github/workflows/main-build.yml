@@ -270,9 +270,7 @@ jobs:
           java-version-file: .java-version
           distribution: 'temurin'
       - name: Build Application Signals Lambda Layer
-        working-directory: lambda-layer
-        run: |
-          ./build-layer.sh
+        uses: ./.github/actions/build-lambda-layer
       - name: Upload layer zip to GitHub Actions
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
         with:
