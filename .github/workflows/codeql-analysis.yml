@@ -13,7 +13,11 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main", "release/v*" ]
+  pull_request:
+    branches: [ "main", "release/v*" ]
+  schedule:
+    - cron: '30 4 * * 1'
 
 permissions:
   security-events: write
@@ -82,7 +86,7 @@ jobs:
           fi
           
           # Extract all job names from workflow (excluding this gate job)
-          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/codeql.yml | grep -v "all-codeql-checks-pass" | sort)
+          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/codeql-analysis.yml | grep -v "all-codeql-checks-pass" | sort)
           
           # Extract job names from needs array
           needed_jobs='${{ toJSON(needs) }}'
