@@ -135,7 +135,7 @@ jobs:
           SIGNED=$(aws signer describe-signing-job --job-id "$JOB_ID" --query 'signedObject.s3.key' --output text 2>/dev/null)
           echo "SIGNED value: '$SIGNED'"
           if [ -n "$SIGNED" ]; then
-            aws s3 mv "s3://${{ env.BUCKET_NAME }}/$SIGNED" "s3://${{ env.BUCKET_NAME }}/${{ env.LAYER_ARTIFACT_NAME }} --clobber"
+            aws s3 mv "s3://${{ env.BUCKET_NAME }}/$SIGNED" "s3://${{ env.BUCKET_NAME }}/${{ env.LAYER_ARTIFACT_NAME }}"
             echo "Signed layer moved successfully"
           else
             echo "No SIGNED value returned, skipping move"
