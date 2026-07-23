@@ -1,14 +1,11 @@
 #!/bin/bash
-# Builds the ADOT Java lambda layer from the current source and packages the layer zip.
-#
-# PREREQUISITE: the patched upstream OpenTelemetry dependencies (contrib + instrumentation)
-# must already be published to the local Maven repository (~/.m2). Run build-upstream-deps.sh
-# first, or restore them from an actions/cache. In CI these two steps are separated so the
-# rarely-changing upstream build can be cached while this (per-commit) build always runs.
+
 set -e
 
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 file="$SOURCEDIR/../.github/patches/versions"
+
+#removed pulling from upstream OTel (logic now exists in build-upstream-deps.sh)
 
 ## Get OTel version
 echo "Info: Getting OTEL Version"
@@ -19,6 +16,8 @@ if [[ -z "$version" ]]; then
   echo "Error: Version could not be found in ${file}."
   exit 1
 fi
+
+#removed building lambda layer patch (logic now exists in build-upstream-deps.sh)
 
 ## Build the ADOT Java from current source
 echo "Info: Building ADOT Java from current source"

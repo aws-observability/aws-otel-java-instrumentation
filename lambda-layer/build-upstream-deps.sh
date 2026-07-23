@@ -1,7 +1,5 @@
 #!/bin/bash
 # Builds the PATCHED upstream OpenTelemetry dependencies (contrib + instrumentation)
-# and publishes them to the local Maven repository (~/.m2).
-#
 # These are the slow, rarely-changing steps of the lambda layer build. They only
 # need to rerun when the pinned upstream versions (.github/patches/versions) or the
 # patch files change. In CI, this script is skipped on an actions/cache hit keyed on

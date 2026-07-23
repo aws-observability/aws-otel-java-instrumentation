@@ -270,8 +270,8 @@ jobs:
           java-version-file: .java-version
           distribution: 'temurin'
         # Cache the patched upstream OpenTelemetry artifacts (contrib + instrumentation)
-        # published to ~/.m2. The key hashes the pinned versions and the patch files, so the
-        # cache is reused until upstream versions or patches change, at which point it rebuilds.
+        # The key hashes the pinned versions and the patch files, so the cache is reused until
+        # upstream versions or patches change, at which point it rebuilds.
       - name: Restore patched upstream Maven artifacts
         id: cache-upstream
         uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
