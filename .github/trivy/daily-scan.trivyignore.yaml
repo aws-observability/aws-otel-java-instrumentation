@@ -14,3 +14,23 @@ vulnerabilities:
   - id: CVE-2026-54515
     statement: "jackson-databind vulnerability. No fix available in 2.21.x yet (Trivy DB lists 2.21.5 which has not been released). https://avd.aquasec.com/nvd/cve-2026-54515"
     expired_at: 2026-07-31
+
+  - id: GHSA-r7wm-3cxj-wff9
+    statement: "jackson-core async parser maxNumberLength bypass via chunked digit accumulation. Fix: bump jackson to 2.22.1. https://github.com/advisories/GHSA-r7wm-3cxj-wff9"
+    expired_at: 2026-08-14
+
+  - id: CVE-2026-59901
+    statement: "Netty Bzip2Decoder infinite loop in RLE state machine leads to event-loop thread starvation. Fix: bump netty-codec to 4.1.136.Final. https://avd.aquasec.com/nvd/cve-2026-59901"
+    expired_at: 2026-08-14
+
+  - id: CVE-2026-55831
+    statement: "Netty netty-codec-http vulnerability. Fix: bump netty to 4.1.136.Final. https://avd.aquasec.com/nvd/cve-2026-55831"
+    expired_at: 2026-08-14
+
+  - id: CVE-2026-55833
+    statement: "Netty netty-codec-http vulnerability. Fix: bump netty to 4.1.136.Final. https://avd.aquasec.com/nvd/cve-2026-55833"
+    expired_at: 2026-08-14
+
+  - id: CVE-2026-56745
+    statement: "Netty netty-codec-http vulnerability. Fix: bump netty to 4.1.136.Final. https://avd.aquasec.com/nvd/cve-2026-56745"
+    expired_at: 2026-08-14
