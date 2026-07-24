@@ -584,13 +584,14 @@ jobs:
       # Query ECR signing profile ARN
       - name: Query ECR Signing Profile ARN
         id: ecr-signing-profile
+        continue-on-error: true
         run: |
-          PROFILE_ARN=$(aws signer list-signing-profiles --region ${{ env.AWS_PUBLIC_ECR_REGION }} --query "profiles[?profileName=='ADOTECRSigningProfile'].arn" --output text 2>/dev/null)
-          if [ -n "$PROFILE_ARN" ]; then
+          PROFILE_ARN=$(aws signer get-signing-profile --region ${{ env.AWS_PUBLIC_ECR_REGION }} --profile-name ADOTECRSigningProfile --query "arn" --output text) || PROFILE_ARN=""
+          if [ -n "$PROFILE_ARN" ] && [ "$PROFILE_ARN" != "None" ]; then
             echo "profile_arn=$PROFILE_ARN" >> $GITHUB_OUTPUT
             echo "Found ECR signing profile: $PROFILE_ARN"
           else
-            echo "ECR signing profile 'ADOTECRSigningProfile' not found"
+            echo "ECR signing profile 'ADOTECRSigningProfile' not found or lookup failed; skipping image signing."
             exit 0
           fi
 
