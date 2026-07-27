@@ -1,0 +1,53 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+plugins {
+  application
+  java
+  id("com.google.cloud.tools.jib") version "3.4.0"
+}
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
+application {
+  mainClass.set("software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.app.JavaagentApp")
+}
+
+dependencies {
+  // No OpenTelemetry dependencies: the javaagent (mounted at runtime by the test) instruments
+  // this application. Only a JDBC driver so a DB CLIENT span is produced.
+  implementation("com.h2database:h2:2.2.224")
+}
+
+tasks {
+  named("jib") {
+    enabled = false
+  }
+}
+
+jib {
+  from {
+    image = "public.ecr.aws/docker/library/amazoncorretto:23-alpine"
+  }
+  to {
+    image = "aws-otel-span-metrics-javaagent-app"
+  }
+  container {
+    ports = listOf("8080")
+  }
+}
