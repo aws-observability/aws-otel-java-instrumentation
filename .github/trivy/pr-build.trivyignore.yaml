@@ -12,3 +12,9 @@ vulnerabilities:
   - id: CVE-2026-54515
     statement: "jackson-databind vulnerability. No fix available in 2.21.x yet (Trivy DB lists 2.21.5 which has not been released). https://avd.aquasec.com/nvd/cve-2026-54515"
     expired_at: 2026-07-31
+  - id: GHSA-r7wm-3cxj-wff9
+    statement: "jackson-core async parser maxNumberLength bypass via chunked digit accumulation. jackson-core 2.22.0 is bundled by the shaded upstream OTel javaagent, so this repo's jackson-bom pin does not control it. Fix: upstream OTel release bundling jackson 2.22.1. https://github.com/advisories/GHSA-r7wm-3cxj-wff9"
+    expired_at: 2026-08-14
+  - id: CVE-2026-59889
+    statement: "jackson-databind @JsonView bypassed for @JsonUnwrapped container properties on deserialization. No fix available for the bundled 2.22.0 line yet (2.21.5 unreleased, 2.22.1 pending). jackson-databind 2.22.0 is bundled by the shaded upstream OTel javaagent, so this repo's jackson-bom pin does not control it. https://avd.aquasec.com/nvd/cve-2026-59889"
+    expired_at: 2026-08-14
