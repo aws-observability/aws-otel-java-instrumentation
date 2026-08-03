@@ -34,6 +34,12 @@ sourceSets {
     resources.setSrcDirs(listOf("src/springHook/resources"))
     compileClasspath += sourceSets.main.get().output
   }
+  // JMH microbenchmarks for the per-span hot path. Never published in the jar.
+  create("jmh") {
+    java.setSrcDirs(listOf("src/jmh/java"))
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+  }
 }
 
 dependencies {
@@ -47,6 +53,13 @@ dependencies {
   "springHookCompileOnly"(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
   "springHookCompileOnly"("io.opentelemetry:opentelemetry-api")
   "springHookCompileOnly"("org.springframework.boot:spring-boot-autoconfigure:3.3.5")
+
+  "jmhImplementation"(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
+  "jmhImplementation"("io.opentelemetry:opentelemetry-sdk")
+  "jmhImplementation"("io.opentelemetry:opentelemetry-sdk-testing")
+  "jmhImplementation"("org.openjdk.jmh:jmh-core:1.37")
+  "jmhImplementation"("org.mockito:mockito-core:5.3.1") // only for the onStart no-op span target
+  "jmhAnnotationProcessor"("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
   testImplementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
   testImplementation("io.opentelemetry:opentelemetry-sdk")
@@ -111,6 +124,17 @@ tasks.create("printVersion") {
   doLast {
     println(project.version.toString())
   }
+}
+
+// Runs the JMH microbenchmarks for the per-span hot path.
+// Usage: ./gradlew jmh   (optionally -Pjmh.args="regex")
+tasks.register<JavaExec>("jmh") {
+  group = "verification"
+  description = "Run JMH microbenchmarks"
+  mainClass.set("org.openjdk.jmh.Main")
+  classpath = sourceSets["jmh"].runtimeClasspath
+  val extraArgs = (project.findProperty("jmh.args") as String?)?.split(" ") ?: emptyList()
+  args = extraArgs
 }
 
 nexusPublishing {
