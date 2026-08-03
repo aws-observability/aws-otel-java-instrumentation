@@ -102,6 +102,7 @@ public abstract class SpanMetricsContractTestBase {
   @AfterAll
   protected void stopCollector() {
     mockCollector.stop();
+    network.close(); // release the Docker network; leaking these exhausts Docker over many runs
   }
 
   @BeforeEach
