@@ -63,13 +63,21 @@ class SpanMetricsAttributesBuilderTest {
   }
 
   @Test
-  void serviceNameFallsBackWhenAbsent() {
+  void serviceNameCopiedVerbatimWhenPresent() {
+    // span(...) sets the resource service.name to "svc"; it must be copied as-is, no fallback text.
+    Attributes attrs =
+        SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, Attributes.empty()).build());
+    assertThat(attrs.get(AttributeKey.stringKey("service.name"))).isEqualTo("svc");
+  }
+
+  @Test
+  void serviceNameOmittedWhenAbsent() {
+    // No fallback: if the resource genuinely lacks service.name, the metric omits it entirely
+    // (the SDK guarantees a default in practice, so this is the defensive edge only).
     Attributes attrs =
         SpanMetricsAttributesBuilder.build(
-            span(SpanKind.INTERNAL, Attributes.empty())
-                .setResource(Resource.empty())
-                .build());
-    assertThat(attrs.get(AttributeKey.stringKey("service.name"))).isEqualTo("unknown_service");
+            span(SpanKind.INTERNAL, Attributes.empty()).setResource(Resource.empty()).build());
+    assertThat(attrs.get(AttributeKey.stringKey("service.name"))).isNull();
   }
 
   @Test
@@ -103,29 +111,31 @@ class SpanMetricsAttributesBuilderTest {
   }
 
   @Test
-  void legacyDatabaseAttributesFallBackToCurrentKeys() {
-    // Instrumentation (e.g. OTel Java) still emitting legacy keys — values surface under the
-    // current keys.
+  void legacyDatabaseAttributesPassThroughUnderLegacyKeys() {
+    // Instrumentation still emitting legacy keys: pass the legacy key + value through unchanged,
+    // no value translation and no current-key emission.
     Attributes span =
         Attributes.builder()
-            .put("db.system", "h2")
+            .put("db.system", "mssql")
             .put("db.operation", "SELECT")
-            .put("db.sql.table", "vets")
+            .put("db.sql.table", "orders")
             .build();
     Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
-    assertThat(attrs.get(AttributeKey.stringKey("db.system.name"))).isEqualTo("h2");
-    assertThat(attrs.get(AttributeKey.stringKey("db.operation.name"))).isEqualTo("SELECT");
-    assertThat(attrs.get(AttributeKey.stringKey("db.collection.name"))).isEqualTo("vets");
-    // Legacy keys themselves are not emitted.
-    assertThat(attrs.get(AttributeKey.stringKey("db.system"))).isNull();
+    assertThat(attrs.get(AttributeKey.stringKey("db.system"))).isEqualTo("mssql");
+    assertThat(attrs.get(AttributeKey.stringKey("db.operation"))).isEqualTo("SELECT");
+    assertThat(attrs.get(AttributeKey.stringKey("db.sql.table"))).isEqualTo("orders");
+    // The value is never re-homed under the current key.
+    assertThat(attrs.get(AttributeKey.stringKey("db.system.name"))).isNull();
   }
 
   @Test
-  void currentKeyWinsOverLegacyWhenBothPresent() {
+  void currentKeyWinsAndLegacyIgnoredWhenBothPresent() {
     Attributes span =
         Attributes.builder().put("db.system.name", "postgresql").put("db.system", "h2").build();
     Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
     assertThat(attrs.get(AttributeKey.stringKey("db.system.name"))).isEqualTo("postgresql");
+    // Legacy key not added when the current key is present.
+    assertThat(attrs.get(AttributeKey.stringKey("db.system"))).isNull();
   }
 
   @Test

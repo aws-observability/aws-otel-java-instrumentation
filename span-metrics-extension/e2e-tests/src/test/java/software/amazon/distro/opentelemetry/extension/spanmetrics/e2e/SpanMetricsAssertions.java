@@ -44,11 +44,17 @@ final class SpanMetricsAssertions {
         .filter(m -> m.getMetric().getName().equals(CALLS_METRIC))
         .flatMap(m -> m.getMetric().getSum().getDataPointsList().stream())
         .filter(dp -> attributeEquals(dp.getAttributesList(), "span.name", spanName))
-        .max(java.util.Comparator.comparingLong(NumberDataPoint::getAsInt));
+        .max(java.util.Comparator.comparingLong(SpanMetricsAssertions::pointValue));
   }
 
   static long callsValue(List<ResourceScopeMetric> metrics, String spanName) {
-    return callsDataPoint(metrics, spanName).map(NumberDataPoint::getAsInt).orElse(0L);
+    return callsDataPoint(metrics, spanName).map(SpanMetricsAssertions::pointValue).orElse(0L);
+  }
+
+  // A NumberDataPoint carries either an int or a double value depending on encoding; read whichever
+  // is set so the count is correct regardless.
+  private static long pointValue(NumberDataPoint dp) {
+    return dp.hasAsDouble() ? (long) dp.getAsDouble() : dp.getAsInt();
   }
 
   static Map<String, String> stringAttributes(List<KeyValue> attributes) {

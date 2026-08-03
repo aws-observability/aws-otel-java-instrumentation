@@ -17,6 +17,8 @@ package software.amazon.distro.opentelemetry.extension.spanmetrics.internal;
 
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Bridges the host's fully-built OpenTelemetry instance to the span processor. The processor is
@@ -27,10 +29,21 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class OpenTelemetryHolder {
 
+  private static final Logger logger = Logger.getLogger(OpenTelemetryHolder.class.getName());
+
   private static final AtomicReference<OpenTelemetry> instance = new AtomicReference<>();
 
+  /** First bind wins. A later bind of a different instance is ignored but logged. */
   public static void set(OpenTelemetry openTelemetry) {
-    instance.compareAndSet(null, openTelemetry);
+    if (!instance.compareAndSet(null, openTelemetry)) {
+      OpenTelemetry existing = instance.get();
+      if (existing != openTelemetry) {
+        logger.log(
+            Level.WARNING,
+            "Span metrics already bound to an OpenTelemetry instance; ignoring a later, different"
+                + " bind. Span metrics will use the first instance.");
+      }
+    }
   }
 
   public static OpenTelemetry get() {

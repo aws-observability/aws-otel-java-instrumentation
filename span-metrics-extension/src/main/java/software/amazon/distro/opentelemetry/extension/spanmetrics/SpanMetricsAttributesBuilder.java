@@ -67,16 +67,21 @@ final class SpanMetricsAttributesBuilder {
       AttributeKey.booleanKey("messaging.destination.anonymous");
 
   static Attributes build(SpanData span) {
-    String serviceName = span.getResource().getAttribute(SERVICE_NAME);
     AttributesBuilder builder =
         Attributes.builder()
-            .put(SERVICE_NAME, serviceName == null ? "unknown_service" : serviceName)
             .put(SPAN_NAME, span.getName())
             .put(SPAN_KIND, span.getKind().name())
             .put(STATUS_CODE, span.getStatus().getStatusCode().name())
             // Schema + library-version markers appear on both spans and metrics (spec §6).
             .put(SpanMetricsProcessor.SCHEMA_ATTR, SpanMetricsProcessor.SCHEMA_VERSION)
             .put(SpanMetricsProcessor.LIB_VERSION_ATTR, SpanMetricsProcessor.LIB_VERSION);
+
+    // service.name: copied verbatim from the resource, no fallback (spec Q2 — the SDK already
+    // defaults it to unknown_service:<language>). Omitted only if genuinely absent.
+    String serviceName = span.getResource().getAttribute(SERVICE_NAME);
+    if (serviceName != null) {
+      builder.put(SERVICE_NAME, serviceName);
+    }
 
     Attributes spanAttributes = span.getAttributes();
     for (AttributeKey<?> key : ALLOWLIST) {
@@ -96,14 +101,14 @@ final class SpanMetricsAttributesBuilder {
     }
   }
 
-  // For each fallback, if the current key is absent but the legacy key is present, emit the value
-  // under the current key.
+  // When the current key is absent, pass the legacy key and value through unchanged (no value
+  // translation) so we never emit a value the instrumentation did not produce.
   private static void applyLegacyFallbacks(AttributesBuilder builder, Attributes source) {
     for (LegacyFallback fallback : LEGACY_FALLBACKS) {
       if (source.get(fallback.currentKey) == null) {
         String legacyValue = source.get(fallback.legacyKey);
         if (legacyValue != null) {
-          builder.put(fallback.currentKey, legacyValue);
+          builder.put(fallback.legacyKey, legacyValue);
         }
       }
     }

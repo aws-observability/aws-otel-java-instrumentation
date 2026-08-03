@@ -101,6 +101,10 @@ public final class SpanMetricsProcessor implements SpanProcessor {
       if (!ensureInstruments()) {
         return;
       }
+      // One toSpanData() snapshot per span: status and resource are only reachable via SpanData on
+      // the ReadableSpan interface, so this allocation is inherent to the contract (reading fields
+      // off the concrete SdkSpan would break non-SDK ReadableSpan implementations). Everything else
+      // is read from this single snapshot.
       SpanData data = span.toSpanData();
       Attributes attributes = SpanMetricsAttributesBuilder.build(data);
       calls.add(1, attributes);
