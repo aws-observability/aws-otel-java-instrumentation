@@ -46,6 +46,7 @@ dependencies {
   testImplementation("org.slf4j:slf4j-simple:1.7.36")
   testImplementation("org.testcontainers:testcontainers")
   testImplementation("org.testcontainers:junit-jupiter")
+  testImplementation("org.testcontainers:kafka")
   testImplementation("org.junit.jupiter:junit-jupiter-api")
   testImplementation("org.junit.jupiter:junit-jupiter-engine")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")

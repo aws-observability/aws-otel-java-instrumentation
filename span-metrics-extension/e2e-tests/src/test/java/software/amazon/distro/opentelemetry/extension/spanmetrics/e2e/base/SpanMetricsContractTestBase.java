@@ -17,7 +17,10 @@ package software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.base;
 
 import com.linecorp.armeria.client.WebClient;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -30,7 +33,9 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.containers.wait.strategy.WaitStrategy;
+import software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions;
 import software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.utils.MockCollectorClient;
+import software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.utils.ResourceScopeMetric;
 
 /**
  * Base class for span-metrics extension e2e (contract) tests.
@@ -79,7 +84,26 @@ public abstract class SpanMetricsContractTestBase {
 
   protected static final int APPLICATION_PORT = 8080;
 
-  protected final Network network = Network.newNetwork();
+  protected final Network network = createNetwork();
+
+  /**
+   * Supplies the Docker network the collector + application containers join. Defaults to a fresh
+   * per-class network (closed in {@link #stopCollector()}). Subclasses that share a long-lived
+   * sidecar (e.g. a single Kafka broker across the family suite) override this to return a shared
+   * network instead — see {@code FamilyTestBase}.
+   */
+  protected Network createNetwork() {
+    return Network.newNetwork();
+  }
+
+  /**
+   * Whether {@link #stopCollector()} owns and should close {@link #network}. Subclasses returning a
+   * shared network from {@link #createNetwork()} override this to {@code false} so the shared network
+   * outlives any single class.
+   */
+  protected boolean ownsNetwork() {
+    return true;
+  }
 
   protected final GenericContainer<?> mockCollector =
       new GenericContainer<>("aws-otel-span-metrics-mock-collector")
@@ -102,7 +126,9 @@ public abstract class SpanMetricsContractTestBase {
   @AfterAll
   protected void stopCollector() {
     mockCollector.stop();
-    network.close(); // release the Docker network; leaking these exhausts Docker over many runs
+    if (ownsNetwork()) {
+      network.close(); // release the Docker network; leaking these exhausts Docker over many runs
+    }
   }
 
   @BeforeEach
@@ -195,4 +221,41 @@ public abstract class SpanMetricsContractTestBase {
 
   /** The local docker image name of the application under test. */
   protected abstract String getApplicationImageName();
+
+  // ---- Shared traffic + polling helpers (used by both mode and family tests) ----
+
+  protected static final int REQUEST_COUNT = 100;
+
+  /** Drives REQUEST_COUNT GET requests against the given path. */
+  protected void drive(String path) {
+    for (int i = 0; i < REQUEST_COUNT; i++) {
+      appClient.get(path).aggregate().join();
+    }
+  }
+
+  /**
+   * Polls the collector until the calls datapoint for the given span name reaches REQUEST_COUNT.
+   * The metric name can appear (from other spans) before this specific cumulative datapoint has
+   * caught up, so keying the wait on the value avoids a flaky race.
+   */
+  protected List<ResourceScopeMetric> awaitCalls(String spanName) {
+    List<ResourceScopeMetric> metrics = List.of();
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (System.nanoTime() < deadline) {
+      metrics = mockCollectorClient.getMetrics(Set.of(SpanMetricsAssertions.CALLS_METRIC));
+      if (SpanMetricsAssertions.callsValue(metrics, spanName) >= REQUEST_COUNT) {
+        return metrics;
+      }
+      sleep();
+    }
+    return metrics;
+  }
+
+  private static void sleep() {
+    try {
+      Thread.sleep(500);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
 }

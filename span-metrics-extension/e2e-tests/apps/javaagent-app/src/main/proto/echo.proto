@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.app.grpc";
+option java_outer_classname = "EchoProto";
+
+package echo;
+
+// Minimal echo service: one unary method so the agent's grpc instrumentation
+// emits a CLIENT and a SERVER span (rpc.system=grpc, rpc.service=echo.Echoer,
+// rpc.method=Echo).
+service Echoer {
+  rpc Echo (EchoRequest) returns (EchoReply) {}
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoReply {
+  string message = 1;
+}

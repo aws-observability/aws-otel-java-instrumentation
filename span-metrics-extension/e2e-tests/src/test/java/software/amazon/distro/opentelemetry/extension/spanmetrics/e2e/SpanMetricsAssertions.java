@@ -26,19 +26,19 @@ import java.util.stream.Collectors;
 import software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.utils.ResourceScopeMetric;
 
 /** Shared helpers for asserting on span-metrics datapoints received by the mock collector. */
-final class SpanMetricsAssertions {
+public final class SpanMetricsAssertions {
 
-  static final String CALLS_METRIC = "traces.span.metrics.calls";
-  static final String DURATION_METRIC = "traces.span.metrics.duration";
-  static final String SCOPE_NAME = "io.opentelemetry.contrib.spanmetrics";
-  static final String SCHEMA_VERSION = "v1";
+  public static final String CALLS_METRIC = "traces.span.metrics.calls";
+  public static final String DURATION_METRIC = "traces.span.metrics.duration";
+  public static final String SCOPE_NAME = "io.opentelemetry.contrib.spanmetrics";
+  public static final String SCHEMA_VERSION = "v1";
 
   /**
    * Returns the highest-count calls datapoint for the given span name across all received export
    * batches. With cumulative temporality the collector keeps every snapshot, so the latest (largest)
    * datapoint holds the running total.
    */
-  static Optional<NumberDataPoint> callsDataPoint(
+  public static Optional<NumberDataPoint> callsDataPoint(
       List<ResourceScopeMetric> metrics, String spanName) {
     return metrics.stream()
         .filter(m -> m.getMetric().getName().equals(CALLS_METRIC))
@@ -47,7 +47,7 @@ final class SpanMetricsAssertions {
         .max(java.util.Comparator.comparingLong(SpanMetricsAssertions::pointValue));
   }
 
-  static long callsValue(List<ResourceScopeMetric> metrics, String spanName) {
+  public static long callsValue(List<ResourceScopeMetric> metrics, String spanName) {
     return callsDataPoint(metrics, spanName).map(SpanMetricsAssertions::pointValue).orElse(0L);
   }
 
@@ -57,19 +57,33 @@ final class SpanMetricsAssertions {
     return dp.hasAsDouble() ? (long) dp.getAsDouble() : dp.getAsInt();
   }
 
-  static Map<String, String> stringAttributes(List<KeyValue> attributes) {
+  public static Map<String, String> stringAttributes(List<KeyValue> attributes) {
     return attributes.stream()
         .filter(kv -> kv.getValue().hasStringValue())
         .collect(Collectors.toMap(KeyValue::getKey, kv -> kv.getValue().getStringValue()));
   }
 
-  static boolean attributeEquals(List<KeyValue> attributes, String key, String value) {
+  public static boolean attributeEquals(List<KeyValue> attributes, String key, String value) {
     return attributes.stream()
         .anyMatch(kv -> kv.getKey().equals(key) && kv.getValue().getStringValue().equals(value));
   }
 
+  /** True if the key is present regardless of value type (string, int, bool, ...). */
+  public static boolean hasAttribute(List<KeyValue> attributes, String key) {
+    return attributes.stream().anyMatch(kv -> kv.getKey().equals(key));
+  }
+
+  /** Returns the int value for the key, or null if absent / not an int. */
+  public static Long intAttribute(List<KeyValue> attributes, String key) {
+    return attributes.stream()
+        .filter(kv -> kv.getKey().equals(key) && kv.getValue().hasIntValue())
+        .map(kv -> kv.getValue().getIntValue())
+        .findFirst()
+        .orElse(null);
+  }
+
   /** Asserts the calls metric is emitted under our instrumentation scope. */
-  static void assertScope(List<ResourceScopeMetric> metrics) {
+  public static void assertScope(List<ResourceScopeMetric> metrics) {
     assertThat(metrics)
         .filteredOn(m -> m.getMetric().getName().equals(CALLS_METRIC))
         .anySatisfy(m -> assertThat(m.getScope().getScope().getName()).isEqualTo(SCOPE_NAME));

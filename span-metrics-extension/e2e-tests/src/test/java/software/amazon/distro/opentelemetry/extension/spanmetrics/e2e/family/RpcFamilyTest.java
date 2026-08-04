@@ -13,27 +13,22 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.distro.opentelemetry.extension.spanmetrics.e2e;
+package software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.family;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** Mode 2: the OpenTelemetry Spring Boot starter discovers the extension on the classpath. */
+/** RPC-family attributes from an agent-instrumented gRPC call (echo.Echoer/Echo). */
 @Testcontainers(disabledWithoutDocker = true)
-class SpringModeTest extends AbstractModeTest {
+class RpcFamilyTest extends FamilyTestBase {
 
-  @Override
-  protected String getApplicationImageName() {
-    return "aws-otel-span-metrics-spring-app";
-  }
-
-  @Override
-  protected String getApplicationWaitPattern() {
-    return ".*Started SpringApp.*";
-  }
-
-  @Override
-  protected String databaseSpanName() {
-    // Spring Data JPA over H2 names the JDBC span by operation + namespace.entity.
-    return "SELECT spanmetrics.test_item";
+  @Test
+  void rpcDerivedAttributesCopied() {
+    Map<String, String> attrs = metricAttributesMatching("/grpc", "rpc.system", "grpc");
+    assertThat(attrs.get("rpc.service")).isEqualTo("echo.Echoer");
+    assertThat(attrs.get("rpc.method")).isEqualTo("Echo");
   }
 }
