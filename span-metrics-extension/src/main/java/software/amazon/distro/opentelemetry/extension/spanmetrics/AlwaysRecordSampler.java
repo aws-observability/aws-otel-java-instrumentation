@@ -29,6 +29,14 @@ import java.util.logging.Logger;
  * Wraps the configured sampler and turns {@code DROP} decisions into {@code RECORD_ONLY}. Spans the
  * delegate would drop are still recorded, so {@link SpanMetricsProcessor#onEnd} sees them, but they
  * are not exported, so trace volume still honors the configured sampling rate.
+ *
+ * <p>This is a deliberate local copy of the upstream {@code AlwaysRecord} sampler (defined by the
+ * OpenTelemetry specification and implemented as {@code AlwaysRecordSampler} in
+ * {@code opentelemetry-sdk-extension-incubator}). We keep our own copy rather than depend on that
+ * artifact because it ships only as an {@code -alpha} module whose API is explicitly marked internal
+ * and unstable ("can change at any time"); a GA library should not inherit that churn for a class
+ * this small. The DROP-to-RECORD_ONLY behavior is frozen by the spec, so there is nothing to keep in
+ * sync. Revisit depending on the incubator artifact once that sampler graduates to the stable API.
  */
 public final class AlwaysRecordSampler implements Sampler {
 
