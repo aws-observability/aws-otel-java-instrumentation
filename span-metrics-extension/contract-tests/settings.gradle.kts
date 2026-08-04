@@ -1,4 +1,4 @@
-rootProject.name = "aws-otel-span-metrics-extension-e2e-tests"
+rootProject.name = "aws-otel-span-metrics-extension-contract-tests"
 
 dependencyResolutionManagement {
   repositories {

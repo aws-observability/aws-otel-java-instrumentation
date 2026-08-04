@@ -58,12 +58,13 @@ dependencies {
 val extensionJar = file("../build/libs/aws-otel-span-metrics-extension-1.0.0.jar")
 
 tasks {
-  // Disable the default test task from the java plugin; e2e tests run via the e2eTests task.
+  // Disable the default test task from the java plugin; contract tests run via the contractTests
+  // task.
   named("test") {
     enabled = false
   }
 
-  register<Test>("e2eTests") {
+  register<Test>("contractTests") {
     useJUnitPlatform()
 
     // Build all container images before the tests run.

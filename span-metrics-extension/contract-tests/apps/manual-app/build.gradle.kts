@@ -28,8 +28,12 @@ application {
   mainClass.set("software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.app.ManualApp")
 }
 
+// Override with -PotelBomVersion=<x.y.z> to exercise the extension against a different OTel SDK
+// version (used to verify the supported floor). Defaults to the version the suite is built against.
+val otelBomVersion = (project.findProperty("otelBomVersion") as String?) ?: "1.45.0"
+
 dependencies {
-  implementation(platform("io.opentelemetry:opentelemetry-bom:1.45.0"))
+  implementation(platform("io.opentelemetry:opentelemetry-bom:$otelBomVersion"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-exporter-otlp")

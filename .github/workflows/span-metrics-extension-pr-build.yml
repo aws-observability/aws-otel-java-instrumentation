@@ -45,10 +45,10 @@ jobs:
           java-version-file: .java-version
           distribution: temurin
 
-      # The e2eTests task references ../build/libs/<extension>.jar, so the extension jar must exist
-      # before the contract suite runs.
+      # The contractTests task references ../build/libs/<extension>.jar, so the extension jar must
+      # exist before the contract suite runs.
       - name: Build extension jar
         run: ./gradlew jar -p span-metrics-extension --stacktrace
 
       - name: Run contract tests
-        run: ./gradlew e2eTests -p span-metrics-extension/e2e-tests --stacktrace
+        run: ./gradlew contractTests -p span-metrics-extension/contract-tests --stacktrace

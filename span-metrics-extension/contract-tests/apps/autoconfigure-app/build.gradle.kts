@@ -31,7 +31,7 @@ application {
 }
 
 dependencies {
-  implementation(platform("io.opentelemetry:opentelemetry-bom:1.45.0"))
+  implementation(platform("io.opentelemetry:opentelemetry-bom:${(project.findProperty("otelBomVersion") as String?) ?: "1.45.0"}"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
