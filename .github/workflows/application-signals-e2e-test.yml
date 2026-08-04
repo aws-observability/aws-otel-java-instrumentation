@@ -130,7 +130,24 @@ jobs:
   # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
   #
 
+  # Establish cluster-wide Application Signals state EXACTLY ONCE, before the EKS fan-out.
+  #
+  # enable-app-signals.sh calls `eksctl create iamserviceaccount --override-existing-serviceaccounts`
+  # unconditionally, so when each parallel version job ran it, a sibling could delete and recreate the
+  # shared cloudwatch-agent service account after the addon's DaemonSet pods were already admitted.
+  # IRSA credentials are injected only at pod-admission time, so those pods ran credential-less
+  # forever, fell back to the EC2 node role (no logs:PutLogEvents), and every validator then failed on
+  # missing telemetry. Gating all EKS jobs on this setup removes the race; the test jobs are
+  # assert-only on shared state.
+  eks-setup:
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-setup-app-signals.yml@java-eks-parallel-wip
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+
   eks-v8-amd64:
+    needs: [ eks-setup ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -141,6 +158,7 @@ jobs:
       java-version: '8'
 
   eks-v11-amd64:
+    needs: [ eks-setup ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -151,6 +169,7 @@ jobs:
       java-version: '11'
 
   eks-v17-amd64:
+    needs: [ eks-setup ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -161,6 +180,7 @@ jobs:
       java-version: '17'
 
   eks-v21-amd64:
+    needs: [ eks-setup ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -171,6 +191,7 @@ jobs:
       java-version: '21'
 
   eks-v25-amd64:
+    needs: [ eks-setup ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -251,7 +272,7 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    needs: [ eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64 ]
+    needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -286,7 +307,7 @@ jobs:
     # target e2e-adot-test and the sample-app Service binds cluster-wide NodePort 30100, which this
     # SE test also uses. Running in parallel would collide on that port ("provided port is already
     # allocated"), so serialize after the last job that uses the cluster.
-    needs: [ eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64, metric-limiter-v11-amd64 ]
+    needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64, metric-limiter-v11-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-test.yml@java-eks-parallel-wip
     secrets: inherit
     with:
@@ -311,3 +332,9 @@ jobs:
   #   (see: https://github.com/aws-observability/aws-application-signals-test-framework/blob/main/.github/workflows/validate-e2e-tests-are-accounted-for.yml)
   validate-all-tests-are-accounted-for:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/validate-e2e-tests-are-accounted-for.yml@main
+    with:
+      # eks-setup-app-signals.yml is cluster setup, not a test cell, so it is not in the expected-tests
+      # glob (which requires a java-/metric-limiter- prefix AND a test.yml suffix). It IS picked up by
+      # TESTS_ACTUALLY_USED though, since that scans every framework workflow this caller uses -- so
+      # without this exclusion the two lists mismatch and this validation fails.
+      exclusions: 'eks-setup-app-signals.yml'
