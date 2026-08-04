@@ -97,6 +97,24 @@ class SpanMetricsAttributesBuilderTest {
   }
 
   @Test
+  void rpcAttributesCopiedWhenPresent() {
+    Attributes span =
+        Attributes.builder()
+            .put("rpc.system", "grpc")
+            .put("rpc.service", "orders.OrderService")
+            .put("rpc.method", "GetOrder")
+            .put("error.type", "UNAVAILABLE")
+            .put("rpc.request.body", "secret") // not allowlisted
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.system"))).isEqualTo("grpc");
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.service"))).isEqualTo("orders.OrderService");
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.method"))).isEqualTo("GetOrder");
+    assertThat(attrs.get(AttributeKey.stringKey("error.type"))).isEqualTo("UNAVAILABLE");
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.request.body"))).isNull();
+  }
+
+  @Test
   void databaseAttributesCopied() {
     Attributes span =
         Attributes.builder()

@@ -94,11 +94,21 @@ class SpanMetricsProcessorTest {
             .findFirst()
             .orElseThrow(() -> new AssertionError("duration metric missing"));
 
-    // Duration is in seconds; a 5ms span records 0.005s.
+    // Duration is in seconds; a 5ms span records 0.005s, with the connector default buckets.
     assertThat(duration.getUnit()).isEqualTo("s");
     assertThat(duration.getHistogramData().getPoints())
-        .anySatisfy(p -> assertThat(p.getSum()).isEqualTo(0.005));
+        .anySatisfy(
+            p -> {
+              assertThat(p.getSum()).isEqualTo(0.005);
+              assertThat(p.getBoundaries())
+                  .containsExactly(
+                      0.002, 0.004, 0.006, 0.008, 0.01, 0.05, 0.1, 0.2, 0.4, 0.8, 1.0, 1.4, 2.0,
+                      5.0, 10.0, 15.0);
+            });
 
+    // calls is a monotonic Sum with no unit (connector parity).
+    assertThat(calls.getUnit()).isEmpty();
+    assertThat(calls.getLongSumData().isMonotonic()).isTrue();
     assertThat(calls.getLongSumData().getPoints())
         .anySatisfy(
             p -> {
