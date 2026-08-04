@@ -63,4 +63,15 @@ class JavaagentModeTest extends AbstractModeTest {
     // extension (current-semconv only) does not copy database attributes here.
     return false;
   }
+
+  // The app uses a JDK HttpServer, which the agent does not instrument — no HTTP server spans.
+  @Override
+  protected String httpServerSpanName() {
+    return null;
+  }
+
+  @Override
+  protected String errorSpanName() {
+    return null;
+  }
 }

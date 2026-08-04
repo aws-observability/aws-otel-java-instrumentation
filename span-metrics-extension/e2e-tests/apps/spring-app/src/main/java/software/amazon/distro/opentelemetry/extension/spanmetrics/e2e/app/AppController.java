@@ -51,4 +51,11 @@ public class AppController {
     long count = repository.count();
     return ResponseEntity.ok("count=" + count);
   }
+
+  @GetMapping("/error")
+  @ResponseBody
+  public ResponseEntity<String> error() {
+    // 5xx so the framework instrumentation marks the server span's status as ERROR.
+    return ResponseEntity.status(500).body("error");
+  }
 }

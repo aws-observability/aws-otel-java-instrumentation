@@ -70,6 +70,7 @@ public final class AutoconfigureApp {
     HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
     server.createContext("/ping", AutoconfigureApp::handlePing);
     server.createContext("/db", AutoconfigureApp::handleDb);
+    server.createContext("/error", AutoconfigureApp::handleError);
     server.setExecutor(null);
     server.start();
 
@@ -90,9 +91,34 @@ public final class AutoconfigureApp {
   }
 
   private static void handlePing(HttpExchange exchange) throws IOException {
-    Span span = tracer.spanBuilder("GET /ping").setSpanKind(SpanKind.SERVER).startSpan();
+    Span span =
+        tracer
+            .spanBuilder("GET /ping")
+            .setSpanKind(SpanKind.SERVER)
+            .setAttribute("http.request.method", "GET")
+            .setAttribute("http.route", "/ping")
+            .setAttribute("http.response.status_code", 200L)
+            .startSpan();
     try (Scope scope = span.makeCurrent()) {
       respond(exchange, 200, "pong");
+    } finally {
+      span.end();
+    }
+  }
+
+  private static void handleError(HttpExchange exchange) throws IOException {
+    Span span =
+        tracer
+            .spanBuilder("GET /error")
+            .setSpanKind(SpanKind.SERVER)
+            .setAttribute("http.request.method", "GET")
+            .setAttribute("http.route", "/error")
+            .setAttribute("http.response.status_code", 500L)
+            .setAttribute("error.type", "500")
+            .startSpan();
+    try (Scope scope = span.makeCurrent()) {
+      span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "synthetic error");
+      respond(exchange, 500, "error");
     } finally {
       span.end();
     }

@@ -17,6 +17,8 @@ package software.amazon.distro.opentelemetry.extension.spanmetrics.e2e;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions.CALLS_METRIC;
+import static software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions.DURATION_METRIC;
+import static software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions.attributeEquals;
 import static software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions.assertScope;
 import static software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions.callsDataPoint;
 import static software.amazon.distro.opentelemetry.extension.spanmetrics.e2e.SpanMetricsAssertions.callsValue;
@@ -49,6 +51,19 @@ abstract class AbstractModeTest extends SpanMetricsContractTestBase {
    */
   protected boolean databaseSpanHasSemconvAttributes() {
     return true;
+  }
+
+  /**
+   * The HTTP SERVER span name for {@code GET /ping}, or {@code null} if this mode produces no HTTP
+   * server span (e.g. the javaagent app uses a JDK HttpServer the agent does not instrument).
+   */
+  protected String httpServerSpanName() {
+    return "GET /ping";
+  }
+
+  /** The SERVER span name for the {@code GET /error} endpoint, or {@code null} if not applicable. */
+  protected String errorSpanName() {
+    return "GET /error";
   }
 
   @Test
@@ -86,17 +101,21 @@ abstract class AbstractModeTest extends SpanMetricsContractTestBase {
     }
   }
 
-  /**
-   * Polls the collector until the database span's calls datapoint reaches the full request count.
-   * The metric name can appear (from other spans) before this specific cumulative datapoint has
-   * caught up, so keying the wait on the value avoids a flaky race.
-   */
   private List<ResourceScopeMetric> awaitDatabaseCalls() {
+    return awaitCalls(databaseSpanName());
+  }
+
+  /**
+   * Polls the collector until the given span's calls datapoint reaches the full request count. The
+   * metric name can appear (from other spans) before this specific cumulative datapoint has caught
+   * up, so keying the wait on the value avoids a flaky race.
+   */
+  private List<ResourceScopeMetric> awaitCalls(String spanName) {
     List<ResourceScopeMetric> metrics = List.of();
     long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
     while (System.nanoTime() < deadline) {
       metrics = mockCollectorClient.getMetrics(Set.of(CALLS_METRIC));
-      if (callsValue(metrics, databaseSpanName()) >= REQUEST_COUNT) {
+      if (callsValue(metrics, spanName) >= REQUEST_COUNT) {
         return metrics;
       }
       try {
@@ -107,6 +126,77 @@ abstract class AbstractModeTest extends SpanMetricsContractTestBase {
       }
     }
     return metrics;
+  }
+
+  private void drive(String path) {
+    for (int i = 0; i < REQUEST_COUNT; i++) {
+      appClient.get(path).aggregate().join();
+    }
+  }
+
+  @Test
+  void durationMetricIsEmittedInSeconds() {
+    drive("/db");
+    // Poll until the duration histogram carries a datapoint for the DB span (same cumulative-timing
+    // race the calls await handles).
+    ResourceScopeMetric duration = null;
+    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+    while (System.nanoTime() < deadline && duration == null) {
+      duration =
+          mockCollectorClient.getMetrics(Set.of(DURATION_METRIC)).stream()
+              .filter(m -> m.getMetric().getName().equals(DURATION_METRIC))
+              .filter(
+                  m ->
+                      m.getMetric().getHistogram().getDataPointsList().stream()
+                          .anyMatch(
+                              dp ->
+                                  attributeEquals(
+                                      dp.getAttributesList(), "span.name", databaseSpanName())))
+              .findFirst()
+              .orElse(null);
+      if (duration == null) {
+        try {
+          Thread.sleep(500);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }
+    assertThat(duration).as("duration metric with a datapoint for the DB span").isNotNull();
+    assertThat(duration.getMetric().getUnit()).isEqualTo("s");
+    assertThat(duration.getMetric().hasHistogram()).isTrue();
+  }
+
+  @Test
+  void httpServerSpanCarriesDerivedAttributes() {
+    if (httpServerSpanName() == null) {
+      return; // this mode produces no HTTP server span
+    }
+    drive("/ping");
+    List<ResourceScopeMetric> metrics = awaitCalls(httpServerSpanName());
+    Map<String, String> attrs =
+        callsDataPoint(metrics, httpServerSpanName())
+            .map(dp -> stringAttributes(dp.getAttributesList()))
+            .orElseThrow(() -> new AssertionError("no calls datapoint for " + httpServerSpanName()));
+    assertThat(attrs.get("span.kind")).isEqualTo("SERVER");
+    assertThat(attrs).containsKey("service.name");
+    assertThat(attrs).containsKey("http.request.method");
+    assertThat(attrs).containsKey("http.route");
+  }
+
+  @Test
+  void errorSpanCarriesErrorStatus() {
+    if (errorSpanName() == null) {
+      return;
+    }
+    drive("/error");
+    List<ResourceScopeMetric> metrics = awaitCalls(errorSpanName());
+    Map<String, String> attrs =
+        callsDataPoint(metrics, errorSpanName())
+            .map(dp -> stringAttributes(dp.getAttributesList()))
+            .orElseThrow(() -> new AssertionError("no calls datapoint for " + errorSpanName()));
+    assertThat(attrs.get("status.code")).isEqualTo("ERROR");
   }
 
   @Test
