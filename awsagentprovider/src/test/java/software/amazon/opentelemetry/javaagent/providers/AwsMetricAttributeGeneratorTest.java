@@ -473,7 +473,8 @@ class AwsMetricAttributeGeneratorTest {
 
   // Verifies the end-to-end effect of OTEL_AWS_HTTP_OPERATION_PATHS on the emitted
   // aws.local.operation metric attribute. The metrics processor applies the override to the span
-  // name before the generator runs, so we replicate that ordering here: applyOperationPathSpanName()
+  // name before the generator runs, so we replicate that ordering here:
+  // applyOperationPathSpanName()
   // then the generator. The expected value is a multi-segment, wildcarded path that neither the raw
   // span name nor URL truncation ("POST /api") could produce, so the assertion can only pass if the
   // configured path won. getOperationPaths() is stubbed (matching AwsSpanProcessingUtilTest) so the
