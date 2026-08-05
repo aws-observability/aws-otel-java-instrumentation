@@ -54,8 +54,11 @@ import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_ME
 import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SERVICE;
 import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Answers.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AGENT_ID;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_ACCESS_KEY;
 import static software.amazon.opentelemetry.javaagent.providers.AwsAttributeKeys.AWS_AUTH_REGION;
@@ -110,6 +113,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 /** Unit tests for {@link AwsMetricAttributeGenerator}. */
 class AwsMetricAttributeGeneratorTest {
@@ -463,6 +467,49 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(HTTP_REQUEST_METHOD, "POST");
     mockAttribute(URL_PATH, "/payment/123");
     validateAttributesProducedForNonLocalRootSpanOfKind(expectedAttributes, SpanKind.SERVER);
+    mockAttribute(HTTP_REQUEST_METHOD, null);
+    mockAttribute(URL_PATH, null);
+  }
+
+  // Verifies the end-to-end effect of OTEL_AWS_HTTP_OPERATION_PATHS on the emitted
+  // aws.local.operation metric attribute. The metrics processor applies the override to the span
+  // name before the generator runs, so we replicate that ordering here: applyOperationPathSpanName()
+  // then the generator. The expected value is a multi-segment, wildcarded path that neither the raw
+  // span name nor URL truncation ("POST /api") could produce, so the assertion can only pass if the
+  // configured path won. getOperationPaths() is stubbed (matching AwsSpanProcessingUtilTest) so the
+  // test does not depend on real process environment variables.
+  @Test
+  public void testServerSpanLocalOperationUsesConfiguredOperationPath() {
+    updateResourceWithServiceName();
+    when(spanDataMock.getName()).thenReturn("POST");
+    mockAttribute(HTTP_REQUEST_METHOD, "POST");
+    mockAttribute(URL_PATH, "/api/contests/123/leaderboard");
+    when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
+
+    Attributes expectedAttributes =
+        Attributes.of(
+            AWS_SPAN_KIND,
+            SpanKind.SERVER.name(),
+            AWS_LOCAL_SERVICE,
+            SERVICE_NAME_VALUE,
+            AWS_LOCAL_OPERATION,
+            "POST /api/contests/{id}/leaderboard");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/api/contests/{id}/leaderboard", "/api/contests/{id}"));
+
+      // Mirror the processor: apply the operation-path override, then run the generator on the
+      // (possibly wrapped) span it returns.
+      SpanData overriddenSpan = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      Map<String, Attributes> attributeMap =
+          generator.generateMetricAttributeMapFromSpan(overriddenSpan, resource);
+      assertThat(attributeMap.get(SERVICE_METRIC)).isEqualTo(expectedAttributes);
+      assertThat(attributeMap.get(DEPENDENCY_METRIC)).isNull();
+    }
+
     mockAttribute(HTTP_REQUEST_METHOD, null);
     mockAttribute(URL_PATH, null);
   }
