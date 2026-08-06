@@ -711,14 +711,13 @@ diff --git a/version.gradle.kts b/version.gradle.kts
 index 74967704..d08094f7 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
-@@ -1,5 +1,5 @@
--val stableVersion = "1.58.0"
--val alphaVersion = "1.58.0-alpha"
-+val stableVersion = "1.58.0-adot1"
-+val alphaVersion = "1.58.0-alpha-adot1"
+@@ -1,4 +1,4 @@
+-val stableVersion = "1.59.0"
+-val alphaVersion = "1.59.0-alpha"
++val stableVersion = "1.59.0-adot1"
++val alphaVersion = "1.59.0-alpha-adot1"
+ val apidiffBaselineVersion = "1.58.0"
  val tagVersion by extra { "v$stableVersion" }
-
- allprojects {
--- 
+--
 2.45.1
 

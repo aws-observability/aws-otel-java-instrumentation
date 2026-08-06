@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix(deps): bump upstream OpenTelemetry Java instrumentation to 2.30.0 and Java contrib to 1.59.0,
+  pulling in jackson 2.22.1 to remediate CVE-2026-54515, CVE-2026-59889, and GHSA-r7wm-3cxj-wff9
+  ([#PLACEHOLDER](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/PLACEHOLDER))
 - feat: attribute presigned S3 URLs as `AWS::S3` dependencies in Application Signals, opt-in via
   `otel.aws.application.signals.presigned-url-attribution.enabled`
   ([#1423](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1423))
