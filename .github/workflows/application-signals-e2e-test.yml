@@ -104,11 +104,20 @@ jobs:
       fail-fast: false
       matrix:
         java-version: [ '8', '11', '17', '21', '25' ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-di-test.yml@main
+    # TEMPORARY (do not merge): pinned to the test framework's di-body-stack-assertion
+    # branch to verify the corrected body.stack assertions before merging them.
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-di-test.yml@di-body-stack-assertion
     secrets: inherit
     with:
       aws-region: us-east-1
-      caller-workflow-name: 'main-build'
+      # TEMPORARY (do not merge): must NOT be 'main-build'. The reusable workflow
+      # checks itself out with `ref: caller-workflow-name == 'main-build' && 'main'
+      # || github.ref`, so leaving this as 'main-build' would check the test
+      # framework out at main and silently test the OLD templates. Any other value
+      # falls through to github.ref, which resolves to this branch name in the test
+      # framework repo -- which is why this branch is also named
+      # di-body-stack-assertion.
+      caller-workflow-name: 'di-body-stack-assertion'
       java-version: ${{ matrix.java-version }}
       cpu-architecture: 'x86_64'
 
