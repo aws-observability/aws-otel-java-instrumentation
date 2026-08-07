@@ -1,1 +1,1 @@
-software.amazon.distro.opentelemetry.cloudwatch.spanmetrics.internal.SpanMetricsAgentListener
+software.amazon.opentelemetry.cloudwatch.spanmetrics.internal.SpanMetricsAgentListener

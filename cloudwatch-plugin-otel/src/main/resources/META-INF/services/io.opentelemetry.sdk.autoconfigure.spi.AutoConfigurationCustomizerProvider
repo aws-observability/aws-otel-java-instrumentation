@@ -1,1 +1,1 @@
-software.amazon.distro.opentelemetry.cloudwatch.spanmetrics.internal.SpanMetricsCustomizerProvider
+software.amazon.opentelemetry.cloudwatch.spanmetrics.internal.SpanMetricsCustomizerProvider

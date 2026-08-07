@@ -25,7 +25,7 @@ java {
 }
 
 application {
-  mainClass.set("software.amazon.distro.opentelemetry.cloudwatch.spanmetrics.e2e.app.ManualApp")
+  mainClass.set("software.amazon.opentelemetry.cloudwatch.spanmetrics.e2e.app.ManualApp")
 }
 
 // Override with -PotelBomVersion=<x.y.z> to exercise the extension against a different OTel SDK

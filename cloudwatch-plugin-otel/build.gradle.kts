@@ -22,7 +22,7 @@ plugins {
   id("nebula.release")
 }
 
-group = "software.amazon.distro.opentelemetry"
+group = "software.amazon.opentelemetry"
 version = "1.0.0"
 
 // The core targets Java 8 to match the OTel SDK's minimum. The Spring Boot 3 hook requires

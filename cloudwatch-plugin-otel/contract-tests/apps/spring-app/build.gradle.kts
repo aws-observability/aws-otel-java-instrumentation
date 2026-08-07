@@ -52,6 +52,6 @@ jib {
   container {
     ports = listOf("8080")
     mainClass =
-      "software.amazon.distro.opentelemetry.cloudwatch.spanmetrics.e2e.app.SpringApp"
+      "software.amazon.opentelemetry.cloudwatch.spanmetrics.e2e.app.SpringApp"
   }
 }

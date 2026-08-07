@@ -26,7 +26,7 @@ java {
 }
 
 application {
-  mainClass.set("software.amazon.distro.opentelemetry.cloudwatch.spanmetrics.e2e.app.JavaagentApp")
+  mainClass.set("software.amazon.opentelemetry.cloudwatch.spanmetrics.e2e.app.JavaagentApp")
 }
 
 dependencies {

@@ -26,7 +26,7 @@ java {
 
 application {
   mainClass.set(
-    "software.amazon.distro.opentelemetry.cloudwatch.spanmetrics.e2e.mockcollector.Main"
+    "software.amazon.opentelemetry.cloudwatch.spanmetrics.e2e.mockcollector.Main"
   )
 }
 
