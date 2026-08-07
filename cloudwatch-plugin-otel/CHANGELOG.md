@@ -2,6 +2,18 @@
 
 ## Unreleased
 
-- Initial release: generate request metrics (`traces.span.metrics.calls`,
-  `traces.span.metrics.duration`) from spans inside the OpenTelemetry Java SDK, with an
-  always-record sampler so metrics reflect 100% of spans regardless of the trace sampling rate.
+### Added
+
+- Initial release of the CloudWatch Plugin for OpenTelemetry (Java).
+- Generates span-derived request metrics `traces.span.metrics.calls` (counter) and
+  `traces.span.metrics.duration` (histogram, seconds) inside the OpenTelemetry Java SDK, from 100%
+  of spans, before trace sampling.
+- Record-forcing sampler (`DROP` -> `RECORD_ONLY`) so metrics reflect every span while trace export
+  still honors the configured sampling rate.
+- Low-cardinality metric dimensions: base attributes (`service.name`, `span.name`, `span.kind`,
+  `status.code`) plus allowlisted HTTP / RPC / database / messaging semantic-convention attributes
+  present on the span, with pass-through of recognized legacy database keys.
+- Four wiring modes with zero plugin configuration: Java agent extension, Spring Boot starter,
+  plain SDK autoconfigure, and manual SDK (`SpanMetrics.bind`).
+- Metrics emitted under instrumentation scope `otel.cloudwatch.spanmetrics`.
+- Verified compatible with OpenTelemetry Java SDK 1.32.0 through 1.64.0.
