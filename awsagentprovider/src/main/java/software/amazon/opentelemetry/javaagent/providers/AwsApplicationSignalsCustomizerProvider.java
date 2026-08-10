@@ -120,6 +120,8 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String DEPRECATED_APP_SIGNALS_ENABLED_CONFIG =
       "otel.aws.app.signals.enabled";
   static final String APPLICATION_SIGNALS_ENABLED_CONFIG = "otel.aws.application.signals.enabled";
+  static final String PRESIGNED_URL_ATTRIBUTION_ENABLED_CONFIG =
+      "otel.aws.application.signals.presigned-url-attribution.enabled";
   static final String OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS =
       "otel.metrics.add.application.signals.dimensions";
 
@@ -192,6 +194,12 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   static boolean shouldAddApplicationSignalsDimensionsEnabled(ConfigProperties props) {
     return props.getBoolean(OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS, true);
+  }
+
+  private static AwsMetricAttributeGenerator createMetricAttributeGenerator(
+      ConfigProperties configProps) {
+    return new AwsMetricAttributeGenerator(
+        configProps.getBoolean(PRESIGNED_URL_ATTRIBUTION_ENABLED_CONFIG, false));
   }
 
   private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
@@ -397,6 +405,7 @@ public final class AwsApplicationSignalsCustomizerProvider
         SpanExporter appSignalsSpanExporter =
             AwsMetricAttributesSpanExporterBuilder.create(
                     spanExporter, ResourceHolder.getResource())
+                .setGenerator(createMetricAttributeGenerator(configProps))
                 .build();
 
         tracerProviderBuilder.addSpanProcessor(
@@ -430,6 +439,7 @@ public final class AwsApplicationSignalsCustomizerProvider
       AwsSpanMetricsProcessorBuilder awsSpanMetricsProcessorBuilder =
           AwsSpanMetricsProcessorBuilder.create(
               meterProvider, ResourceHolder.getResource(), meterProvider::forceFlush);
+      awsSpanMetricsProcessorBuilder.setGenerator(createMetricAttributeGenerator(configProps));
       if (this.sampler != null) {
         awsSpanMetricsProcessorBuilder.setSampler(this.sampler);
       }
@@ -510,6 +520,7 @@ public final class AwsApplicationSignalsCustomizerProvider
     if (isApplicationSignalsEnabled(configProps)) {
       spanExporter =
           AwsMetricAttributesSpanExporterBuilder.create(spanExporter, ResourceHolder.getResource())
+              .setGenerator(createMetricAttributeGenerator(configProps))
               .build();
     }
 
