@@ -50,5 +50,10 @@ public final class OpenTelemetryHolder {
     return instance.get();
   }
 
+  // Visible for testing: clears the first-wins singleton so tests can exercise the unbound state.
+  static void reset() {
+    instance.set(null);
+  }
+
   private OpenTelemetryHolder() {}
 }
