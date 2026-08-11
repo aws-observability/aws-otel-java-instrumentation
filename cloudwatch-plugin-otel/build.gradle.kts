@@ -74,6 +74,24 @@ dependencies {
   testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
 }
 
+// -PotelTestVersion=<x.y.z> pins the core OpenTelemetry SDK on the test classpath to that version,
+// so CI can run the unit tests at the ends of the supported range (e.g. 1.32.0 and the latest).
+// The -alpha satellite artifacts track a separate version string and are left to resolve
+// transitively.
+val otelTestVersion = project.findProperty("otelTestVersion") as String?
+if (otelTestVersion != null) {
+  configurations.matching { it.name.startsWith("test") }.configureEach {
+    resolutionStrategy.eachDependency {
+      if (requested.group == "io.opentelemetry" &&
+          !requested.name.contains("bom") &&
+          !requested.name.endsWith("-incubator") &&
+          requested.name != "opentelemetry-api-events") {
+        useVersion(otelTestVersion)
+      }
+    }
+  }
+}
+
 java {
   withSourcesJar()
   withJavadocJar()

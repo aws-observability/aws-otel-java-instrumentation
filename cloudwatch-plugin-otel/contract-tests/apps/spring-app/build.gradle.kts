@@ -38,7 +38,7 @@ dependencies {
 
   // Bake the span-metrics extension onto the classpath. Its Spring auto-configuration and its
   // AutoConfigurationCustomizerProvider SPI fire automatically under the starter.
-  implementation(files("../../../build/libs/cloudwatch-plugin-otel-1.0.0.jar"))
+  implementation(files(fileTree("../../../build/libs") { include("cloudwatch-plugin-otel-*.jar"); exclude("*-sources.jar", "*-javadoc.jar") }.singleFile))
 }
 
 // The Spring Boot fat jar is what jib containerizes.

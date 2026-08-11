@@ -50,9 +50,11 @@ abstract class AbstractModeTest extends SpanMetricsContractTestBase {
     drive("/db");
     List<ResourceScopeMetric> metrics = awaitCalls(databaseSpanName());
 
+    // At least all driven requests must be counted; startup/warmup queries of the same name may add
+    // a few more, which is correct behavior (the extension meters 100% of spans).
     assertThat(callsValue(metrics, databaseSpanName()))
         .as("calls metric for %s should count all %d requests", databaseSpanName(), REQUEST_COUNT)
-        .isEqualTo(REQUEST_COUNT);
+        .isGreaterThanOrEqualTo(REQUEST_COUNT);
 
     // Exported spans of that name are sampled well below 100%. At 5% sampling the collector may
     // have received zero, which is a valid (stronger) result, so an empty trace store is tolerated.

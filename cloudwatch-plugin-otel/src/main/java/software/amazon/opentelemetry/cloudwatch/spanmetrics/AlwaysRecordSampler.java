@@ -17,6 +17,7 @@ package software.amazon.opentelemetry.cloudwatch.spanmetrics;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.sdk.trace.data.LinkData;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
@@ -35,8 +36,8 @@ import java.util.logging.Logger;
  * {@code opentelemetry-sdk-extension-incubator}). We keep our own copy rather than depend on that
  * artifact because it ships only as an {@code -alpha} module whose API is explicitly marked internal
  * and unstable ("can change at any time"); a GA library should not inherit that churn for a class
- * this small. The DROP-to-RECORD_ONLY behavior is frozen by the spec, so there is nothing to keep in
- * sync. Revisit depending on the incubator artifact once that sampler graduates to the stable API.
+ * this small. Revisit depending on the incubator artifact once that sampler graduates to the stable
+ * API.
  */
 public final class AlwaysRecordSampler implements Sampler {
 
@@ -68,7 +69,7 @@ public final class AlwaysRecordSampler implements Sampler {
     SamplingResult result =
         delegate.shouldSample(parentContext, traceId, name, spanKind, attributes, parentLinks);
     if (result.getDecision() == SamplingDecision.DROP) {
-      return SamplingResult.create(SamplingDecision.RECORD_ONLY, result.getAttributes());
+      return new RecordOnlyResult(result);
     }
     return result;
   }
@@ -76,5 +77,32 @@ public final class AlwaysRecordSampler implements Sampler {
   @Override
   public String getDescription() {
     return "AlwaysRecordSampler{" + delegate.getDescription() + "}";
+  }
+
+  /**
+   * Turns a DROP into RECORD_ONLY while preserving the delegate's attributes and trace-state (the
+   * default {@link SamplingResult#getUpdatedTraceState} would discard trace-state the delegate set).
+   */
+  private static final class RecordOnlyResult implements SamplingResult {
+    private final SamplingResult delegate;
+
+    RecordOnlyResult(SamplingResult delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public SamplingDecision getDecision() {
+      return SamplingDecision.RECORD_ONLY;
+    }
+
+    @Override
+    public Attributes getAttributes() {
+      return delegate.getAttributes();
+    }
+
+    @Override
+    public TraceState getUpdatedTraceState(TraceState parentTraceState) {
+      return delegate.getUpdatedTraceState(parentTraceState);
+    }
   }
 }

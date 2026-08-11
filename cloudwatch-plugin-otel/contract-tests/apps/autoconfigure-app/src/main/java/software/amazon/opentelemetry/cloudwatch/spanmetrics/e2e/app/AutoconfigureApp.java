@@ -17,7 +17,6 @@ package software.amazon.opentelemetry.cloudwatch.spanmetrics.e2e.app;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
@@ -32,14 +31,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import software.amazon.opentelemetry.cloudwatch.spanmetrics.SpanMetrics;
 
 /**
  * Plain Java application wired through {@link AutoConfiguredOpenTelemetrySdk}. The span-metrics
- * extension jar is baked onto the classpath, so its {@code AutoConfigurationCustomizerProvider} SPI
- * fires during autoconfigure to wrap the sampler and register the span processor. After the SDK is
- * built we call {@link SpanMetrics#bind(OpenTelemetry)} so the processor can obtain a Meter (this
- * step is automatic only under the javaagent hook).
+ * extension jar is baked onto the classpath, so its SPI provider fires during autoconfigure to wrap
+ * the sampler, register the span processor, and bind the built SDK (via {@code afterAutoConfigure}).
+ * No extension code is called by the app itself.
  *
  * <p>Endpoints:
  *
@@ -60,8 +57,6 @@ public final class AutoconfigureApp {
   public static void main(String[] args) throws Exception {
     OpenTelemetrySdk sdk =
         AutoConfiguredOpenTelemetrySdk.builder().setResultAsGlobal().build().getOpenTelemetrySdk();
-    // Manual autoconfigure setups must bind the built SDK so the span processor can obtain a Meter.
-    SpanMetrics.bind(sdk);
     tracer = sdk.getTracer("cloudwatch-plugin-otel-e2e-autoconfigure-app");
 
     Connection keepAlive = openConnection();

@@ -15,18 +15,22 @@
 
 package software.amazon.opentelemetry.cloudwatch.spanmetrics.internal;
 
+import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
+import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import software.amazon.opentelemetry.cloudwatch.spanmetrics.AlwaysRecordSampler;
 import software.amazon.opentelemetry.cloudwatch.spanmetrics.SpanMetricsProcessor;
 
 /**
  * Discovered by SDK autoconfigure (javaagent, Spring starter, or plain autoconfigure): wraps the
- * resolved sampler and registers the span processor.
+ * resolved sampler, registers the span processor, and binds the built SDK so the processor can
+ * obtain a Meter.
  *
  * <p>This class is internal and not part of the public API.
  */
-public final class SpanMetricsCustomizerProvider implements AutoConfigurationCustomizerProvider {
+public final class SpanMetricsCustomizerProvider
+    implements AutoConfigurationCustomizerProvider, AutoConfigureListener {
 
   @Override
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
@@ -34,5 +38,10 @@ public final class SpanMetricsCustomizerProvider implements AutoConfigurationCus
         (sampler, config) -> AlwaysRecordSampler.create(sampler));
     autoConfiguration.addTracerProviderCustomizer(
         (tracerProvider, config) -> tracerProvider.addSpanProcessor(new SpanMetricsProcessor()));
+  }
+
+  @Override
+  public void afterAutoConfigure(OpenTelemetrySdk sdk) {
+    OpenTelemetryHolder.set(sdk);
   }
 }

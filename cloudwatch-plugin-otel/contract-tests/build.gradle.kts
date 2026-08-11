@@ -54,8 +54,11 @@ dependencies {
 }
 
 // The span-metrics extension jar built by the sibling module. Passed to tests (and mounted into the
-// javaagent-app container) as a system property.
-val extensionJar = file("../build/libs/cloudwatch-plugin-otel-1.0.0.jar")
+// javaagent-app container) as a system property. Resolved by pattern so it is not pinned to a
+// specific version (excludes the -sources/-javadoc classifier jars).
+val extensionJar =
+    fileTree("../build/libs") { include("cloudwatch-plugin-otel-*.jar")
+      exclude("*-sources.jar", "*-javadoc.jar") }.singleFile
 
 tasks {
   // Disable the default test task from the java plugin; contract tests run via the contractTests

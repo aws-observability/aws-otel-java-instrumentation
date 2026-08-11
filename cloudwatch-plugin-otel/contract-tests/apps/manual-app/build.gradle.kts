@@ -40,7 +40,7 @@ dependencies {
 
   // Bake the span-metrics extension onto the classpath for direct use of AlwaysRecordSampler,
   // SpanMetricsProcessor and SpanMetrics.
-  implementation(files("../../../build/libs/cloudwatch-plugin-otel-1.0.0.jar"))
+  implementation(files(fileTree("../../../build/libs") { include("cloudwatch-plugin-otel-*.jar"); exclude("*-sources.jar", "*-javadoc.jar") }.singleFile))
 
   implementation("com.h2database:h2:2.2.224")
 }

@@ -34,6 +34,24 @@ jobs:
       - name: Build and run unit tests
         run: ./gradlew build -p cloudwatch-plugin-otel --stacktrace
 
+  compat-tests:
+    name: Unit tests (OTel SDK ${{ matrix.otel-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        otel-version: ["1.32.0", "1.64.0"] # supported range floor and ceiling
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+
+      - name: Run unit tests against pinned OTel SDK
+        run: ./gradlew test -p cloudwatch-plugin-otel -PotelTestVersion=${{ matrix.otel-version }} --stacktrace
+
   contract-tests:
     name: Contract tests (all modes)
     runs-on: ubuntu-latest # provides a Docker daemon for Testcontainers + jib

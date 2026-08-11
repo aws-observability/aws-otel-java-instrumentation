@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
@@ -56,6 +57,39 @@ class AlwaysRecordSamplerTest {
     SamplingResult result = sample(SamplingDecision.DROP, attrs);
     assertThat(result.getDecision()).isEqualTo(SamplingDecision.RECORD_ONLY);
     assertThat(result.getAttributes()).isEqualTo(attrs);
+  }
+
+  @Test
+  void dropForwardsDelegateTraceState() {
+    TraceState delegateState = TraceState.builder().put("k", "v").build();
+    SamplingResult delegateResult =
+        new SamplingResult() {
+          @Override
+          public SamplingDecision getDecision() {
+            return SamplingDecision.DROP;
+          }
+
+          @Override
+          public Attributes getAttributes() {
+            return Attributes.empty();
+          }
+
+          @Override
+          public TraceState getUpdatedTraceState(TraceState parentTraceState) {
+            return delegateState;
+          }
+        };
+    when(delegate.shouldSample(Context.root(), "trace", "span", SpanKind.SERVER, Attributes.empty(),
+            Collections.emptyList()))
+        .thenReturn(delegateResult);
+
+    SamplingResult result =
+        AlwaysRecordSampler.create(delegate)
+            .shouldSample(Context.root(), "trace", "span", SpanKind.SERVER, Attributes.empty(),
+                Collections.emptyList());
+
+    assertThat(result.getDecision()).isEqualTo(SamplingDecision.RECORD_ONLY);
+    assertThat(result.getUpdatedTraceState(TraceState.getDefault())).isEqualTo(delegateState);
   }
 
   @Test
