@@ -30,7 +30,7 @@ public final class SpanMetricsAssertions {
 
   public static final String CALLS_METRIC = "traces.span.metrics.calls";
   public static final String DURATION_METRIC = "traces.span.metrics.duration";
-  public static final String SCOPE_NAME = "otel.cloudwatch.spanmetrics";
+  public static final String SCOPE_NAME = "cloudwatch.plugin.otel.span_metrics";
   public static final String SCHEMA_VERSION = "v1";
 
   /**

@@ -15,5 +15,5 @@
   present on the span, with pass-through of recognized legacy database keys.
 - Four wiring modes with zero plugin configuration: Java agent extension, Spring Boot starter,
   plain SDK autoconfigure, and manual SDK (`SpanMetrics.bind`).
-- Metrics emitted under instrumentation scope `otel.cloudwatch.spanmetrics`.
+- Metrics emitted under instrumentation scope `cloudwatch.plugin.otel.span_metrics`.
 - Verified compatible with OpenTelemetry Java SDK 1.32.0 through 1.64.0.

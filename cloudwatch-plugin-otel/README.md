@@ -26,7 +26,7 @@ Each datapoint carries low-cardinality dimensions: `service.name`, `span.name`, 
 (e.g. `http.request.method`, `http.route`, `http.response.status_code`, `rpc.system`/`service`/`method`,
 `db.system.name`/`operation.name`/`collection.name`, `messaging.system`/`operation.name`/`destination.name`).
 
-The metrics are emitted under the instrumentation scope `otel.cloudwatch.spanmetrics` and ride your
+The metrics are emitted under the instrumentation scope `cloudwatch.plugin.otel.span_metrics` and ride your
 application's existing `MeterProvider` — they flow wherever your other metrics already go.
 
 ## Requirements & compatibility
