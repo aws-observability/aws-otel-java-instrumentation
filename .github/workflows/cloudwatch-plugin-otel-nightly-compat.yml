@@ -1,0 +1,36 @@
+name: CloudWatch Plugin for OpenTelemetry Nightly Compat
+
+# Runs the SDK-facing contract tests (manual + autoconfigure modes) against the LATEST OpenTelemetry
+# SDK release, so upstream changes that break the plugin's wiring surface without slowing or flaking
+# per-PR builds. The javaagent and Spring modes get their SDK from the agent jar / Spring starter
+# (not a BOM), so a BOM float does not apply to them and they stay on the pinned PR-build version.
+on:
+  schedule:
+    - cron: "30 4 * * *" # daily, offset from other nightly jobs
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  contract-tests-latest:
+    name: Contract tests (manual + autoconfigure) against latest OTel SDK
+    runs-on: ubuntu-latest # provides a Docker daemon for Testcontainers + jib
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+
+      - name: Build extension jar
+        run: ./gradlew jar -p cloudwatch-plugin-otel --stacktrace
+
+      - name: Run SDK-facing contract tests against latest OTel SDK
+        run: |
+          ./gradlew contractTests -p cloudwatch-plugin-otel/contract-tests \
+            -PotelBomVersion=latest.release \
+            --tests "*ManualModeTest" --tests "*AutoconfigureModeTest" \
+            --stacktrace
