@@ -31,7 +31,8 @@ application's existing `MeterProvider` — they flow wherever your other metrics
 
 ## Requirements & compatibility
 
-- **OpenTelemetry Java SDK 1.32.0 – 1.64.0** (verified). Built and tested against 1.44.x.
+- **OpenTelemetry Java SDK 1.32.0 or later.** CI runs the unit tests against the minimum supported
+  version (1.32.0) and the latest release; the build defaults to 1.44.x.
 - **Java 8+** for the core (javaagent, autoconfigure, and manual modes).
 - **Java 17+ / Spring Boot 3** for the Spring Boot starter mode.
 - The plugin bundles **no** OpenTelemetry — it links against the OpenTelemetry already on your

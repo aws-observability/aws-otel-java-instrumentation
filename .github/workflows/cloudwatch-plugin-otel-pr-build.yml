@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        otel-version: ["1.32.0", "1.64.0"] # supported range floor and ceiling
+        otel-version: ["1.32.0", "latest"] # minimum supported version and the latest release
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 

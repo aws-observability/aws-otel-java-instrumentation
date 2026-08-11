@@ -74,19 +74,23 @@ dependencies {
   testImplementation("org.mockito:mockito-junit-jupiter:5.3.1")
 }
 
-// -PotelTestVersion=<x.y.z> pins the core OpenTelemetry SDK on the test classpath to that version,
-// so CI can run the unit tests at the ends of the supported range (e.g. 1.32.0 and the latest).
-// The -alpha satellite artifacts track a separate version string and are left to resolve
-// transitively.
+// -PotelTestVersion=<x.y.z|latest> pins the core OpenTelemetry SDK on the test classpath, so CI can
+// run the unit tests at the minimum supported version (1.32.0) and, with "latest", against the
+// newest release (matching OTel's own min + testLatestDeps convention). The -alpha satellite
+// artifacts track a separate version string and are left to resolve transitively.
 val otelTestVersion = project.findProperty("otelTestVersion") as String?
 if (otelTestVersion != null) {
+  val resolvedVersion = if (otelTestVersion == "latest") "latest.release" else otelTestVersion
   configurations.matching { it.name.startsWith("test") }.configureEach {
-    resolutionStrategy.eachDependency {
-      if (requested.group == "io.opentelemetry" &&
-          !requested.name.contains("bom") &&
-          !requested.name.endsWith("-incubator") &&
-          requested.name != "opentelemetry-api-events") {
-        useVersion(otelTestVersion)
+    resolutionStrategy {
+      cacheDynamicVersionsFor(0, "seconds") // always re-resolve "latest" so CI catches new releases
+      eachDependency {
+        if (requested.group == "io.opentelemetry" &&
+            !requested.name.contains("bom") &&
+            !requested.name.endsWith("-incubator") &&
+            requested.name != "opentelemetry-api-events") {
+          useVersion(resolvedVersion)
+        }
       }
     }
   }
