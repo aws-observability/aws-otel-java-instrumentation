@@ -30,8 +30,18 @@ application {
   )
 }
 
+// Override with -PotelBomVersion=<x.y.z|latest> to exercise the extension against a different OTel
+// SDK version: the floor (1.32.0), "latest" for the newest release, or the default.
+val otelBomVersion = (project.findProperty("otelBomVersion") as String?) ?: "1.45.0"
+val resolvedBomVersion = if (otelBomVersion == "latest") "latest.release" else otelBomVersion
+
+configurations.configureEach {
+  // Always re-resolve "latest.release" so a nightly run picks up new SDK releases.
+  resolutionStrategy.cacheDynamicVersionsFor(0, "seconds")
+}
+
 dependencies {
-  implementation(platform("io.opentelemetry:opentelemetry-bom:${(project.findProperty("otelBomVersion") as String?) ?: "1.45.0"}"))
+  implementation(platform("io.opentelemetry:opentelemetry-bom:$resolvedBomVersion"))
   implementation("io.opentelemetry:opentelemetry-api")
   implementation("io.opentelemetry:opentelemetry-sdk")
   implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")

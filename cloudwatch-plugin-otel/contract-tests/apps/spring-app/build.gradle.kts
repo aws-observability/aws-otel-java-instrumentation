@@ -25,15 +25,39 @@ java {
   targetCompatibility = JavaVersion.VERSION_17
 }
 
+// -PotelInstrumentationVersion pins the Spring Boot starter (instrumentation) release so CI can run
+// the Spring mode across the supported range. The starter brings its own SDK, so this exercises the
+// plugin against the SDK each starter release ships (the raw SDK floor is covered by the
+// manual/autoconfigure modes). "latest" tracks the newest release.
+val otelInstrumentationVersion =
+  (project.findProperty("otelInstrumentationVersion") as String?) ?: "2.10.0"
+val resolvedInstrumentationVersion =
+  if (otelInstrumentationVersion == "latest") "latest.release" else otelInstrumentationVersion
+
+configurations.configureEach {
+  // Always re-resolve "latest.release" so a nightly run picks up new starter releases.
+  resolutionStrategy.cacheDynamicVersionsFor(0, "seconds")
+}
+
+// Spring Boot's dependency management pins its own (older) OpenTelemetry version, which downgrades
+// the starter's transitive SDK/API and breaks a newer starter (missing classes). Importing the
+// instrumentation BOM here (last import wins) makes it — and the matching core SDK BOM it pulls in —
+// govern the io.opentelemetry version graph, keeping it internally consistent across the tested
+// starter range.
+the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().imports {
+  mavenBom(
+    "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:$resolvedInstrumentationVersion"
+  )
+}
+
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-web")
   implementation("org.springframework.boot:spring-boot-starter-data-jpa")
   runtimeOnly("com.h2database:h2")
 
-  // OpenTelemetry Spring Boot starter provides the OpenTelemetry bean + auto instrumentation.
-  implementation(
-    platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0")
-  )
+  // OpenTelemetry Spring Boot starter provides the OpenTelemetry bean + auto instrumentation. The
+  // instrumentation BOM is imported into Spring's dependency management above so it governs the
+  // io.opentelemetry version graph.
   implementation("io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter")
 
   // Bake the span-metrics extension onto the classpath. Its Spring auto-configuration and its

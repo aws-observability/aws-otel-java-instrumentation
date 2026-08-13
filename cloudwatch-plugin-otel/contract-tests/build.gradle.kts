@@ -24,10 +24,23 @@ java {
 
 // The plain upstream OpenTelemetry javaagent, resolved from Maven Central. It is mounted into the
 // javaagent-app container at test time. This is NOT ADOT's agent.
-val javaagent by configurations.creating
+//
+// -PotelAgentVersion pins the agent release so CI can run the javaagent mode across the supported
+// range. The agent embeds its own SDK, so this exercises the plugin against the SDK each agent
+// release ships (not the raw SDK floor, which the manual/autoconfigure modes cover directly).
+// "latest" tracks the newest release so upstream changes surface.
+val otelAgentVersion = (project.findProperty("otelAgentVersion") as String?) ?: "2.29.0"
+val javaagent by configurations.creating {
+  // Always re-resolve "latest.release" so a nightly run picks up new agent releases.
+  resolutionStrategy.cacheDynamicVersionsFor(0, "seconds")
+}
 
 dependencies {
-  javaagent("io.opentelemetry.javaagent:opentelemetry-javaagent:2.29.0")
+  if (otelAgentVersion == "latest") {
+    javaagent("io.opentelemetry.javaagent:opentelemetry-javaagent:latest.release")
+  } else {
+    javaagent("io.opentelemetry.javaagent:opentelemetry-javaagent:$otelAgentVersion")
+  }
 
   testImplementation(platform("com.linecorp.armeria:armeria-bom:1.26.4"))
   testImplementation(platform("io.grpc:grpc-bom:1.59.1"))

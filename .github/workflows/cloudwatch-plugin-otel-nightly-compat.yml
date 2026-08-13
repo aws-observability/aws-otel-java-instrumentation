@@ -1,9 +1,17 @@
 name: CloudWatch Plugin for OpenTelemetry Nightly Compat
 
-# Runs the SDK-facing contract tests (manual + autoconfigure modes) against the LATEST OpenTelemetry
-# SDK release, so upstream changes that break the plugin's wiring surface without slowing or flaking
-# per-PR builds. The javaagent and Spring modes get their SDK from the agent jar / Spring starter
-# (not a BOM), so a BOM float does not apply to them and they stay on the pinned PR-build version.
+# Runs the contract tests for all four wiring modes across the supported version range, so upstream
+# changes that break the plugin's wiring surface without slowing or flaking per-PR builds.
+#
+# Each mode gets its OpenTelemetry version from a different place, so the range means different
+# things per mode:
+#   - manual / autoconfigure build against the SDK BOM directly, so they run at the supported SDK
+#     floor (1.32.0), the current default, and the latest SDK release.
+#   - javaagent gets its SDK from the agent jar, so it runs across the agent release range.
+#   - spring gets its SDK from the Spring Boot starter (instrumentation BOM), so it runs across the
+#     starter release range.
+# The manual/autoconfigure floor is the real minimum-SDK guarantee; the agent/starter ranges verify
+# the plugin keeps working across the releases users actually deploy, not the raw SDK floor.
 on:
   schedule:
     - cron: "30 4 * * *" # daily, offset from other nightly jobs
@@ -14,9 +22,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  contract-tests-latest:
-    name: Contract tests (manual + autoconfigure) against latest OTel SDK
+  contract-tests:
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest # provides a Docker daemon for Testcontainers + jib
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # manual + autoconfigure: SDK BOM at floor / current / latest.
+          - label: SDK-facing modes (SDK floor 1.32.0)
+            filter: --tests "*ManualModeTest" --tests "*AutoconfigureModeTest"
+            args: -PotelBomVersion=1.32.0
+          - label: SDK-facing modes (SDK current)
+            filter: --tests "*ManualModeTest" --tests "*AutoconfigureModeTest"
+            args: ""
+          - label: SDK-facing modes (SDK latest)
+            filter: --tests "*ManualModeTest" --tests "*AutoconfigureModeTest"
+            args: -PotelBomVersion=latest
+          # javaagent: agent release at floor / current / latest.
+          - label: javaagent mode (agent floor 2.10.0)
+            filter: --tests "*JavaagentModeTest"
+            args: -PotelAgentVersion=2.10.0
+          - label: javaagent mode (agent current)
+            filter: --tests "*JavaagentModeTest"
+            args: ""
+          - label: javaagent mode (agent latest)
+            filter: --tests "*JavaagentModeTest"
+            args: -PotelAgentVersion=latest
+          # spring: Spring Boot starter (instrumentation BOM) at floor / current / latest.
+          - label: spring mode (starter floor 2.10.0)
+            filter: --tests "*SpringModeTest"
+            args: -PotelInstrumentationVersion=2.10.0
+          - label: spring mode (starter current)
+            filter: --tests "*SpringModeTest"
+            args: ""
+          - label: spring mode (starter latest)
+            filter: --tests "*SpringModeTest"
+            args: -PotelInstrumentationVersion=latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -28,9 +70,7 @@ jobs:
       - name: Build extension jar
         run: ./gradlew jar -p cloudwatch-plugin-otel --stacktrace
 
-      - name: Run SDK-facing contract tests against latest OTel SDK
+      - name: Run contract tests
         run: |
           ./gradlew contractTests -p cloudwatch-plugin-otel/contract-tests \
-            -PotelBomVersion=latest.release \
-            --tests "*ManualModeTest" --tests "*AutoconfigureModeTest" \
-            --stacktrace
+            ${{ matrix.args }} ${{ matrix.filter }} --stacktrace
