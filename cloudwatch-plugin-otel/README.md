@@ -36,7 +36,9 @@ application's existing `MeterProvider` — they flow wherever your other metrics
 - **Java 8+** for the core (javaagent, autoconfigure, and manual modes).
 - **Java 17+ / Spring Boot 3** for the Spring Boot starter mode.
 - The plugin bundles **no** OpenTelemetry — it links against the OpenTelemetry already on your
-  application's classpath, so there is no version-conflict risk.
+  application's classpath, so the plugin itself adds no version constraints. (In Spring Boot apps,
+  note that Spring Boot's managed dependencies can pin an OpenTelemetry version that conflicts with
+  a newer OTel starter; align the OTel version in your build if the starter fails to load.)
 
 ## Install
 
