@@ -27,6 +27,10 @@ import software.amazon.opentelemetry.cloudwatch.spanmetrics.SpanMetricsProcessor
  * resolved sampler, registers the span processor, and binds the built SDK so the processor can
  * obtain a Meter.
  *
+ * <p>{@link AutoConfigureListener} is the only post-build hook that fires for plain autoconfigure
+ * (no agent). It lives in an {@code .internal} package with no stable-API equivalent; revisit if
+ * OpenTelemetry promotes a stable one.
+ *
  * <p>This class is internal and not part of the public API.
  */
 public final class SpanMetricsCustomizerProvider

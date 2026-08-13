@@ -20,6 +20,8 @@ plugins {
   id("signing")
   id("io.github.gradle-nexus.publish-plugin")
   id("nebula.release")
+  id("com.diffplug.spotless")
+  jacoco
 }
 
 group = "software.amazon.opentelemetry"
@@ -37,6 +39,12 @@ sourceSets {
   // JMH microbenchmarks for the per-span hot path. Never published in the jar.
   create("jmh") {
     java.setSrcDirs(listOf("src/jmh/java"))
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+  }
+  // Drives the core hot path on a Java 8 runtime (see java8SmokeTest task). Never published.
+  create("smokeTest") {
+    java.setSrcDirs(listOf("src/smokeTest/java"))
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += sourceSets.main.get().output
   }
@@ -60,6 +68,10 @@ dependencies {
   "jmhImplementation"("org.openjdk.jmh:jmh-core:1.37")
   "jmhImplementation"("org.mockito:mockito-core:5.3.1") // only for the onStart no-op span target
   "jmhAnnotationProcessor"("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+
+  "smokeTestImplementation"(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
+  "smokeTestImplementation"("io.opentelemetry:opentelemetry-sdk")
+  "smokeTestImplementation"("io.opentelemetry:opentelemetry-sdk-testing")
 
   testImplementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.10.0"))
   testImplementation("io.opentelemetry:opentelemetry-sdk")
@@ -86,9 +98,10 @@ if (otelTestVersion != null) {
       cacheDynamicVersionsFor(0, "seconds") // always re-resolve "latest" so CI catches new releases
       eachDependency {
         if (requested.group == "io.opentelemetry" &&
-            !requested.name.contains("bom") &&
-            !requested.name.endsWith("-incubator") &&
-            requested.name != "opentelemetry-api-events") {
+          !requested.name.contains("bom") &&
+          !requested.name.endsWith("-incubator") &&
+          requested.name != "opentelemetry-api-events"
+        ) {
           useVersion(resolvedVersion)
         }
       }
@@ -103,8 +116,31 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+// release=8 rejects any Java 9+ API at compile time, so the core stays runnable on Java 8.
+tasks.named<JavaCompile>("compileJava") {
+  options.release.set(8)
+}
+
 tasks.named<JavaCompile>("compileSpringHookJava") {
   options.release.set(17)
+}
+
+tasks.named<JavaCompile>("compileSmokeTestJava") {
+  options.release.set(8)
+}
+
+// Runs the core hot path on a real Java 8 JVM so a Java 9+ API that escaped the compile gate fails
+// here. Requires a Java 8 toolchain (auto-provisioned by Gradle, or from an installed JDK 8).
+tasks.register<JavaExec>("java8SmokeTest") {
+  group = "verification"
+  description = "Run the plugin's core hot path on a Java 8 runtime"
+  javaLauncher.set(
+    javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(8)) },
+  )
+  classpath = sourceSets["smokeTest"].runtimeClasspath
+  mainClass.set(
+    "software.amazon.opentelemetry.cloudwatch.spanmetrics.Java8SmokeTest",
+  )
 }
 
 tasks.javadoc {
@@ -114,11 +150,39 @@ tasks.javadoc {
   isFailOnError = false
 }
 
-
 tasks.test {
   useJUnitPlatform()
   testLogging {
     events("passed", "skipped", "failed")
+  }
+  finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+// Same formatting, license-header, and coverage conventions as the parent repo, applied here since
+// this is a standalone build not included by the root settings.
+private val licenseHeader = "${rootProject.projectDir}/../config/license/header.java"
+
+spotless {
+  java {
+    googleJavaFormat()
+    licenseHeaderFile(licenseHeader)
+  }
+  kotlinGradle {
+    ktlint("1.4.0").editorConfigOverride(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
+    targetExclude("settings.gradle.kts")
+    licenseHeaderFile(licenseHeader, "plugins|include|import|rootProject")
+  }
+}
+
+tasks.named("check") {
+  dependsOn(tasks.named("spotlessCheck"))
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+  dependsOn(tasks.test)
+  reports {
+    xml.required.set(true)
+    html.required.set(true)
   }
 }
 
@@ -181,7 +245,7 @@ plugins.withId("maven-publish") {
         pom {
           name.set("CloudWatch Plugin for OpenTelemetry (Span Metrics)")
           description.set(
-            "Generates request metrics from spans inside the OpenTelemetry Java SDK"
+            "Generates request metrics from spans inside the OpenTelemetry Java SDK",
           )
           url.set("https://github.com/aws-observability/aws-otel-java-instrumentation")
           licenses {

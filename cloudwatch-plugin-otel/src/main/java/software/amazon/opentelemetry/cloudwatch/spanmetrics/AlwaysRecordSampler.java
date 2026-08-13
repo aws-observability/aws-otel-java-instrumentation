@@ -32,12 +32,11 @@ import java.util.logging.Logger;
  * are not exported, so trace volume still honors the configured sampling rate.
  *
  * <p>This is a deliberate local copy of the upstream {@code AlwaysRecord} sampler (defined by the
- * OpenTelemetry specification and implemented as {@code AlwaysRecordSampler} in
- * {@code opentelemetry-sdk-extension-incubator}). We keep our own copy rather than depend on that
- * artifact because it ships only as an {@code -alpha} module whose API is explicitly marked internal
- * and unstable ("can change at any time"); a GA library should not inherit that churn for a class
- * this small. Revisit depending on the incubator artifact once that sampler graduates to the stable
- * API.
+ * OpenTelemetry specification and implemented as {@code AlwaysRecordSampler} in {@code
+ * opentelemetry-sdk-extension-incubator}). We keep our own copy rather than depend on that artifact
+ * because it ships only as an {@code -alpha} module whose API is explicitly marked internal and
+ * unstable ("can change at any time"); a GA library should not inherit that churn for a class this
+ * small. Revisit depending on the incubator artifact once that sampler graduates to the stable API.
  */
 public final class AlwaysRecordSampler implements Sampler {
 
@@ -81,7 +80,8 @@ public final class AlwaysRecordSampler implements Sampler {
 
   /**
    * Turns a DROP into RECORD_ONLY while preserving the delegate's attributes and trace-state (the
-   * default {@link SamplingResult#getUpdatedTraceState} would discard trace-state the delegate set).
+   * default {@link SamplingResult#getUpdatedTraceState} would discard trace-state the delegate
+   * set).
    */
   private static final class RecordOnlyResult implements SamplingResult {
     private final SamplingResult delegate;

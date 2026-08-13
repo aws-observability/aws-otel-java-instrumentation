@@ -43,7 +43,8 @@ public final class SpanMetricsProcessor implements SpanProcessor {
 
   // Meter scope for the generated metrics. Must not contain the reserved "aws" token (CloudWatch
   // reserves "aws" in instrumentation scope names for its own vended metrics; verified empirically
-  // that this name is accepted by the CloudWatch OTLP metrics endpoint). schema_url is intentionally
+  // that this name is accepted by the CloudWatch OTLP metrics endpoint). schema_url is
+  // intentionally
   // not set — the schema version travels as the SCHEMA_VERSION attribute instead.
   private static final String SCOPE_NAME = "cloudwatch.plugin.otel.span_metrics";
 

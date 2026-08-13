@@ -21,13 +21,13 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
-import io.opentelemetry.sdk.metrics.export.MetricExporter;
-import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
-import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.InstrumentType;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.testing.trace.TestSpanData;
 import io.opentelemetry.sdk.trace.data.SpanData;
@@ -49,8 +49,8 @@ final class BenchmarkSupport {
       Resource.create(Attributes.builder().put("service.name", "bench").build());
 
   /**
-   * Binds a real SdkMeterProvider whose reader drops on export, so onEnd exercises the true
-   * record path without measuring serialization/IO. First-wins bind, safe to call repeatedly.
+   * Binds a real SdkMeterProvider whose reader drops on export, so onEnd exercises the true record
+   * path without measuring serialization/IO. First-wins bind, safe to call repeatedly.
    */
   static void bindSdk() {
     SdkMeterProvider meterProvider =
@@ -74,7 +74,9 @@ final class BenchmarkSupport {
         .build();
   }
 
-  /** DB CLIENT span emitting only legacy semconv keys — exercises the fallback path (worst case). */
+  /**
+   * DB CLIENT span emitting only legacy semconv keys — exercises the fallback path (worst case).
+   */
   static SpanData databaseLegacySpan() {
     return baseSpan(SpanKind.CLIENT, "SELECT orders")
         .setAttributes(
@@ -91,7 +93,9 @@ final class BenchmarkSupport {
     return baseSpan(SpanKind.INTERNAL, "compute").setAttributes(Attributes.empty()).build();
   }
 
-  /** A real recording SDK span (implements ReadWriteSpan) for measuring onStart against production. */
+  /**
+   * A real recording SDK span (implements ReadWriteSpan) for measuring onStart against production.
+   */
   static io.opentelemetry.sdk.trace.ReadWriteSpan recordingSpan() {
     io.opentelemetry.sdk.trace.SdkTracerProvider tp =
         io.opentelemetry.sdk.trace.SdkTracerProvider.builder().build();

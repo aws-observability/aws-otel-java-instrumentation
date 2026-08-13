@@ -85,7 +85,8 @@ class OpenTelemetryHolderTest {
   @Test
   void firstBindWins() {
     OpenTelemetry first = OpenTelemetry.noop();
-    OpenTelemetry second = OpenTelemetry.propagating(io.opentelemetry.context.propagation.ContextPropagators.noop());
+    OpenTelemetry second =
+        OpenTelemetry.propagating(io.opentelemetry.context.propagation.ContextPropagators.noop());
 
     OpenTelemetryHolder.set(first);
     OpenTelemetryHolder.set(second);

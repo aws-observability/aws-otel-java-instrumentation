@@ -25,6 +25,9 @@ import java.util.logging.Logger;
  * constructed before the MeterProvider exists, so the instance is supplied later by whichever host
  * hook fires: the javaagent listener, the Spring auto-configuration, or a manual bind() call.
  *
+ * <p>Binding is first-wins per classloader: the plugin assumes one OpenTelemetry instance per
+ * classloader. If a second instance is built, span metrics keep using the first one.
+ *
  * <p>This class is internal and not part of the public API.
  */
 public final class OpenTelemetryHolder {

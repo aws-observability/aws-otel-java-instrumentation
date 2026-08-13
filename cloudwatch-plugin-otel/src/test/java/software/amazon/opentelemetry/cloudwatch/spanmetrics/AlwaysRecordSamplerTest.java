@@ -38,7 +38,12 @@ class AlwaysRecordSamplerTest {
   @Mock private Sampler delegate;
 
   private SamplingResult sample(SamplingDecision decision, Attributes attributes) {
-    when(delegate.shouldSample(Context.root(), "trace", "span", SpanKind.SERVER, Attributes.empty(),
+    when(delegate.shouldSample(
+            Context.root(),
+            "trace",
+            "span",
+            SpanKind.SERVER,
+            Attributes.empty(),
             Collections.emptyList()))
         .thenReturn(SamplingResult.create(decision, attributes));
     return AlwaysRecordSampler.create(delegate)
@@ -79,13 +84,23 @@ class AlwaysRecordSamplerTest {
             return delegateState;
           }
         };
-    when(delegate.shouldSample(Context.root(), "trace", "span", SpanKind.SERVER, Attributes.empty(),
+    when(delegate.shouldSample(
+            Context.root(),
+            "trace",
+            "span",
+            SpanKind.SERVER,
+            Attributes.empty(),
             Collections.emptyList()))
         .thenReturn(delegateResult);
 
     SamplingResult result =
         AlwaysRecordSampler.create(delegate)
-            .shouldSample(Context.root(), "trace", "span", SpanKind.SERVER, Attributes.empty(),
+            .shouldSample(
+                Context.root(),
+                "trace",
+                "span",
+                SpanKind.SERVER,
+                Attributes.empty(),
                 Collections.emptyList());
 
     assertThat(result.getDecision()).isEqualTo(SamplingDecision.RECORD_ONLY);

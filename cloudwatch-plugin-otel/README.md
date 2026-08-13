@@ -111,6 +111,12 @@ cost are unchanged. Your `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG` setti
   unchanged rather than inventing values, so database metric dimensions depend on what the
   instrumentation actually emits.
 
+## Limitations
+
+- **One OpenTelemetry instance per classloader.** The plugin binds to the first OpenTelemetry
+  instance it sees and records all span metrics through that instance's `MeterProvider`. If an
+  application builds more than one SDK in the same classloader, span metrics use the first one.
+
 ## License
 
 Apache License 2.0.

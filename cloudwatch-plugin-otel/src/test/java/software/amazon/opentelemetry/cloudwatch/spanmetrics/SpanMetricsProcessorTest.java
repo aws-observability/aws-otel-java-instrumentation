@@ -21,7 +21,6 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
-import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -119,9 +118,12 @@ class SpanMetricsProcessorTest {
               assertThat(p.getAttributes().get(AttributeKey.stringKey("status.code")))
                   .isEqualTo("UNSET");
               // Schema + lib-version markers on the metric (spec §6).
-              assertThat(p.getAttributes().get(AttributeKey.stringKey("aws.otel.span.metrics.schema")))
+              assertThat(
+                      p.getAttributes().get(AttributeKey.stringKey("aws.otel.span.metrics.schema")))
                   .isEqualTo("v1");
-              assertThat(p.getAttributes().get(AttributeKey.stringKey("aws.otel.extension.lib.version")))
+              assertThat(
+                      p.getAttributes()
+                          .get(AttributeKey.stringKey("aws.otel.extension.lib.version")))
                   .isEqualTo(SpanMetricsProcessor.LIB_VERSION);
             });
   }
@@ -146,8 +148,7 @@ class SpanMetricsProcessorTest {
     io.opentelemetry.sdk.trace.ReadWriteSpan span =
         Mockito.mock(io.opentelemetry.sdk.trace.ReadWriteSpan.class);
     processor.onStart(io.opentelemetry.context.Context.root(), span);
-    Mockito.verify(span)
-        .setAttribute(AttributeKey.stringKey("aws.otel.span.metrics.schema"), "v1");
+    Mockito.verify(span).setAttribute(AttributeKey.stringKey("aws.otel.span.metrics.schema"), "v1");
     Mockito.verify(span)
         .setAttribute(
             AttributeKey.stringKey("aws.otel.extension.lib.version"),
