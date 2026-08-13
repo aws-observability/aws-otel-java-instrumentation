@@ -36,13 +36,14 @@ final class SpanMetricsAttributesBuilder {
   static final AttributeKey<String> STATUS_CODE = AttributeKey.stringKey("status.code");
 
   // Copied when present; a span only carries the keys of its own family, so no family branching.
+  // These are the current semconv keys; legacy predecessors are handled by LEGACY_FALLBACKS below.
   private static final List<AttributeKey<?>> ALLOWLIST =
       Arrays.asList(
           AttributeKey.stringKey("http.request.method"),
           AttributeKey.longKey("http.response.status_code"),
           AttributeKey.stringKey("http.route"),
           AttributeKey.stringKey("error.type"),
-          AttributeKey.stringKey("rpc.system"),
+          AttributeKey.stringKey("rpc.system.name"),
           AttributeKey.stringKey("rpc.service"),
           AttributeKey.stringKey("rpc.method"),
           AttributeKey.stringKey("db.system.name"),
@@ -52,12 +53,24 @@ final class SpanMetricsAttributesBuilder {
           AttributeKey.stringKey("messaging.operation.name"));
 
   // Current semconv key -> legacy key, checked when the current key is absent (spec §4). Needed
-  // because some instrumentation (e.g. OTel Java DB) has not migrated to current DB semconv.
-  private static final List<LegacyFallback> LEGACY_FALLBACKS =
+  // because some instrumentation has not migrated (e.g. OTel Java still emits the legacy HTTP/DB
+  // keys). When the current key is absent, the legacy key/value is passed through unchanged.
+  private static final List<LegacyFallback<?>> LEGACY_FALLBACKS =
       Arrays.asList(
-          new LegacyFallback("db.system.name", "db.system"),
-          new LegacyFallback("db.operation.name", "db.operation"),
-          new LegacyFallback("db.collection.name", "db.sql.table"));
+          new LegacyFallback<>(
+              AttributeKey.stringKey("http.request.method"), AttributeKey.stringKey("http.method")),
+          new LegacyFallback<>(
+              AttributeKey.longKey("http.response.status_code"),
+              AttributeKey.longKey("http.status_code")),
+          new LegacyFallback<>(
+              AttributeKey.stringKey("rpc.system.name"), AttributeKey.stringKey("rpc.system")),
+          new LegacyFallback<>(
+              AttributeKey.stringKey("db.system.name"), AttributeKey.stringKey("db.system")),
+          new LegacyFallback<>(
+              AttributeKey.stringKey("db.operation.name"), AttributeKey.stringKey("db.operation")),
+          new LegacyFallback<>(
+              AttributeKey.stringKey("db.collection.name"),
+              AttributeKey.stringKey("db.sql.table")));
 
   private static final AttributeKey<String> MESSAGING_DESTINATION_NAME =
       AttributeKey.stringKey("messaging.destination.name");
@@ -104,13 +117,8 @@ final class SpanMetricsAttributesBuilder {
   // When the current key is absent, pass the legacy key and value through unchanged (no value
   // translation) so we never emit a value the instrumentation did not produce.
   private static void applyLegacyFallbacks(AttributesBuilder builder, Attributes source) {
-    for (LegacyFallback fallback : LEGACY_FALLBACKS) {
-      if (source.get(fallback.currentKey) == null) {
-        String legacyValue = source.get(fallback.legacyKey);
-        if (legacyValue != null) {
-          builder.put(fallback.legacyKey, legacyValue);
-        }
-      }
+    for (LegacyFallback<?> fallback : LEGACY_FALLBACKS) {
+      fallback.apply(builder, source);
     }
   }
 
@@ -127,13 +135,24 @@ final class SpanMetricsAttributesBuilder {
     builder.put(MESSAGING_DESTINATION_NAME, destination);
   }
 
-  private static final class LegacyFallback {
-    final AttributeKey<String> currentKey;
-    final AttributeKey<String> legacyKey;
+  // Current and legacy keys share a type (both string, or both long) so the legacy value is emitted
+  // under the legacy key unchanged when the current key is absent.
+  private static final class LegacyFallback<T> {
+    private final AttributeKey<T> currentKey;
+    private final AttributeKey<T> legacyKey;
 
-    LegacyFallback(String currentKey, String legacyKey) {
-      this.currentKey = AttributeKey.stringKey(currentKey);
-      this.legacyKey = AttributeKey.stringKey(legacyKey);
+    LegacyFallback(AttributeKey<T> currentKey, AttributeKey<T> legacyKey) {
+      this.currentKey = currentKey;
+      this.legacyKey = legacyKey;
+    }
+
+    void apply(AttributesBuilder builder, Attributes source) {
+      if (source.get(currentKey) == null) {
+        T legacyValue = source.get(legacyKey);
+        if (legacyValue != null) {
+          builder.put(legacyKey, legacyValue);
+        }
+      }
     }
   }
 

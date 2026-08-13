@@ -100,18 +100,67 @@ class SpanMetricsAttributesBuilderTest {
   void rpcAttributesCopiedWhenPresent() {
     Attributes span =
         Attributes.builder()
-            .put("rpc.system", "grpc")
+            .put("rpc.system.name", "grpc")
             .put("rpc.service", "orders.OrderService")
             .put("rpc.method", "GetOrder")
             .put("error.type", "UNAVAILABLE")
             .put("rpc.request.body", "secret") // not allowlisted
             .build();
     Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
-    assertThat(attrs.get(AttributeKey.stringKey("rpc.system"))).isEqualTo("grpc");
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.system.name"))).isEqualTo("grpc");
     assertThat(attrs.get(AttributeKey.stringKey("rpc.service"))).isEqualTo("orders.OrderService");
     assertThat(attrs.get(AttributeKey.stringKey("rpc.method"))).isEqualTo("GetOrder");
     assertThat(attrs.get(AttributeKey.stringKey("error.type"))).isEqualTo("UNAVAILABLE");
     assertThat(attrs.get(AttributeKey.stringKey("rpc.request.body"))).isNull();
+  }
+
+  @Test
+  void legacyRpcSystemPassesThroughUnderLegacyKey() {
+    // Instrumentation still emitting rpc.system (legacy): pass it through unchanged under its own
+    // key; do not re-home it under rpc.system.name.
+    Attributes span = Attributes.builder().put("rpc.system", "grpc").build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.system"))).isEqualTo("grpc");
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.system.name"))).isNull();
+  }
+
+  @Test
+  void currentRpcSystemNameWinsOverLegacy() {
+    Attributes span =
+        Attributes.builder().put("rpc.system.name", "grpc").put("rpc.system", "legacy").build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.system.name"))).isEqualTo("grpc");
+    assertThat(attrs.get(AttributeKey.stringKey("rpc.system"))).isNull();
+  }
+
+  @Test
+  void legacyHttpAttributesPassThroughUnderLegacyKeys() {
+    // Instrumentation still emitting the legacy HTTP keys: pass them through unchanged, no value
+    // translation and no current-key emission. http.status_code stays a long.
+    Attributes span =
+        Attributes.builder().put("http.method", "POST").put("http.status_code", 404L).build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("http.method"))).isEqualTo("POST");
+    assertThat(attrs.get(AttributeKey.longKey("http.status_code"))).isEqualTo(404L);
+    assertThat(attrs.get(AttributeKey.stringKey("http.request.method"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("http.response.status_code"))).isNull();
+  }
+
+  @Test
+  void currentHttpAttributesWinOverLegacy() {
+    Attributes span =
+        Attributes.builder()
+            .put("http.request.method", "GET")
+            .put("http.method", "POST")
+            .put("http.response.status_code", 200L)
+            .put("http.status_code", 500L)
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("http.request.method"))).isEqualTo("GET");
+    assertThat(attrs.get(AttributeKey.longKey("http.response.status_code"))).isEqualTo(200L);
+    // Legacy keys not added when the current keys are present.
+    assertThat(attrs.get(AttributeKey.stringKey("http.method"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("http.status_code"))).isNull();
   }
 
   @Test
