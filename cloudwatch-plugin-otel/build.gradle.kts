@@ -25,7 +25,7 @@ plugins {
 }
 
 group = "software.amazon.opentelemetry"
-version = "1.0.0"
+version = "0.1.0"
 
 // The core targets Java 8 to match the OTel SDK's minimum. The Spring Boot 3 hook requires
 // Java 17, so it lives in a separate source set compiled at 17 and merged into the main jar; it
