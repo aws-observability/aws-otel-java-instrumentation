@@ -55,14 +55,14 @@ your spans.
 ## Install
 
 ```kotlin
-implementation("software.amazon.opentelemetry:cloudwatch-plugin-otel:1.0.0")
+implementation("software.amazon.opentelemetry:cloudwatch-plugin-otel:0.1.0")
 ```
 
 ```xml
 <dependency>
   <groupId>software.amazon.opentelemetry</groupId>
   <artifactId>cloudwatch-plugin-otel</artifactId>
-  <version>1.0.0</version>
+  <version>0.1.0</version>
 </dependency>
 ```
 
@@ -76,7 +76,7 @@ into the SDK four ways depending on how your application constructs OpenTelemetr
 Add the jar to the agent's extensions list:
 
 ```
-OTEL_JAVAAGENT_EXTENSIONS=/path/to/cloudwatch-plugin-otel-1.0.0.jar
+OTEL_JAVAAGENT_EXTENSIONS=/path/to/cloudwatch-plugin-otel-0.1.0.jar
 ```
 
 ### 2. Spring Boot starter
