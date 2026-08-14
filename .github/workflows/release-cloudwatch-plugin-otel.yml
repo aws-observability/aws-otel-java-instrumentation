@@ -27,17 +27,7 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Build and run unit tests
-        run: ./gradlew build -p cloudwatch-plugin-otel --stacktrace
-
-      # The contract suite validates all four wiring modes against a mock collector; it needs the
-      # extension jar to exist first (it is mounted into the javaagent-app container).
-      - name: Build extension jar
-        run: ./gradlew jar -p cloudwatch-plugin-otel --stacktrace
-
-      - name: Run contract tests (all modes)
-        run: ./gradlew contractTests -p cloudwatch-plugin-otel/contract-tests --stacktrace
-
+      # Validate first so a mistyped version fails fast, before the build and contract tests.
       - name: Validate project version matches workflow input
         run: |
           pluginVersion=$(./gradlew -q printVersion -p cloudwatch-plugin-otel)
@@ -45,6 +35,14 @@ jobs:
             echo "Input version '${{ inputs.cloudwatch-plugin-otel-version }}' does not match with the plugin project version '$pluginVersion'"
             exit 1
           fi
+
+      # build produces the extension jar in build/libs (the contract suite resolves it from there and
+      # mounts it into the javaagent-app container).
+      - name: Build and run unit tests
+        run: ./gradlew build -p cloudwatch-plugin-otel --stacktrace
+
+      - name: Run contract tests (all modes)
+        run: ./gradlew contractTests -p cloudwatch-plugin-otel/contract-tests --stacktrace
 
       - name: Build and publish to sonatype
         run: ./gradlew -p cloudwatch-plugin-otel publishToSonatype closeAndReleaseSonatypeStagingRepository --stacktrace

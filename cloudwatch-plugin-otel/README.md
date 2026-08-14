@@ -23,8 +23,8 @@ Two metrics, matching the OpenTelemetry SpanMetrics naming:
 
 Each datapoint carries low-cardinality dimensions: `service.name`, `span.name`, `span.kind`,
 `status.code`, plus any allowlisted semantic-convention attributes present on the span
-(e.g. `http.request.method`, `http.route`, `http.response.status_code`, `rpc.system.name`/`service`/`method`,
-`db.system.name`/`operation.name`/`collection.name`, `messaging.system`/`operation.name`/`destination.name`).
+(e.g. `http.request.method`, `http.route`, `http.response.status_code`, `rpc.system.name`/`rpc.service`/`rpc.method`,
+`db.system.name`/`db.operation.name`/`db.collection.name`, `messaging.system`/`messaging.operation.name`/`messaging.destination.name`).
 Current semantic-convention keys are used, with recognized legacy keys passed through under their own
 key/value when the current key is absent.
 
