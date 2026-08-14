@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.0
+
 ### Added
 
 - Initial release of the CloudWatch Plugin for OpenTelemetry (Java).
@@ -16,4 +18,4 @@
 - Four wiring modes with zero plugin configuration: Java agent extension, Spring Boot starter,
   plain SDK autoconfigure, and manual SDK (`SpanMetrics.bind`).
 - Metrics emitted under instrumentation scope `cloudwatch.plugin.otel.span_metrics`.
-- Verified compatible with OpenTelemetry Java SDK 1.32.0 through 1.64.0.
+- Compatible with OpenTelemetry Java SDK 1.32.0 or later.

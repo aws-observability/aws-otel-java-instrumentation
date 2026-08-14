@@ -1,0 +1,68 @@
+name: Release CloudWatch Plugin for OpenTelemetry
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloudwatch-plugin-otel-version:
+        description: The version to tag the release with, e.g., 1.0.0
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  release-cloudwatch-plugin-otel:
+    environment: Release
+    runs-on: ubuntu-latest # provides a Docker daemon for the contract tests (Testcontainers + jib)
+    steps:
+      - name: Checkout Repo @ SHA - ${{ github.sha }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build and run unit tests
+        run: ./gradlew build -p cloudwatch-plugin-otel --stacktrace
+
+      # The contract suite validates all four wiring modes against a mock collector; it needs the
+      # extension jar to exist first (it is mounted into the javaagent-app container).
+      - name: Build extension jar
+        run: ./gradlew jar -p cloudwatch-plugin-otel --stacktrace
+
+      - name: Run contract tests (all modes)
+        run: ./gradlew contractTests -p cloudwatch-plugin-otel/contract-tests --stacktrace
+
+      - name: Validate project version matches workflow input
+        run: |
+          pluginVersion=$(./gradlew -q printVersion -p cloudwatch-plugin-otel)
+          if [[ ! "$pluginVersion" == "${{ inputs.cloudwatch-plugin-otel-version }}" ]]; then
+            echo "Input version '${{ inputs.cloudwatch-plugin-otel-version }}' does not match with the plugin project version '$pluginVersion'"
+            exit 1
+          fi
+
+      - name: Build and publish to sonatype
+        run: ./gradlew -p cloudwatch-plugin-otel publishToSonatype closeAndReleaseSonatypeStagingRepository --stacktrace
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      # Publish to GitHub releases
+      - name: Create GH release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        run: |
+          gh release create --target "$GITHUB_REF_NAME" \
+            --title "Release cloudwatch-plugin-otel v${{ inputs.cloudwatch-plugin-otel-version }}" \
+            --notes "Please refer to the [Changelog](https://github.com/aws-observability/aws-otel-java-instrumentation/blob/main/cloudwatch-plugin-otel/CHANGELOG.md) for more details" \
+            --draft \
+            "cloudwatch-plugin-otel/v${{ inputs.cloudwatch-plugin-otel-version }}"

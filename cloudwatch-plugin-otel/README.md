@@ -18,16 +18,28 @@ Two metrics, matching the OpenTelemetry SpanMetrics naming:
 
 | Metric | Instrument | Unit |
 | --- | --- | --- |
-| `traces.span.metrics.calls` | Counter (monotonic sum) | `1` |
+| `traces.span.metrics.calls` | Counter (monotonic sum) | unset |
 | `traces.span.metrics.duration` | Histogram | `s` (seconds) |
 
 Each datapoint carries low-cardinality dimensions: `service.name`, `span.name`, `span.kind`,
 `status.code`, plus any allowlisted semantic-convention attributes present on the span
-(e.g. `http.request.method`, `http.route`, `http.response.status_code`, `rpc.system`/`service`/`method`,
+(e.g. `http.request.method`, `http.route`, `http.response.status_code`, `rpc.system.name`/`service`/`method`,
 `db.system.name`/`operation.name`/`collection.name`, `messaging.system`/`operation.name`/`destination.name`).
+Current semantic-convention keys are used, with recognized legacy keys passed through under their own
+key/value when the current key is absent.
+
+Both metrics also carry two identity attributes:
+
+- `aws.otel.span.metrics.schema` — the metric schema version (e.g. `v1`).
+- `aws.otel.extension.lib.version` — the plugin's library version (for support/debugging only).
 
 The metrics are emitted under the instrumentation scope `cloudwatch.plugin.otel.span_metrics` and ride your
 application's existing `MeterProvider` — they flow wherever your other metrics already go.
+
+The plugin also **writes these two attributes onto every recorded span** (not just the metrics). The
+`aws.otel.span.metrics.schema` attribute marks the span so downstream span-metric generation can tell
+the metric was already produced in-process and skip regenerating it. This is a visible modification to
+your spans.
 
 ## Requirements & compatibility
 
@@ -118,6 +130,14 @@ cost are unchanged. Your `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG` setti
 - **One OpenTelemetry instance per classloader.** The plugin binds to the first OpenTelemetry
   instance it sees and records all span metrics through that instance's `MeterProvider`. If an
   application builds more than one SDK in the same classloader, span metrics use the first one.
+- **Requires a configured metrics pipeline.** If the host has no metrics pipeline (e.g.
+  `OTEL_METRICS_EXPORTER=none` or a `MeterProvider` with no reader), the plugin stays inert: it
+  records nothing and does not mark spans, so downstream span-metric generation still produces the
+  metrics from the sampled spans. Configure a metrics exporter to get in-process span metrics.
+- **Declarative (file-based) SDK configuration is not supported.** When the SDK is built from a
+  declarative configuration file (`OTEL_EXPERIMENTAL_CONFIG_FILE` / `otel.experimental.config.file`),
+  the autoconfigure customizer and post-build hooks the plugin relies on do not run, so the plugin
+  is not wired in. Use one of the four documented wiring modes without declarative file config.
 
 ## License
 
