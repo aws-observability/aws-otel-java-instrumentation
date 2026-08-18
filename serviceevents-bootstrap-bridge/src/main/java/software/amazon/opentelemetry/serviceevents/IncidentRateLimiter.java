@@ -138,10 +138,11 @@ final class IncidentRateLimiter {
       hashInput = "op:" + operation + "|exc:" + exceptionType + ":" + originMethod;
     }
     try {
-      java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+      java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
       byte[] digest = md.digest(hashInput.getBytes(StandardCharsets.UTF_8));
       StringBuilder sb = new StringBuilder();
-      for (int i = 0; i < digest.length; i++) {
+      // Use first 16 bytes (128 bits) for a compact key, matching prior MD5 output length
+      for (int i = 0; i < 16; i++) {
         sb.append(String.format("%02x", Byte.valueOf(digest[i])));
       }
       return sb.toString();
