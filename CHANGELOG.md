@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix(serviceevents): replace SHA-1 and MD5 with SHA-256 for FIPS 140-3 compliance
+  ([#1439](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1439))
 - feat: attribute presigned S3 URLs as `AWS::S3` dependencies in Application Signals, opt-in via
   `otel.aws.application.signals.presigned-url-attribution.enabled`
   ([#1423](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1423))
