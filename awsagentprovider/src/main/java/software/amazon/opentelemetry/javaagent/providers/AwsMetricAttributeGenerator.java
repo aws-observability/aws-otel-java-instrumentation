@@ -159,6 +159,22 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
 
   private static final String DB_CONNECTION_RESOURCE_TYPE = "DB::Connection";
 
+  // Whether presigned AWS URL attribution is enabled. Resolved once from ConfigProperties at
+  // startup by AwsApplicationSignalsCustomizerProvider and injected here, so we avoid reading
+  // system properties on the per-span hot path.
+  private final boolean presignedUrlAttributionEnabled;
+
+  AwsMetricAttributeGenerator() {
+    this(false);
+  }
+
+  AwsMetricAttributeGenerator(boolean presignedUrlAttributionEnabled) {
+    this.presignedUrlAttributionEnabled = presignedUrlAttributionEnabled;
+    if (presignedUrlAttributionEnabled) {
+      logger.log(Level.INFO, "Application Signals presigned S3 URL attribution is enabled.");
+    }
+  }
+
   // This method is used by the AwsSpanMetricsProcessor to generate service and dependency metrics
   @Override
   public Map<String, Attributes> generateMetricAttributeMapFromSpan(
@@ -191,9 +207,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     AttributesBuilder builder = Attributes.builder();
     setService(resource, span, builder);
     setEgressOperation(span, builder);
-    setRemoteServiceAndOperation(span, builder);
+    // Presigned AWS URL attribution is resolved lazily as a fallback inside
+    // setRemoteServiceAndOperation (only when no higher-priority remote attribute matched). It
+    // returns the resolved attribution, if any, so the remote resource can reuse it without
+    // re-parsing the URL.
+    Optional<PresignedUrlAttributor.PresignedUrlAttribution> presignedAttribution =
+        setRemoteServiceAndOperation(span, builder);
     setRemoteEnvironment(span, builder);
-    boolean isRemoteResourceIdentifierPresent = setRemoteResourceTypeAndIdentifier(span, builder);
+    boolean isRemoteResourceIdentifierPresent =
+        setRemoteResourceTypeAndIdentifier(span, builder, presignedAttribution);
     if (isRemoteResourceIdentifierPresent) {
       boolean isAccountIdAndRegionPresent = setRemoteResourceAccountIdAndRegion(span, builder);
       if (!isAccountIdAndRegionPresent) {
@@ -277,9 +299,12 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * `net.peer.sock.port` and `http.url` will be used to derive the RemoteService. And `http.method`
    * and `http.url` will be used to derive the RemoteOperation.
    */
-  private static void setRemoteServiceAndOperation(SpanData span, AttributesBuilder builder) {
+  private Optional<PresignedUrlAttributor.PresignedUrlAttribution> setRemoteServiceAndOperation(
+      SpanData span, AttributesBuilder builder) {
     String remoteService = UNKNOWN_REMOTE_SERVICE;
     String remoteOperation = UNKNOWN_REMOTE_OPERATION;
+    Optional<PresignedUrlAttributor.PresignedUrlAttribution> presignedAttribution =
+        Optional.empty();
 
     if (isKeyPresent(span, AWS_REMOTE_SERVICE) || isKeyPresent(span, AWS_REMOTE_OPERATION)) {
       remoteService = getRemoteService(span, AWS_REMOTE_SERVICE);
@@ -307,6 +332,15 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     } else if (isKeyPresent(span, GRAPHQL_OPERATION_TYPE)) {
       remoteService = GRAPHQL;
       remoteOperation = getRemoteOperation(span, GRAPHQL_OPERATION_TYPE);
+    } else if (presignedUrlAttributionEnabled && !isAwsSDKSpan(span)) {
+      // Fallback for raw HTTP calls using a presigned URL. Exclude AWS SDK spans explicitly: they
+      // use the SDK attribution path even when their RPC service or method attributes are absent.
+      // Parse the URL only when we reach this branch.
+      presignedAttribution = PresignedUrlAttributor.attribute(span);
+      if (presignedAttribution.isPresent()) {
+        remoteService = presignedAttribution.get().getRemoteService();
+        remoteOperation = presignedAttribution.get().getRemoteOperation();
+      }
     }
 
     // Peer service takes priority as RemoteService over everything but AWS Remote.
@@ -318,12 +352,17 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
     if (remoteService.equals(UNKNOWN_REMOTE_SERVICE)) {
       remoteService = generateRemoteService(span);
     }
-    if (remoteOperation.equals(UNKNOWN_REMOTE_OPERATION)) {
+    // When a presigned AWS URL was attributed, keep its remote operation as-is. Resolvers
+    // intentionally return UnknownRemoteOperation for ambiguous calls (e.g. a bucket-level S3 GET),
+    // and falling back to the generic HTTP path here would reintroduce the high-cardinality
+    // "GET /<key>" operation this feature is meant to avoid.
+    if (remoteOperation.equals(UNKNOWN_REMOTE_OPERATION) && !presignedAttribution.isPresent()) {
       remoteOperation = generateRemoteOperation(span);
     }
 
     builder.put(AWS_REMOTE_SERVICE, remoteService);
     builder.put(AWS_REMOTE_OPERATION, remoteOperation);
+    return presignedAttribution;
   }
 
   /**
@@ -511,7 +550,9 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
    * Cloud Control resource format</a>.
    */
   private static boolean setRemoteResourceTypeAndIdentifier(
-      SpanData span, AttributesBuilder builder) {
+      SpanData span,
+      AttributesBuilder builder,
+      Optional<PresignedUrlAttributor.PresignedUrlAttribution> presignedAttribution) {
     Optional<String> remoteResourceType = Optional.empty();
     Optional<String> remoteResourceIdentifier = Optional.empty();
     Optional<String> cloudformationPrimaryIdentifier = Optional.empty();
@@ -627,6 +668,14 @@ final class AwsMetricAttributeGenerator implements MetricAttributeGenerator {
         remoteResourceType = Optional.of(NORMALIZED_LAMBDA_SERVICE_NAME + "::EventSourceMapping");
         remoteResourceIdentifier =
             Optional.ofNullable(escapeDelimiters(span.getAttributes().get(AWS_LAMBDA_RESOURCE_ID)));
+      }
+    } else if (presignedAttribution.isPresent()) {
+      Optional<PresignedUrlAttributor.RemoteResource> remoteResource =
+          presignedAttribution.get().getRemoteResource();
+      if (remoteResource.isPresent()) {
+        remoteResourceType = Optional.of(remoteResource.get().getType());
+        remoteResourceIdentifier =
+            Optional.ofNullable(escapeDelimiters(remoteResource.get().getIdentifier()));
       }
     } else if (isDBSpan(span)) {
       remoteResourceType = Optional.of(DB_CONNECTION_RESOURCE_TYPE);

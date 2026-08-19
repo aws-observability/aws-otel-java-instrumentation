@@ -114,7 +114,7 @@ import org.junit.jupiter.api.Test;
 /** Unit tests for {@link AwsMetricAttributeGenerator}. */
 class AwsMetricAttributeGeneratorTest {
 
-  private static final AwsMetricAttributeGenerator GENERATOR = new AwsMetricAttributeGenerator();
+  private AwsMetricAttributeGenerator generator = new AwsMetricAttributeGenerator();
 
   // String constants that are used many times in these tests.
   private static final String AWS_LOCAL_OPERATION_VALUE = "AWS local operation";
@@ -260,7 +260,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
     Map<String, Attributes> actualAttributesMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     assertThat(actualAttributesMap).isEqualTo(expectedAttributesMap);
   }
 
@@ -280,7 +280,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.INTERNAL);
     Map<String, Attributes> actualAttributesMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     assertThat(actualAttributesMap).isEqualTo(expectedAttributesMap);
   }
 
@@ -311,7 +311,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Map<String, Attributes> actualAttributesMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     assertThat(actualAttributesMap).isEqualTo(expectedAttributesMap);
   }
 
@@ -343,7 +343,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     Map<String, Attributes> actualAttributesMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     assertThat(actualAttributesMap).isEqualTo(expectedAttributesMap);
   }
 
@@ -375,7 +375,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.PRODUCER);
     Map<String, Attributes> actualAttributesMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     assertThat(actualAttributesMap).isEqualTo(expectedAttributesMap);
   }
 
@@ -705,6 +705,120 @@ class AwsMetricAttributeGeneratorTest {
     validateExpectedRemoteAttributes(UNKNOWN_REMOTE_SERVICE, UNKNOWN_REMOTE_OPERATION);
   }
 
+  @Test
+  public void testPresignedS3AttributionDisabledByDefault() {
+    mockAttribute(URL_FULL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_REQUEST_METHOD, "PUT");
+
+    validateExpectedRemoteAttributes("example-bucket.s3.us-west-2.amazonaws.com", "PUT /object");
+    validateRemoteResourceAttributes(null, null);
+  }
+
+  @Test
+  public void testPresignedS3UrlAttributes() {
+    enablePresignedUrlAttribution();
+    mockAttribute(URL_FULL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_REQUEST_METHOD, "GET");
+
+    validateExpectedRemoteAttributes("AWS::S3", "GetObject");
+    validateRemoteResourceAttributes("AWS::S3::Bucket", "example-bucket");
+  }
+
+  @Test
+  public void testPresignedS3UrlUnknownOperationDoesNotFallBackToHttpPath() {
+    enablePresignedUrlAttribution();
+    // Bucket-level GET (no object key) is an ambiguous S3 operation, so the resolver returns
+    // UnknownRemoteOperation. The generic HTTP operation fallback must not overwrite it with a
+    // high-cardinality "GET /..." value.
+    mockAttribute(URL_FULL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/"));
+    mockAttribute(HTTP_REQUEST_METHOD, "GET");
+
+    validateExpectedRemoteAttributes("AWS::S3", UNKNOWN_REMOTE_OPERATION);
+    validateRemoteResourceAttributes("AWS::S3::Bucket", "example-bucket");
+  }
+
+  @Test
+  public void testPresignedS3UrlUsesLegacyHttpUrlFallback() {
+    enablePresignedUrlAttribution();
+    mockAttribute(HTTP_URL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_METHOD, "HEAD");
+
+    validateExpectedRemoteAttributes("AWS::S3", "HeadObject");
+    validateRemoteResourceAttributes("AWS::S3::Bucket", "example-bucket");
+  }
+
+  @Test
+  public void testPresignedS3UrlExplicitRemoteAttributesWin() {
+    enablePresignedUrlAttribution();
+    mockAttribute(URL_FULL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_REQUEST_METHOD, "PUT");
+    mockAttribute(AWS_REMOTE_SERVICE, AWS_REMOTE_SERVICE_VALUE);
+    mockAttribute(AWS_REMOTE_OPERATION, AWS_REMOTE_OPERATION_VALUE);
+
+    validateExpectedRemoteAttributes(AWS_REMOTE_SERVICE_VALUE, AWS_REMOTE_OPERATION_VALUE);
+  }
+
+  @Test
+  public void testPresignedS3UrlDoesNotAttributeAwsSdkSpan() {
+    enablePresignedUrlAttribution();
+    mockAttribute(URL_FULL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_REQUEST_METHOD, "GET");
+    mockAttribute(RPC_SYSTEM, "aws-api");
+
+    validateExpectedRemoteAttributes("example-bucket.s3.us-west-2.amazonaws.com", "GET /object");
+    validateRemoteResourceAttributes(null, null);
+  }
+
+  @Test
+  public void testPresignedS3UrlPeerServiceOverrideIsUnchanged() {
+    enablePresignedUrlAttribution();
+    mockAttribute(URL_FULL, presignedUrl("example-bucket.s3.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_REQUEST_METHOD, "PUT");
+    mockAttribute(PEER_SERVICE, "PeerService");
+
+    validateExpectedRemoteAttributes("PeerService", "PutObject");
+  }
+
+  @Test
+  public void testNonS3PresignedEndpointIsUnchanged() {
+    enablePresignedUrlAttribution();
+    mockAttribute(
+        URL_FULL, presignedUrl("sqs.us-west-2.amazonaws.com", "/123456789012/example-queue"));
+    mockAttribute(HTTP_REQUEST_METHOD, "GET");
+
+    validateExpectedRemoteAttributes("sqs.us-west-2.amazonaws.com", "GET /123456789012");
+    validateRemoteResourceAttributes(null, null);
+  }
+
+  @Test
+  public void testPresignedS3UrlWithUnrecognizedEndpointIsUnchanged() {
+    // An access-point host is not a recognized bucket-bearing S3 endpoint. Since the signing
+    // service cannot be recovered from the redacted credential, attribution fails closed and the
+    // span keeps the existing generic HTTP attribution.
+    enablePresignedUrlAttribution();
+    mockAttribute(
+        URL_FULL, presignedUrl("example-bucket.s3-accesspoint.us-west-2.amazonaws.com", "/object"));
+    mockAttribute(HTTP_REQUEST_METHOD, "GET");
+
+    validateExpectedRemoteAttributes(
+        "example-bucket.s3-accesspoint.us-west-2.amazonaws.com", "GET /object");
+    validateRemoteResourceAttributes(null, null);
+  }
+
+  @Test
+  public void testDbResourceAttributionUnaffectedWhenPresignedAttributionEnabled() {
+    // Enabling presigned attribution must not shadow DB resource attribution: a DB span has no
+    // presigned URL, so it should still resolve to DB::Connection rather than falling through
+    // empty.
+    enablePresignedUrlAttribution();
+    mockAttribute(DB_SYSTEM, "mysql");
+    mockAttribute(DB_NAME, "db_name");
+    mockAttribute(SERVER_ADDRESS, "abc.com");
+    mockAttribute(SERVER_PORT, 3306L);
+
+    validateRemoteResourceAttributes("DB::Connection", "db_name|abc.com|3306");
+  }
+
   // Validate behaviour of various combinations of DB attributes.
   @Test
   public void testGetDBStatementRemoteOperation() {
@@ -863,7 +977,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("TestString");
   }
 
@@ -1328,7 +1442,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(SERVER_PORT, 3306L);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
     mockAttribute(SERVER_PORT, null);
@@ -1364,7 +1478,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NET_PEER_PORT, 3306L);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
     mockAttribute(NET_PEER_PORT, null);
@@ -1396,7 +1510,7 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(NETWORK_PEER_PORT, 3306L);
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
     mockAttribute(NETWORK_PEER_PORT, null);
@@ -1405,13 +1519,13 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_NAME, "db_name");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
 
     mockAttribute(DB_NAMESPACE, "db_namespace");
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
 
@@ -1453,13 +1567,13 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(DB_CONNECTION_STRING, "hsqldb:mem:");
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
 
     mockAttribute(DB_NAMESPACE, "db_namespace");
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isNull();
 
@@ -1500,6 +1614,20 @@ class AwsMetricAttributeGeneratorTest {
     validateHttpStatusWithThrowable(new ThrowableWithoutStatusCode(), null);
   }
 
+  private void enablePresignedUrlAttribution() {
+    generator = new AwsMetricAttributeGenerator(true);
+  }
+
+  private static String presignedUrl(String host, String path) {
+    // Realistic sanitized presigned URL: the agent redacts the credential and signature values
+    // before metric attribution runs. The non-redacted presigned parameters remain.
+    return "https://"
+        + host
+        + path
+        + "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=REDACTED&X-Amz-Signature=REDACTED"
+        + "&X-Amz-Date=20260710T120000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host";
+  }
+
   private <T> void mockAttribute(AttributeKey<T> key, T value) {
     when(attributesMock.get(key)).thenReturn(value);
   }
@@ -1508,7 +1636,7 @@ class AwsMetricAttributeGeneratorTest {
       Attributes expectedAttributes, SpanKind kind) {
     when(spanDataMock.getKind()).thenReturn(kind);
     Map<String, Attributes> attributeMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     Attributes serviceAttributes = attributeMap.get(SERVICE_METRIC);
     Attributes dependencyAttributes = attributeMap.get(DEPENDENCY_METRIC);
     if (!attributeMap.isEmpty()) {
@@ -1534,13 +1662,13 @@ class AwsMetricAttributeGeneratorTest {
       String expectedRemoteService, String expectedRemoteOperation) {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo(expectedRemoteService);
     assertThat(actualAttributes.get(AWS_REMOTE_OPERATION)).isEqualTo(expectedRemoteOperation);
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.PRODUCER);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo(expectedRemoteService);
     assertThat(actualAttributes.get(AWS_REMOTE_OPERATION)).isEqualTo(expectedRemoteOperation);
   }
@@ -1573,7 +1701,7 @@ class AwsMetricAttributeGeneratorTest {
     // Validate that peer service value takes precedence over whatever remoteServiceKey was set
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo("PeerService");
 
     mockAttribute(remoteServiceKey, null);
@@ -1587,7 +1715,7 @@ class AwsMetricAttributeGeneratorTest {
     for (SpanKind spanKind : spanKinds) {
       when(spanDataMock.getKind()).thenReturn(spanKind);
       Attributes actualAttributes =
-          GENERATOR
+          generator
               .generateMetricAttributeMapFromSpan(spanDataMock, resource)
               .get(DEPENDENCY_METRIC);
 
@@ -1615,7 +1743,7 @@ class AwsMetricAttributeGeneratorTest {
     // Server span should not generate remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCESS_KEY)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_ACCOUNT_ID)).isNull();
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_REGION)).isNull();
@@ -1630,7 +1758,7 @@ class AwsMetricAttributeGeneratorTest {
     // Client, Producer and Consumer spans should generate the expected remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
     assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
@@ -1638,7 +1766,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.PRODUCER);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
     assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
@@ -1646,7 +1774,7 @@ class AwsMetricAttributeGeneratorTest {
 
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(type);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(identifier);
     assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER))
@@ -1655,7 +1783,7 @@ class AwsMetricAttributeGeneratorTest {
     // Server span should not generate remote resource attributes
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_TYPE)).isEqualTo(null);
     assertThat(actualAttributes.get(AWS_REMOTE_RESOURCE_IDENTIFIER)).isEqualTo(null);
     assertThat(actualAttributes.get(AWS_CLOUDFORMATION_PRIMARY_IDENTIFIER)).isEqualTo(null);
@@ -1677,7 +1805,7 @@ class AwsMetricAttributeGeneratorTest {
       SpanKind spanKind, Long expectedStatusCode) {
     when(spanDataMock.getKind()).thenReturn(spanKind);
     Map<String, Attributes> attributeMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
     Attributes actualAttributes = Attributes.empty();
     if (!attributeMap.isEmpty()) {
       if (SpanKind.PRODUCER.equals(spanKind)
@@ -1701,7 +1829,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_OPERATION)).isEqualTo("db_operation");
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isEqualTo("db_user");
   }
@@ -1712,7 +1840,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
   }
 
@@ -1723,7 +1851,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isEqualTo("non_db_user");
   }
 
@@ -1734,7 +1862,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.SERVER);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(SERVICE_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
   }
 
@@ -1744,7 +1872,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_DB_USER)).isNull();
   }
 
@@ -1785,7 +1913,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo(serviceName);
   }
 
@@ -1838,7 +1966,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_SERVICE)).isEqualTo(expectedRemoteService);
   }
 
@@ -1852,27 +1980,27 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CLIENT);
 
     Attributes actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
 
     // Test 2: NOT setting it when RPC_SYSTEM is missing
     mockAttribute(RPC_SYSTEM, null);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
     mockAttribute(RPC_SYSTEM, "aws-api");
 
     // Test 3: NOT setting it when RPC_METHOD is missing
     mockAttribute(RPC_METHOD, null);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
     mockAttribute(RPC_METHOD, "Invoke");
 
     // Test 4: Still setting it to lambda:default when AWS_LAMBDA_NAME is missing
     mockAttribute(AWS_LAMBDA_NAME, null);
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isEqualTo("lambda:default");
     mockAttribute(AWS_LAMBDA_NAME, "testFunction");
 
@@ -1880,14 +2008,14 @@ class AwsMetricAttributeGeneratorTest {
     mockAttribute(RPC_SERVICE, "S3");
     mockAttribute(RPC_METHOD, "GetObject");
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
 
     // Test 6: NOT setting it for Lambda non-Invoke operations
     mockAttribute(RPC_SERVICE, "Lambda");
     mockAttribute(RPC_METHOD, "GetFunction");
     actualAttributes =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource).get(DEPENDENCY_METRIC);
     assertThat(actualAttributes.get(AWS_REMOTE_ENVIRONMENT)).isNull();
   }
 
@@ -1899,7 +2027,7 @@ class AwsMetricAttributeGeneratorTest {
     when(spanDataMock.getKind()).thenReturn(SpanKind.CONSUMER);
 
     Map<String, Attributes> attributeMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
 
     Attributes serviceAttributes = attributeMap.get(SERVICE_METRIC);
     Attributes dependencyAttributes = attributeMap.get(DEPENDENCY_METRIC);
@@ -1917,7 +2045,7 @@ class AwsMetricAttributeGeneratorTest {
     when(parentSpanContextMock.isValid()).thenReturn(false);
 
     Map<String, Attributes> attributeMap =
-        GENERATOR.generateMetricAttributeMapFromSpan(spanDataMock, resource);
+        generator.generateMetricAttributeMapFromSpan(spanDataMock, resource);
 
     Attributes serviceAttributes = attributeMap.get(SERVICE_METRIC);
     Attributes dependencyAttributes = attributeMap.get(DEPENDENCY_METRIC);
