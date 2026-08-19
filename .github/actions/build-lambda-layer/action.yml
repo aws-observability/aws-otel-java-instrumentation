@@ -38,7 +38,10 @@ runs:
         path: ~/.m2/repository/io/opentelemetry/
         key: ${{ steps.cache-upstream.outputs.cache-primary-key }}
 
-    - name: Build lambda layer
+    # Downstream half only: the patched upstream deps are already in ~/.m2 (cache restore above, or
+    # the build-upstream-deps.sh run). build-layer.sh is the full from-scratch build reserved for
+    # releases; running it here would rebuild upstream and defeat the cache.
+    - name: Build ADOT and package lambda layer (downstream)
       shell: bash
       working-directory: lambda-layer
-      run: ./build-layer.sh
+      run: ./build-downstream-deps.sh
