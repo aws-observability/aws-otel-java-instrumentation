@@ -23,7 +23,7 @@ plugins {
 }
 
 dependencies {
-  implementation("io.netty:netty-all:4.1.136.Final")
+  implementation("io.netty:netty-all:4.1.137.Final")
   implementation("com.sparkjava:spark-core")
   implementation("org.slf4j:slf4j-simple")
   implementation("io.opentelemetry:opentelemetry-api")
