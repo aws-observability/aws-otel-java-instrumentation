@@ -23,14 +23,14 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Builds the metric attribute set for a span: four base dimensions, any allowlisted
- * semantic-convention attribute present on the span, and the identity/schema attributes. The
- * allowlist is the low-cardinality subset OTel semconv defines on the corresponding request
- * metrics. It is flat: copy any listed key that is present, regardless of span family.
+ * Builds the metric attribute set for a span: three base dimensions (span.name, span.kind,
+ * status.code), any allowlisted semantic-convention attribute present on the span, and the
+ * identity/schema attributes. The allowlist is the low-cardinality subset OTel semconv defines on
+ * the corresponding request metrics. It is flat: copy any listed key that is present, regardless of
+ * span family.
  */
 final class SpanMetricsAttributesBuilder {
 
-  static final AttributeKey<String> SERVICE_NAME = AttributeKey.stringKey("service.name");
   static final AttributeKey<String> SPAN_NAME = AttributeKey.stringKey("span.name");
   static final AttributeKey<String> SPAN_KIND = AttributeKey.stringKey("span.kind");
   static final AttributeKey<String> STATUS_CODE = AttributeKey.stringKey("status.code");
@@ -89,12 +89,11 @@ final class SpanMetricsAttributesBuilder {
             .put(SpanMetricsProcessor.SCHEMA_ATTR, SpanMetricsProcessor.SCHEMA_VERSION)
             .put(SpanMetricsProcessor.LIB_VERSION_ATTR, SpanMetricsProcessor.LIB_VERSION);
 
-    // service.name: copied verbatim from the resource, no fallback (spec Q2 — the SDK already
-    // defaults it to unknown_service:<language>). Omitted only if genuinely absent.
-    String serviceName = span.getResource().getAttribute(SERVICE_NAME);
-    if (serviceName != null) {
-      builder.put(SERVICE_NAME, serviceName);
-    }
+    // service.name is deliberately NOT a datapoint attribute: the metrics are recorded into the
+    // host SDK's MeterProvider, whose resource already carries service.name, so duplicating it on
+    // every datapoint would add a redundant dimension. Consumers read it from the metric resource.
+    // (Intentional divergence from the collector spanmetrics connector, which flattens it into
+    // datapoint attributes because collector-side consumers may drop the resource.)
 
     Attributes spanAttributes = span.getAttributes();
     for (AttributeKey<?> key : ALLOWLIST) {

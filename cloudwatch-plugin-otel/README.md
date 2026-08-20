@@ -18,15 +18,16 @@ Two metrics, matching the OpenTelemetry SpanMetrics naming:
 
 | Metric | Instrument | Unit |
 | --- | --- | --- |
-| `traces.span.metrics.calls` | Counter (monotonic sum) | unset |
+| `traces.span.metrics.calls` | Counter (monotonic sum) | `{call}` |
 | `traces.span.metrics.duration` | Histogram | `s` (seconds) |
 
-Each datapoint carries low-cardinality dimensions: `service.name`, `span.name`, `span.kind`,
+Each datapoint carries low-cardinality dimensions: `span.name`, `span.kind`,
 `status.code`, plus any allowlisted semantic-convention attributes present on the span
 (e.g. `http.request.method`, `http.route`, `http.response.status_code`, `rpc.system.name`/`rpc.service`/`rpc.method`,
 `db.system.name`/`db.operation.name`/`db.collection.name`, `messaging.system`/`messaging.operation.name`/`messaging.destination.name`).
 Current semantic-convention keys are used, with recognized legacy keys passed through under their own
-key/value when the current key is absent.
+key/value when the current key is absent. `service.name` is carried by the metric's **resource**
+(the host SDK's resource), not duplicated on each datapoint.
 
 Both metrics also carry two identity attributes:
 
