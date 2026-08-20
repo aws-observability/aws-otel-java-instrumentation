@@ -102,13 +102,15 @@ public final class EnvironmentResolver {
    *
    * <p>The EC2 branch is gated on the host actually being EC2, mirroring the CloudWatch agent
    * (whose environment branches only run for EC2 / Kubernetes). On a non-AWS / non-K8s host the
-   * agent leaves the Environment empty, so this returns {@code ""} rather than falsely claiming
-   * {@code ec2:default}.
+   * agent runs its "generic" resolver and emits {@code generic:default} — it never leaves
+   * Environment empty — so this returns {@code generic:default} rather than falsely claiming {@code
+   * ec2:default}.
    *
    * @param resource the OTel resource (its attributes drive resolution)
    * @param asgSupplier supplies the EC2 Auto Scaling group name; invoked only on the EC2 branch.
    *     May be {@code null}, in which case the EC2 branch falls back to {@code ec2:default}.
-   * @return the resolved environment string, or {@code ""} on a non-AWS / undetected host.
+   * @return the resolved environment string; never empty — {@code generic:default} on a non-AWS /
+   *     undetected host.
    */
   public static String resolveLocalEnvironment(Resource resource, Supplier<String> asgSupplier) {
     if (resource == null) {
