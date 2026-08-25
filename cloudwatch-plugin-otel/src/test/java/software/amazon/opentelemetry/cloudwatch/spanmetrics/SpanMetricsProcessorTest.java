@@ -105,8 +105,8 @@ class SpanMetricsProcessorTest {
                       5.0, 10.0, 15.0);
             });
 
-    // calls is a monotonic Sum with no unit (connector parity).
-    assertThat(calls.getUnit()).isEmpty();
+    // calls is a monotonic Sum with the {call} UCUM annotation unit.
+    assertThat(calls.getUnit()).isEqualTo("{call}");
     assertThat(calls.getLongSumData().isMonotonic()).isTrue();
     assertThat(calls.getLongSumData().getPoints())
         .anySatisfy(
