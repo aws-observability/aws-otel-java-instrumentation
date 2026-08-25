@@ -56,28 +56,22 @@ class SpanMetricsAttributesBuilderTest {
             span(SpanKind.SERVER, Attributes.empty())
                 .setStatus(StatusData.create(StatusCode.ERROR, ""))
                 .build());
-    assertThat(attrs.get(AttributeKey.stringKey("service.name"))).isEqualTo("svc");
     assertThat(attrs.get(AttributeKey.stringKey("span.name"))).isEqualTo("op");
     assertThat(attrs.get(AttributeKey.stringKey("span.kind"))).isEqualTo("SERVER");
     assertThat(attrs.get(AttributeKey.stringKey("status.code"))).isEqualTo("ERROR");
   }
 
   @Test
-  void serviceNameCopiedVerbatimWhenPresent() {
-    // span(...) sets the resource service.name to "svc"; it must be copied as-is, no fallback text.
-    Attributes attrs =
+  void serviceNameNeverEmittedAsDatapointAttribute() {
+    // service.name lives on the metric's resource (the host MeterProvider's resource), so the
+    // datapoint must not duplicate it — even when the span's resource carries it.
+    Attributes withResource =
         SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, Attributes.empty()).build());
-    assertThat(attrs.get(AttributeKey.stringKey("service.name"))).isEqualTo("svc");
-  }
-
-  @Test
-  void serviceNameOmittedWhenAbsent() {
-    // No fallback: if the resource genuinely lacks service.name, the metric omits it entirely
-    // (the SDK guarantees a default in practice, so this is the defensive edge only).
-    Attributes attrs =
+    assertThat(withResource.get(AttributeKey.stringKey("service.name"))).isNull();
+    Attributes withoutResource =
         SpanMetricsAttributesBuilder.build(
             span(SpanKind.INTERNAL, Attributes.empty()).setResource(Resource.empty()).build());
-    assertThat(attrs.get(AttributeKey.stringKey("service.name"))).isNull();
+    assertThat(withoutResource.get(AttributeKey.stringKey("service.name"))).isNull();
   }
 
   @Test

@@ -113,6 +113,20 @@ abstract class FamilyTestBase extends SpanMetricsContractTestBase {
   }
 
   /**
+   * Drives {@code path} then returns the calls metric with its resource/scope context, so tests can
+   * assert resource-level attributes (service.name lives on the resource, not the datapoint) and
+   * instrument metadata like the unit.
+   */
+  protected ResourceScopeMetric callsMetricFor(String path, String spanName) {
+    drive(path);
+    List<ResourceScopeMetric> metrics = awaitCalls(spanName);
+    return metrics.stream()
+        .filter(m -> m.getMetric().getName().equals(CALLS_METRIC))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("no calls metric for " + spanName));
+  }
+
+  /**
    * Drives {@code path} then returns the string attributes of the first calls datapoint matching all
    * of the given {@code key=value} predicates. For families whose span name isn't fixed (gRPC,
    * Kafka), match on stable family attributes instead of the span name. Multiple predicates are

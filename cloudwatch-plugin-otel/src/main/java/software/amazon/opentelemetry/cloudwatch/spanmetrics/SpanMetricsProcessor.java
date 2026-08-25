@@ -161,7 +161,10 @@ public final class SpanMetricsProcessor implements SpanProcessor {
               .setUnit("s")
               .setExplicitBucketBoundariesAdvice(DURATION_BUCKETS_SECONDS)
               .build();
-      calls = meter.counterBuilder(CALLS_METRIC).build();
+      // {call} is the UCUM annotation for counted things, matching OTel semconv counter
+      // conventions (cf. {request}, {operation}). The collector spanmetrics connector leaves the
+      // unit unset; the annotation is preferred because it states what is being counted.
+      calls = meter.counterBuilder(CALLS_METRIC).setUnit("{call}").build();
     }
     return true;
   }
