@@ -1,0 +1,47 @@
+name: "Build Lambda Layer"
+description: |
+  Builds the ADOT Java Lambda layer with caching of patched upstream OTel dependencies.
+
+  The upstream OpenTelemetry contrib and instrumentation builds are cached in GitHub Actions
+  cache, keyed on the pinned versions and patch files. On a cache hit, only the ADOT build
+  (from current source) and the layer packaging run. On a miss, the full upstream build runs
+  first and the result is cached for future runs.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore patched upstream Maven artifacts
+      id: cache-upstream
+      uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+      with:
+        path: ~/.m2/repository/io/opentelemetry/
+        # Hash every input build-upstream-deps.sh consumes. Includes
+        # .github/patches/opentelemetry-java-instrumentation.patch even though it does not exist today:
+        # the script applies it if present, so hashing it now (hashFiles ignores missing files) avoids
+        # a stale-cache hit the moment someone adds it.
+        key: ${{ runner.os }}-lambda-upstream-${{ hashFiles('.github/patches/versions', '.github/patches/opentelemetry-java-contrib.patch', '.github/patches/opentelemetry-java-instrumentation.patch', 'lambda-layer/patches/opentelemetry-java-instrumentation.patch') }}
+
+    - name: Build patched upstream dependencies
+      if: steps.cache-upstream.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: lambda-layer
+      run: ./build-upstream-deps.sh
+
+    # success() is required: without it, an if: with only the cache-hit check is treated as
+    # always-run, so a failed build-upstream-deps.sh (set -e can abort after contrib publishes but
+    # before instrumentation) would still cache a PARTIAL ~/.m2 under the version-derived key —
+    # a sticky broken cache that skips rebuilds until versions change.
+    - name: Save patched upstream Maven artifacts
+      if: success() && steps.cache-upstream.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+      with:
+        path: ~/.m2/repository/io/opentelemetry/
+        key: ${{ steps.cache-upstream.outputs.cache-primary-key }}
+
+    # Downstream half only: the patched upstream deps are already in ~/.m2 (cache restore above, or
+    # the build-upstream-deps.sh run). build-layer.sh is the full from-scratch build reserved for
+    # releases; running it here would rebuild upstream and defeat the cache.
+    - name: Build ADOT and package lambda layer (downstream)
+      shell: bash
+      working-directory: lambda-layer
+      run: ./build-downstream-deps.sh
