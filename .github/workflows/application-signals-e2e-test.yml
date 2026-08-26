@@ -131,11 +131,17 @@ jobs:
   #
 
   # --- Parallel Java EKS pipeline -------------------------------------------------------------
-  # Shape: eks-setup -> [eks-v8..v25 concurrently] -> eks-cleanup -> metric-limiter -> service-events-eks
-  # eks-setup installs Application Signals on the shared cluster ONCE so the parallel version jobs
-  # don't each thrash the install; eks-cleanup tears it down ONCE after they all finish.
+  # Shape: metric-limiter -> eks-setup -> [eks-v8..v25 + service-events-eks concurrently] -> eks-cleanup
+  # metric-limiter runs FIRST, exclusive (it reconfigures the cluster-wide agent drop_threshold and
+  # self-manages App Signals, so it can't overlap the parallel jobs). Then eks-setup installs App
+  # Signals ONCE so the parallel jobs don't each thrash the install; eks-cleanup tears it down ONCE.
 
   eks-setup:
+    # Runs AFTER metric-limiter, which needs exclusive cluster access for its cluster-wide
+    # drop_threshold change. if: always() so a metric-limiter failure orders — but does not skip —
+    # the rest of the EKS pipeline; metric-limiter's own always() cleanup leaves the cluster cold.
+    needs: [ metric-limiter-v11-amd64 ]
+    if: ${{ always() }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-setup-app-signals.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -202,12 +208,12 @@ jobs:
       caller-workflow-name: 'main-build'
       java-version: '25'
 
-  # Tear down cluster-wide App Signals state ONCE, after ALL parallel eks-v* jobs finish.
-  # if: always() so a failed version job still triggers teardown; gated on every eks-v* so it never
-  # runs while a version job is still using the cluster.
+  # Tear down cluster-wide App Signals state ONCE, after ALL parallel jobs finish.
+  # if: always() so a failed job still triggers teardown; gated on every parallel job (the eks-v*
+  # versions AND service-events-eks) so it never runs while one is still using the cluster.
   eks-cleanup:
     if: ${{ always() && needs.eks-setup.result == 'success' }}
-    needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64 ]
+    needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64, service-events-eks ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-cleanup-app-signals.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -285,10 +291,10 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    # Runs in the exclusive cold-cluster phase AFTER eks-cleanup. This test reconfigures the shared
+    # Runs FIRST, exclusive, before eks-setup. This test reconfigures the shared
     # amazon-cloudwatch-observability addon (drop_threshold) cluster-wide and self-installs/tears down
-    # App Signals, so it can never overlap the parallel eks-v* jobs. Left un-parallelized by design.
-    needs: [ eks-cleanup ]
+    # App Signals, so it can never overlap the parallel eks-v* jobs. Running it first gives it the cold
+    # cluster to itself; eks-setup then waits for it (see eks-setup's needs) and installs App Signals fresh.
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -319,16 +325,13 @@ jobs:
       caller-workflow-name: 'main-build'
 
   service-events-eks:
-    # Runs LAST in the exclusive cold-cluster tail: eks-cleanup -> metric-limiter -> service-events.
-    # Service Events uses the UNCHANGED shared workflow, which installs and tears down App Signals
-    # itself and binds cluster-wide NodePort 30100, so it needs exclusive cluster access. Chaining
-    # after metric-limiter (which already needs eks-cleanup) guarantees no parallel eks-v* overlap and
-    # no NodePort 30100 collision ("provided port is already allocated"). if: always() so a
-    # metric-limiter failure orders — but does not skip — this independent test; `needs` still enforces
-    # the serial ordering that keeps cluster access exclusive.
-    if: ${{ always() }}
-    needs: [ metric-limiter-v11-amd64 ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-test.yml@java-eks-test-fix
+    # Runs CONCURRENTLY with the eks-v* version jobs. Uses the parallel SE workflow, which relies on
+    # the shared eks-setup install (no per-job App Signals) and binds a distinct NodePort (30110) above
+    # the version range (30100-30108), so it can share the cluster with the version jobs. eks-cleanup
+    # gates on this job too, so App Signals is not torn down until SE finishes.
+    needs: eks-setup
+    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -353,7 +356,8 @@ jobs:
   validate-all-tests-are-accounted-for:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/validate-e2e-tests-are-accounted-for.yml@main
     with:
-      # java-eks-test.yml is the sequential monolith, now replaced by java-eks-parallel-test.yml for
-      # this repo's version jobs (the monolith stays for the framework's own canary). eks-setup/
-      # eks-cleanup are the shared once-per-pipeline App Signals lifecycle workflows.
-      exclusions: 'java-eks-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml'
+      # java-eks-test.yml and java-eks-service-events-test.yml are the sequential monoliths, now
+      # replaced by java-eks-parallel-test.yml and java-eks-service-events-parallel-test.yml for this
+      # repo's parallel jobs (the monoliths stay for the framework's own canary). eks-setup/eks-cleanup
+      # are the shared once-per-pipeline App Signals lifecycle workflows.
+      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml'
