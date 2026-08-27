@@ -19,7 +19,7 @@ runs:
         # .github/patches/opentelemetry-java-instrumentation.patch even though it does not exist today:
         # the script applies it if present, so hashing it now (hashFiles ignores missing files) avoids
         # a stale-cache hit the moment someone adds it.
-        key: ${{ runner.os }}-lambda-upstream-${{ hashFiles('.github/patches/versions', '.github/patches/opentelemetry-java-contrib.patch', '.github/patches/opentelemetry-java-instrumentation.patch', 'lambda-layer/patches/opentelemetry-java-instrumentation.patch') }}
+        key: ${{ runner.os }}-lambda-upstream-v1-${{ hashFiles('.java-version', '.github/patches/**', 'lambda-layer/patches/opentelemetry-java-instrumentation.patch', 'lambda-layer/build-upstream-deps.sh') }}
 
     - name: Build patched upstream dependencies
       if: steps.cache-upstream.outputs.cache-hit != 'true'
