@@ -15,10 +15,6 @@ runs:
       uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
       with:
         path: ~/.m2/repository/io/opentelemetry/
-        # Hash every input build-upstream-deps.sh consumes. Includes
-        # .github/patches/opentelemetry-java-instrumentation.patch even though it does not exist today:
-        # the script applies it if present, so hashing it now (hashFiles ignores missing files) avoids
-        # a stale-cache hit the moment someone adds it.
         key: ${{ runner.os }}-lambda-upstream-v1-${{ hashFiles('.java-version', '.github/patches/**', 'lambda-layer/patches/opentelemetry-java-instrumentation.patch', 'lambda-layer/build-upstream-deps.sh') }}
 
     - name: Build patched upstream dependencies
