@@ -1,9 +1,6 @@
 #!/bin/bash
 # Builds the PATCHED upstream OpenTelemetry dependencies (contrib + instrumentation)
-# These are the slow, rarely-changing steps of the lambda layer build. They only
-# need to rerun when the pinned upstream versions (.github/patches/versions) or the
-# patch files change. In CI, this script is skipped on an actions/cache hit keyed on
-# exactly those files; build-layer.sh (ADOT from source + package) always runs after.
+# These are the slow, rarely-changing steps of the lambda layer build. 
 set -e
 
 SOURCEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
