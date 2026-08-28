@@ -27,10 +27,58 @@ plugins {
 group = "software.amazon.opentelemetry"
 version = "0.1.0"
 
+// Bake the project version into a generated class constant at build time. A runtime manifest
+// lookup (Package#getImplementationVersion) returns null when the javaagent loads this jar as an
+// extension — the agent rewrites extension classes against its shaded API, so the loaded classes
+// lose the original jar's package metadata. A compile-time constant survives any classloader.
+val generatedVersionDir = layout.buildDirectory.dir("generated/sources/pluginVersion/java")
+val generatePluginVersion by tasks.registering {
+  val versionValue = project.version.toString()
+  inputs.property("version", versionValue)
+  outputs.dir(generatedVersionDir)
+  doLast {
+    val file =
+      generatedVersionDir.get()
+        .file("software/amazon/opentelemetry/cloudwatch/spanmetrics/PluginVersion.java")
+        .asFile
+    file.parentFile.mkdirs()
+    file.writeText(
+      """
+      /*
+       * Copyright Amazon.com, Inc. or its affiliates.
+       *
+       * Licensed under the Apache License, Version 2.0 (the "License").
+       * You may not use this file except in compliance with the License.
+       * A copy of the License is located at
+       *
+       *  http://aws.amazon.com/apache2.0
+       *
+       * or in the "license" file accompanying this file. This file is distributed
+       * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+       * express or implied. See the License for the specific language governing
+       * permissions and limitations under the License.
+       */
+
+      package software.amazon.opentelemetry.cloudwatch.spanmetrics;
+
+      // Generated at build time from the Gradle project version. Do not edit.
+      final class PluginVersion {
+        static final String VERSION = "$versionValue";
+
+        private PluginVersion() {}
+      }
+      """.trimIndent(),
+    )
+  }
+}
+
 // The core targets Java 8 to match the OTel SDK's minimum. The Spring Boot 3 hook requires
 // Java 17, so it lives in a separate source set compiled at 17 and merged into the main jar; it
 // only ever runs on JVMs that already have Spring Boot 3 (hence Java 17+).
 sourceSets {
+  main {
+    java.srcDir(generatedVersionDir)
+  }
   create("springHook") {
     java.setSrcDirs(listOf("src/springHook/java"))
     resources.setSrcDirs(listOf("src/springHook/resources"))
@@ -119,6 +167,11 @@ java {
 // release=8 rejects any Java 9+ API at compile time, so the core stays runnable on Java 8.
 tasks.named<JavaCompile>("compileJava") {
   options.release.set(8)
+  dependsOn(generatePluginVersion)
+}
+
+tasks.named("sourcesJar") {
+  dependsOn(generatePluginVersion)
 }
 
 tasks.named<JavaCompile>("compileSpringHookJava") {
@@ -166,6 +219,8 @@ spotless {
   java {
     googleJavaFormat()
     licenseHeaderFile(licenseHeader)
+    // Machine-generated sources are not subject to formatting.
+    targetExclude("build/generated/**")
   }
   kotlinGradle {
     ktlint("1.4.0").editorConfigOverride(mapOf("indent_size" to "2", "continuation_indent_size" to "2"))
