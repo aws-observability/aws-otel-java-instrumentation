@@ -204,8 +204,10 @@ class SpanMetricsAttributesBuilderTest {
     Attributes attrs =
         SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, Attributes.empty()).build());
     assertThat(attrs.get(AttributeKey.stringKey("aws.otel.span.metrics.schema"))).isEqualTo("v1");
+    // A real version, not the constant itself: comparing to LIB_VERSION would pass even if
+    // resolution broke (it once shipped as "unknown" in javaagent mode).
     assertThat(attrs.get(AttributeKey.stringKey("aws.otel.extension.lib.version")))
-        .isEqualTo(SpanMetricsProcessor.LIB_VERSION);
+        .matches("\\d+\\.\\d+\\.\\d+.*");
   }
 
   @Test
