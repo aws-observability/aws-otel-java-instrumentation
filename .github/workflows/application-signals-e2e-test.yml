@@ -148,9 +148,22 @@ jobs:
       test-cluster-name: 'e2e-adot-test'
       aws-region: us-east-1
 
-  eks-v8-amd64:
+  # Set the shared cluster-wide operator's java auto-instrumentation image ONCE, so the parallel
+  # eks-v* / service-events-eks jobs don't each patch + roll out the singleton operator (which
+  # serialized them on one Deployment and pushed them past the run time cap).
+  eks-patch-java-operator:
     needs: eks-setup
     if: ${{ always() && needs.eks-setup.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-patch-java-operator.yml@java-eks-test-fix
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
+      adot-image-name: ${{ inputs.adot-image-name }}
+
+  eks-v8-amd64:
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -161,8 +174,8 @@ jobs:
       java-version: '8'
 
   eks-v11-amd64:
-    needs: eks-setup
-    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -173,8 +186,8 @@ jobs:
       java-version: '11'
 
   eks-v17-amd64:
-    needs: eks-setup
-    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -185,8 +198,8 @@ jobs:
       java-version: '17'
 
   eks-v21-amd64:
-    needs: eks-setup
-    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -197,8 +210,8 @@ jobs:
       java-version: '21'
 
   eks-v25-amd64:
-    needs: eks-setup
-    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -329,8 +342,8 @@ jobs:
     # the shared eks-setup install (no per-job App Signals) and binds a distinct NodePort (30110) above
     # the version range (30100-30108), so it can share the cluster with the version jobs. eks-cleanup
     # gates on this job too, so App Signals is not torn down until SE finishes.
-    needs: eks-setup
-    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
@@ -359,5 +372,6 @@ jobs:
       # java-eks-test.yml and java-eks-service-events-test.yml are the sequential monoliths, now
       # replaced by java-eks-parallel-test.yml and java-eks-service-events-parallel-test.yml for this
       # repo's parallel jobs (the monoliths stay for the framework's own canary). eks-setup/eks-cleanup
-      # are the shared once-per-pipeline App Signals lifecycle workflows.
-      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml'
+      # are the shared once-per-pipeline App Signals lifecycle workflows, and java-eks-patch-java-operator
+      # is the one-time operator-image patch gate — none of these are themselves *-test.yml suites.
+      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml,java-eks-patch-java-operator.yml'
