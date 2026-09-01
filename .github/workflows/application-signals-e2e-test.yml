@@ -209,8 +209,12 @@ jobs:
       caller-workflow-name: 'main-build'
       java-version: '21'
 
+  # Gated behind eks-v8-amd64 (ordering only -- always() means v8's result doesn't matter) so at most
+  # 4 version jobs' pod-sets are ever on the shared cluster at once: v8/v11/v17/v21 run first, and v25
+  # starts only after v8 frees its slot. Empirically 5 concurrent exceeds node capacity (one version's
+  # pods fail to become Ready); 4 fit. This caps the peak without a matrix rewrite / job renames.
   eks-v25-amd64:
-    needs: [ eks-setup, eks-patch-java-operator ]
+    needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
     if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@java-eks-test-fix
     secrets: inherit
