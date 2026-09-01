@@ -606,10 +606,18 @@ jobs:
       - name: Sign Public ECR Image
         if: steps.ecr-signing-profile.outputs.profile_arn != ''
         run: |
-          # Sign the released public ECR image
-          notation sign ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
+          # notation needs a digest ref to store the signature via the Referrers API,
+          # which avoids publishing the extra "sha256-<digest>" fallback tag.
+          DIGEST=$(aws ecr-public describe-image-tags \
+            --repository-name adot-autoinstrumentation-java \
+            --region ${{ env.AWS_PUBLIC_ECR_REGION }} \
+            --query "imageTagDetails[?imageTag=='v${{ env.VERSION }}'].imageDetail.imageDigest | [0]" \
+            --output text)
+          if [ -z "$DIGEST" ] || [ "$DIGEST" = "None" ]; then
+            echo "Could not resolve a digest for v${{ env.VERSION }}; skipping image signing."
+            exit 0
+          fi
+          notation sign ${{ env.PUBLIC_REPOSITORY }}@${DIGEST} \
+            --force-referrers-tag=false \
             --plugin com.amazonaws.signer.notation.plugin \
             --id ${{ steps.ecr-signing-profile.outputs.profile_arn }}
-          echo "Successfully signed public ECR image"
-          echo "Image: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}"
-          echo "Profile ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}"
