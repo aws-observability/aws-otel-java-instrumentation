@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Fix `aws.otel.extension.lib.version` emitted as `"unknown"` in javaagent mode: the version is
+  now baked in at build time instead of resolved from the jar manifest at runtime.
 * `service.name` is no longer emitted as a metric datapoint attribute; it is carried by the
   metric's resource (the host SDK's resource). Consumers reading `service.name` from datapoint
   dimensions must read it from the resource instead.

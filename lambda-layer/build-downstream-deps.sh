@@ -29,11 +29,7 @@ patch  -p1 < "${SOURCEDIR}"/patches/aws-otel-java-instrumentation.patch
 CI=false ./gradlew publishToMavenLocal -Prelease.version=${version}-adot-lambda1
 popd
 
-
-## Build ADOT Lambda Java SDK Layer Code
-echo "Info: Building ADOT Lambda Java SDK Layer Code"
-./gradlew build -PotelVersion=${otel_instrumentation_version} -Pversion=${version}
-
+./gradlew build -Pversion=${version}
 
 ## Copy ADOT Java Agent downloaded using Gradle task and bundle it with the Lambda handler script
 echo "Info: Creating the layer artifact"

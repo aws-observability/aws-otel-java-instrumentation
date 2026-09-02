@@ -34,9 +34,13 @@ class BaseAttributesFamilyTest extends FamilyTestBase {
     assertThat(attrs).containsKey("span.name");
     assertThat(attrs.get("span.kind")).isEqualTo("SERVER").doesNotStartWith("SPAN_KIND_");
     assertThat(attrs.get("status.code")).isEqualTo("UNSET").doesNotStartWith("STATUS_CODE_");
-    // Schema + lib-version markers on every metric datapoint.
+    // Schema + lib-version markers on every metric datapoint. The lib version must be a real
+    // version: this suite runs the jar under the javaagent, whose extension classloader broke a
+    // manifest-based lookup and shipped "unknown" once — a presence-only check missed it.
     assertThat(attrs.get("aws.otel.span.metrics.schema")).isEqualTo("v1");
-    assertThat(attrs).containsKey("aws.otel.extension.lib.version");
+    assertThat(attrs.get("aws.otel.extension.lib.version"))
+        .isNotEqualTo("unknown")
+        .matches("\\d+\\.\\d+\\.\\d+.*");
   }
 
   @Test
