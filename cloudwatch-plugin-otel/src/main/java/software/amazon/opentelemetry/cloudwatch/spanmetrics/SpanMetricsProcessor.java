@@ -51,14 +51,10 @@ public final class SpanMetricsProcessor implements SpanProcessor {
 
   static final String SCHEMA_VERSION = "v1";
 
-  // Resolved from the jar manifest's Implementation-Version (set by the build to project.version);
-  // falls back to "unknown" when running outside a packaged jar (e.g. unit tests).
-  static final String LIB_VERSION = resolveLibVersion();
-
-  private static String resolveLibVersion() {
-    String version = SpanMetricsProcessor.class.getPackage().getImplementationVersion();
-    return version != null ? version : "unknown";
-  }
+  // Baked into a generated class constant at build time (see generatePluginVersion in the build).
+  // A manifest lookup is not classloader-safe: the javaagent loads this jar as an extension whose
+  // classes are rewritten against the shaded API, losing the jar's package metadata.
+  static final String LIB_VERSION = PluginVersion.VERSION;
 
   static final io.opentelemetry.api.common.AttributeKey<String> SCHEMA_ATTR =
       io.opentelemetry.api.common.AttributeKey.stringKey("aws.otel.span.metrics.schema");
