@@ -130,9 +130,32 @@ jobs:
   # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
   #
 
-  eks-v8-amd64:
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+  # --- Parallel Java EKS pipeline -------------------------------------------------------------
+  # Shape: metric-limiter -> eks-setup -> [eks-v8..v25 + service-events-eks concurrently] -> eks-cleanup
+
+  eks-setup:
+    needs: [ metric-limiter-v11-amd64 ]
+    if: ${{ always() }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-setup-app-signals.yml@main
     secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
+
+  eks-patch-java-operator:
+    needs: eks-setup
+    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-patch-java-operator.yml@main
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
+      adot-image-name: ${{ inputs.adot-image-name }}
+
+  eks-v8-amd64:
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
@@ -141,8 +164,9 @@ jobs:
       java-version: '8'
 
   eks-v11-amd64:
-    needs: eks-v8-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -152,8 +176,9 @@ jobs:
       java-version: '11'
 
   eks-v17-amd64:
-    needs: eks-v11-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -163,8 +188,9 @@ jobs:
       java-version: '17'
 
   eks-v21-amd64:
-    needs: eks-v17-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -174,15 +200,24 @@ jobs:
       java-version: '21'
 
   eks-v25-amd64:
-    needs: eks-v21-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
-    secrets: inherit
+    needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '25'
+
+  eks-cleanup:
+    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64, service-events-eks ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-cleanup-app-signals.yml@main
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
 
   #
   # PACKAGED DISTRIBUTION PLATFORM COVERAGE
@@ -255,7 +290,6 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    needs: [ eks-v25-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
@@ -286,12 +320,9 @@ jobs:
       caller-workflow-name: 'main-build'
 
   service-events-eks:
-    # Chain onto the tail of the eks-v* line (eks-v8..v25 -> metric-limiter-v11-amd64): they all
-    # target e2e-adot-test and the sample-app Service binds cluster-wide NodePort 30100, which this
-    # SE test also uses. Running in parallel would collide on that port ("provided port is already
-    # allocated"), so serialize after the last job that uses the cluster.
-    needs: [ metric-limiter-v11-amd64 ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-parallel-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -315,3 +346,5 @@ jobs:
   #   (see: https://github.com/aws-observability/aws-application-signals-test-framework/blob/main/.github/workflows/validate-e2e-tests-are-accounted-for.yml)
   validate-all-tests-are-accounted-for:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/validate-e2e-tests-are-accounted-for.yml@main
+    with:
+      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml,java-eks-patch-java-operator.yml'
