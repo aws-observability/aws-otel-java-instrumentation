@@ -154,19 +154,18 @@ jobs:
 
   eks-v8-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '8'
+      java-versions: '["8","11","17","21","25"]'
 
   eks-v11-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -174,11 +173,11 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '11'
+      java-versions: '["8","11","17","21","25"]'
 
   eks-v17-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -186,11 +185,11 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '17'
+      java-versions: '["8","11","17","21","25"]'
 
   eks-v21-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -198,20 +197,22 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '21'
+      java-versions: '["8","11","17","21","25"]'
 
   eks-v25-amd64:
     needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
     if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-parallel-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '25'
+      java-versions: '["8","11","17","21","25"]'
 
   eks-cleanup:
-    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    if: ${{ always() }}
     needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64, service-events-eks ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-cleanup-app-signals.yml@main
     secrets: inherit
@@ -321,7 +322,6 @@ jobs:
 
   service-events-eks:
     needs: [ eks-setup, eks-patch-java-operator ]
-    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-parallel-test.yml@main
     secrets: inherit
     with:
@@ -330,6 +330,9 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '11'
+      # Same list the eks-v* jobs pass; SE derives its NodePort as 30100 + length*2 (one slot above
+      # the version block) so it can't collide even when a version is added.
+      java-versions: '["8","11","17","21","25"]'
 
   # This validation is to ensure that all test workflows relevant to this repo are actually
   # being used in this repo, which is referring to all the other jobs in this file.
