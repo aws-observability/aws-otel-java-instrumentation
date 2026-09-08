@@ -324,7 +324,7 @@ jobs:
 
   service-events-eks:
     needs: [ eks-setup, eks-patch-java-operator ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-parallel-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-parallel-test.yml@java-eks-test-fix
     secrets: inherit
     with:
       aws-region: us-east-1
