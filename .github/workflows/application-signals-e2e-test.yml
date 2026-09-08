@@ -145,7 +145,7 @@ jobs:
   eks-patch-java-operator:
     needs: eks-setup
     if: ${{ always() && needs.eks-setup.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-patch-java-operator.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-patch-java-operator.yml@java-eks-test-fix
     secrets: inherit
     with:
       test-cluster-name: 'e2e-adot-test'
