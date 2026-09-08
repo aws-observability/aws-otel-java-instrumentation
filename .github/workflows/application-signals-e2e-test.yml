@@ -154,7 +154,7 @@ jobs:
 
   eks-v8-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
@@ -165,7 +165,7 @@ jobs:
 
   eks-v11-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -177,7 +177,7 @@ jobs:
 
   eks-v17-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -189,7 +189,7 @@ jobs:
 
   eks-v21-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -204,7 +204,7 @@ jobs:
     # since 5 concurrent pod-sets exceed node capacity.
     needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
     if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
