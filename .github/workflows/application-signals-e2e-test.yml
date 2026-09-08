@@ -200,6 +200,8 @@ jobs:
       java-versions: '["8","11","17","21","25"]'
 
   eks-v25-amd64:
+    # eks-v8-amd64 is ordering-only: it caps peak concurrency at 4 version jobs,
+    # since 5 concurrent pod-sets exceed node capacity.
     needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
     if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
@@ -350,4 +352,4 @@ jobs:
   validate-all-tests-are-accounted-for:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/validate-e2e-tests-are-accounted-for.yml@main
     with:
-      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml,java-eks-patch-java-operator.yml'
+      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml'
