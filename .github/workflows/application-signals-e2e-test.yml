@@ -155,6 +155,7 @@ jobs:
   eks-v8-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
+    secrets: inherit
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
@@ -205,6 +206,7 @@ jobs:
     needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
     if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@java-eks-test-fix
+    secrets: inherit
     with:
       aws-region: us-east-1
       test-cluster-name: 'e2e-adot-test'
