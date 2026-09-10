@@ -11,6 +11,13 @@ on:
       adot-image-name:
         required: true
         type: string
+      # Ordered set of Java versions the parallel EKS jobs cover — the single source of truth. The
+      # framework derives each job's NodePort from a version's index here (and service-events derives
+      # its port from the length), so adding a version is a one-line edit to this default.
+      java-versions:
+        required: false
+        type: string
+        default: '["8","11","17","21","25"]'
 
 permissions:
   id-token: write
@@ -162,7 +169,7 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '8'
-      java-versions: '["8","11","17","21","25"]'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v11-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
@@ -174,7 +181,7 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '11'
-      java-versions: '["8","11","17","21","25"]'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v17-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
@@ -186,7 +193,7 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '17'
-      java-versions: '["8","11","17","21","25"]'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v21-amd64:
     needs: [ eks-setup, eks-patch-java-operator ]
@@ -198,7 +205,7 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '21'
-      java-versions: '["8","11","17","21","25"]'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v25-amd64:
     # eks-v8-amd64 is ordering-only: it caps peak concurrency at 4 version jobs,
@@ -213,7 +220,7 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '25'
-      java-versions: '["8","11","17","21","25"]'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-cleanup:
     if: ${{ always() }}
@@ -336,7 +343,7 @@ jobs:
       java-version: '11'
       # Same list the eks-v* jobs pass; SE derives its NodePort as 30100 + length*2 (one slot above
       # the version block) so it can't collide even when a version is added.
-      java-versions: '["8","11","17","21","25"]'
+      java-versions: ${{ inputs.java-versions }}
 
   # This validation is to ensure that all test workflows relevant to this repo are actually
   # being used in this repo, which is referring to all the other jobs in this file.
