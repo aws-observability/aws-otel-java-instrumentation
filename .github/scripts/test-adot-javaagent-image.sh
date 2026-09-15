@@ -6,6 +6,7 @@ TEST_TAG=$1
 ADOT_JAVA_VERSION=$2
 
 docker volume create operator-volume
+docker run --mount source=operator-volume,dst=/otel-auto-instrumentation public.ecr.aws/amazonlinux/amazonlinux:latest chmod 777 /otel-auto-instrumentation
 docker run --mount source=operator-volume,dst=/otel-auto-instrumentation ${TEST_TAG} cp /javaagent.jar /otel-auto-instrumentation/javaagent.jar
 docker run -dt --mount source=operator-volume,dst=/otel-auto-instrumentation --name temp  public.ecr.aws/amazonlinux/amazonlinux:latest
 FILENAME=$(docker exec temp /bin/bash -c "ls /otel-auto-instrumentation")
