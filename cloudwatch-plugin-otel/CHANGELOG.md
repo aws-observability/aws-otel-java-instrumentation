@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* Added derived metric dimensions for dependency-edge (topology) metrics: additional messaging
+  keys (`messaging.operation.type`, `messaging.consumer.group.name`), peer (`server.address`,
+  `server.port`), GenAI (`gen_ai.request.model`, `gen_ai.provider.name`, `gen_ai.operation.name`),
+  AWS resource identity (`aws.s3.bucket`, `aws.dynamodb.table_names`, `aws.lambda.invoked_arn`,
+  `aws.sns.topic.arn`, `aws.sqs.queue.url`), and FaaS (`faas.invoked_name`, `faas.invoked_provider`,
+  `faas.invoked_region`, `faas.trigger`) semantic-convention attributes, copied from the span when
+  present.
 * Fix `aws.otel.extension.lib.version` emitted as `"unknown"` in javaagent mode: the version is
   now baked in at build time instead of resolved from the jar manifest at runtime.
 * `service.name` is no longer emitted as a metric datapoint attribute; it is carried by the
