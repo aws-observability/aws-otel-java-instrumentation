@@ -39,18 +39,43 @@ final class SpanMetricsAttributesBuilder {
   // These are the current semconv keys; legacy predecessors are handled by LEGACY_FALLBACKS below.
   private static final List<AttributeKey<?>> ALLOWLIST =
       Arrays.asList(
+          // HTTP (https://opentelemetry.io/docs/specs/semconv/http/http-metrics/)
           AttributeKey.stringKey("http.request.method"),
           AttributeKey.longKey("http.response.status_code"),
           AttributeKey.stringKey("http.route"),
           AttributeKey.stringKey("error.type"),
+          // RPC (https://opentelemetry.io/docs/specs/semconv/rpc/rpc-metrics/)
           AttributeKey.stringKey("rpc.system.name"),
           AttributeKey.stringKey("rpc.service"),
           AttributeKey.stringKey("rpc.method"),
+          // Database (https://opentelemetry.io/docs/specs/semconv/db/database-metrics/)
           AttributeKey.stringKey("db.system.name"),
           AttributeKey.stringKey("db.operation.name"),
           AttributeKey.stringKey("db.collection.name"),
+          // Messaging (https://opentelemetry.io/docs/specs/semconv/messaging/messaging-metrics/)
           AttributeKey.stringKey("messaging.system"),
-          AttributeKey.stringKey("messaging.operation.name"));
+          AttributeKey.stringKey("messaging.operation.name"),
+          AttributeKey.stringKey("messaging.operation.type"),
+          AttributeKey.stringKey("messaging.consumer.group.name"),
+          // Peer (https://opentelemetry.io/docs/specs/semconv/registry/attributes/server/)
+          AttributeKey.stringKey("server.address"),
+          AttributeKey.longKey("server.port"),
+          // GenAI (https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/)
+          AttributeKey.stringKey("gen_ai.request.model"),
+          AttributeKey.stringKey("gen_ai.provider.name"),
+          AttributeKey.stringKey("gen_ai.operation.name"),
+          // AWS resource identity
+          // (https://opentelemetry.io/docs/specs/semconv/registry/attributes/aws/)
+          AttributeKey.stringKey("aws.s3.bucket"),
+          AttributeKey.stringArrayKey("aws.dynamodb.table_names"),
+          AttributeKey.stringKey("aws.lambda.invoked_arn"),
+          AttributeKey.stringKey("aws.sns.topic.arn"),
+          AttributeKey.stringKey("aws.sqs.queue.url"),
+          // FaaS (https://opentelemetry.io/docs/specs/semconv/registry/attributes/faas/)
+          AttributeKey.stringKey("faas.invoked_name"),
+          AttributeKey.stringKey("faas.invoked_provider"),
+          AttributeKey.stringKey("faas.invoked_region"),
+          AttributeKey.stringKey("faas.trigger"));
 
   // Current semconv key -> legacy key, checked when the current key is absent (spec §4). Needed
   // because some instrumentation has not migrated (e.g. OTel Java still emits the legacy HTTP/DB

@@ -27,6 +27,7 @@ import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.testing.trace.TestSpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SpanMetricsAttributesBuilderTest {
@@ -243,5 +244,90 @@ class SpanMetricsAttributesBuilderTest {
             .build();
     Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CONSUMER, span).build());
     assertThat(attrs.get(AttributeKey.stringKey("messaging.destination.name"))).isNull();
+  }
+
+  @Test
+  void messagingOperationAndConsumerGroupCopied() {
+    Attributes span =
+        Attributes.builder()
+            .put("messaging.system", "kafka")
+            .put("messaging.operation.type", "receive")
+            .put("messaging.consumer.group.name", "order-processors")
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CONSUMER, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("messaging.operation.type"))).isEqualTo("receive");
+    assertThat(attrs.get(AttributeKey.stringKey("messaging.consumer.group.name")))
+        .isEqualTo("order-processors");
+  }
+
+  @Test
+  void peerAttributesCopied() {
+    Attributes span =
+        Attributes.builder()
+            .put("server.address", "payments.example.com")
+            .put("server.port", 8443L)
+            .put("network.peer.address", "10.0.0.1") // not allowlisted
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("server.address")))
+        .isEqualTo("payments.example.com");
+    // server.port is an int per semconv (emitted as a long attribute), not a string dimension.
+    assertThat(attrs.get(AttributeKey.longKey("server.port"))).isEqualTo(8443L);
+    assertThat(attrs.get(AttributeKey.stringKey("network.peer.address"))).isNull();
+  }
+
+  @Test
+  void genAiAttributesCopied() {
+    Attributes span =
+        Attributes.builder()
+            .put("gen_ai.request.model", "claude-sonnet-4")
+            .put("gen_ai.provider.name", "aws.bedrock")
+            .put("gen_ai.operation.name", "chat")
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("gen_ai.request.model")))
+        .isEqualTo("claude-sonnet-4");
+    assertThat(attrs.get(AttributeKey.stringKey("gen_ai.provider.name"))).isEqualTo("aws.bedrock");
+    assertThat(attrs.get(AttributeKey.stringKey("gen_ai.operation.name"))).isEqualTo("chat");
+  }
+
+  @Test
+  void awsResourceIdentityAttributesCopied() {
+    Attributes span =
+        Attributes.builder()
+            .put("aws.s3.bucket", "my-bucket")
+            .put(
+                AttributeKey.stringArrayKey("aws.dynamodb.table_names"), List.of("orders", "items"))
+            .put("aws.lambda.invoked_arn", "arn:aws:lambda:us-east-1:123:function:fn")
+            .put("aws.sns.topic.arn", "arn:aws:sns:us-east-1:123:topic")
+            .put("aws.sqs.queue.url", "https://sqs.us-east-1.amazonaws.com/123/queue")
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("aws.s3.bucket"))).isEqualTo("my-bucket");
+    // table_names stays a string array per semconv; copied through unchanged, not normalized.
+    assertThat(attrs.get(AttributeKey.stringArrayKey("aws.dynamodb.table_names")))
+        .containsExactly("orders", "items");
+    assertThat(attrs.get(AttributeKey.stringKey("aws.lambda.invoked_arn")))
+        .isEqualTo("arn:aws:lambda:us-east-1:123:function:fn");
+    assertThat(attrs.get(AttributeKey.stringKey("aws.sns.topic.arn")))
+        .isEqualTo("arn:aws:sns:us-east-1:123:topic");
+    assertThat(attrs.get(AttributeKey.stringKey("aws.sqs.queue.url")))
+        .isEqualTo("https://sqs.us-east-1.amazonaws.com/123/queue");
+  }
+
+  @Test
+  void faasAttributesCopied() {
+    Attributes span =
+        Attributes.builder()
+            .put("faas.invoked_name", "my-function")
+            .put("faas.invoked_provider", "aws")
+            .put("faas.invoked_region", "us-east-1")
+            .put("faas.trigger", "http")
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("faas.invoked_name"))).isEqualTo("my-function");
+    assertThat(attrs.get(AttributeKey.stringKey("faas.invoked_provider"))).isEqualTo("aws");
+    assertThat(attrs.get(AttributeKey.stringKey("faas.invoked_region"))).isEqualTo("us-east-1");
+    assertThat(attrs.get(AttributeKey.stringKey("faas.trigger"))).isEqualTo("http");
   }
 }
