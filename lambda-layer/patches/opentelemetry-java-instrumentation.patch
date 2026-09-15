@@ -673,34 +673,6 @@ index f09a8bfa30..972a49876e 100644
          if (!functionInstrumenter().shouldStart(parentContext, lambdaRequest)) {
            return null;
          }
-diff --git a/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java b/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-index aaed2cd..c8cf18b 100644
---- a/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-+++ b/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-@@ -11,13 +11,11 @@ import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emi
- import com.amazonaws.services.lambda.runtime.events.SQSEvent;
- import com.amazonaws.services.lambda.runtime.events.SQSEvent.SQSMessage;
- import io.opentelemetry.api.OpenTelemetry;
--import io.opentelemetry.contrib.awsxray.propagator.AwsXrayPropagator;
- import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingAttributesExtractor;
- import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingConsumerMetrics;
- import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingOperationType;
- import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingProcessMetrics;
- import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingSpanNameExtractor;
--import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.internal.MessagingProcessInstrumenterFactory;
- import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
- import io.opentelemetry.instrumentation.api.instrumenter.InstrumenterBuilder;
- import io.opentelemetry.instrumentation.api.instrumenter.SpanKindExtractor;
-@@ -71,8 +69,7 @@ public final class AwsLambdaSqsInstrumenterFactory {
-                             getter, MessagingOperationType.PROCESS, PROCESS_OPERATION_NAME)))
-             .addOperationMetrics(MessagingProcessMetrics.get());
-     setMessagingProcessExceptionEventExtractor(builder);
--    return MessagingProcessInstrumenterFactory.create(
--        builder, AwsXrayPropagator.getInstance(), SqsMessageTextMapGetter.INSTANCE, true);
-+    return builder.buildInstrumenter(SpanKindExtractor.alwaysConsumer());
-   }
- 
-   private AwsLambdaSqsInstrumenterFactory() {}
 diff --git a/version.gradle.kts b/version.gradle.kts
 index 40545be..35ae745 100644
 --- a/version.gradle.kts
