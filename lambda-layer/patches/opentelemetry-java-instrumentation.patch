@@ -674,31 +674,44 @@ index f09a8bfa30..972a49876e 100644
            return null;
          }
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java b/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-index e4ce0be1a9..42885201c4 100644
+index aaed2cd..c8cf18b 100644
 --- a/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
 +++ b/instrumentation/aws-lambda/aws-lambda-events-common-2.2/library/src/main/java/io/opentelemetry/instrumentation/awslambdaevents/common/v2_2/internal/AwsLambdaSqsInstrumenterFactory.java
-@@ -32,7 +32,6 @@ public final class AwsLambdaSqsInstrumenterFactory {
-     return Instrumenter.<SQSMessage, Void>builder(
-             openTelemetry, instrumentationName, message -> message.getEventSource() + " process")
-         .addAttributesExtractor(new SqsMessageAttributesExtractor())
--        .addSpanLinksExtractor(new SqsMessageSpanLinksExtractor())
-         .buildInstrumenter(SpanKindExtractor.alwaysConsumer());
+@@ -11,13 +11,11 @@ import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emi
+ import com.amazonaws.services.lambda.runtime.events.SQSEvent;
+ import com.amazonaws.services.lambda.runtime.events.SQSEvent.SQSMessage;
+ import io.opentelemetry.api.OpenTelemetry;
+-import io.opentelemetry.contrib.awsxray.propagator.AwsXrayPropagator;
+ import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingAttributesExtractor;
+ import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingConsumerMetrics;
+ import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingOperationType;
+ import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingProcessMetrics;
+ import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.MessagingSpanNameExtractor;
+-import io.opentelemetry.instrumentation.api.incubator.semconv.messaging.internal.MessagingProcessInstrumenterFactory;
+ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
+ import io.opentelemetry.instrumentation.api.instrumenter.InstrumenterBuilder;
+ import io.opentelemetry.instrumentation.api.instrumenter.SpanKindExtractor;
+@@ -71,8 +69,7 @@ public final class AwsLambdaSqsInstrumenterFactory {
+                             getter, MessagingOperationType.PROCESS, PROCESS_OPERATION_NAME)))
+             .addOperationMetrics(MessagingProcessMetrics.get());
+     setMessagingProcessExceptionEventExtractor(builder);
+-    return MessagingProcessInstrumenterFactory.create(
+-        builder, AwsXrayPropagator.getInstance(), SqsMessageTextMapGetter.INSTANCE, true);
++    return builder.buildInstrumenter(SpanKindExtractor.alwaysConsumer());
    }
-
+ 
+   private AwsLambdaSqsInstrumenterFactory() {}
 diff --git a/version.gradle.kts b/version.gradle.kts
-index a46c2d24de..71a2264042 100644
+index 40545be..35ae745 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
-@@ -1,7 +1,7 @@
--val stableVersion = "2.30.0"
--val alphaVersion = "2.30.0-alpha"
-+val stableVersion = "2.30.0-adot-lambda1"
-+val alphaVersion = "2.30.0-adot-lambda1-alpha"
-
- val apidiffBaselineVersion = "2.29.0"
-
- allprojects {
-   if (findProperty("otel.stable") != "true") {
---
+@@ -1,5 +1,5 @@
+-val stableVersion = "2.31.1"
+-val alphaVersion = "2.31.1-alpha"
++val stableVersion = "2.31.1-adot-lambda1"
++val alphaVersion = "2.31.1-adot-lambda1-alpha"
+ 
+ val apidiffBaselineVersion = "2.30.0"
+ 
+-- 
 2.45.1
-
