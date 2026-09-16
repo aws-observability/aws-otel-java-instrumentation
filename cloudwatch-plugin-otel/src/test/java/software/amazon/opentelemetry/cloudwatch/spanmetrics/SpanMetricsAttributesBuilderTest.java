@@ -277,6 +277,54 @@ class SpanMetricsAttributesBuilderTest {
   }
 
   @Test
+  void legacyPeerAttributesPassThroughUnderLegacyKeys() {
+    // Instrumentation still emitting the legacy network keys: pass them through unchanged under
+    // their own keys; do not re-home to server.address/server.port. net.peer.* is the client-span
+    // spelling.
+    Attributes span =
+        Attributes.builder()
+            .put("net.peer.name", "payments.example.com")
+            .put("net.peer.port", 8443L)
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("net.peer.name")))
+        .isEqualTo("payments.example.com");
+    assertThat(attrs.get(AttributeKey.longKey("net.peer.port"))).isEqualTo(8443L);
+    assertThat(attrs.get(AttributeKey.stringKey("server.address"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("server.port"))).isNull();
+  }
+
+  @Test
+  void legacyServerSpanPeerAttributesPassThroughUnderLegacyKeys() {
+    // net.host.* is the server-span spelling of the same peer/host attributes.
+    Attributes span =
+        Attributes.builder()
+            .put("net.host.name", "api.example.com")
+            .put("net.host.port", 443L)
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("net.host.name"))).isEqualTo("api.example.com");
+    assertThat(attrs.get(AttributeKey.longKey("net.host.port"))).isEqualTo(443L);
+    assertThat(attrs.get(AttributeKey.stringKey("server.address"))).isNull();
+  }
+
+  @Test
+  void currentPeerAttributesWinOverLegacy() {
+    Attributes span =
+        Attributes.builder()
+            .put("server.address", "current.example.com")
+            .put("net.peer.name", "legacy.example.com")
+            .put("net.host.name", "legacy-host.example.com")
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.CLIENT, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("server.address")))
+        .isEqualTo("current.example.com");
+    // No legacy key added when the current key is present.
+    assertThat(attrs.get(AttributeKey.stringKey("net.peer.name"))).isNull();
+    assertThat(attrs.get(AttributeKey.stringKey("net.host.name"))).isNull();
+  }
+
+  @Test
   void genAiAttributesCopied() {
     Attributes span =
         Attributes.builder()

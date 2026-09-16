@@ -94,8 +94,17 @@ final class SpanMetricsAttributesBuilder {
           new LegacyFallback<>(
               AttributeKey.stringKey("db.operation.name"), AttributeKey.stringKey("db.operation")),
           new LegacyFallback<>(
-              AttributeKey.stringKey("db.collection.name"),
-              AttributeKey.stringKey("db.sql.table")));
+              AttributeKey.stringKey("db.collection.name"), AttributeKey.stringKey("db.sql.table")),
+          // Peer network attributes renamed from net.peer.*/net.host.* to server.* in newer
+          // semconv.
+          new LegacyFallback<>(
+              AttributeKey.stringKey("server.address"),
+              AttributeKey.stringKey("net.peer.name"),
+              AttributeKey.stringKey("net.host.name")),
+          new LegacyFallback<>(
+              AttributeKey.longKey("server.port"),
+              AttributeKey.longKey("net.peer.port"),
+              AttributeKey.longKey("net.host.port")));
 
   private static final AttributeKey<String> MESSAGING_DESTINATION_NAME =
       AttributeKey.stringKey("messaging.destination.name");
@@ -160,21 +169,28 @@ final class SpanMetricsAttributesBuilder {
   }
 
   // Current and legacy keys share a type (both string, or both long) so the legacy value is emitted
-  // under the legacy key unchanged when the current key is absent.
+  // under the legacy key unchanged when the current key is absent. When several legacy keys map to
+  // the same current key (e.g. net.peer.name and net.host.name -> server.address), the first one
+  // present wins.
   private static final class LegacyFallback<T> {
     private final AttributeKey<T> currentKey;
-    private final AttributeKey<T> legacyKey;
+    private final List<AttributeKey<T>> legacyKeys;
 
-    LegacyFallback(AttributeKey<T> currentKey, AttributeKey<T> legacyKey) {
+    @SafeVarargs
+    LegacyFallback(AttributeKey<T> currentKey, AttributeKey<T>... legacyKeys) {
       this.currentKey = currentKey;
-      this.legacyKey = legacyKey;
+      this.legacyKeys = Arrays.asList(legacyKeys);
     }
 
     void apply(AttributesBuilder builder, Attributes source) {
-      if (source.get(currentKey) == null) {
+      if (source.get(currentKey) != null) {
+        return;
+      }
+      for (AttributeKey<T> legacyKey : legacyKeys) {
         T legacyValue = source.get(legacyKey);
         if (legacyValue != null) {
           builder.put(legacyKey, legacyValue);
+          return;
         }
       }
     }

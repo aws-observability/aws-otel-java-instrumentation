@@ -43,6 +43,8 @@ class RpcFamilyTest extends FamilyTestBase {
   void peerAddressCopiedFromClientSpan() {
     Map<String, String> attrs =
         metricAttributesMatching("/grpc", "rpc.system", "grpc", "span.kind", "CLIENT");
-    assertThat(attrs).containsKey("server.address");
+    // Current semconv emits server.address; older instrumentation emits the legacy net.peer.name,
+    // which is passed through under its own key. Accept whichever the agent produced.
+    assertThat(attrs.keySet()).containsAnyOf("server.address", "net.peer.name");
   }
 }
