@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Added peer, GenAI, AWS resource-identity, FaaS, and messaging derived metric dimensions, with
+  legacy `net.peer.*`/`net.host.*` fallbacks for `server.address`/`server.port`.
 * Fix `aws.otel.extension.lib.version` emitted as `"unknown"` in javaagent mode: the version is
   now baked in at build time instead of resolved from the jar manifest at runtime.
 * `service.name` is no longer emitted as a metric datapoint attribute; it is carried by the

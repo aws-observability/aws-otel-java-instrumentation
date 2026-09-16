@@ -31,4 +31,26 @@ class RpcFamilyTest extends FamilyTestBase {
     assertThat(attrs.get("rpc.service")).isEqualTo("echo.Echoer");
     assertThat(attrs.get("rpc.method")).isEqualTo("Echo");
   }
+
+  /**
+   * Peer attributes on the client span. {@code server.address} is copied as a string dimension; the
+   * gRPC client span reliably carries it, so this is the end-to-end check for the peer family. The
+   * remaining allowlisted families (GenAI, FaaS, and the AWS resource-identity keys) are exercised
+   * by the pure unit tests instead, because real instrumentation cannot produce those spans in the
+   * container harness.
+   */
+  @Test
+  void peerAddressCopiedFromClientSpan() {
+    Map<String, String> attrs =
+        metricAttributesMatching("/grpc", "rpc.system", "grpc", "span.kind", "CLIENT");
+    // Current semconv emits server.address; older instrumentation emits the legacy net.peer.name,
+    // which is passed through under its own key. Accept whichever the agent produced, and verify
+    // the peer address value is actually populated (non-blank), not present as an empty string.
+    assertThat(attrs.keySet()).containsAnyOf("server.address", "net.peer.name");
+    String peerAddress =
+        attrs.containsKey("server.address")
+            ? attrs.get("server.address")
+            : attrs.get("net.peer.name");
+    assertThat(peerAddress).isNotBlank();
+  }
 }

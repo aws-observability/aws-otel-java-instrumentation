@@ -39,18 +39,43 @@ final class SpanMetricsAttributesBuilder {
   // These are the current semconv keys; legacy predecessors are handled by LEGACY_FALLBACKS below.
   private static final List<AttributeKey<?>> ALLOWLIST =
       Arrays.asList(
+          // HTTP (https://opentelemetry.io/docs/specs/semconv/http/http-metrics/)
           AttributeKey.stringKey("http.request.method"),
           AttributeKey.longKey("http.response.status_code"),
           AttributeKey.stringKey("http.route"),
           AttributeKey.stringKey("error.type"),
+          // RPC (https://opentelemetry.io/docs/specs/semconv/rpc/rpc-metrics/)
           AttributeKey.stringKey("rpc.system.name"),
           AttributeKey.stringKey("rpc.service"),
           AttributeKey.stringKey("rpc.method"),
+          // Database (https://opentelemetry.io/docs/specs/semconv/db/database-metrics/)
           AttributeKey.stringKey("db.system.name"),
           AttributeKey.stringKey("db.operation.name"),
           AttributeKey.stringKey("db.collection.name"),
+          // Messaging (https://opentelemetry.io/docs/specs/semconv/messaging/messaging-metrics/)
           AttributeKey.stringKey("messaging.system"),
-          AttributeKey.stringKey("messaging.operation.name"));
+          AttributeKey.stringKey("messaging.operation.name"),
+          AttributeKey.stringKey("messaging.operation.type"),
+          AttributeKey.stringKey("messaging.consumer.group.name"),
+          // Peer (https://opentelemetry.io/docs/specs/semconv/registry/attributes/server/)
+          AttributeKey.stringKey("server.address"),
+          AttributeKey.longKey("server.port"),
+          // GenAI (https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/)
+          AttributeKey.stringKey("gen_ai.request.model"),
+          AttributeKey.stringKey("gen_ai.provider.name"),
+          AttributeKey.stringKey("gen_ai.operation.name"),
+          // AWS resource identity
+          // (https://opentelemetry.io/docs/specs/semconv/registry/attributes/aws/)
+          AttributeKey.stringKey("aws.s3.bucket"),
+          AttributeKey.stringArrayKey("aws.dynamodb.table_names"),
+          AttributeKey.stringKey("aws.lambda.invoked_arn"),
+          AttributeKey.stringKey("aws.sns.topic.arn"),
+          AttributeKey.stringKey("aws.sqs.queue.url"),
+          // FaaS (https://opentelemetry.io/docs/specs/semconv/registry/attributes/faas/)
+          AttributeKey.stringKey("faas.invoked_name"),
+          AttributeKey.stringKey("faas.invoked_provider"),
+          AttributeKey.stringKey("faas.invoked_region"),
+          AttributeKey.stringKey("faas.trigger"));
 
   // Current semconv key -> legacy key, checked when the current key is absent (spec §4). Needed
   // because some instrumentation has not migrated (e.g. OTel Java still emits the legacy HTTP/DB
@@ -69,8 +94,17 @@ final class SpanMetricsAttributesBuilder {
           new LegacyFallback<>(
               AttributeKey.stringKey("db.operation.name"), AttributeKey.stringKey("db.operation")),
           new LegacyFallback<>(
-              AttributeKey.stringKey("db.collection.name"),
-              AttributeKey.stringKey("db.sql.table")));
+              AttributeKey.stringKey("db.collection.name"), AttributeKey.stringKey("db.sql.table")),
+          // Peer network attributes renamed from net.peer.*/net.host.* to server.* in newer
+          // semconv.
+          new LegacyFallback<>(
+              AttributeKey.stringKey("server.address"),
+              AttributeKey.stringKey("net.peer.name"),
+              AttributeKey.stringKey("net.host.name")),
+          new LegacyFallback<>(
+              AttributeKey.longKey("server.port"),
+              AttributeKey.longKey("net.peer.port"),
+              AttributeKey.longKey("net.host.port")));
 
   private static final AttributeKey<String> MESSAGING_DESTINATION_NAME =
       AttributeKey.stringKey("messaging.destination.name");
@@ -135,21 +169,28 @@ final class SpanMetricsAttributesBuilder {
   }
 
   // Current and legacy keys share a type (both string, or both long) so the legacy value is emitted
-  // under the legacy key unchanged when the current key is absent.
+  // under the legacy key unchanged when the current key is absent. When several legacy keys map to
+  // the same current key (e.g. net.peer.name and net.host.name -> server.address), the first one
+  // present wins.
   private static final class LegacyFallback<T> {
     private final AttributeKey<T> currentKey;
-    private final AttributeKey<T> legacyKey;
+    private final List<AttributeKey<T>> legacyKeys;
 
-    LegacyFallback(AttributeKey<T> currentKey, AttributeKey<T> legacyKey) {
+    @SafeVarargs
+    LegacyFallback(AttributeKey<T> currentKey, AttributeKey<T>... legacyKeys) {
       this.currentKey = currentKey;
-      this.legacyKey = legacyKey;
+      this.legacyKeys = Arrays.asList(legacyKeys);
     }
 
     void apply(AttributesBuilder builder, Attributes source) {
-      if (source.get(currentKey) == null) {
+      if (source.get(currentKey) != null) {
+        return;
+      }
+      for (AttributeKey<T> legacyKey : legacyKeys) {
         T legacyValue = source.get(legacyKey);
         if (legacyValue != null) {
           builder.put(legacyKey, legacyValue);
+          return;
         }
       }
     }
