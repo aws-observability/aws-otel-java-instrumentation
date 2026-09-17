@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.31.0 - 2026-09-17
+
 ## v2.30.0 - 2026-08-18
 
 - feat: attribute presigned S3 URLs as `AWS::S3` dependencies in Application Signals, opt-in via
