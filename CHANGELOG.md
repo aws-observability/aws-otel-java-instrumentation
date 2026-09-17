@@ -13,6 +13,13 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.31.0 - 2026-09-17
+
+- Bump Netty to 4.1.137.Final to fix CVE-2026-59903 and CVE-2026-75595
+  ([#1440](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1440))
+- Update OpenTelemetry dependencies to 2.31.1 (contrib 1.60.0)
+  ([#1449](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1449))
+
 ## v2.30.0 - 2026-08-18
 
 - feat: attribute presigned S3 URLs as `AWS::S3` dependencies in Application Signals, opt-in via
