@@ -25,7 +25,7 @@ plugins {
 }
 
 group = "software.amazon.opentelemetry"
-version = "0.1.0"
+version = "0.1.1"
 
 // Bake the project version into a generated class constant at build time. A runtime manifest
 // lookup (Package#getImplementationVersion) returns null when the javaagent loads this jar as an

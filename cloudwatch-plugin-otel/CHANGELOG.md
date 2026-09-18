@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+### v0.1.1 / 2026-09-18
 
 * Added peer, GenAI, AWS resource-identity, FaaS, and messaging derived metric dimensions, with
   legacy `net.peer.*`/`net.host.*` fallbacks for `server.address`/`server.port`.
