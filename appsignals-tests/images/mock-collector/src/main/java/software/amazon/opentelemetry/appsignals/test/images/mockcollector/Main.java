@@ -31,6 +31,7 @@ import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import io.netty.buffer.ByteBufOutputStream;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
+import io.opentelemetry.proto.collector.profiles.v1development.ExportProfilesServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -46,6 +47,7 @@ public class Main {
             .register(ExportTraceServiceRequest.getDefaultInstance())
             .register(ExportMetricsServiceRequest.getDefaultInstance())
             .register(ExportLogsServiceRequest.getDefaultInstance())
+            .register(ExportProfilesServiceRequest.getDefaultInstance())
             .build();
 
     var mapper = JsonMapper.builder();
@@ -78,6 +80,15 @@ public class Main {
             marshaller.writeValue(value, gen);
           }
         });
+    serializers.addSerializer(
+        new StdSerializer<>(ExportProfilesServiceRequest.class) {
+          @Override
+          public void serialize(
+              ExportProfilesServiceRequest value, JsonGenerator gen, SerializerProvider provider)
+              throws IOException {
+            marshaller.writeValue(value, gen);
+          }
+        });
     module.setSerializers(serializers);
     mapper.addModule(module);
     OBJECT_MAPPER = mapper.build();
@@ -87,6 +98,7 @@ public class Main {
     var traceCollector = new MockCollectorTraceService();
     var metricsCollector = new MockCollectorMetricsService();
     var logsCollector = new MockCollectorLogsService();
+    var profilesCollector = new MockCollectorProfilesService();
     var server =
         Server.builder()
             .http(4317)
@@ -102,6 +114,7 @@ public class Main {
                   traceCollector.clearRequests();
                   metricsCollector.clearRequests();
                   logsCollector.clearRequests();
+                  profilesCollector.clearRequests();
                   return HttpResponse.of(HttpStatus.OK);
                 })
             .service(
@@ -131,9 +144,19 @@ public class Main {
                   return HttpResponse.of(
                       HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
                 })
+            .service(
+                "/get-profiles",
+                (ctx, req) -> {
+                  var requests = profilesCollector.getRequests();
+                  var buf = new ByteBufOutputStream(ctx.alloc().buffer());
+                  OBJECT_MAPPER.writeValue((OutputStream) buf, requests);
+                  return HttpResponse.of(
+                      HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
+                })
             .service("/health", HealthCheckService.of())
             .annotatedService(metricsCollector.HTTP_INSTANCE)
             .annotatedService(logsCollector.HTTP_INSTANCE)
+            .annotatedService(profilesCollector.HTTP_INSTANCE)
             .build();
 
     server.start().join();

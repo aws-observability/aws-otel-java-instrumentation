@@ -16,11 +16,39 @@
 package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.EndpointFilter;
 
 class ServiceEventsSpanProcessorTest {
+
+  // --- profiler gate: onStart (and thus the one.profiler.Span markers) only runs when the
+  // profiler is enabled; onEnd always runs (ServiceEvents endpoint/incident recording).
+
+  @Test
+  void isStartRequired_falseByDefault_profilerOff() {
+    // Default + endpoint-filter-only constructors keep the profiler off, so onStart is not required
+    // (zero per-span overhead in the shipped default configuration).
+    assertFalse(new ServiceEventsSpanProcessor().isStartRequired());
+    assertFalse(
+        new ServiceEventsSpanProcessor(
+                new EndpointFilter(Collections.emptyList(), Collections.emptyList()))
+            .isStartRequired());
+  }
+
+  @Test
+  void isStartRequired_trueWhenProfilerEnabled() {
+    ServiceEventsSpanProcessor proc =
+        new ServiceEventsSpanProcessor(
+            new EndpointFilter(Collections.emptyList(), Collections.emptyList()),
+            /* profilerEnabled= */ true);
+    assertTrue(proc.isStartRequired(), "profiler-on must opt into onStart for Span.start()");
+    assertTrue(proc.isEndRequired(), "onEnd always required");
+  }
 
   @Test
   void extractFunctionId_standardStackTrace() {

@@ -13,6 +13,13 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- feat: add an opt-in continuous code profiler (async-profiler based) that exports native OTLP
+  profiles. Enabled with `OTEL_AWS_PROFILER_ENABLED=true`; supports `wall` (default) and `cpu`
+  modes (`OTEL_AWS_PROFILER_MODE`), optional allocation profiling
+  (`OTEL_AWS_PROFILER_MEMORY_ENABLED`), a per-sample `thread.state` attribute on wall profiles, and
+  per-sample span correlation (`operation` attribute + trace/span link). Exports over OTLP/HTTP
+  protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
+  behavior change unless enabled.
 - feat: add SigV4 authentication for collector-less OTLP metrics export to the CloudWatch metrics
   endpoint (`https://monitoring.<region>.amazonaws.com/v1/metrics`, SigV4 service `monitoring`),
   matching the existing direct traces and logs behavior. Requires
