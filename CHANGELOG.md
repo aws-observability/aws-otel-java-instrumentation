@@ -20,6 +20,7 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   per-sample span correlation (`operation` attribute + trace/span link). Exports over OTLP/HTTP
   protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
   behavior change unless enabled.
+  ([#1457](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1457))
 - feat: add SigV4 authentication for collector-less OTLP metrics export to the CloudWatch metrics
   endpoint (`https://monitoring.<region>.amazonaws.com/v1/metrics`, SigV4 service `monitoring`),
   matching the existing direct traces and logs behavior. Requires
