@@ -24,9 +24,12 @@ import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.EventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import java.util.ArrayDeque;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.EndpointFilter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProfilerSpanTag;
 import software.amazon.opentelemetry.javaagent.providers.AwsSpanProcessingUtil;
 import software.amazon.opentelemetry.serviceevents.InvestigationData;
 import software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore;
@@ -52,6 +55,16 @@ import software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore;
  * For Spring:  onEnd() fires AFTER ServletAdvice.onExit, so thread-local is too late
  *              → ServletAdvice.onExit reads ReadableSpan directly (fallback b)
  * </pre>
+ *
+ * <p><b>Profiler correlation.</b> When the profiler is enabled, this processor is also the
+ * profiler's correlation source: on the request-boundary span it drives async-profiler 4.5's Span
+ * API so {@code profiler.Span} markers are written directly into the JFR (single clock). {@code
+ * onStart} calls {@code one.profiler.Span.start()} and stashes the returned token on a per-thread
+ * stack (survives nested/reentrant SERVER spans); {@code onEnd} pops the token matching this span
+ * and calls {@code one.profiler.Span.end(token, tag)} where {@code tag} is a {@link
+ * ProfilerSpanTag} encoding the operation plus (only when sampled) the trace/span ids. The Span API
+ * is thread-local, so the token is only ever popped on the same thread it was pushed — async spans
+ * that end on a different thread find no matching token and are skipped.
  */
 public class ServiceEventsSpanProcessor implements SpanProcessor {
 
@@ -86,9 +99,53 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
 
   private final EndpointFilter endpointFilter;
 
+  /**
+   * When true, the request-boundary span drives the async-profiler Span API (profiler.Span markers
+   * into the JFR). Off by default; set from {@code config.isProfilerEnabled()} at registration.
+   */
+  private final boolean profilerEnabled;
+
+  /**
+   * When true, record ServiceEvents endpoint/incident data (drained by the ServiceEvents
+   * collectors). Off in profiler-only mode — those collectors aren't started, so recording would
+   * populate {@code ServiceEventsDataStore} maps nothing ever drains. Set from {@code
+   * config.isEnabled()} at registration.
+   */
+  private final boolean serviceEventsEnabled;
+
+  /**
+   * Per-thread stack of profiler Span tokens pushed at {@code onStart}. Each entry pairs the
+   * async-profiler token (a native JFR-clock timestamp) with the span id it belongs to. Being a
+   * ThreadLocal, tokens are only ever popped on the same thread they were pushed — which is exactly
+   * the "same thread as start()" guard the thread-local Span API needs. A small cap bounds
+   * pathological growth if a start's matching end runs on another thread (async request).
+   */
+  private final ThreadLocal<ArrayDeque<SpanToken>> spanTokens =
+      ThreadLocal.withInitial(ArrayDeque::new);
+
+  private static final int MAX_TOKEN_STACK = 16;
+
   public ServiceEventsSpanProcessor(EndpointFilter endpointFilter) {
+    this(endpointFilter, false, true);
+  }
+
+  /** Convenience form with ServiceEvents recording on. */
+  public ServiceEventsSpanProcessor(EndpointFilter endpointFilter, boolean profilerEnabled) {
+    this(endpointFilter, profilerEnabled, true);
+  }
+
+  public ServiceEventsSpanProcessor(
+      EndpointFilter endpointFilter, boolean profilerEnabled, boolean serviceEventsEnabled) {
     this.endpointFilter = endpointFilter;
-    logger().fine("[SERVICE_EVENTS] ServiceEventsSpanProcessor created");
+    this.profilerEnabled = profilerEnabled;
+    this.serviceEventsEnabled = serviceEventsEnabled;
+    logger()
+        .fine(
+            "[SERVICE_EVENTS] ServiceEventsSpanProcessor created (profiler="
+                + profilerEnabled
+                + ", serviceEvents="
+                + serviceEventsEnabled
+                + ")");
   }
 
   /** Back-compat constructor used by tests that don't configure endpoint filters. */
@@ -98,12 +155,35 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
 
   @Override
   public void onStart(Context parentContext, ReadWriteSpan span) {
-    // No action needed on span start
+    // Profiler correlation only: on the request-boundary span, open an async-profiler Span so a
+    // profiler.Span marker is written into the JFR at end. No-op (and isStartRequired()=false) when
+    // the profiler is disabled — zero per-span overhead in the default configuration.
+    if (!profilerEnabled) {
+      return;
+    }
+    try {
+      if (span.getKind() != SpanKind.SERVER && !isLocalRoot(span)) {
+        return;
+      }
+      // Span.start() returns a JFR-clock token (0 when the profiler is not running); Span.end(0,..)
+      // is a no-op, so a token is always safe to stash. Push it on this thread's stack keyed by the
+      // span id so onEnd pops exactly this span's token (handles proper nesting).
+      long token = one.profiler.Span.start();
+      ArrayDeque<SpanToken> stack = spanTokens.get();
+      stack.push(new SpanToken(token, span.getSpanContext().getSpanId()));
+      while (stack.size() > MAX_TOKEN_STACK) {
+        stack.removeLast();
+      }
+    } catch (Throwable e) {
+      // Never disrupt span creation.
+      logger().log(Level.FINE, "[SERVICE_EVENTS-SPAN-PROCESSOR] profiler Span.start failed", e);
+    }
   }
 
   @Override
   public boolean isStartRequired() {
-    return false;
+    // onStart only does work for the profiler; skip the callback entirely when it's disabled.
+    return profilerEnabled;
   }
 
   @Override
@@ -122,13 +202,20 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
         return;
       }
 
+      // Pop the profiler Span token stashed for THIS span at onStart. Popping here (before the
+      // early returns inside processRequestSpan) keeps the per-thread stack balanced regardless of
+      // whether an operation is ultimately resolved. Null when the profiler is off, or when the
+      // matching start ran on a different thread (async → skip): Span.end is simply not called.
+      Long profilerSpanToken =
+          profilerEnabled ? popTokenForSpan(span.getSpanContext().getSpanId()) : null;
+
       // This is the request-boundary (SERVER / LOCAL_ROOT) span, so the request is ending. Whatever
       // happens below — including the early returns for no-route / no-method / filtered endpoints —
       // we must clear the per-request thread-locals so state can't leak onto the next request that
       // reuses this pooled worker thread (beginInvestigation() is idempotent and would otherwise
       // keep appending to a stale InvestigationData).
       try {
-        processRequestSpan(span);
+        processRequestSpan(span, profilerSpanToken);
       } finally {
         ServiceEventsDataStore.clearCurrentOperation();
         ServiceEventsDataStore.clearInvestigation();
@@ -139,7 +226,7 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
     }
   }
 
-  private void processRequestSpan(ReadableSpan span) {
+  private void processRequestSpan(ReadableSpan span, Long profilerSpanToken) {
     SpanData spanData = span.toSpanData();
 
     // Extract trace context. Trace correlation is best-effort and sampling-conditional: under
@@ -153,11 +240,30 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
     String traceId = sampled ? spanContext.getTraceId() : null;
     String spanId = sampled ? spanContext.getSpanId() : null;
 
-    // Extract exception from span events
+    // Derive the operation via the shared App Signals path (span-name primary, first-path-segment
+    // fallback) — consistent with Python/JS and with what App Signals reports. Works for non-HTTP
+    // spans too (it does not depend on the HTTP method).
+    String operation = AwsSpanProcessingUtil.getIngressOperation(spanData);
+
+    // Emit the async-profiler correlation marker for EVERY request-boundary span, up front and
+    // independent of the ServiceEvents HTTP/route/endpoint-filter gating below. Otherwise non-HTTP
+    // (gRPC/messaging) SERVER spans and endpoint-filter-excluded requests would get no
+    // profiler.Span marker and their samples would never correlate — the profiler is independent of
+    // ServiceEvents.
+    emitProfilerSpanMarker(operation, traceId, spanId, profilerSpanToken);
+
+    // Profiler-only mode: nothing else to record — the ServiceEvents collectors aren't started, so
+    // recording would grow ServiceEventsDataStore maps that nothing ever drains.
+    if (!serviceEventsEnabled) {
+      return;
+    }
+
+    // ---- ServiceEvents endpoint/incident recording (HTTP-gated) ----
+
+    // Extract exception from span events (ServiceEvents incident data).
     String exceptionType = null;
     String exceptionMessage = null;
     String stackTrace = null;
-
     for (EventData event : spanData.getEvents()) {
       if ("exception".equals(event.getName())) {
         exceptionType = event.getAttributes().get(EXCEPTION_TYPE);
@@ -172,10 +278,7 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
       return;
     }
 
-    // Derive the operation via the shared App Signals path (span-name primary, first-path-segment
-    // fallback) — consistent with Python/JS and with what App Signals reports. Then back the
-    // route out of the operation so the collector rebuilds the identical operation string.
-    String operation = AwsSpanProcessingUtil.getIngressOperation(spanData);
+    // Back the route out of the operation so the collector rebuilds the identical operation string.
     String route = routeFromOperation(operation, method);
     if (route == null) {
       return;
@@ -266,6 +369,60 @@ public class ServiceEventsSpanProcessor implements SpanProcessor {
     } catch (Exception e) {
       logger()
           .log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] recordPotentialIncident failed", e);
+    }
+  }
+
+  /**
+   * Emit an async-profiler Span marker ({@code profiler.Span} event) into the JFR for sample
+   * correlation. The tag encodes the operation plus, only when the trace was sampled
+   * (traceId/spanId are null otherwise), the trace/span ids, so no correlation Link is written for
+   * traces the backend never received. {@code profilerSpanToken} is null when the profiler is off
+   * or the matching {@code Span.start} ran on a different thread (async → skip); {@code
+   * Span.end(0/absent-token,..)} is likewise a no-op. Called exactly once per request-boundary
+   * span, up front — before (and independent of) the ServiceEvents HTTP
+   * method/route/endpoint-filter gating — so every request thread's samples correlate regardless of
+   * whether ServiceEvents records the endpoint.
+   */
+  private void emitProfilerSpanMarker(
+      String operation, String traceId, String spanId, Long profilerSpanToken) {
+    if (profilerEnabled && profilerSpanToken != null) {
+      try {
+        String tag = ProfilerSpanTag.encode(operation, traceId, spanId);
+        one.profiler.Span.end(profilerSpanToken, tag);
+      } catch (Throwable e) {
+        logger().log(Level.WARNING, "[SERVICE_EVENTS-SPAN-PROCESSOR] profiler Span.end failed", e);
+      }
+    }
+  }
+
+  /**
+   * Pop the profiler Span token for {@code spanId} off the current thread's stack, or return {@code
+   * null} when the top of the stack does not belong to this span (its start ran on a different
+   * thread — async → skip). Proper nesting is LIFO, so the top entry is the innermost still-open
+   * SERVER/local-root span and matches the one ending first.
+   */
+  private Long popTokenForSpan(String spanId) {
+    ArrayDeque<SpanToken> stack = spanTokens.get();
+    SpanToken top = stack.peek();
+    if (top != null && Objects.equals(top.spanId, spanId)) {
+      stack.pop();
+      if (stack.isEmpty()) {
+        // Don't retain an empty deque on a pooled worker thread.
+        spanTokens.remove();
+      }
+      return top.token;
+    }
+    return null;
+  }
+
+  /** A profiler Span token paired with the span id it was opened for. */
+  private static final class SpanToken {
+    final long token;
+    final String spanId;
+
+    SpanToken(long token, String spanId) {
+      this.token = token;
+      this.spanId = spanId;
     }
   }
 

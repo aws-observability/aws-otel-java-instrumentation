@@ -46,10 +46,18 @@ public class ServiceEventsTracerCustomizerProvider implements AutoConfigurationC
   @Override
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     ServiceEventsConfig config = ServiceEventsConfig.fromEnv();
-    if (!config.isEnabled()) {
+    // Register the span processor when EITHER ServiceEvents or the profiler is enabled. The
+    // profiler uses the SpanProcessor as its correlation source: on the
+    // request-boundary span it drives one.profiler.Span.start()/end(tag) so profiler.Span markers
+    // are written into the JFR, even when ServiceEvents itself is disabled — so the profiler flag
+    // alone is enough to proceed here. (Lifecycle init still runs from
+    // ServiceEventsInstrumentationModule's static block, which initializes the profiler pieces
+    // independently on config.isProfilerEnabled().)
+    if (!config.isEnabled() && !config.isProfilerEnabled()) {
       logger()
           .info(
-              "[SERVICE_EVENTS] ServiceEventsSpanProcessor not registered (serviceevents disabled)");
+              "[SERVICE_EVENTS] ServiceEventsSpanProcessor not registered "
+                  + "(serviceevents and profiler both disabled)");
       return;
     }
 
@@ -61,7 +69,9 @@ public class ServiceEventsTracerCustomizerProvider implements AutoConfigurationC
         (tracerProviderBuilder, configProps) -> {
           logger()
               .info("[SERVICE_EVENTS] Registering ServiceEventsSpanProcessor with TracerProvider");
-          tracerProviderBuilder.addSpanProcessor(new ServiceEventsSpanProcessor(endpointFilter));
+          tracerProviderBuilder.addSpanProcessor(
+              new ServiceEventsSpanProcessor(
+                  endpointFilter, config.isProfilerEnabled(), config.isEnabled()));
           return tracerProviderBuilder;
         });
   }

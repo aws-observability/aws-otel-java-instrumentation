@@ -115,6 +115,85 @@ public final class ServiceEventsDataStore {
   }
 
   // =========================================================================
+  // Profiler-Aware Minimum Duration Gate
+  // =========================================================================
+
+  /**
+   * Whether the profiler is enabled. When true, latency-triggered incident snapshots are gated by a
+   * minimum duration to ensure enough profiler samples exist for a meaningful flame graph.
+   *
+   * <p>System property: otel.aws.profiler.enabled
+   *
+   * <p>Environment variable: OTEL_AWS_PROFILER_ENABLED
+   *
+   * <p>Default: false
+   */
+  private static final boolean PROFILER_ENABLED = resolveProfilerEnabled();
+
+  /**
+   * Active profiler sample interval in milliseconds — the interval of whichever event the profiler
+   * actually samples at (cpu interval in cpu mode, wall interval otherwise). Used with {@link
+   * #PROFILER_MIN_DURATION_MULTIPLIER} to compute the minimum meaningful duration for
+   * latency-triggered snapshots (a request must run long enough to accumulate a few samples).
+   *
+   * <p>cpu mode ({@code otel.aws.profiler.mode=cpu}): otel.aws.profiler.cpu.interval.ms /
+   * OTEL_AWS_PROFILER_CPU_INTERVAL_MS. Otherwise (wall): otel.aws.profiler.wall.interval.ms /
+   * OTEL_AWS_PROFILER_WALL_INTERVAL_MS.
+   *
+   * <p>Default: 10
+   */
+  private static final int PROFILER_SAMPLE_INTERVAL_MS = resolveProfilerSampleIntervalMs();
+
+  /**
+   * Multiplier applied to the profiler sample interval to determine the minimum request duration
+   * for latency-triggered snapshots. Requests shorter than {@code multiplier * sampleInterval}
+   * won't have enough profiler samples for a useful flame graph.
+   */
+  private static final double PROFILER_MIN_DURATION_MULTIPLIER = 3.0;
+
+  private static boolean resolveProfilerEnabled() {
+    // The profiler flag: otel.aws.profiler.enabled / OTEL_AWS_PROFILER_ENABLED
+    // (sysprop, then env). Independent of ServiceEvents / App Signals.
+    String value = System.getProperty("otel.aws.profiler.enabled");
+    if (value == null || value.isEmpty()) {
+      value = System.getenv("OTEL_AWS_PROFILER_ENABLED");
+    }
+    if (value != null && !value.isEmpty()) {
+      return Boolean.parseBoolean(value);
+    }
+    return false; // default: profiler disabled (opt-in; matches ServiceEventsConfig)
+  }
+
+  private static int resolveProfilerSampleIntervalMs() {
+    // The min-duration gate must reflect whichever event the profiler actually samples at. In cpu
+    // mode the wall session isn't running, so use the cpu interval; otherwise the wall interval.
+    String mode = System.getProperty("otel.aws.profiler.mode");
+    if (mode == null || mode.isEmpty()) {
+      mode = System.getenv("OTEL_AWS_PROFILER_MODE");
+    }
+    boolean cpuMode = mode != null && mode.trim().equalsIgnoreCase("cpu");
+
+    String syspropKey =
+        cpuMode ? "otel.aws.profiler.cpu.interval.ms" : "otel.aws.profiler.wall.interval.ms";
+    String envKey =
+        cpuMode ? "OTEL_AWS_PROFILER_CPU_INTERVAL_MS" : "OTEL_AWS_PROFILER_WALL_INTERVAL_MS";
+
+    // Check system property first, then environment variable.
+    String value = System.getProperty(syspropKey);
+    if (value == null || value.isEmpty()) {
+      value = System.getenv(envKey);
+    }
+    if (value != null && !value.isEmpty()) {
+      try {
+        return Integer.parseInt(value.trim());
+      } catch (NumberFormatException e) {
+        // fall through to default
+      }
+    }
+    return 10; // default: 10ms
+  }
+
+  // =========================================================================
   // Incident Snapshot Rate Limiting (delegated to IncidentRateLimiter)
   // =========================================================================
 
@@ -571,6 +650,15 @@ public final class ServiceEventsDataStore {
       }
     }
     boolean isLatencyTriggered = !isException && durationMs > effectiveThresholdMs;
+
+    // Profiler-aware minimum duration gate: if the async profiler is enabled and this is a
+    // latency-triggered snapshot, skip it when the request duration is too short to have
+    // accumulated enough profiler samples for a meaningful flame graph.
+    if (isLatencyTriggered
+        && PROFILER_ENABLED
+        && durationMs <= PROFILER_MIN_DURATION_MULTIPLIER * PROFILER_SAMPLE_INTERVAL_MS) {
+      return;
+    }
 
     if (isException || isLatencyTriggered) {
       // Rate limiting: reject if global per-minute limit exceeded
