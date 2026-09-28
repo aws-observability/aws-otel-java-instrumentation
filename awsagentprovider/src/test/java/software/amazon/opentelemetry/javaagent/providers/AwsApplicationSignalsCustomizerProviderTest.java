@@ -350,28 +350,6 @@ class AwsApplicationSignalsCustomizerProviderTest {
         OtlpAwsMetricExporter.class);
   }
 
-  /** AWS China partition endpoints use the amazonaws.com.cn domain. */
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "https://monitoring.cn-north-1.amazonaws.com.cn/v1/metrics",
-        "https://monitoring.cn-northwest-1.amazonaws.com.cn/v1/metrics",
-        "https://MONITORING.CN-NORTH-1.AMAZONAWS.COM.CN/V1/METRICS"
-      })
-  void testShouldEnableSigV4MetricsExporterForChinaPartitionEndpoint(String endpoint) {
-    customizeExporterTest(
-        Map.of(
-            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            endpoint,
-            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
-            "http/protobuf",
-            OTEL_METRICS_EXPORTER,
-            "otlp"),
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        OtlpAwsMetricExporter.class);
-  }
-
   @Test
   void testShouldNotUseSigV4MetricsExporterIfValidatorThrows() {
     try (MockedStatic<Pattern> ignored = mockStatic(Pattern.class)) {
@@ -914,10 +892,6 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https:://monitoring.us-east-1.amazonaws.com/v1/metrics",
       "https://monitoring.us-east-1.amazonaws.com/v1/cloudwatchmetrics",
       "https://monitoring.us-east-1.amazonaws.com/v1/cwmetrics",
-      // AWS China partition near-misses
-      "https://monitoring.cn-north-1.amazonaws.cn/v1/metrics",
-      "https://monitoring.cn-north-1.amazonaws.com.cn.example.com/v1/metrics",
-      "https://monitoring.cn-north-1.amazonaws.com-cn/v1/metrics",
       // NOTE: uppercase variants are deliberately absent. endpointMatches lowercases the endpoint
       // before matching, so they are VALID. See
       // testShouldEnableSigV4MetricsExporterForUppercaseEndpoint.

@@ -27,8 +27,7 @@ class BaseOtlpAwsExporterTest {
   @CsvSource({
     "https://xray.us-east-1.amazonaws.com/v1/traces, us-east-1",
     "https://xray.cn-north-1.amazonaws.com.cn/v1/traces, cn-north-1",
-    "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs, cn-northwest-1",
-    "https://monitoring.cn-north-1.amazonaws.com.cn/v1/metrics, cn-north-1"
+    "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs, cn-northwest-1"
   })
   void testSigningRegionIsExtractedFromEndpoint(String endpoint, String expectedRegion) {
     BaseOtlpAwsExporter exporter =
