@@ -106,6 +106,15 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
 
+  static final String CLOUDWATCH_EMF_EXPORTER_SELECTED_LOG =
+      "Using the CloudWatch EMF metrics exporter; destination=CloudWatch Logs; authentication=AWS SDK SigV4.";
+  static final String CONSOLE_EMF_EXPORTER_SELECTED_LOG =
+      "Using the console EMF metrics exporter; destination=standard output; authentication=none because the exporter makes no network request.";
+  static final String OTLP_SIGV4_EXPORTER_SELECTED_LOG =
+      "Using the CloudWatch OTLP metrics exporter; destination=CloudWatch Metrics OTLP endpoint; authentication=ADOT SigV4.";
+  static final String OTLP_CONFIGURED_AUTH_EXPORTER_SELECTED_LOG =
+      "Using the CloudWatch OTLP metrics exporter; destination=CloudWatch Metrics OTLP endpoint; authentication=signal-specific Authorization header; ADOT SigV4=disabled.";
+
   static final String AWS_OTLP_TRACES_ENDPOINT_PATTERN =
       "^https://xray\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/traces$";
 
@@ -593,6 +602,7 @@ public final class AwsApplicationSignalsCustomizerProvider
             && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
           String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
           String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
+          logger.info(CLOUDWATCH_EMF_EXPORTER_SELECTED_LOG);
           return AwsCloudWatchEmfExporter.builder()
               .setNamespace(namespace)
               .setLogGroupName(logGroup)
@@ -603,6 +613,7 @@ public final class AwsApplicationSignalsCustomizerProvider
         }
 
         if (isLambdaEnvironment(configProps)) {
+          logger.info(CONSOLE_EMF_EXPORTER_SELECTED_LOG);
           return ConsoleEmfExporter.builder()
               .setNamespace(namespace)
               .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
@@ -629,7 +640,7 @@ public final class AwsApplicationSignalsCustomizerProvider
           configProps.getString(
               OTEL_EXPORTER_OTLP_METRICS_COMPRESSION_CONFIG,
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
-      logger.info("Using SigV4 authentication for the CloudWatch OTLP metrics endpoint.");
+      logger.info(OTLP_SIGV4_EXPORTER_SELECTED_LOG);
       return OtlpAwsMetricExporterBuilder.create(
               (OtlpHttpMetricExporter) metricExporter,
               configProps.getString(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT))
