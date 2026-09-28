@@ -153,8 +153,7 @@ public final class AwsApplicationSignalsConfigUtils {
     }
 
     if (hasExplicitAuthorizationHeader(config, OTEL_EXPORTER_OTLP_METRICS_HEADERS)) {
-      logger.info(
-          "Detected an explicit OTLP metrics Authorization header; preserving configured authentication instead of applying SigV4.");
+      logger.info(OTLP_CONFIGURED_AUTH_EXPORTER_SELECTED_LOG);
       return false;
     }
 
