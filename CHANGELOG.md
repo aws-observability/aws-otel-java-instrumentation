@@ -28,6 +28,10 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   `OTEL_EXPORTER_OTLP_METRICS_HEADERS`) selects bearer authentication; a global
   `OTEL_EXPORTER_OTLP_HEADERS` does not disable SigV4.
   ([#1455](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1455))
+- fix: recognize AWS China partition (`amazonaws.com.cn`) X-Ray, CloudWatch Logs and CloudWatch
+  metrics OTLP endpoints, so collector-less export to them is SigV4-signed instead of falling back
+  to the unsigned OTLP exporter, which the endpoint rejects with 403.
+  ([#1458](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1458))
 
 ## v2.31.0 - 2026-09-17
 
