@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.cloudwatch.spanmetrics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -117,6 +118,13 @@ class AlwaysRecordSamplerTest {
   void recordOnlyPassesThrough() {
     SamplingResult result = sample(SamplingDecision.RECORD_ONLY, Attributes.empty());
     assertThat(result.getDecision()).isEqualTo(SamplingDecision.RECORD_ONLY);
+  }
+
+  @Test
+  void createRejectsNullDelegate() {
+    NullPointerException e =
+        assertThrows(NullPointerException.class, () -> AlwaysRecordSampler.create(null));
+    assertThat(e).hasMessageContaining("delegate sampler must not be null");
   }
 
   @Test
