@@ -25,9 +25,12 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerProvider;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.semconv.ServiceAttributes;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.config.DynamicInstrumentationConfig;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationConfiguration;
 
@@ -422,6 +425,37 @@ class DynamicInstrumentationManagerTest {
             software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.instrumentation
                 .InstrumentationRegistry.contains("com.example.TestClass.<init>"))
         .isFalse();
+  }
+
+  /** Endpoints matching the pattern get the SigV4 (direct-to-CloudWatch) logs exporter. */
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "https://logs.us-east-1.amazonaws.com/v1/logs",
+        "https://logs.cn-north-1.amazonaws.com.cn/v1/logs",
+        "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs"
+      })
+  void testAwsOtlpLogsEndpointPattern_matchesAwsEndpoints(String endpoint) throws Exception {
+    assertThat(endpoint.matches(awsOtlpLogsEndpointPattern())).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "http://localhost:4318/v1/logs",
+        "https://logs.cn-north-1.amazonaws.cn/v1/logs",
+        "https://logs.cn-north-1.amazonaws.com.cn.example.com/v1/logs",
+        "https://logs.cn-north-1.amazonaws.com-cn/v1/logs"
+      })
+  void testAwsOtlpLogsEndpointPattern_rejectsOtherEndpoints(String endpoint) throws Exception {
+    assertThat(endpoint.matches(awsOtlpLogsEndpointPattern())).isFalse();
+  }
+
+  private static String awsOtlpLogsEndpointPattern() throws Exception {
+    Field field =
+        DynamicInstrumentationManager.class.getDeclaredField("AWS_OTLP_LOGS_ENDPOINT_PATTERN");
+    field.setAccessible(true);
+    return (String) field.get(null);
   }
 
   // Note: Tests for line-level configuration registration with real Instrumentation

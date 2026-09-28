@@ -783,7 +783,11 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://xray.US-EAST-1.amazonaws.com/v1/traces",
       "https://xray.us-east-1.amazonaws.com/V1/TRACES",
       "https://XRAY.US-EAST-1.AMAZONAWS.COM/v1/traces",
-      "https://xray.us-east-1.AMAZONAWS.COM/V1/traces"
+      "https://xray.us-east-1.AMAZONAWS.COM/V1/traces",
+      // AWS China partition
+      "https://xray.cn-north-1.amazonaws.com.cn/v1/traces",
+      "https://xray.cn-northwest-1.amazonaws.com.cn/v1/traces",
+      "https://XRAY.CN-NORTH-1.AMAZONAWS.COM.CN/V1/TRACES"
     };
 
     for (String endpoint : tracesGoodEndpoints) {
@@ -825,6 +829,10 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://xray.us-east-1.amazonaws.com:443/v1/traces",
       "https:/xray.us-east-1.amazonaws.com/v1/traces",
       "https:://xray.us-east-1.amazonaws.com/v1/traces",
+      // AWS China partition near-misses
+      "https://xray.cn-north-1.amazonaws.cn/v1/traces",
+      "https://xray.cn-north-1.amazonaws.com.cn.example.com/v1/traces",
+      "https://xray.cn-north-1.amazonaws.com-cn/v1/traces",
     };
 
     Map<String, String> invalidProtocol =
@@ -936,7 +944,11 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.US-EAST-1.amazonaws.com/v1/logs",
       "https://logs.us-east-1.amazonaws.com/V1/LOGS",
       "https://LOGS.US-EAST-1.AMAZONAWS.COM/v1/logs",
-      "https://logs.us-east-1.AMAZONAWS.COM/V1/logs"
+      "https://logs.us-east-1.AMAZONAWS.COM/V1/logs",
+      // AWS China partition
+      "https://logs.cn-north-1.amazonaws.com.cn/v1/logs",
+      "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs",
+      "https://LOGS.CN-NORTH-1.AMAZONAWS.COM.CN/V1/LOGS"
     };
 
     for (String endpoint : logsGoodEndpoints) {
@@ -989,6 +1001,14 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.us-east-1.amazonaws.com/v1/logging",
       "https://logs.us-east-1.amazonaws.com/v1/cloudwatchlogs",
       "https://logs.us-east-1.amazonaws.com/v1/cwlogs"
+    };
+
+    // AWS China partition near-misses. Unlike logsBadEndpoints, these are paired with the required
+    // log group and stream headers, so the endpoint pattern (not the header check) rejects them.
+    String[] chinaLogsBadEndpoints = {
+      "https://logs.cn-north-1.amazonaws.cn/v1/logs",
+      "https://logs.cn-north-1.amazonaws.com.cn.example.com/v1/logs",
+      "https://logs.cn-north-1.amazonaws.com-cn/v1/logs"
     };
 
     Map<String, String> noLogGroupHeader =
@@ -1050,6 +1070,19 @@ class AwsApplicationSignalsCustomizerProviderTest {
               OTEL_LOGS_EXPORTER, "otlp");
 
       args.add(badEndpoint);
+    }
+
+    for (String endpoint : chinaLogsBadEndpoints) {
+      args.add(
+          Map.of(
+              OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+              endpoint,
+              OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+              "x-aws-log-group=test1,x-aws-log-stream=test2",
+              OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+              "http/protobuf",
+              OTEL_LOGS_EXPORTER,
+              "otlp"));
     }
 
     args.add(badLogStreamHeader);

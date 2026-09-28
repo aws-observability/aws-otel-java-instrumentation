@@ -66,8 +66,9 @@ public class ServiceEventsInstrumentation {
     return local;
   }
 
+  // The optional ".cn" suffix matches AWS China partition endpoints (amazonaws.com.cn).
   private static final String AWS_OTLP_LOGS_ENDPOINT_PATTERN =
-      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/logs$";
+      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/logs$";
 
   private final ServiceEventsConfig config;
   private ServiceEventsOtlpEmitter otlpEmitter;
