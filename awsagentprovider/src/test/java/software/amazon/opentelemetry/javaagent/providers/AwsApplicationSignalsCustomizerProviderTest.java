@@ -354,6 +354,26 @@ class AwsApplicationSignalsCustomizerProviderTest {
         OtlpAwsMetricExporter.class);
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "https://monitoring.cn-north-1.amazonaws.com.cn/v1/metrics",
+        "https://monitoring.cn-northwest-1.amazonaws.com.cn/v1/metrics"
+      })
+  void testShouldEnableSigV4MetricsExporterForChinaEndpoint(String endpoint) {
+    customizeExporterTest(
+        Map.of(
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            endpoint,
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            "http/protobuf",
+            OTEL_METRICS_EXPORTER,
+            "otlp"),
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        OtlpAwsMetricExporter.class);
+  }
+
   @Test
   void testShouldNotUseSigV4MetricsExporterIfValidatorThrows() {
     try (MockedStatic<Pattern> ignored = mockStatic(Pattern.class)) {
@@ -851,7 +871,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://xray.US-EAST-1.amazonaws.com/v1/traces",
       "https://xray.us-east-1.amazonaws.com/V1/TRACES",
       "https://XRAY.US-EAST-1.AMAZONAWS.COM/v1/traces",
-      "https://xray.us-east-1.AMAZONAWS.COM/V1/traces"
+      "https://xray.us-east-1.AMAZONAWS.COM/V1/traces",
+      "https://xray.cn-north-1.amazonaws.com.cn/v1/traces",
+      "https://xray.cn-northwest-1.amazonaws.com.cn/v1/traces"
     };
 
     for (String endpoint : tracesGoodEndpoints) {
@@ -893,6 +915,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://xray.us-east-1.amazonaws.com:443/v1/traces",
       "https:/xray.us-east-1.amazonaws.com/v1/traces",
       "https:://xray.us-east-1.amazonaws.com/v1/traces",
+      "https://xray.cn-north-1.amazonaws.com.cn.evil.example/v1/traces",
+      "https://xray.cn-north-1.amazonaws.comcn/v1/traces",
+      "https://xray.cn-north-1.amazonaws.cn/v1/traces",
     };
 
     Map<String, String> invalidProtocol =
@@ -952,6 +977,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https:://monitoring.us-east-1.amazonaws.com/v1/metrics",
       "https://monitoring.us-east-1.amazonaws.com/v1/cloudwatchmetrics",
       "https://monitoring.us-east-1.amazonaws.com/v1/cwmetrics",
+      "https://monitoring.cn-north-1.amazonaws.com.cn.evil.example/v1/metrics",
+      "https://monitoring.cn-north-1.amazonaws.comcn/v1/metrics",
+      "https://monitoring.cn-north-1.amazonaws.cn/v1/metrics",
       // NOTE: uppercase variants are deliberately absent. endpointMatches lowercases the endpoint
       // before matching, so they are VALID. See
       // testShouldEnableSigV4MetricsExporterForUppercaseEndpoint.
@@ -1004,7 +1032,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.US-EAST-1.amazonaws.com/v1/logs",
       "https://logs.us-east-1.amazonaws.com/V1/LOGS",
       "https://LOGS.US-EAST-1.AMAZONAWS.COM/v1/logs",
-      "https://logs.us-east-1.AMAZONAWS.COM/V1/logs"
+      "https://logs.us-east-1.AMAZONAWS.COM/V1/logs",
+      "https://logs.cn-north-1.amazonaws.com.cn/v1/logs",
+      "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs"
     };
 
     for (String endpoint : logsGoodEndpoints) {
@@ -1037,7 +1067,6 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.amazonaws.com/v1/logs",
       "https://logs.us-east-1.amazon.com/v1/logs",
       "https://logs.us-east-1.aws.com/v1/logs",
-      "https://logs.US-EAST-1.amazonaws.com/v1/logs",
       "https://logs.us_east_1.amazonaws.com/v1/logs",
       "https://logs.us.east.1.amazonaws.com/v1/logs",
       "https://logs..amazonaws.com/v1/logs",
@@ -1052,11 +1081,12 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.us-east-1.amazonaws.com:443/v1/logs",
       "https:/logs.us-east-1.amazonaws.com/v1/logs",
       "https:://logs.us-east-1.amazonaws.com/v1/logs",
-      "https://LOGS.us-east-1.amazonaws.com/v1/logs",
-      "https://logs.us-east-1.amazonaws.com/V1/LOGS",
       "https://logs.us-east-1.amazonaws.com/v1/logging",
       "https://logs.us-east-1.amazonaws.com/v1/cloudwatchlogs",
-      "https://logs.us-east-1.amazonaws.com/v1/cwlogs"
+      "https://logs.us-east-1.amazonaws.com/v1/cwlogs",
+      "https://logs.cn-north-1.amazonaws.com.cn.evil.example/v1/logs",
+      "https://logs.cn-north-1.amazonaws.comcn/v1/logs",
+      "https://logs.cn-north-1.amazonaws.cn/v1/logs"
     };
 
     Map<String, String> noLogGroupHeader =
@@ -1114,6 +1144,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
       Map<String, String> badEndpoint =
           Map.of(
               OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, endpoint,
+              OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-log-group=test1,x-aws-log-stream=test2",
               OTEL_EXPORTER_OTLP_LOGS_PROTOCOL, "http/protobuf",
               OTEL_LOGS_EXPORTER, "otlp");
 

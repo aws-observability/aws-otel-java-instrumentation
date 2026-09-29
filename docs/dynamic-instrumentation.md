@@ -43,7 +43,7 @@ environment variable has an equivalent system property (lowercase, `_` → `.`).
 | `OTEL_AWS_DYNAMIC_INSTRUMENTATION_API_URL` | `otel.aws.dynamic.instrumentation.api.url` | `http://localhost:2000` | Base URL of the instrumentation-configuration API (typically proxied by the CloudWatch Agent). |
 | `OTEL_AWS_DYNAMIC_INSTRUMENTATION_PROBE_POLL_INTERVAL` | `otel.aws.dynamic.instrumentation.probe.poll.interval` | `600` | Probe configuration poll interval, in seconds. |
 | `OTEL_AWS_DYNAMIC_INSTRUMENTATION_BREAKPOINT_POLL_INTERVAL` | `otel.aws.dynamic.instrumentation.breakpoint.poll.interval` | `60` | Breakpoint configuration poll interval, in seconds. |
-| `OTEL_AWS_OTLP_LOGS_ENDPOINT` | `otel.aws.otlp.logs.endpoint` | `http://localhost:4316/v1/logs` | OTLP logs endpoint that captured snapshots are exported to. A CloudWatch Logs OTLP endpoint (`https://logs.<region>.amazonaws.com/v1/logs`) is automatically signed with SigV4. |
+| `OTEL_AWS_OTLP_LOGS_ENDPOINT` | `otel.aws.otlp.logs.endpoint` | `http://localhost:4316/v1/logs` | OTLP logs endpoint that captured snapshots are exported to. CloudWatch Logs OTLP endpoints for commercial Regions (`https://logs.<region>.amazonaws.com/v1/logs`) and AWS China Regions (`https://logs.<region>.amazonaws.com.cn/v1/logs`) are automatically signed with SigV4. |
 
 ## Limitations
 

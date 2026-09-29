@@ -32,8 +32,9 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.commo
 
 /**
  * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
- * to the XRay OTLP endpoint https://xray.[AWSRegion].amazonaws.com/v1/traces. Utilizes the AWSSDK
- * library to sign and directly inject SigV4 Authentication to the exported request's headers. <a
+ * to the X-Ray OTLP endpoint ({@code https://xray.[AWSRegion].amazonaws.com/v1/traces} or {@code
+ * https://xray.[AWSRegion].amazonaws.com.cn/v1/traces}). Utilizes the AWS SDK library to sign and
+ * directly inject SigV4 Authentication to the exported request's headers. <a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>
  */
 public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements SpanExporter {

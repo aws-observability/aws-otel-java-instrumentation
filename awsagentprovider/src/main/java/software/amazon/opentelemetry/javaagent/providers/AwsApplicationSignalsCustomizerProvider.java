@@ -116,13 +116,13 @@ public final class AwsApplicationSignalsCustomizerProvider
       "Using the CloudWatch OTLP metrics exporter; destination=CloudWatch Metrics OTLP endpoint; authentication=signal-specific Authorization header; ADOT SigV4=disabled.";
 
   static final String AWS_OTLP_TRACES_ENDPOINT_PATTERN =
-      "^https://xray\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/traces$";
+      "^https://xray\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/traces$";
 
   static final String AWS_OTLP_LOGS_ENDPOINT_PATTERN =
-      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/logs$";
+      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/logs$";
 
   static final String AWS_OTLP_METRICS_ENDPOINT_PATTERN =
-      "^https://monitoring\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/metrics$";
+      "^https://monitoring\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/metrics$";
 
   // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html#CloudWatch-LogsEndpoint
   static final String AWS_OTLP_LOGS_GROUP_HEADER = "x-aws-log-group";
