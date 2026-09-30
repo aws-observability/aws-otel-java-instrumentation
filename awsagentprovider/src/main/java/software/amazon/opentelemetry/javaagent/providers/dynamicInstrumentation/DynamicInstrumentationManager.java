@@ -66,7 +66,11 @@ public final class DynamicInstrumentationManager {
       Logger.getLogger(DynamicInstrumentationManager.class.getName());
 
   private static final String AWS_OTLP_LOGS_ENDPOINT_PATTERN =
-      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/logs$";
+      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/logs$";
+
+  static boolean isAwsOtlpLogsEndpoint(String endpoint) {
+    return endpoint.matches(AWS_OTLP_LOGS_ENDPOINT_PATTERN);
+  }
 
   private static volatile DynamicInstrumentationManager INSTANCE;
   private static final AtomicBoolean initialized = new AtomicBoolean(false);
@@ -511,7 +515,7 @@ public final class DynamicInstrumentationManager {
               OtlpHttpLogRecordExporter.builder().setEndpoint(logsEndpoint).build();
 
           io.opentelemetry.sdk.logs.export.LogRecordExporter logExporter;
-          if (logsEndpoint.matches(AWS_OTLP_LOGS_ENDPOINT_PATTERN)) {
+          if (isAwsOtlpLogsEndpoint(logsEndpoint)) {
             logExporter =
                 OtlpAwsLogRecordExporterBuilder.create(plainLogExporter, logsEndpoint).build();
             logger.fine(

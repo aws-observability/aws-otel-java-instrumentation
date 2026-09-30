@@ -13,6 +13,10 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix: recognize AWS China (`.amazonaws.com.cn`) CloudWatch OTLP endpoints and apply SigV4 to
+  direct traces, logs, and metrics export, including Dynamic Instrumentation and Service Events
+  logs.
+  ([#1460](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1460))
 - feat: add INFO logs identifying the selected metrics exporter, destination, and authentication
   mode for CloudWatch EMF, console EMF, and direct CloudWatch OTLP metrics export.
   ([#1456](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1456))
