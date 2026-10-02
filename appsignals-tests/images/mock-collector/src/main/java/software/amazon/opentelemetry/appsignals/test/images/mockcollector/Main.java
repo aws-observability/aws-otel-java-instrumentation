@@ -25,6 +25,7 @@ import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
@@ -153,6 +154,29 @@ public class Main {
                   return HttpResponse.of(
                       HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
                 })
+            .service(
+                // Unary gRPC ProfilesService/Export. No generated ProfilesServiceGrpc stub exists,
+                // so handle the gRPC wire format directly: de-frame + store, then reply
+                // Trailers-Only with grpc-status (0 OK / 2 UNKNOWN on parse failure), which the
+                // agent's OtlpGrpcProfilesExporter reads from the initial headers.
+                MockCollectorProfilesService.GRPC_EXPORT_PATH,
+                (ctx, req) ->
+                    HttpResponse.of(
+                        req.aggregate()
+                            .thenApply(
+                                agg -> {
+                                  String grpcStatus = "0";
+                                  try {
+                                    profilesCollector.consumeGrpcFramed(agg.content().array());
+                                  } catch (Exception e) {
+                                    grpcStatus = "2";
+                                  }
+                                  return HttpResponse.of(
+                                      ResponseHeaders.builder(HttpStatus.OK)
+                                          .contentType(MediaType.parse("application/grpc"))
+                                          .add("grpc-status", grpcStatus)
+                                          .build());
+                                })))
             .service("/health", HealthCheckService.of())
             .annotatedService(metricsCollector.HTTP_INSTANCE)
             .annotatedService(logsCollector.HTTP_INSTANCE)
