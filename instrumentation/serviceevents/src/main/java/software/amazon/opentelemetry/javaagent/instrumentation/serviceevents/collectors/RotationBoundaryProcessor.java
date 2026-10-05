@@ -313,7 +313,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
 
         SpanMetadata meta =
             new SpanMetadata(
-                threadName, decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
+                decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
         // Keyed by startNs. On the (negligible) chance two spans on one thread share an identical
         // startNs, keep the one with the larger endNs (the enclosing/longer span) rather than let a
         // later put() arbitrarily drop the other's operation/trace metadata.
@@ -616,7 +616,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * @param jfrFile The JFR file
    * @return Epoch milliseconds from the filename timestamp, or the file's lastModified as fallback
    */
-  private long parseJfrFilenameTimestamp(File jfrFile) {
+  // Package-private for unit testing of the filename-timestamp parsing + fallbacks.
+  long parseJfrFilenameTimestamp(File jfrFile) {
     String name = jfrFile.getName();
     // Expected format: profiler-jfr-YYYYMMDD-HHmmss.jfr Find the timestamp by looking for the
     // pattern after the base prefix
@@ -640,7 +641,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * Parse a {@code YYYYMMDD-HHmmss} timestamp string (async-profiler's {@code %t} filename format,
    * JVM-default timezone) back to epoch milliseconds, or {@code -1} on failure.
    */
-  private static long parseTimestamp(String timestamp) {
+  static long parseTimestamp(String timestamp) {
     try {
       SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd-HHmmss");
       return sdf.parse(timestamp).getTime();

@@ -85,8 +85,8 @@ public class AsyncProfilerWrapper {
   /** Process-wide async-profiler singleton (one session: wall or cpu, JFR output). */
   private AsyncProfiler profiler;
 
-  private boolean available;
-  private boolean running;
+  private volatile boolean available;
+  private volatile boolean running;
 
   /**
    * Convenience constructor: wall mode, memory profiling disabled.
