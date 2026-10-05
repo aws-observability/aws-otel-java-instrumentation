@@ -107,6 +107,83 @@ class OtlpProfileBuilderProtoTest {
   }
 
   @Test
+  void classlessFrame_exportsBareNameAndSystemName_andNoFileName() {
+    // A frame with no declaring class (native/JVM frame or async-profiler marker such as
+    // break_deopt) must export name == system_name == the bare method name and an unset file name
+    // (string index 0 == ""), not ".java" / ".break_deopt".
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS);
+    builder.addSample(
+        Arrays.asList(
+            new FrameInfo("com.example.Foo", "bar", "Foo.java", 3),
+            new FrameInfo("", "break_deopt", "", 0)),
+        1_700_000_000_001_000_000L,
+        "t",
+        null,
+        null,
+        null);
+    ProfilesDictionary dict = builder.toExportRequest(Resource.getDefault()).getDictionary();
+
+    io.opentelemetry.proto.profiles.v1development.Function marker = null;
+    io.opentelemetry.proto.profiles.v1development.Function classFrame = null;
+    for (io.opentelemetry.proto.profiles.v1development.Function f : dict.getFunctionTableList()) {
+      String name = dict.getStringTable(f.getNameStrindex());
+      if ("break_deopt".equals(name)) {
+        marker = f;
+      } else if ("com.example.Foo.bar".equals(name)) {
+        classFrame = f;
+      }
+    }
+    assertNotNull(marker, "classless frame must be exported with its bare method name");
+    assertEquals(0, marker.getSystemNameStrindex(), "system_name is left unset");
+    assertEquals(0, marker.getFilenameStrindex(), "classless frame has no file name");
+
+    assertNotNull(classFrame);
+    assertEquals(0, classFrame.getSystemNameStrindex(), "system_name is left unset");
+    // A file name the caller supplies is passed through as-is (the JFR scan never supplies one).
+    assertEquals("Foo.java", dict.getStringTable(classFrame.getFilenameStrindex()));
+  }
+
+  @Test
+  void nativeFrame_bareSymbolWithLibraryAsMapping_sameSymbolInTwoLibrariesStaysDistinct() {
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS);
+    builder.addSample(
+        Arrays.asList(
+            new FrameInfo("", "start_thread", "", 0, "libc.so.6"),
+            new FrameInfo("", "memcpy", "", 0, "libc.so.6"),
+            new FrameInfo("", "memcpy", "", 0, "libfoo.so")),
+        1_700_000_000_001_000_000L,
+        "t",
+        null,
+        null,
+        null);
+    ProfilesDictionary dict = builder.toExportRequest(Resource.getDefault()).getDictionary();
+
+    assertEquals(3, dict.getMappingTableCount(), "sentinel + libc.so.6 + libfoo.so");
+    assertEquals(0, dict.getMappingTable(0).getFilenameStrindex(), "mapping 0 is the sentinel");
+    java.util.List<String> libsOfMemcpy = new ArrayList<>();
+    for (io.opentelemetry.proto.profiles.v1development.Location loc : dict.getLocationTableList()) {
+      io.opentelemetry.proto.profiles.v1development.Function fn =
+          dict.getFunctionTable(loc.getLines(0).getFunctionIndex());
+      String name = dict.getStringTable(fn.getNameStrindex());
+      String lib = dict.getStringTable(dict.getMappingTable(loc.getMappingIndex()).getFilenameStrindex());
+      if ("start_thread".equals(name)) {
+        assertEquals("libc.so.6", lib);
+      }
+      if ("memcpy".equals(name)) {
+        libsOfMemcpy.add(lib);
+      }
+      assertEquals(0, fn.getFilenameStrindex(), "native frames have no source file");
+    }
+    java.util.Collections.sort(libsOfMemcpy);
+    assertEquals(
+        Arrays.asList("libc.so.6", "libfoo.so"),
+        libsOfMemcpy,
+        "same symbol in two libraries is two locations, each with its own mapping");
+  }
+
+  @Test
   void addSample_nullOrEmptyFrames_areIgnored() {
     OtlpProfileBuilder builder =
         new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS, 524288L);

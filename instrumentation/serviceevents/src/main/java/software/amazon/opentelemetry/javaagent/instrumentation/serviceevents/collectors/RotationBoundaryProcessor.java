@@ -82,9 +82,10 @@ public class RotationBoundaryProcessor extends BaseCollector {
   private final AsyncProfilerWrapper asyncProfilerWrapper;
   private final long windowMs;
   private final ProfilesExporter profilesExporter;
-  // When true, function_table.filename emits the fully-qualified class path
-  // (e.g. "com/example/Foo.java") instead of the simple file name ("Foo.java").
-  // Internal: hardcoded default false, no env override.
+  // Formerly selected a full-path vs simple guessed source file name ("com/example/Foo.java" vs
+  // "Foo.java"). File names are no longer guessed (the JFR does not record them, so they are left
+  // unset), so this no longer has any effect. Kept so the constructor signature is unchanged.
+  @SuppressWarnings("unused")
   private final boolean profilerFullPaths;
   private final int aggregationMode;
 
@@ -512,7 +513,22 @@ public class RotationBoundaryProcessor extends BaseCollector {
     return event.value();
   }
 
-  /** Format a JFR stack trace (by id) as a list of structured FrameInfo (root → leaf). */
+  // async-profiler frame types (one.convert.Frame.TYPE_*), stored per frame in StackTrace.types.
+  private static final byte FRAME_TYPE_NATIVE = 3;
+  private static final byte FRAME_TYPE_CPP = 4;
+  private static final byte FRAME_TYPE_KERNEL = 5;
+
+  /**
+   * Format a JFR stack trace (by id) as a list of structured FrameInfo (root → leaf).
+   *
+   * <p>Frames are classified exactly like async-profiler's own converter ({@code
+   * one.convert.JfrConverter#isNativeFrame}): native (C), C++ and kernel frames are not Java
+   * methods, and for them async-profiler stores the shared library (e.g. {@code libc.so.6}) in the
+   * JFR "class" field. Such frames get no declaring class — the bare symbol becomes the function name
+   * and the library is kept separately ({@link FrameInfo#libraryName}) — instead of being rendered as
+   * a bogus Java class ({@code libc.so.6.start_thread}). No source file name is produced: the JFR
+   * does not record one, so it is left unset rather than guessed.
+   */
   private List<FrameInfo> formatFrameListStructured(JfrReader jfr, int stackTraceId) {
     StackTrace stackTrace = jfr.stackTraces.get(stackTraceId);
     if (stackTrace == null || stackTrace.methods == null || stackTrace.methods.length == 0) {
@@ -521,38 +537,61 @@ public class RotationBoundaryProcessor extends BaseCollector {
 
     long[] methodIds = stackTrace.methods;
     int[] locations = stackTrace.locations;
+    byte[] types = stackTrace.types;
+    // In the JDK's own Flight Recorder, frame type 3 ("Native") is a Java native method (e.g.
+    // Object.wait0); in async-profiler recordings it is a C function. async-profiler tells them apart
+    // by whether the recording's FrameType enum defines the kernel type, which only async-profiler
+    // writes. Mirror that check exactly.
+    boolean nativeTypeIsC = jfr.getEnumValue("jdk.types.FrameType", FRAME_TYPE_KERNEL) != null;
 
     List<FrameInfo> result = new ArrayList<>();
     // JFR stores frames leaf → root (index 0 is the topmost frame); iterate in reverse to emit
     // root → leaf, matching the order OtlpProfileBuilder expects.
     for (int i = methodIds.length - 1; i >= 0; i--) {
-      MethodRef method = jfr.methods.get(methodIds[i]);
-      if (method == null) continue;
-
-      String typeName = resolveTypeName(jfr, method);
-      String methodName = resolveMethodName(jfr, method);
       // locations pack (line << 16 | bci); the high 16 bits are the source line number.
-      int lineNumber = locations[i] >>> 16;
-
-      // Build the simple ClassName.java first (always needed). If full-paths is
-      // enabled, prepend the package path so consumers get a JVM-style source
-      // file identifier like "com/example/Foo.java".
-      int lastDot = typeName.lastIndexOf('.');
-      String simpleClassName = lastDot >= 0 ? typeName.substring(lastDot + 1) : typeName;
-      int dollarSign = simpleClassName.indexOf('$');
-      String simpleFileName =
-          (dollarSign >= 0 ? simpleClassName.substring(0, dollarSign) : simpleClassName) + ".java";
-      String fileName;
-      if (profilerFullPaths && lastDot >= 0) {
-        fileName = typeName.substring(0, lastDot).replace('.', '/') + "/" + simpleFileName;
-      } else {
-        fileName = simpleFileName;
+      int lineNumber = locations != null && i < locations.length ? locations[i] >>> 16 : 0;
+      MethodRef method = jfr.methods.get(methodIds[i]);
+      if (method == null) {
+        // Keep the frame (as async-profiler does) so the stack depth stays correct.
+        result.add(new FrameInfo("", "unknown", "", lineNumber));
+        continue;
       }
 
-      result.add(new FrameInfo(typeName, methodName, fileName, lineNumber));
+      String methodName = resolveMethodName(jfr, method);
+      byte type = types != null && i < types.length ? types[i] : 0;
+      if (isNonJavaFrame(type, nativeTypeIsC)) {
+        result.add(new FrameInfo("", methodName, "", lineNumber, resolveRawClassSymbol(jfr, method)));
+      } else {
+        result.add(new FrameInfo(resolveTypeName(jfr, method), methodName, "", lineNumber));
+      }
     }
 
     return result.isEmpty() ? null : result;
+  }
+
+  /**
+   * Whether a frame is a native (C), C++ or kernel frame rather than a Java method — a port of
+   * async-profiler's {@code JfrConverter#isNativeFrame}. Package-private for unit testing.
+   *
+   * @param nativeTypeIsC true for async-profiler recordings, where type 3 is a C function; false for
+   *     JDK Flight Recorder recordings, where type 3 is a Java native method
+   */
+  static boolean isNonJavaFrame(byte type, boolean nativeTypeIsC) {
+    return (type == FRAME_TYPE_NATIVE && nativeTypeIsC)
+        || type == FRAME_TYPE_CPP
+        || type == FRAME_TYPE_KERNEL;
+  }
+
+  /**
+   * The raw JFR class symbol for a method, unmodified. For native/C++ frames async-profiler stores
+   * the shared library here (e.g. {@code libc.so.6}); empty when there is none.
+   */
+  private static String resolveRawClassSymbol(JfrReader jfr, MethodRef method) {
+    ClassRef cls = jfr.classes.get(method.cls);
+    byte[] classSymbol = cls != null ? jfr.symbols.get(cls.name) : null;
+    return classSymbol == null || classSymbol.length == 0
+        ? ""
+        : new String(classSymbol, java.nio.charset.StandardCharsets.UTF_8);
   }
 
   /**

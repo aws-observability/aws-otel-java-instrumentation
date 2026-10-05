@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.opentelemetry.proto.collector.profiles.v1development.ExportProfilesServiceRequest;
@@ -212,6 +213,90 @@ class RotationBoundaryProcessorCollectTest {
             garbage, spanIndex, builder, new HashMap<Integer, List<FrameInfo>>());
     assertEquals(0, scanned, "no samples from a garbage file");
     assertEquals(0, builder.getSampleCount());
+  }
+
+  @Test
+  void isNonJavaFrame_matchesAsyncProfilerClassification() {
+    // async-profiler frame types: 0 interpreted, 1 JIT, 2 inlined, 3 native, 4 C++, 5 kernel,
+    // 6 C1-compiled. In an async-profiler recording type 3 is a C function...
+    boolean asyncProfiler = true;
+    for (byte javaType : new byte[] {0, 1, 2, 6}) {
+      assertFalse(RotationBoundaryProcessor.isNonJavaFrame(javaType, asyncProfiler), "" + javaType);
+    }
+    assertTrue(RotationBoundaryProcessor.isNonJavaFrame((byte) 3, asyncProfiler));
+    assertTrue(RotationBoundaryProcessor.isNonJavaFrame((byte) 4, asyncProfiler));
+    assertTrue(RotationBoundaryProcessor.isNonJavaFrame((byte) 5, asyncProfiler));
+    // ...but in a JDK Flight Recorder recording type 3 is a Java native method (e.g. Object.wait0),
+    // which must keep its class.
+    assertFalse(RotationBoundaryProcessor.isNonJavaFrame((byte) 3, false));
+    assertTrue(RotationBoundaryProcessor.isNonJavaFrame((byte) 4, false));
+  }
+
+  /**
+   * Source of truth: async-profiler's own converter. Scanning the fixture JFR must produce exactly
+   * the function names async-profiler's JFR→OTLP converter produces for the same recording (with
+   * --dot, the dotted Java form we emit), every native/C++ frame must carry its library as a
+   * Mapping, and no function may carry a guessed file name or a system name.
+   */
+  @Test
+  void scan_namesFramesExactlyLikeAsyncProfiler_withLibrariesAsMappings(@TempDir Path dir)
+      throws Exception {
+    RotationBoundaryProcessor proc =
+        new RotationBoundaryProcessor(10_000, null, 60, null, null, false, 0);
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L, 524_288L);
+    proc.scanJfrFileSinglePass(
+        fixture(), new HashMap<String, TreeMap<Long, SpanMetadata>>(), builder, new HashMap<>());
+    io.opentelemetry.proto.profiles.v1development.ProfilesDictionary ours =
+        builder.toExportRequest(io.opentelemetry.sdk.resources.Resource.getDefault()).getDictionary();
+
+    // async-profiler reference: wall (execution) samples, and allocation samples, dotted names.
+    java.util.Set<String> expected = new java.util.TreeSet<>();
+    for (String[] extra : new String[][] {{}, {"--alloc"}}) {
+      Path out = dir.resolve("ref" + extra.length + ".otlp");
+      List<String> argv = new ArrayList<>(java.util.Arrays.asList("-o", "otlp", "--dot"));
+      argv.addAll(java.util.Arrays.asList(extra));
+      argv.add(fixture().toString());
+      argv.add(out.toString());
+      one.convert.Main.main(argv.toArray(new String[0]));
+      io.opentelemetry.proto.profiles.v1development.ProfilesDictionary ref =
+          io.opentelemetry.proto.profiles.v1development.ProfilesData.parseFrom(
+                  Files.readAllBytes(out))
+              .getDictionary();
+      for (io.opentelemetry.proto.profiles.v1development.Function f : ref.getFunctionTableList()) {
+        expected.add(ref.getStringTable(f.getNameStrindex()));
+      }
+    }
+
+    java.util.Set<String> actual = new java.util.TreeSet<>();
+    for (io.opentelemetry.proto.profiles.v1development.Function f : ours.getFunctionTableList()) {
+      actual.add(ours.getStringTable(f.getNameStrindex()));
+      assertEquals(0, f.getFilenameStrindex(), "no guessed file name");
+      assertEquals(0, f.getSystemNameStrindex(), "no system name");
+    }
+    assertEquals(expected, actual, "function names must match async-profiler's converter");
+
+    // Native frames: bare symbol + library as a Mapping (e.g. start_thread in libc.so.6).
+    boolean sawStartThread = false;
+    for (io.opentelemetry.proto.profiles.v1development.Location loc : ours.getLocationTableList()) {
+      String fn =
+          ours.getStringTable(ours.getFunctionTable(loc.getLines(0).getFunctionIndex()).getNameStrindex());
+      String lib =
+          ours.getStringTable(ours.getMappingTable(loc.getMappingIndex()).getFilenameStrindex());
+      if ("start_thread".equals(fn)) {
+        sawStartThread = true;
+        assertEquals("libc.so.6", lib, "native frame keeps its library as a Mapping");
+      }
+      if (fn.startsWith("java.") || fn.startsWith("jdk.")) {
+        assertEquals("", lib, "Java frames have no mapping");
+      }
+      // Library-qualified names like "libc.so.6.start_thread" must not appear (the library is the
+      // Mapping). An unresolved native frame named after the library path itself (e.g.
+      // "/usr/lib64/libz.so.1") is async-profiler's own naming and is covered by the equivalence
+      // check above.
+      assertFalse(fn.startsWith(lib + ".") && !lib.isEmpty(), "library baked into name: " + fn);
+    }
+    assertTrue(sawStartThread, "fixture contains libc's start_thread");
   }
 
   @Test
