@@ -843,8 +843,8 @@ public final class OtlpProfileBuilder {
             ? frame.methodName
             : frame.methodName.isEmpty() ? frame.typeName : frame.typeName + "." + frame.methodName;
     int nameStr = internString(name);
-    // OTLP: filename is "Source file containing the function. Empty string if not available." It
-    // is only set when the caller knows it (the JFR scan never does, so it is left unset).
+    // OTLP: filename is "Source file containing the function. Empty string if not available." The
+    // JFR scan sets it for Java frames only; it is empty for native, C++ and kernel frames.
     int fileNameStr = internString(frame.fileName);
     // system_name ("function name, as identified by the system", e.g. a C++ mangled name) is left
     // unset: the JFR has no such distinct name for these frames.

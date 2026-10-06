@@ -86,7 +86,7 @@ class RotationBoundaryProcessorAllocScanTest {
 
   /** RotationBoundaryProcessor whose scan method we drive directly (no wrapper/exporter needed). */
   private static RotationBoundaryProcessor newProcessor() {
-    return new RotationBoundaryProcessor(10000, null, 60, null, null, false, 0);
+    return new RotationBoundaryProcessor(10000, null, 60, null, null, 0);
   }
 
   private static OtlpProfileBuilder newBuilder() {

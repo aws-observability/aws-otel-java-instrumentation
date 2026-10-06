@@ -82,11 +82,6 @@ public class RotationBoundaryProcessor extends BaseCollector {
   private final AsyncProfilerWrapper asyncProfilerWrapper;
   private final long windowMs;
   private final ProfilesExporter profilesExporter;
-  // Formerly selected a full-path vs simple guessed source file name ("com/example/Foo.java" vs
-  // "Foo.java"). File names are no longer guessed (the JFR does not record them, so they are left
-  // unset), so this no longer has any effect. Kept so the constructor signature is unchanged.
-  @SuppressWarnings("unused")
-  private final boolean profilerFullPaths;
   private final int aggregationMode;
 
   /**
@@ -119,7 +114,6 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * @param windowSeconds JFR loop interval in seconds
    * @param otlpEmitter Optional OTLP emitter supplying the resolved Resource for the export
    * @param profilesExporter native OTLP profiles exporter (HTTP or gRPC) for the aggregate profile
-   * @param profilerFullPaths when true, emit fully-qualified source paths in the function table
    * @param aggregationMode OTLP sample-aggregation mode (0 NONE, 1 FULL, 2 SUM); merges
    *     same-identity samples to shrink the payload, correlation preserved
    */
@@ -129,11 +123,9 @@ public class RotationBoundaryProcessor extends BaseCollector {
       int windowSeconds,
       ServiceEventsOtlpEmitter otlpEmitter,
       ProfilesExporter profilesExporter,
-      boolean profilerFullPaths,
       int aggregationMode) {
     super(checkIntervalMs, "RotationBoundaryProcessor", otlpEmitter);
     this.profilesExporter = profilesExporter;
-    this.profilerFullPaths = profilerFullPaths;
     this.aggregationMode = aggregationMode;
     this.asyncProfilerWrapper = asyncProfilerWrapper;
     this.windowMs = windowSeconds * 1000L;
@@ -526,8 +518,13 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * methods, and for them async-profiler stores the shared library (e.g. {@code libc.so.6}) in the
    * JFR "class" field. Such frames get no declaring class — the bare symbol becomes the function name
    * and the library is kept separately ({@link FrameInfo#libraryName}) — instead of being rendered as
-   * a bogus Java class ({@code libc.so.6.start_thread}). No source file name is produced: the JFR
-   * does not record one, so it is left unset rather than guessed.
+   * a bogus Java class ({@code libc.so.6.start_thread}). Only Java frames get a source file name,
+   * derived from the outer class (see {@link #sourceFileName}); native, C++ and kernel frames have
+   * none.
+   *
+   * <p>Java class names are normalized like async-profiler's {@code --norm} option (see {@link
+   * #normalizeHiddenClassName}), so a lambda or other hidden class gets the same frame name on every
+   * JVM run.
    */
   private List<FrameInfo> formatFrameListStructured(JfrReader jfr, int stackTraceId) {
     StackTrace stackTrace = jfr.stackTraces.get(stackTraceId);
@@ -562,7 +559,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
       if (isNonJavaFrame(type, nativeTypeIsC)) {
         result.add(new FrameInfo("", methodName, "", lineNumber, resolveRawClassSymbol(jfr, method)));
       } else {
-        result.add(new FrameInfo(resolveTypeName(jfr, method), methodName, "", lineNumber));
+        String typeName = javaTypeName(resolveRawClassSymbol(jfr, method));
+        result.add(new FrameInfo(typeName, methodName, sourceFileName(typeName), lineNumber));
       }
     }
 
@@ -595,18 +593,54 @@ public class RotationBoundaryProcessor extends BaseCollector {
   }
 
   /**
-   * Fully-qualified (dotted) declaring-class name for a JFR method, e.g. {@code com.example.Foo}.
-   * JFR class symbols are JVM-internal names ({@code com/example/Foo}); converting {@code '/'} →
-   * {@code '.'} yields the dotted form. Native/synthetic frames with no declaring class resolve to
-   * an empty string.
+   * Dotted Java class name for a raw JFR class symbol, e.g. {@code com.example.Foo} for {@code
+   * com/example/Foo}, with hidden-class suffixes stripped (see {@link #normalizeHiddenClassName}).
+   * Empty for an empty symbol. Package-private for unit testing.
    */
-  private static String resolveTypeName(JfrReader jfr, MethodRef method) {
-    ClassRef cls = jfr.classes.get(method.cls);
-    byte[] classSymbol = cls != null ? jfr.symbols.get(cls.name) : null;
-    if (classSymbol == null || classSymbol.length == 0) {
-      return "";
+  static String javaTypeName(String rawClassSymbol) {
+    return normalizeHiddenClassName(rawClassSymbol).replace('/', '.');
+  }
+
+  /**
+   * Strips the per-run suffix the JVM appends to hidden-class names — a port of async-profiler's
+   * {@code --norm} ({@code JfrConverter#toJavaClassName}). The name is cut at its last {@code '/'}
+   * or {@code '.'} when the next character is a digit, which no Java class-name segment can start
+   * with: {@code Foo$$Lambda/0x00007f740c373a08} becomes {@code Foo$$Lambda} and {@code
+   * Foo$$Lambda$344/7064297} becomes {@code Foo$$Lambda$344}. The JDK recorder's {@code
+   * Foo$$Lambda+0x00007f8177090218/543846639} form is cut before the {@code '+'}. Only applied to
+   * Java class names; library names such as {@code libz.so.1.2.11} must not be passed here.
+   * Package-private for unit testing.
+   */
+  static String normalizeHiddenClassName(String className) {
+    int end = className.length();
+    for (int i = end - 2; i > 0; i--) {
+      char c = className.charAt(i);
+      if (c == '/' || c == '.') {
+        char next = className.charAt(i + 1);
+        if (next >= '0' && next <= '9') {
+          end = i;
+          if (i > 19 && className.charAt(i - 19) == '+' && className.charAt(i - 18) == '0') {
+            end = i - 19;
+          }
+        }
+        break;
+      }
     }
-    return new String(classSymbol, java.nio.charset.StandardCharsets.UTF_8).replace('/', '.');
+    return className.substring(0, end);
+  }
+
+  /**
+   * Source file name for a dotted Java class name: the outer class plus {@code .java}, e.g. {@code
+   * Foo.java} for {@code com.example.Foo$Inner} or {@code com.example.Foo$$Lambda}. The JFR does
+   * not record source files, so this is a best guess (a Kotlin file {@code Foo.kt} shows as {@code
+   * FooKt.java}). Empty when there is no class name or no outer class name. Package-private for unit
+   * testing.
+   */
+  static String sourceFileName(String typeName) {
+    String simpleName = typeName.substring(typeName.lastIndexOf('.') + 1);
+    int dollar = simpleName.indexOf('$');
+    String outerName = dollar >= 0 ? simpleName.substring(0, dollar) : simpleName;
+    return outerName.isEmpty() ? "" : outerName + ".java";
   }
 
   /** Method name for a JFR method. */

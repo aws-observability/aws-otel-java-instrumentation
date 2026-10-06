@@ -550,7 +550,6 @@ public class ServiceEventsInstrumentation {
                 config.getProfilerWindowSeconds(), // window seconds (must match wrapper loop=)
                 otlpEmitter,
                 profilesExporter,
-                config.isProfilerFullPaths(),
                 config.getProfilerAggregationMode());
         collectors.add(rotationProcessor);
         rotationProcessor.start();

@@ -113,7 +113,7 @@ class ProfilerScanExportPipelineE2ETest {
   }
 
   private static RotationBoundaryProcessor newProcessor(OtlpHttpProfilesExporter exporter) {
-    return new RotationBoundaryProcessor(10000, null, 60, null, exporter, false, 0);
+    return new RotationBoundaryProcessor(10000, null, 60, null, exporter, 0);
   }
 
   @Test
