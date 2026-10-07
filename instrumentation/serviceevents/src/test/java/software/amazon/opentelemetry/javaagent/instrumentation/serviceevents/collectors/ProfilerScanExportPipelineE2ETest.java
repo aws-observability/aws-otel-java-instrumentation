@@ -113,7 +113,7 @@ class ProfilerScanExportPipelineE2ETest {
   }
 
   private static RotationBoundaryProcessor newProcessor(OtlpHttpProfilesExporter exporter) {
-    return new RotationBoundaryProcessor(10000, null, 60, null, exporter, false, 0);
+    return new RotationBoundaryProcessor(10000, null, 60, null, exporter, 0);
   }
 
   @Test
@@ -131,8 +131,7 @@ class ProfilerScanExportPipelineE2ETest {
     TreeMap<Long, SpanMetadata> threadSpans = new TreeMap<>();
     threadSpans.put(
         SPAN_START_NS,
-        new SpanMetadata(
-            ALLOC_THREAD, "POST /alloc", SPAN_START_NS, SPAN_END_NS, TRACE_ID, SPAN_ID));
+        new SpanMetadata("POST /alloc", SPAN_START_NS, SPAN_END_NS, TRACE_ID, SPAN_ID));
     Map<String, TreeMap<Long, SpanMetadata>> spanIndex = new HashMap<>();
     spanIndex.put(ALLOC_THREAD, threadSpans);
 

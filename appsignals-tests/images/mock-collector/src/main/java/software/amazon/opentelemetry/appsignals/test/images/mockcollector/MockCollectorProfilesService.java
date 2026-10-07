@@ -41,6 +41,14 @@ import java.util.concurrent.LinkedBlockingDeque;
  */
 class MockCollectorProfilesService {
 
+  /**
+   * Unary gRPC RPC path the ADOT profiler's {@code OtlpGrpcProfilesExporter} POSTs to (matching
+   * OTLP's {@code profiles.v1development} package). Registered as a raw service in {@link Main} so
+   * both HTTP and gRPC profiles land in the same queue.
+   */
+  static final String GRPC_EXPORT_PATH =
+      "/opentelemetry.proto.collector.profiles.v1development.ProfilesService/Export";
+
   protected final HttpService HTTP_INSTANCE = new HttpService();
 
   private final BlockingQueue<ExportProfilesServiceRequest> exportRequests =
@@ -52,6 +60,28 @@ class MockCollectorProfilesService {
 
   void clearRequests() {
     exportRequests.clear();
+  }
+
+  /**
+   * Decode one gRPC-framed {@code ExportProfilesServiceRequest} and store it. gRPC length-prefixed
+   * framing is {@code [1-byte compressed flag][4-byte big-endian length][message]}; when the flag
+   * is set the message is gzip-compressed (the exporter sets {@code grpc-encoding: gzip}). Shares
+   * the same queue as the HTTP route so {@code getRequests()} returns profiles from both transports.
+   */
+  void consumeGrpcFramed(byte[] frame) throws Exception {
+    if (frame == null || frame.length < 5) {
+      return;
+    }
+    boolean compressed = (frame[0] & 0xFF) != 0;
+    int length =
+        ((frame[1] & 0xFF) << 24)
+            | ((frame[2] & 0xFF) << 16)
+            | ((frame[3] & 0xFF) << 8)
+            | (frame[4] & 0xFF);
+    int end = Math.min(frame.length, 5 + length);
+    byte[] message = java.util.Arrays.copyOfRange(frame, 5, end);
+    byte[] payload = MockCollectorHttpUtil.decodeIfCompressed(message, compressed ? "gzip" : null);
+    exportRequests.add(ExportProfilesServiceRequest.parseFrom(payload));
   }
 
   class HttpService {

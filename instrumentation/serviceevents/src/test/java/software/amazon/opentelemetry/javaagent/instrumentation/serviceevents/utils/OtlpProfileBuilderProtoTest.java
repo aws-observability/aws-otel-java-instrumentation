@@ -19,9 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.proto.collector.profiles.v1development.ExportProfilesServiceRequest;
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.profiles.v1development.KeyValueAndUnit;
 import io.opentelemetry.proto.profiles.v1development.Link;
 import io.opentelemetry.proto.profiles.v1development.Profile;
@@ -51,6 +55,145 @@ class OtlpProfileBuilderProtoTest {
     return Arrays.asList(
         new FrameInfo("com.example.Service", "handle", "Service.java", 42),
         new FrameInfo("com.example.Service", "doWork", "Service.java", 88));
+  }
+
+  private static AnyValue attrByKey(ExportProfilesServiceRequest req, String key) {
+    for (KeyValue kv : req.getResourceProfiles(0).getResource().getAttributesList()) {
+      if (key.equals(kv.getKey())) {
+        return kv.getValue();
+      }
+    }
+    return null;
+  }
+
+  @Test
+  void toExportRequest_mapsResourceAttributesToTypedAnyValues() {
+    // Exercises attributeToAnyValue for each supported type + the stringified fallback (array).
+    Resource resource =
+        Resource.create(
+            Attributes.builder()
+                .put(AttributeKey.stringKey("k.str"), "svc")
+                .put(AttributeKey.booleanKey("k.bool"), true)
+                .put(AttributeKey.longKey("k.long"), 7L)
+                .put(AttributeKey.doubleKey("k.double"), 1.5)
+                .put(AttributeKey.stringArrayKey("k.arr"), Arrays.asList("a", "b"))
+                .build());
+
+    ExportProfilesServiceRequest req = builderWithSamples().toExportRequest(resource);
+
+    assertEquals("svc", attrByKey(req, "k.str").getStringValue());
+    assertTrue(attrByKey(req, "k.bool").getBoolValue());
+    assertEquals(7L, attrByKey(req, "k.long").getIntValue());
+    assertEquals(1.5, attrByKey(req, "k.double").getDoubleValue());
+    // arrays/other types fall through to a stringified AnyValue
+    assertTrue(attrByKey(req, "k.arr").getStringValue().contains("a"));
+  }
+
+  @Test
+  void addSample_growsBackingArraysBeyondInitialCapacity() {
+    // INITIAL_SAMPLE_CAPACITY is 65536; add more than that to drive ensureCapacity's grow branch
+    // (and the alloc equivalent), then confirm every sample survived the array copies.
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS, 524288L);
+    int n = 65_536 + 10;
+    for (int i = 0; i < n; i++) {
+      builder.addSample(stack(), 1_700_000_000_000_000_000L + i, "t", "op", null, null);
+      builder.addAllocSample(stack(), 1_700_000_000_000_000_000L + i, "t", "op", null, null, 64L);
+    }
+    assertEquals(n, builder.getSampleCount());
+    assertEquals(n, builder.getAllocSampleCount());
+    // still serializes cleanly after the regrows
+    assertNotNull(builder.toExportRequest(Resource.getDefault()));
+  }
+
+  @Test
+  void classlessFrame_exportsBareNameAndSystemName_andNoFileName() {
+    // A frame with no declaring class (native/JVM frame or async-profiler marker such as
+    // break_deopt) must export name == system_name == the bare method name and an unset file name
+    // (string index 0 == ""), not ".java" / ".break_deopt".
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS);
+    builder.addSample(
+        Arrays.asList(
+            new FrameInfo("com.example.Foo", "bar", "Foo.java", 3),
+            new FrameInfo("", "break_deopt", "", 0)),
+        1_700_000_000_001_000_000L,
+        "t",
+        null,
+        null,
+        null);
+    ProfilesDictionary dict = builder.toExportRequest(Resource.getDefault()).getDictionary();
+
+    io.opentelemetry.proto.profiles.v1development.Function marker = null;
+    io.opentelemetry.proto.profiles.v1development.Function classFrame = null;
+    for (io.opentelemetry.proto.profiles.v1development.Function f : dict.getFunctionTableList()) {
+      String name = dict.getStringTable(f.getNameStrindex());
+      if ("break_deopt".equals(name)) {
+        marker = f;
+      } else if ("com.example.Foo.bar".equals(name)) {
+        classFrame = f;
+      }
+    }
+    assertNotNull(marker, "classless frame must be exported with its bare method name");
+    assertEquals(0, marker.getSystemNameStrindex(), "system_name is left unset");
+    assertEquals(0, marker.getFilenameStrindex(), "classless frame has no file name");
+
+    assertNotNull(classFrame);
+    assertEquals(0, classFrame.getSystemNameStrindex(), "system_name is left unset");
+    // A file name the caller supplies is passed through as-is (the JFR scan never supplies one).
+    assertEquals("Foo.java", dict.getStringTable(classFrame.getFilenameStrindex()));
+  }
+
+  @Test
+  void nativeFrame_bareSymbolWithLibraryAsMapping_sameSymbolInTwoLibrariesStaysDistinct() {
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS);
+    builder.addSample(
+        Arrays.asList(
+            new FrameInfo("", "start_thread", "", 0, "libc.so.6"),
+            new FrameInfo("", "memcpy", "", 0, "libc.so.6"),
+            new FrameInfo("", "memcpy", "", 0, "libfoo.so")),
+        1_700_000_000_001_000_000L,
+        "t",
+        null,
+        null,
+        null);
+    ProfilesDictionary dict = builder.toExportRequest(Resource.getDefault()).getDictionary();
+
+    assertEquals(3, dict.getMappingTableCount(), "sentinel + libc.so.6 + libfoo.so");
+    assertEquals(0, dict.getMappingTable(0).getFilenameStrindex(), "mapping 0 is the sentinel");
+    java.util.List<String> libsOfMemcpy = new ArrayList<>();
+    for (io.opentelemetry.proto.profiles.v1development.Location loc : dict.getLocationTableList()) {
+      io.opentelemetry.proto.profiles.v1development.Function fn =
+          dict.getFunctionTable(loc.getLines(0).getFunctionIndex());
+      String name = dict.getStringTable(fn.getNameStrindex());
+      String lib = dict.getStringTable(dict.getMappingTable(loc.getMappingIndex()).getFilenameStrindex());
+      if ("start_thread".equals(name)) {
+        assertEquals("libc.so.6", lib);
+      }
+      if ("memcpy".equals(name)) {
+        libsOfMemcpy.add(lib);
+      }
+      assertEquals(0, fn.getFilenameStrindex(), "native frames have no source file");
+    }
+    java.util.Collections.sort(libsOfMemcpy);
+    assertEquals(
+        Arrays.asList("libc.so.6", "libfoo.so"),
+        libsOfMemcpy,
+        "same symbol in two libraries is two locations, each with its own mapping");
+  }
+
+  @Test
+  void addSample_nullOrEmptyFrames_areIgnored() {
+    OtlpProfileBuilder builder =
+        new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS, 524288L);
+    builder.addSample(null, 1L, "t", "op", null, null);
+    builder.addSample(new ArrayList<>(), 1L, "t", "op", null, null);
+    builder.addAllocSample(null, 1L, "t", "op", null, null, 64L);
+    builder.addAllocSample(new ArrayList<>(), 1L, "t", "op", null, null, 64L);
+    assertEquals(0, builder.getSampleCount());
+    assertEquals(0, builder.getAllocSampleCount());
+    assertFalse(builder.toExportRequest(Resource.getDefault()).getResourceProfilesList().isEmpty());
   }
 
   private OtlpProfileBuilder builderWithSamples() {

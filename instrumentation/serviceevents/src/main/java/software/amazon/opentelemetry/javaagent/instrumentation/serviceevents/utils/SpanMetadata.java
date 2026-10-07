@@ -25,7 +25,6 @@ package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.ut
  * single JFR clock.
  */
 public final class SpanMetadata {
-  public final String threadName;
   public final String operation;
   public final long startNs;
   public final long endNs;
@@ -33,13 +32,7 @@ public final class SpanMetadata {
   public final String spanId;
 
   public SpanMetadata(
-      String threadName,
-      String operation,
-      long startNs,
-      long endNs,
-      String traceId,
-      String spanId) {
-    this.threadName = threadName;
+      String operation, long startNs, long endNs, String traceId, String spanId) {
     this.operation = operation;
     this.startNs = startNs;
     this.endNs = endNs;

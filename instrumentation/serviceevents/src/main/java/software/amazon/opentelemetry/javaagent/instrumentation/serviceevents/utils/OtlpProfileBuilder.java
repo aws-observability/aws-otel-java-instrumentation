@@ -72,8 +72,15 @@ public final class OtlpProfileBuilder {
   private final List<int[]> functionTable = new ArrayList<>();
   private final Map<Long, Integer> functionIndex = new HashMap<>();
 
+  // [functionIndex, line, mappingIndex]
   private final List<int[]> locationTable = new ArrayList<>();
-  private final Map<Long, Integer> locationIndex = new HashMap<>();
+  // One (function, line) -> location index map per mapping index, so the same symbol in two
+  // different libraries stays two distinct locations.
+  private final List<Map<Long, Integer>> locationIndexByMapping = new ArrayList<>();
+
+  // Mapping (shared library) table: filename string index per mapping; index 0 = sentinel.
+  private final List<Integer> mappingTable = new ArrayList<>();
+  private final Map<String, Integer> mappingIndex = new HashMap<>();
 
   private final List<List<Integer>> stackTable = new ArrayList<>();
   private final Map<List<Integer>, Integer> stackIndex = new HashMap<>();
@@ -233,10 +240,14 @@ public final class OtlpProfileBuilder {
 
     // Index 0 in all other tables is the zero/sentinel entry
     functionTable.add(new int[] {0, 0, 0, 0});
-    functionIndex.put(functionKey(0, 0, 0), 0);
+    functionIndex.put(functionKey(0, 0), 0);
 
-    locationTable.add(new int[] {0, 0});
-    locationIndex.put(locationKey(0, 0), 0);
+    mappingTable.add(0);
+    mappingIndex.put("", 0);
+    locationIndexByMapping.add(new HashMap<>());
+
+    locationTable.add(new int[] {0, 0, 0});
+    locationIndexByMapping.get(0).put(locationKey(0, 0), 0);
 
     // Collections.singletonList (not List.of, which is Java 9+) so the profiler module compiles at
     // --release 8; List equality is element-wise, so this [0] sentinel still matches the ArrayList
@@ -438,9 +449,13 @@ public final class OtlpProfileBuilder {
     // string_table (index 0 == "")
     dictionary.addAllStringTable(stringTable);
 
-    // mapping_table: a single empty sentinel at index 0 (locations reference mapping_index 0 by
-    // default), matching the async-profiler reference shape.
-    dictionary.addMappingTable(Mapping.newBuilder().build());
+    // mapping_table: index 0 is the empty sentinel ("mapping unknown or not applicable", used by Java
+    // frames); one entry per shared library that native/C++ frames came from, with filename = the
+    // library as recorded by async-profiler (e.g. "libc.so.6"). Addresses/build ids are not in the
+    // JFR, so only the filename is set.
+    for (int filenameStrindex : mappingTable) {
+      dictionary.addMappingTable(Mapping.newBuilder().setFilenameStrindex(filenameStrindex).build());
+    }
 
     // function_table (index 0 == all-zero sentinel)
     for (int[] f : functionTable) {
@@ -453,11 +468,13 @@ public final class OtlpProfileBuilder {
               .build());
     }
 
-    // location_table (index 0 == {0,0} sentinel). Each location carries exactly one line; JFR does
-    // not expose a column, so only function_index + line are set.
+    // location_table (index 0 == {0,0,0} sentinel). Each location carries exactly one line; JFR does
+    // not expose a column, so only function_index + line are set, plus the mapping (library) for
+    // native/C++ frames.
     for (int[] loc : locationTable) {
       dictionary.addLocationTable(
           Location.newBuilder()
+              .setMappingIndex(loc[2])
               .addLines(Line.newBuilder().setFunctionIndex(loc[0]).setLine(loc[1]).build())
               .build());
     }
@@ -815,16 +832,23 @@ public final class OtlpProfileBuilder {
   }
 
   private int internFunction(FrameInfo frame) {
-    // Function.name is what pprof-style UIs (Pyroscope) render. Emit the fully-qualified
-    // "com.example.Foo.bar" so the flame graph disambiguates methods by class, matching
-    // async-profiler's own OTLP naming. Native/synthetic frames have no declaring class
-    // (typeName == "") — keep those bare (e.g. "clone") rather than showing a leading dot.
-    int nameStr =
-        internString(
-            frame.typeName.isEmpty() ? frame.methodName : frame.typeName + "." + frame.methodName);
-    int systemNameStr = internString(frame.typeName + "." + frame.methodName);
+    // Function.name is what pprof-style UIs (Pyroscope) render. A Java frame is the fully-qualified
+    // "com.example.Foo.bar" so the flame graph disambiguates methods by class (async-profiler's
+    // converter with --dot). A frame with no declaring class — native/C++/kernel functions,
+    // whose library goes in the Mapping instead, and JVM stubs / async-profiler markers — is the
+    // bare symbol (e.g. "start_thread", "break_deopt"). A Java frame with no method name is just
+    // its class, as in async-profiler.
+    String name =
+        frame.typeName.isEmpty()
+            ? frame.methodName
+            : frame.methodName.isEmpty() ? frame.typeName : frame.typeName + "." + frame.methodName;
+    int nameStr = internString(name);
+    // OTLP: filename is "Source file containing the function. Empty string if not available." The
+    // JFR scan sets it for Java frames only; it is empty for native, C++ and kernel frames.
     int fileNameStr = internString(frame.fileName);
-    long key = functionKey(nameStr, systemNameStr, fileNameStr);
+    // system_name ("function name, as identified by the system", e.g. a C++ mangled name) is left
+    // unset: the JFR has no such distinct name for these frames.
+    long key = functionKey(nameStr, fileNameStr);
     Integer idx = functionIndex.get(key);
     if (idx != null) {
       return idx;
@@ -835,21 +859,39 @@ public final class OtlpProfileBuilder {
     // distinct from the per-sample call-site line which lives on Location.lines[].line.
     // JFR frames don't expose method declaration lines (only the line where execution was
     // when sampled), so 0 ("unset") is emitted rather than a wrong value.
-    functionTable.add(new int[] {nameStr, systemNameStr, fileNameStr, 0});
+    functionTable.add(new int[] {nameStr, 0, fileNameStr, 0});
     functionIndex.put(key, newIdx);
+    return newIdx;
+  }
+
+  /** Interned mapping (shared library) index for a native frame's library; 0 when none. */
+  private int internMapping(String library) {
+    if (library == null || library.isEmpty()) {
+      return 0;
+    }
+    Integer idx = mappingIndex.get(library);
+    if (idx != null) {
+      return idx;
+    }
+    int newIdx = mappingTable.size();
+    mappingTable.add(internString(library));
+    mappingIndex.put(library, newIdx);
+    locationIndexByMapping.add(new HashMap<>());
     return newIdx;
   }
 
   private int internLocation(FrameInfo frame) {
     int funcIdx = internFunction(frame);
+    int mappingIdx = internMapping(frame.libraryName);
+    Map<Long, Integer> index = locationIndexByMapping.get(mappingIdx);
     long key = locationKey(funcIdx, frame.lineNumber);
-    Integer idx = locationIndex.get(key);
+    Integer idx = index.get(key);
     if (idx != null) {
       return idx;
     }
     int newIdx = locationTable.size();
-    locationTable.add(new int[] {funcIdx, frame.lineNumber});
-    locationIndex.put(key, newIdx);
+    locationTable.add(new int[] {funcIdx, frame.lineNumber, mappingIdx});
+    index.put(key, newIdx);
     return newIdx;
   }
 
@@ -901,9 +943,9 @@ public final class OtlpProfileBuilder {
 
   // --- Key generation helpers (pack two ints into a long for fast HashMap lookup) ---
 
-  private static long functionKey(int nameStr, int systemNameStr, int fileNameStr) {
-    // Use a composite key; we have room since string indices won't exceed ~100K
-    return ((long) nameStr << 40) | ((long) systemNameStr << 20) | fileNameStr;
+  private static long functionKey(int nameStr, int fileNameStr) {
+    // Exact: two non-negative 32-bit string indices, so distinct functions can never collide.
+    return ((long) nameStr << 32) | (fileNameStr & 0xFFFFFFFFL);
   }
 
   private static long locationKey(int funcIdx, int line) {

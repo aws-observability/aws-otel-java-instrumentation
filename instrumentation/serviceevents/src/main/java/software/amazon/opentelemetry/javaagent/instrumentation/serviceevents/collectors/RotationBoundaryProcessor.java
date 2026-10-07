@@ -82,10 +82,6 @@ public class RotationBoundaryProcessor extends BaseCollector {
   private final AsyncProfilerWrapper asyncProfilerWrapper;
   private final long windowMs;
   private final ProfilesExporter profilesExporter;
-  // When true, function_table.filename emits the fully-qualified class path
-  // (e.g. "com/example/Foo.java") instead of the simple file name ("Foo.java").
-  // Internal: hardcoded default false, no env override.
-  private final boolean profilerFullPaths;
   private final int aggregationMode;
 
   /**
@@ -118,7 +114,6 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * @param windowSeconds JFR loop interval in seconds
    * @param otlpEmitter Optional OTLP emitter supplying the resolved Resource for the export
    * @param profilesExporter native OTLP profiles exporter (HTTP or gRPC) for the aggregate profile
-   * @param profilerFullPaths when true, emit fully-qualified source paths in the function table
    * @param aggregationMode OTLP sample-aggregation mode (0 NONE, 1 FULL, 2 SUM); merges
    *     same-identity samples to shrink the payload, correlation preserved
    */
@@ -128,11 +123,9 @@ public class RotationBoundaryProcessor extends BaseCollector {
       int windowSeconds,
       ServiceEventsOtlpEmitter otlpEmitter,
       ProfilesExporter profilesExporter,
-      boolean profilerFullPaths,
       int aggregationMode) {
     super(checkIntervalMs, "RotationBoundaryProcessor", otlpEmitter);
     this.profilesExporter = profilesExporter;
-    this.profilerFullPaths = profilerFullPaths;
     this.aggregationMode = aggregationMode;
     this.asyncProfilerWrapper = asyncProfilerWrapper;
     this.windowMs = windowSeconds * 1000L;
@@ -313,7 +306,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
 
         SpanMetadata meta =
             new SpanMetadata(
-                threadName, decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
+                decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
         // Keyed by startNs. On the (negligible) chance two spans on one thread share an identical
         // startNs, keep the one with the larger endNs (the enclosing/longer span) rather than let a
         // later put() arbitrarily drop the other's operation/trace metadata.
@@ -512,7 +505,27 @@ public class RotationBoundaryProcessor extends BaseCollector {
     return event.value();
   }
 
-  /** Format a JFR stack trace (by id) as a list of structured FrameInfo (root → leaf). */
+  // async-profiler frame types (one.convert.Frame.TYPE_*), stored per frame in StackTrace.types.
+  private static final byte FRAME_TYPE_NATIVE = 3;
+  private static final byte FRAME_TYPE_CPP = 4;
+  private static final byte FRAME_TYPE_KERNEL = 5;
+
+  /**
+   * Format a JFR stack trace (by id) as a list of structured FrameInfo (root → leaf).
+   *
+   * <p>Frames are classified exactly like async-profiler's own converter ({@code
+   * one.convert.JfrConverter#isNativeFrame}): native (C), C++ and kernel frames are not Java
+   * methods, and for them async-profiler stores the shared library (e.g. {@code libc.so.6}) in the
+   * JFR "class" field. Such frames get no declaring class — the bare symbol becomes the function name
+   * and the library is kept separately ({@link FrameInfo#libraryName}) — instead of being rendered as
+   * a bogus Java class ({@code libc.so.6.start_thread}). Only Java frames get a source file name,
+   * derived from the outer class (see {@link #sourceFileName}); native, C++ and kernel frames have
+   * none.
+   *
+   * <p>Java class names are normalized like async-profiler's {@code --norm} option (see {@link
+   * #normalizeHiddenClassName}), so a lambda or other hidden class gets the same frame name on every
+   * JVM run.
+   */
   private List<FrameInfo> formatFrameListStructured(JfrReader jfr, int stackTraceId) {
     StackTrace stackTrace = jfr.stackTraces.get(stackTraceId);
     if (stackTrace == null || stackTrace.methods == null || stackTrace.methods.length == 0) {
@@ -521,53 +534,113 @@ public class RotationBoundaryProcessor extends BaseCollector {
 
     long[] methodIds = stackTrace.methods;
     int[] locations = stackTrace.locations;
+    byte[] types = stackTrace.types;
+    // In the JDK's own Flight Recorder, frame type 3 ("Native") is a Java native method (e.g.
+    // Object.wait0); in async-profiler recordings it is a C function. async-profiler tells them apart
+    // by whether the recording's FrameType enum defines the kernel type, which only async-profiler
+    // writes. Mirror that check exactly.
+    boolean nativeTypeIsC = jfr.getEnumValue("jdk.types.FrameType", FRAME_TYPE_KERNEL) != null;
 
     List<FrameInfo> result = new ArrayList<>();
     // JFR stores frames leaf → root (index 0 is the topmost frame); iterate in reverse to emit
     // root → leaf, matching the order OtlpProfileBuilder expects.
     for (int i = methodIds.length - 1; i >= 0; i--) {
-      MethodRef method = jfr.methods.get(methodIds[i]);
-      if (method == null) continue;
-
-      String typeName = resolveTypeName(jfr, method);
-      String methodName = resolveMethodName(jfr, method);
       // locations pack (line << 16 | bci); the high 16 bits are the source line number.
-      int lineNumber = locations[i] >>> 16;
-
-      // Build the simple ClassName.java first (always needed). If full-paths is
-      // enabled, prepend the package path so consumers get a JVM-style source
-      // file identifier like "com/example/Foo.java".
-      int lastDot = typeName.lastIndexOf('.');
-      String simpleClassName = lastDot >= 0 ? typeName.substring(lastDot + 1) : typeName;
-      int dollarSign = simpleClassName.indexOf('$');
-      String simpleFileName =
-          (dollarSign >= 0 ? simpleClassName.substring(0, dollarSign) : simpleClassName) + ".java";
-      String fileName;
-      if (profilerFullPaths && lastDot >= 0) {
-        fileName = typeName.substring(0, lastDot).replace('.', '/') + "/" + simpleFileName;
-      } else {
-        fileName = simpleFileName;
+      int lineNumber = locations != null && i < locations.length ? locations[i] >>> 16 : 0;
+      MethodRef method = jfr.methods.get(methodIds[i]);
+      if (method == null) {
+        // Keep the frame (as async-profiler does) so the stack depth stays correct.
+        result.add(new FrameInfo("", "unknown", "", lineNumber));
+        continue;
       }
 
-      result.add(new FrameInfo(typeName, methodName, fileName, lineNumber));
+      String methodName = resolveMethodName(jfr, method);
+      byte type = types != null && i < types.length ? types[i] : 0;
+      if (isNonJavaFrame(type, nativeTypeIsC)) {
+        result.add(new FrameInfo("", methodName, "", lineNumber, resolveRawClassSymbol(jfr, method)));
+      } else {
+        String typeName = javaTypeName(resolveRawClassSymbol(jfr, method));
+        result.add(new FrameInfo(typeName, methodName, sourceFileName(typeName), lineNumber));
+      }
     }
 
     return result.isEmpty() ? null : result;
   }
 
   /**
-   * Fully-qualified (dotted) declaring-class name for a JFR method, e.g. {@code com.example.Foo}.
-   * JFR class symbols are JVM-internal names ({@code com/example/Foo}); converting {@code '/'} →
-   * {@code '.'} yields the dotted form. Native/synthetic frames with no declaring class resolve to
-   * an empty string.
+   * Whether a frame is a native (C), C++ or kernel frame rather than a Java method — a port of
+   * async-profiler's {@code JfrConverter#isNativeFrame}. Package-private for unit testing.
+   *
+   * @param nativeTypeIsC true for async-profiler recordings, where type 3 is a C function; false for
+   *     JDK Flight Recorder recordings, where type 3 is a Java native method
    */
-  private static String resolveTypeName(JfrReader jfr, MethodRef method) {
+  static boolean isNonJavaFrame(byte type, boolean nativeTypeIsC) {
+    return (type == FRAME_TYPE_NATIVE && nativeTypeIsC)
+        || type == FRAME_TYPE_CPP
+        || type == FRAME_TYPE_KERNEL;
+  }
+
+  /**
+   * The raw JFR class symbol for a method, unmodified. For native/C++ frames async-profiler stores
+   * the shared library here (e.g. {@code libc.so.6}); empty when there is none.
+   */
+  private static String resolveRawClassSymbol(JfrReader jfr, MethodRef method) {
     ClassRef cls = jfr.classes.get(method.cls);
     byte[] classSymbol = cls != null ? jfr.symbols.get(cls.name) : null;
-    if (classSymbol == null || classSymbol.length == 0) {
-      return "";
+    return classSymbol == null || classSymbol.length == 0
+        ? ""
+        : new String(classSymbol, java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Dotted Java class name for a raw JFR class symbol, e.g. {@code com.example.Foo} for {@code
+   * com/example/Foo}, with hidden-class suffixes stripped (see {@link #normalizeHiddenClassName}).
+   * Empty for an empty symbol. Package-private for unit testing.
+   */
+  static String javaTypeName(String rawClassSymbol) {
+    return normalizeHiddenClassName(rawClassSymbol).replace('/', '.');
+  }
+
+  /**
+   * Strips the per-run suffix the JVM appends to hidden-class names — a port of async-profiler's
+   * {@code --norm} ({@code JfrConverter#toJavaClassName}). The name is cut at its last {@code '/'}
+   * or {@code '.'} when the next character is a digit, which no Java class-name segment can start
+   * with: {@code Foo$$Lambda/0x00007f740c373a08} becomes {@code Foo$$Lambda} and {@code
+   * Foo$$Lambda$344/7064297} becomes {@code Foo$$Lambda$344}. The JDK recorder's {@code
+   * Foo$$Lambda+0x00007f8177090218/543846639} form is cut before the {@code '+'}. Only applied to
+   * Java class names; library names such as {@code libz.so.1.2.11} must not be passed here.
+   * Package-private for unit testing.
+   */
+  static String normalizeHiddenClassName(String className) {
+    int end = className.length();
+    for (int i = end - 2; i > 0; i--) {
+      char c = className.charAt(i);
+      if (c == '/' || c == '.') {
+        char next = className.charAt(i + 1);
+        if (next >= '0' && next <= '9') {
+          end = i;
+          if (i > 19 && className.charAt(i - 19) == '+' && className.charAt(i - 18) == '0') {
+            end = i - 19;
+          }
+        }
+        break;
+      }
     }
-    return new String(classSymbol, java.nio.charset.StandardCharsets.UTF_8).replace('/', '.');
+    return className.substring(0, end);
+  }
+
+  /**
+   * Source file name for a dotted Java class name: the outer class plus {@code .java}, e.g. {@code
+   * Foo.java} for {@code com.example.Foo$Inner} or {@code com.example.Foo$$Lambda}. The JFR does
+   * not record source files, so this is a best guess (a Kotlin file {@code Foo.kt} shows as {@code
+   * FooKt.java}). Empty when there is no class name or no outer class name. Package-private for unit
+   * testing.
+   */
+  static String sourceFileName(String typeName) {
+    String simpleName = typeName.substring(typeName.lastIndexOf('.') + 1);
+    int dollar = simpleName.indexOf('$');
+    String outerName = dollar >= 0 ? simpleName.substring(0, dollar) : simpleName;
+    return outerName.isEmpty() ? "" : outerName + ".java";
   }
 
   /** Method name for a JFR method. */
@@ -616,7 +689,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * @param jfrFile The JFR file
    * @return Epoch milliseconds from the filename timestamp, or the file's lastModified as fallback
    */
-  private long parseJfrFilenameTimestamp(File jfrFile) {
+  // Package-private for unit testing of the filename-timestamp parsing + fallbacks.
+  long parseJfrFilenameTimestamp(File jfrFile) {
     String name = jfrFile.getName();
     // Expected format: profiler-jfr-YYYYMMDD-HHmmss.jfr Find the timestamp by looking for the
     // pattern after the base prefix
@@ -640,7 +714,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * Parse a {@code YYYYMMDD-HHmmss} timestamp string (async-profiler's {@code %t} filename format,
    * JVM-default timezone) back to epoch milliseconds, or {@code -1} on failure.
    */
-  private static long parseTimestamp(String timestamp) {
+  static long parseTimestamp(String timestamp) {
     try {
       SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd-HHmmss");
       return sdf.parse(timestamp).getTime();

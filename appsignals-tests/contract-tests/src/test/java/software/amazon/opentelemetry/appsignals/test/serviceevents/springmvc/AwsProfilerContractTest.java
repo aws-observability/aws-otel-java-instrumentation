@@ -210,6 +210,26 @@ class AwsProfilerContractTest extends ServiceEventsContractTestBase {
 
   @Test
   @Order(1)
+  void testAllocatedObjectsProfilePresentWithPeriod() {
+    // Memory profiling also emits the {alloc_objects, count} companion profile (period == 1).
+    assertProfileTypeWithPeriod("alloc_objects", "count");
+  }
+
+  @Test
+  @Order(1)
+  void testWallSamplesCarryThreadStateAttribute() {
+    // In wall mode each sample carries a thread.state attribute (RUNNABLE on-CPU / SLEEPING off-CPU)
+    // so a backend can split on- vs off-CPU time. This is the wall-mode counterpart of
+    // AwsProfilerCpuModeContractTest#testCpuSamplesCarryNoThreadStateAttribute.
+    String state = anyAttributeValue("thread.state");
+    assertThat(state)
+        .as("wall-mode samples must carry a thread.state attribute")
+        .isNotNull();
+    assertThat(state).isNotEmpty();
+  }
+
+  @Test
+  @Order(1)
   void testSampleCarriesOperationAttribute() {
     String operation = anyOperationValue();
     assertThat(operation)
@@ -320,6 +340,27 @@ class AwsProfilerContractTest extends ServiceEventsContractTestBase {
       }
     }
     fail("no Profile with sample_type '" + type + "' found across captured profiles");
+  }
+
+  /** First non-empty value of attribute {@code key} found on any sample, or null. */
+  private String anyAttributeValue(String key) {
+    for (ExportProfilesServiceRequest request : profiles) {
+      ProfilesDictionary dict = request.getDictionary();
+      for (Profile profile : allProfiles(request)) {
+        for (Sample sample : profile.getSamplesList()) {
+          for (int attrIdx : sample.getAttributeIndicesList()) {
+            KeyValueAndUnit attr = dict.getAttributeTable(attrIdx);
+            if (key.equals(dict.getStringTable(attr.getKeyStrindex()))) {
+              String value = attr.getValue().getStringValue();
+              if (value != null && !value.isEmpty()) {
+                return value;
+              }
+            }
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /** First non-empty {@code operation} attribute value found on any sample, or null. */

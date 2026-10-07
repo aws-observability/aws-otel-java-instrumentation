@@ -128,10 +128,6 @@ public class ServiceEventsConfig {
   private final int asyncProfilerWallIntervalMs;
   private final String asyncProfilerJfrFilePath;
   private final String profilerDataDir;
-  // When true, the OTLP function table filename is the fully-qualified class path (e.g.
-  // "com/example/Foo.java") instead of the simple file name ("Foo.java"). Default false (smaller
-  // string_table). Storage delta is bounded by unique class count thanks to dictionary dedup.
-  private final boolean profilerFullPaths;
 
   // Native OTLP profiles export. profilerEndpoint is the fully-resolved profiles target,
   // resolved by protocol: for http/protobuf it is OTEL_AWS_PROFILER_ENDPOINT verbatim, else the
@@ -221,7 +217,6 @@ public class ServiceEventsConfig {
     this.asyncProfilerWallIntervalMs = builder.asyncProfilerWallIntervalMs;
     this.asyncProfilerJfrFilePath = builder.asyncProfilerJfrFilePath;
     this.profilerDataDir = builder.profilerDataDir;
-    this.profilerFullPaths = builder.profilerFullPaths;
     this.profilerEndpoint = builder.profilerEndpoint;
     this.profilerExportCompression = builder.profilerExportCompression;
     this.profilerExportTimeoutMs = builder.profilerExportTimeoutMs;
@@ -1038,11 +1033,6 @@ public class ServiceEventsConfig {
     return profilerDataDir;
   }
 
-  /** Whether the OTLP function table emits fully-qualified class paths — see field doc. */
-  public boolean isProfilerFullPaths() {
-    return profilerFullPaths;
-  }
-
   /** Fully-resolved native OTLP profiles endpoint URL (used verbatim by the exporter). */
   public String getProfilerEndpoint() {
     return profilerEndpoint;
@@ -1165,7 +1155,6 @@ public class ServiceEventsConfig {
     private int asyncProfilerWallIntervalMs = 10;
     private String asyncProfilerJfrFilePath = "profiler-jfr";
     private String profilerDataDir = "";
-    private boolean profilerFullPaths = false;
     private String profilerEndpoint = DEFAULT_PROFILER_ENDPOINT;
     private String profilerExportCompression = "gzip";
     private int profilerProtocol = PROFILER_PROTOCOL_HTTP_PROTOBUF;
@@ -1363,11 +1352,6 @@ public class ServiceEventsConfig {
 
     public Builder profilerDataDir(String profilerDataDir) {
       this.profilerDataDir = profilerDataDir;
-      return this;
-    }
-
-    public Builder profilerFullPaths(boolean profilerFullPaths) {
-      this.profilerFullPaths = profilerFullPaths;
       return this;
     }
 

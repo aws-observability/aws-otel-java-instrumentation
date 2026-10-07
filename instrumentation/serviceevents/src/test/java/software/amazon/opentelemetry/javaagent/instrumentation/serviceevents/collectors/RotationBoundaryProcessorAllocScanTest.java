@@ -86,7 +86,7 @@ class RotationBoundaryProcessorAllocScanTest {
 
   /** RotationBoundaryProcessor whose scan method we drive directly (no wrapper/exporter needed). */
   private static RotationBoundaryProcessor newProcessor() {
-    return new RotationBoundaryProcessor(10000, null, 60, null, null, false, 0);
+    return new RotationBoundaryProcessor(10000, null, 60, null, null, 0);
   }
 
   private static OtlpProfileBuilder newBuilder() {
@@ -191,8 +191,7 @@ class RotationBoundaryProcessorAllocScanTest {
     TreeMap<Long, SpanMetadata> threadSpans = new TreeMap<>();
     threadSpans.put(
         SPAN_START_NS,
-        new SpanMetadata(
-            ALLOC_THREAD, "POST /alloc", SPAN_START_NS, SPAN_END_NS, TRACE_ID, SPAN_ID));
+        new SpanMetadata("POST /alloc", SPAN_START_NS, SPAN_END_NS, TRACE_ID, SPAN_ID));
     Map<String, TreeMap<Long, SpanMetadata>> spanIndex = new HashMap<>();
     spanIndex.put(ALLOC_THREAD, threadSpans);
 
