@@ -115,7 +115,8 @@ class AwsProfilerAggregationSumContractTest extends ServiceEventsContractTestBas
     traffic.start();
 
     try {
-      applicationLogger.info("=== Waiting for sum-mode OTLP profiles export (JFR rotation ~60s) ===");
+      applicationLogger.info(
+          "=== Waiting for sum-mode OTLP profiles export (JFR rotation ~60s) ===");
       Instant deadline = Instant.now().plus(PROFILE_WAIT);
       while (Instant.now().isBefore(deadline)) {
         try {

@@ -16,10 +16,9 @@
 package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -167,7 +166,8 @@ class OtlpProfileBuilderProtoTest {
       io.opentelemetry.proto.profiles.v1development.Function fn =
           dict.getFunctionTable(loc.getLines(0).getFunctionIndex());
       String name = dict.getStringTable(fn.getNameStrindex());
-      String lib = dict.getStringTable(dict.getMappingTable(loc.getMappingIndex()).getFilenameStrindex());
+      String lib =
+          dict.getStringTable(dict.getMappingTable(loc.getMappingIndex()).getFilenameStrindex());
       if ("start_thread".equals(name)) {
         assertEquals("libc.so.6", lib);
       }

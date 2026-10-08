@@ -218,13 +218,12 @@ class AwsProfilerContractTest extends ServiceEventsContractTestBase {
   @Test
   @Order(1)
   void testWallSamplesCarryThreadStateAttribute() {
-    // In wall mode each sample carries a thread.state attribute (RUNNABLE on-CPU / SLEEPING off-CPU)
+    // In wall mode each sample carries a thread.state attribute (RUNNABLE on-CPU / SLEEPING
+    // off-CPU)
     // so a backend can split on- vs off-CPU time. This is the wall-mode counterpart of
     // AwsProfilerCpuModeContractTest#testCpuSamplesCarryNoThreadStateAttribute.
     String state = anyAttributeValue("thread.state");
-    assertThat(state)
-        .as("wall-mode samples must carry a thread.state attribute")
-        .isNotNull();
+    assertThat(state).as("wall-mode samples must carry a thread.state attribute").isNotNull();
     assertThat(state).isNotEmpty();
   }
 

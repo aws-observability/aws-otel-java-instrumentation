@@ -449,12 +449,14 @@ public final class OtlpProfileBuilder {
     // string_table (index 0 == "")
     dictionary.addAllStringTable(stringTable);
 
-    // mapping_table: index 0 is the empty sentinel ("mapping unknown or not applicable", used by Java
+    // mapping_table: index 0 is the empty sentinel ("mapping unknown or not applicable", used by
+    // Java
     // frames); one entry per shared library that native/C++ frames came from, with filename = the
     // library as recorded by async-profiler (e.g. "libc.so.6"). Addresses/build ids are not in the
     // JFR, so only the filename is set.
     for (int filenameStrindex : mappingTable) {
-      dictionary.addMappingTable(Mapping.newBuilder().setFilenameStrindex(filenameStrindex).build());
+      dictionary.addMappingTable(
+          Mapping.newBuilder().setFilenameStrindex(filenameStrindex).build());
     }
 
     // function_table (index 0 == all-zero sentinel)
@@ -468,7 +470,8 @@ public final class OtlpProfileBuilder {
               .build());
     }
 
-    // location_table (index 0 == {0,0,0} sentinel). Each location carries exactly one line; JFR does
+    // location_table (index 0 == {0,0,0} sentinel). Each location carries exactly one line; JFR
+    // does
     // not expose a column, so only function_index + line are set, plus the mapping (library) for
     // native/C++ frames.
     for (int[] loc : locationTable) {

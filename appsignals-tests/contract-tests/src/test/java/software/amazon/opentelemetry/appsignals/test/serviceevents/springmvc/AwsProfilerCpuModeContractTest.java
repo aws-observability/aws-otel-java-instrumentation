@@ -46,10 +46,11 @@ import software.amazon.opentelemetry.appsignals.test.serviceevents.base.ServiceE
  *
  * <p>The wall-mode path is covered by {@link AwsProfilerContractTest}; this asserts the cpu-mode
  * differences that only surface end-to-end: the primary Profile is {@code {cpu, nanoseconds}} (not
- * {@code wall}), and cpu samples carry <b>no</b> {@code thread.state} attribute (every on-CPU sample
- * is {@code STATE_DEFAULT}, so the builder omits it — see {@code OtlpProfileBuilder.isPrimaryWall}).
- * Request correlation still applies, so samples on request threads carry the {@code operation}
- * attribute. Memory profiling is left off to keep the focus on the on-CPU primary profile.
+ * {@code wall}), and cpu samples carry <b>no</b> {@code thread.state} attribute (every on-CPU
+ * sample is {@code STATE_DEFAULT}, so the builder omits it — see {@code
+ * OtlpProfileBuilder.isPrimaryWall}). Request correlation still applies, so samples on request
+ * threads carry the {@code operation} attribute. Memory profiling is left off to keep the focus on
+ * the on-CPU primary profile.
  *
  * <p>cpu sampling uses perf_events with a ctimer fallback, so it produces samples in a container
  * without perf privileges. Requires Docker/testcontainers, the built agent jar, and the
@@ -126,7 +127,8 @@ class AwsProfilerCpuModeContractTest extends ServiceEventsContractTestBase {
     traffic.start();
 
     try {
-      applicationLogger.info("=== Waiting for cpu-mode OTLP profiles export (JFR rotation ~60s) ===");
+      applicationLogger.info(
+          "=== Waiting for cpu-mode OTLP profiles export (JFR rotation ~60s) ===");
       Instant deadline = Instant.now().plus(PROFILE_WAIT);
       while (Instant.now().isBefore(deadline)) {
         try {

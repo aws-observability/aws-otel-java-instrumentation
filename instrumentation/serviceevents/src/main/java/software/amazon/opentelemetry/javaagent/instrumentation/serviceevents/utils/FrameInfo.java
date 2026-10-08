@@ -19,8 +19,8 @@ package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.ut
  * One stack frame as read from the JFR.
  *
  * <p>For a Java frame, {@code typeName} is the dotted declaring class and {@code libraryName} is
- * empty. For a native, C++ or kernel frame, {@code typeName} is empty and {@code libraryName} is the
- * shared library the frame belongs to (e.g. {@code libc.so.6}), or empty when unknown. {@code
+ * empty. For a native, C++ or kernel frame, {@code typeName} is empty and {@code libraryName} is
+ * the shared library the frame belongs to (e.g. {@code libc.so.6}), or empty when unknown. {@code
  * fileName} is the source file name for Java frames (derived from the outer class, e.g. {@code
  * Foo.java}) and empty for native, C++ and kernel frames. Null arguments are normalized to empty
  * strings.
