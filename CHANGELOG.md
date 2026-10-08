@@ -13,6 +13,14 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- feat: add an opt-in continuous code profiler (async-profiler based) that exports native OTLP
+  profiles. Enabled with `OTEL_AWS_PROFILER_ENABLED=true`; supports `wall` (default) and `cpu`
+  modes (`OTEL_AWS_PROFILER_MODE`), optional allocation profiling
+  (`OTEL_AWS_PROFILER_MEMORY_ENABLED`), a per-sample `thread.state` attribute on wall profiles, and
+  per-sample span correlation (`operation` attribute + trace/span link). Exports over OTLP/HTTP
+  protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
+  behavior change unless enabled.
+  ([#1457](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1457))
 - Bump jackson-bom to 2.22.3 to fix CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, and
   CVE-2026-91777
   ([#1464](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1464))

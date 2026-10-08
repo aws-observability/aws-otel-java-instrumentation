@@ -156,8 +156,10 @@ public class ServiceEventsInstrumentationModule extends InstrumentationModule {
 
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {
-      // Master kill switch: when OTEL_AWS_SERVICE_EVENTS_ENABLED is false, disable all servlet
-      // instrumentation. This ensures zero ServiceEvents overhead on the request path.
+      // Activate the servlet advice only when ServiceEvents is enabled. It manages ServiceEvents
+      // request-scoped state (operation context + investigation data); profiler correlation is
+      // SpanProcessor-driven and does not use it. When ServiceEvents is off this is a hard kill
+      // switch: zero overhead on the request path.
       if (!CONFIG.isEnabled()) {
         return ElementMatchers.none();
       }
@@ -264,7 +266,9 @@ public class ServiceEventsInstrumentationModule extends InstrumentationModule {
       }
 
       // Endpoint + incident recording lives in ServiceEventsSpanProcessor.onEnd(). This advice
-      // only manages request-scoped bootstrap state (thread-local cleanup).
+      // only manages ServiceEvents request-scoped bootstrap state (operation context + call-stack
+      // cleanup). Profiler correlation does not flow through the servlet advice — the
+      // SpanProcessor writes profiler.Span markers directly.
       try {
         software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.clearCurrentOperation();
         software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.clearCallStack();

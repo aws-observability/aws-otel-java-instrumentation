@@ -51,6 +51,25 @@ class ServiceEventsConfigTest {
     "otel.aws.service_events.function.instrument.enabled",
     "otel.aws.service_events.enabled",
     "otel.aws.application.signals.enabled",
+    // Profiler enablement flag.
+    "otel.aws.profiler.enabled",
+    // Profiler mode, sampling intervals, and data dir.
+    "otel.aws.profiler.mode",
+    "otel.aws.profiler.cpu.interval.ms",
+    "otel.aws.profiler.wall.interval.ms",
+    "otel.aws.profiler.data.dir",
+    // Native OTLP profiles export knobs.
+    "otel.aws.profiler.endpoint",
+    "otel.aws.profiler.export.compression",
+    "otel.aws.profiler.export.timeout.ms",
+    "otel.aws.profiler.max.payload.bytes",
+    "otel.aws.profiler.aggregation.mode",
+    // Shared OTLP transport protocol (profiler reads it; no per-signal profiles var).
+    "otel.exporter.otlp.protocol",
+    "otel.exporter.otlp.endpoint",
+    // Memory/allocation profiling knobs.
+    "otel.aws.profiler.memory.enabled",
+    "otel.aws.profiler.alloc.interval.bytes",
     "otel.aws.otlp.logs.endpoint",
     "otel.aws.otlp.metrics.endpoint",
     "aws.lambda.function.name",
@@ -120,6 +139,31 @@ class ServiceEventsConfigTest {
   }
 
   @Test
+  void profilerMemory_defaults_offAnd512KiB() {
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertFalse(cfg.isProfilerMemoryEnabled(), "memory profiling must default OFF");
+    assertEquals(524288L, cfg.getProfilerAllocIntervalBytes());
+  }
+
+  @Test
+  void profilerMemory_enabledAndIntervalOverridable() {
+    System.setProperty("otel.aws.profiler.memory.enabled", "true");
+    System.setProperty("otel.aws.profiler.alloc.interval.bytes", "1048576");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertTrue(cfg.isProfilerMemoryEnabled());
+    assertEquals(1048576L, cfg.getProfilerAllocIntervalBytes());
+  }
+
+  @Test
+  void profilerMemory_invalidInterval_fallsBackToDefault() {
+    // Non-numeric -> getLongEnv default; zero/negative -> Builder clamp to the 512 KiB default.
+    System.setProperty("otel.aws.profiler.alloc.interval.bytes", "not-a-number");
+    assertEquals(524288L, ServiceEventsConfig.fromEnv().getProfilerAllocIntervalBytes());
+    System.setProperty("otel.aws.profiler.alloc.interval.bytes", "0");
+    assertEquals(524288L, ServiceEventsConfig.fromEnv().getProfilerAllocIntervalBytes());
+  }
+
+  @Test
   void serviceCodeNamespace_defaultIsEmpty() {
     ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
     assertTrue(cfg.getServiceCodeNamespace().isEmpty());
@@ -138,6 +182,224 @@ class ServiceEventsConfigTest {
     ServiceEventsConfig cfg =
         new ServiceEventsConfig.Builder().serviceCodeNamespace("com.acme.orders").build();
     assertEquals("com.acme.orders", cfg.getServiceCodeNamespace());
+  }
+
+  // ───── Native OTLP profiles endpoint resolver + export knobs ─────
+
+  @Test
+  void profilerEndpoint_unset_defaultsToLocalhostWithProfilesPath() {
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals("http://localhost:4318/v1development/profiles", cfg.getProfilerEndpoint());
+  }
+
+  @Test
+  void profilerEndpoint_setUsedVerbatim() {
+    System.setProperty("otel.aws.profiler.endpoint", "https://collector.example.com/custom/path");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    // A full PROFILER_ENDPOINT is used verbatim — the profiles path is NOT appended.
+    assertEquals("https://collector.example.com/custom/path", cfg.getProfilerEndpoint());
+  }
+
+  @Test
+  void profilerEndpoint_setToBaseIsUsedVerbatim_noPathAppended() {
+    System.setProperty("otel.aws.profiler.endpoint", "http://collector:4318");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals("http://collector:4318", cfg.getProfilerEndpoint());
+  }
+
+  private static final int HTTP = ServiceEventsConfig.PROFILER_PROTOCOL_HTTP_PROTOBUF;
+  private static final int GRPC = ServiceEventsConfig.PROFILER_PROTOCOL_GRPC;
+
+  @Test
+  void resolveProfilerEndpoint_nullOrEmpty_returnsDefault() {
+    assertEquals(
+        "http://localhost:4318/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint(null, null, HTTP));
+    assertEquals(
+        "http://localhost:4318/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint("   ", "  ", HTTP));
+  }
+
+  @Test
+  void resolveProfilerEndpoint_setValueTrimmedAndVerbatim() {
+    assertEquals(
+        "http://foo:9999/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint(
+            "  http://foo:9999/v1development/profiles  ", null, HTTP));
+    assertEquals(
+        "http://foo:9999/custom",
+        ServiceEventsConfig.resolveProfilerEndpoint("http://foo:9999/custom", null, HTTP));
+  }
+
+  @Test
+  void resolveProfilerEndpoint_fallsBackToOtlpBase_withProfilesPathAppended() {
+    // OTEL_EXPORTER_OTLP_ENDPOINT base (no path) -> append profiles path
+    assertEquals(
+        "http://collector:4318/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint(null, "http://collector:4318", HTTP));
+    // trailing slash safe
+    assertEquals(
+        "http://collector:4318/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint(null, "  http://collector:4318/  ", HTTP));
+    // idempotent if the base already ends in the profiles path
+    assertEquals(
+        "http://collector:4318/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint(
+            null, "http://collector:4318/v1development/profiles", HTTP));
+  }
+
+  @Test
+  void resolveProfilerEndpoint_explicitProfilerEndpointWinsOverOtlpBase() {
+    // OTEL_AWS_PROFILER_ENDPOINT takes precedence over the OTLP base and stays verbatim
+    assertEquals(
+        "http://profiles-host/v1development/profiles",
+        ServiceEventsConfig.resolveProfilerEndpoint(
+            "http://profiles-host/v1development/profiles", "http://collector:4318", HTTP));
+  }
+
+  @Test
+  void resolveProfilerEndpoint_grpc_defaultsTo4317WithNoPath() {
+    assertEquals(
+        "http://localhost:4317", ServiceEventsConfig.resolveProfilerEndpoint(null, null, GRPC));
+  }
+
+  @Test
+  void resolveProfilerEndpoint_grpc_otlpBaseUsedAsIsNoPath() {
+    // gRPC targets host:port — the profiles path is NOT appended; trailing slashes are stripped.
+    assertEquals(
+        "http://collector:4317",
+        ServiceEventsConfig.resolveProfilerEndpoint(null, "http://collector:4317", GRPC));
+    assertEquals(
+        "http://collector:4317",
+        ServiceEventsConfig.resolveProfilerEndpoint(null, "  http://collector:4317/  ", GRPC));
+  }
+
+  @Test
+  void resolveProfilerEndpoint_grpc_explicitProfilerEndpointVerbatim() {
+    assertEquals(
+        "http://grpc-host:4317",
+        ServiceEventsConfig.resolveProfilerEndpoint(
+            "http://grpc-host:4317", "http://x:4318", GRPC));
+  }
+
+  @Test
+  void profilerProtocol_defaultsToHttpProtobuf_whenUnset() {
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals(HTTP, cfg.getProfilerProtocol());
+    assertEquals("http://localhost:4318/v1development/profiles", cfg.getProfilerEndpoint());
+  }
+
+  @Test
+  void profilerProtocol_grpc_fromSharedOtlpProtocol_switchesDefaultEndpointTo4317() {
+    System.setProperty("otel.exporter.otlp.protocol", "grpc");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals(GRPC, cfg.getProfilerProtocol());
+    // gRPC default endpoint is 4317 with no profiles path.
+    assertEquals("http://localhost:4317", cfg.getProfilerEndpoint());
+  }
+
+  @Test
+  void profilerProtocol_grpc_usesOtlpBaseVerbatim_noPath() {
+    System.setProperty("otel.exporter.otlp.protocol", "grpc");
+    System.setProperty("otel.exporter.otlp.endpoint", "http://collector:4317");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals(GRPC, cfg.getProfilerProtocol());
+    assertEquals("http://collector:4317", cfg.getProfilerEndpoint());
+  }
+
+  @Test
+  void profilerProtocol_httpJson_fallsBackToHttpProtobuf() {
+    // http/json is a valid OTLP value the profiler's exporters don't implement -> fall back to
+    // HTTP.
+    System.setProperty("otel.exporter.otlp.protocol", "http/json");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals(HTTP, cfg.getProfilerProtocol());
+    assertEquals("http://localhost:4318/v1development/profiles", cfg.getProfilerEndpoint());
+  }
+
+  @Test
+  void appendProfilesPath_appendsExactlyOnce_andIsTrailingSlashSafe() {
+    assertEquals(
+        "http://x:4318/v1development/profiles",
+        ServiceEventsConfig.appendProfilesPath("http://x:4318"));
+    assertEquals(
+        "http://x:4318/v1development/profiles",
+        ServiceEventsConfig.appendProfilesPath("http://x:4318/"));
+    // Idempotent: a base already ending in the profiles path is returned unchanged.
+    assertEquals(
+        "http://x:4318/v1development/profiles",
+        ServiceEventsConfig.appendProfilesPath("http://x:4318/v1development/profiles"));
+  }
+
+  @Test
+  void profilerExportCompression_defaultsToGzip() {
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals("gzip", cfg.getProfilerExportCompression());
+  }
+
+  @Test
+  void profilerExportCompression_overridable() {
+    System.setProperty("otel.aws.profiler.export.compression", "none");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals("none", cfg.getProfilerExportCompression());
+  }
+
+  @Test
+  void profilerExportTimeoutMs_defaultAndOverride() {
+    assertEquals(10000, ServiceEventsConfig.fromEnv().getProfilerExportTimeoutMs());
+    System.setProperty("otel.aws.profiler.export.timeout.ms", "2500");
+    assertEquals(2500, ServiceEventsConfig.fromEnv().getProfilerExportTimeoutMs());
+  }
+
+  @Test
+  void profilerMaxPayloadBytes_defaultsTo64MiB() {
+    assertEquals(64L * 1024L * 1024L, ServiceEventsConfig.fromEnv().getProfilerMaxPayloadBytes());
+  }
+
+  @Test
+  void profilerMaxPayloadBytes_overridable() {
+    System.setProperty("otel.aws.profiler.max.payload.bytes", "2097152");
+    assertEquals(2_097_152L, ServiceEventsConfig.fromEnv().getProfilerMaxPayloadBytes());
+  }
+
+  @Test
+  void profilerMaxPayloadBytes_zeroDisablesGuard_negativeNormalizedToZero() {
+    // 0 passes through (guard disabled); negative is normalized to 0 (also disabled).
+    System.setProperty("otel.aws.profiler.max.payload.bytes", "0");
+    assertEquals(0L, ServiceEventsConfig.fromEnv().getProfilerMaxPayloadBytes());
+    System.setProperty("otel.aws.profiler.max.payload.bytes", "-1");
+    assertEquals(0L, ServiceEventsConfig.fromEnv().getProfilerMaxPayloadBytes());
+  }
+
+  @Test
+  void profilerMaxPayloadBytes_invalidValue_fallsBackToDefault() {
+    System.setProperty("otel.aws.profiler.max.payload.bytes", "not-a-number");
+    assertEquals(64L * 1024L * 1024L, ServiceEventsConfig.fromEnv().getProfilerMaxPayloadBytes());
+  }
+
+  // ───── Aggregation mode (name-valued: none|full|sum, default none) ─────
+
+  @Test
+  void profilerAggregationMode_defaultsToNone() {
+    // Default is NONE (0) — one OTLP Sample per raw sample; widest backend compatibility.
+    assertEquals(0, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+  }
+
+  @Test
+  void profilerAggregationMode_parsesNamesCaseInsensitively() {
+    System.setProperty("otel.aws.profiler.aggregation.mode", "none");
+    assertEquals(0, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+    System.setProperty("otel.aws.profiler.aggregation.mode", "SUM");
+    assertEquals(2, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+    System.setProperty("otel.aws.profiler.aggregation.mode", "  Full ");
+    assertEquals(1, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+  }
+
+  @Test
+  void profilerAggregationMode_unknownFallsBackToNone() {
+    // A typo must not silently select full (not pprof-compatible); it falls back to the default.
+    System.setProperty("otel.aws.profiler.aggregation.mode", "bogus");
+    assertEquals(0, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
   }
 
   // ───── Bundling rule (OTEL_AWS_SERVICE_EVENTS_ENABLED × APPLICATION_SIGNALS × Lambda) ─────
@@ -179,6 +441,92 @@ class ServiceEventsConfigTest {
     System.setProperty("otel.aws.application.signals.enabled", "true");
     ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
     assertFalse(cfg.isEnabled());
+  }
+
+  // ───── Profiler enablement (OTEL_AWS_PROFILER_ENABLED flag) ─────
+
+  @Test
+  void profilerEnabled_defaultFalse() {
+    // No flags set → profiler off (off by default).
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertFalse(cfg.isProfilerEnabled());
+    assertFalse(cfg.isAsyncProfilerEnabled());
+  }
+
+  @Test
+  void profilerEnabled_canonicalFlagTrue() {
+    System.setProperty("otel.aws.profiler.enabled", "true");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertTrue(cfg.isProfilerEnabled());
+    // Alias getter returns the same resolved state.
+    assertTrue(cfg.isAsyncProfilerEnabled());
+  }
+
+  @Test
+  void profilerEnabled_decoupledFromServiceEvents() {
+    // Profiler ON while ServiceEvents / App Signals stay OFF: isProfilerEnabled is true and
+    // isEnabled is false — the profiler init path runs independently of ServiceEvents.
+    System.setProperty("otel.aws.profiler.enabled", "true");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertTrue(cfg.isProfilerEnabled());
+    assertFalse(cfg.isEnabled());
+  }
+
+  @Test
+  void profilerEnabled_allFlagsUnset_profilerAndServiceEventsBothOff() {
+    // Baseline no-op: with nothing set, neither ServiceEvents nor the profiler is enabled.
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertFalse(cfg.isEnabled());
+    assertFalse(cfg.isProfilerEnabled());
+  }
+
+  @Test
+  void profilerEnabled_builder() {
+    ServiceEventsConfig cfg = new ServiceEventsConfig.Builder().asyncProfilerEnabled(true).build();
+    assertTrue(cfg.isProfilerEnabled());
+  }
+
+  // ───── Profiler mode / sampling intervals / data dir ─────
+
+  @Test
+  void profilerMode_default_isWall() {
+    assertEquals(
+        ServiceEventsConfig.PROFILER_MODE_WALL, ServiceEventsConfig.fromEnv().getProfilerMode());
+  }
+
+  @Test
+  void profilerMode_cpu() {
+    System.setProperty("otel.aws.profiler.mode", "cpu");
+    assertEquals(
+        ServiceEventsConfig.PROFILER_MODE_CPU, ServiceEventsConfig.fromEnv().getProfilerMode());
+  }
+
+  @Test
+  void profilerMode_unknown_fallsBackToWall() {
+    System.setProperty("otel.aws.profiler.mode", "bogus");
+    assertEquals(
+        ServiceEventsConfig.PROFILER_MODE_WALL, ServiceEventsConfig.fromEnv().getProfilerMode());
+  }
+
+  @Test
+  void profilerCpuIntervalMs_defaultAndOverride() {
+    assertEquals(10, ServiceEventsConfig.fromEnv().getAsyncProfilerCpuIntervalMs());
+    System.setProperty("otel.aws.profiler.cpu.interval.ms", "25");
+    assertEquals(25, ServiceEventsConfig.fromEnv().getAsyncProfilerCpuIntervalMs());
+  }
+
+  @Test
+  void profilerWallIntervalMs_defaultAndOverride() {
+    assertEquals(10, ServiceEventsConfig.fromEnv().getAsyncProfilerWallIntervalMs());
+    System.setProperty("otel.aws.profiler.wall.interval.ms", "15");
+    assertEquals(15, ServiceEventsConfig.fromEnv().getAsyncProfilerWallIntervalMs());
+  }
+
+  @Test
+  void profilerDataDir_defaultEmptyAndOverride() {
+    assertEquals("", ServiceEventsConfig.fromEnv().getProfilerDataDir());
+    System.setProperty("otel.aws.profiler.data.dir", "/tmp/x");
+    assertEquals("/tmp/x", ServiceEventsConfig.fromEnv().getProfilerDataDir());
   }
 
   // ───── Application Signals bundling flag (mirrored onto ServiceEvents config) ─────
