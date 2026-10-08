@@ -66,7 +66,8 @@ class MockCollectorProfilesService {
    * Decode one gRPC-framed {@code ExportProfilesServiceRequest} and store it. gRPC length-prefixed
    * framing is {@code [1-byte compressed flag][4-byte big-endian length][message]}; when the flag
    * is set the message is gzip-compressed (the exporter sets {@code grpc-encoding: gzip}). Shares
-   * the same queue as the HTTP route so {@code getRequests()} returns profiles from both transports.
+   * the same queue as the HTTP route so {@code getRequests()} returns profiles from both
+   * transports.
    */
   void consumeGrpcFramed(byte[] frame) throws Exception {
     if (frame == null || frame.length < 5) {

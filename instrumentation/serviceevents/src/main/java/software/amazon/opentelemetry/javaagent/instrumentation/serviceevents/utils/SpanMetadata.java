@@ -31,8 +31,7 @@ public final class SpanMetadata {
   public final String traceId;
   public final String spanId;
 
-  public SpanMetadata(
-      String operation, long startNs, long endNs, String traceId, String spanId) {
+  public SpanMetadata(String operation, long startNs, long endNs, String traceId, String spanId) {
     this.operation = operation;
     this.startNs = startNs;
     this.endNs = endNs;

@@ -305,8 +305,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
         long endNs = jfr.eventTimeToNanos(event.time + event.duration);
 
         SpanMetadata meta =
-            new SpanMetadata(
-                decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
+            new SpanMetadata(decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
         // Keyed by startNs. On the (negligible) chance two spans on one thread share an identical
         // startNs, keep the one with the larger endNs (the enclosing/longer span) rather than let a
         // later put() arbitrarily drop the other's operation/trace metadata.
@@ -516,15 +515,15 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * <p>Frames are classified exactly like async-profiler's own converter ({@code
    * one.convert.JfrConverter#isNativeFrame}): native (C), C++ and kernel frames are not Java
    * methods, and for them async-profiler stores the shared library (e.g. {@code libc.so.6}) in the
-   * JFR "class" field. Such frames get no declaring class — the bare symbol becomes the function name
-   * and the library is kept separately ({@link FrameInfo#libraryName}) — instead of being rendered as
-   * a bogus Java class ({@code libc.so.6.start_thread}). Only Java frames get a source file name,
-   * derived from the outer class (see {@link #sourceFileName}); native, C++ and kernel frames have
-   * none.
+   * JFR "class" field. Such frames get no declaring class — the bare symbol becomes the function
+   * name and the library is kept separately ({@link FrameInfo#libraryName}) — instead of being
+   * rendered as a bogus Java class ({@code libc.so.6.start_thread}). Only Java frames get a source
+   * file name, derived from the outer class (see {@link #sourceFileName}); native, C++ and kernel
+   * frames have none.
    *
    * <p>Java class names are normalized like async-profiler's {@code --norm} option (see {@link
-   * #normalizeHiddenClassName}), so a lambda or other hidden class gets the same frame name on every
-   * JVM run.
+   * #normalizeHiddenClassName}), so a lambda or other hidden class gets the same frame name on
+   * every JVM run.
    */
   private List<FrameInfo> formatFrameListStructured(JfrReader jfr, int stackTraceId) {
     StackTrace stackTrace = jfr.stackTraces.get(stackTraceId);
@@ -536,7 +535,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
     int[] locations = stackTrace.locations;
     byte[] types = stackTrace.types;
     // In the JDK's own Flight Recorder, frame type 3 ("Native") is a Java native method (e.g.
-    // Object.wait0); in async-profiler recordings it is a C function. async-profiler tells them apart
+    // Object.wait0); in async-profiler recordings it is a C function. async-profiler tells them
+    // apart
     // by whether the recording's FrameType enum defines the kernel type, which only async-profiler
     // writes. Mirror that check exactly.
     boolean nativeTypeIsC = jfr.getEnumValue("jdk.types.FrameType", FRAME_TYPE_KERNEL) != null;
@@ -557,7 +557,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
       String methodName = resolveMethodName(jfr, method);
       byte type = types != null && i < types.length ? types[i] : 0;
       if (isNonJavaFrame(type, nativeTypeIsC)) {
-        result.add(new FrameInfo("", methodName, "", lineNumber, resolveRawClassSymbol(jfr, method)));
+        result.add(
+            new FrameInfo("", methodName, "", lineNumber, resolveRawClassSymbol(jfr, method)));
       } else {
         String typeName = javaTypeName(resolveRawClassSymbol(jfr, method));
         result.add(new FrameInfo(typeName, methodName, sourceFileName(typeName), lineNumber));
@@ -571,8 +572,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * Whether a frame is a native (C), C++ or kernel frame rather than a Java method — a port of
    * async-profiler's {@code JfrConverter#isNativeFrame}. Package-private for unit testing.
    *
-   * @param nativeTypeIsC true for async-profiler recordings, where type 3 is a C function; false for
-   *     JDK Flight Recorder recordings, where type 3 is a Java native method
+   * @param nativeTypeIsC true for async-profiler recordings, where type 3 is a C function; false
+   *     for JDK Flight Recorder recordings, where type 3 is a Java native method
    */
   static boolean isNonJavaFrame(byte type, boolean nativeTypeIsC) {
     return (type == FRAME_TYPE_NATIVE && nativeTypeIsC)
@@ -633,8 +634,8 @@ public class RotationBoundaryProcessor extends BaseCollector {
    * Source file name for a dotted Java class name: the outer class plus {@code .java}, e.g. {@code
    * Foo.java} for {@code com.example.Foo$Inner} or {@code com.example.Foo$$Lambda}. The JFR does
    * not record source files, so this is a best guess (a Kotlin file {@code Foo.kt} shows as {@code
-   * FooKt.java}). Empty when there is no class name or no outer class name. Package-private for unit
-   * testing.
+   * FooKt.java}). Empty when there is no class name or no outer class name. Package-private for
+   * unit testing.
    */
   static String sourceFileName(String typeName) {
     String simpleName = typeName.substring(typeName.lastIndexOf('.') + 1);

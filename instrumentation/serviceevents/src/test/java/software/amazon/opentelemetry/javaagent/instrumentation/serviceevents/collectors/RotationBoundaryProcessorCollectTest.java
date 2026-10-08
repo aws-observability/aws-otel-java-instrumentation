@@ -38,10 +38,10 @@ import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.uti
 
 /**
  * Drives {@link RotationBoundaryProcessor#collect()} against a temp data dir seeded with two
- * fixture JFRs, exercising the full rotation path (rotation detection, {@code
- * findPreviousJfrFile}, {@code parseJfrFilenameTimestamp}, {@code processRotatedFile}, the scan,
- * and export) without a live async-profiler session — a fake wrapper reports available/running and
- * points at the temp dir.
+ * fixture JFRs, exercising the full rotation path (rotation detection, {@code findPreviousJfrFile},
+ * {@code parseJfrFilenameTimestamp}, {@code processRotatedFile}, the scan, and export) without a
+ * live async-profiler session — a fake wrapper reports available/running and points at the temp
+ * dir.
  */
 class RotationBoundaryProcessorCollectTest {
 
@@ -92,7 +92,8 @@ class RotationBoundaryProcessorCollectTest {
 
   @Test
   void collect_onRotation_processesCompletedFile_andExports(@TempDir Path dir) throws Exception {
-    // Two rotated files; when the newer appears the OLDER (completed) one is processed exactly once.
+    // Two rotated files; when the newer appears the OLDER (completed) one is processed exactly
+    // once.
     Files.copy(fixture(), dir.resolve("profiler-jfr-20260101-000000.jfr"));
     Files.copy(fixture(), dir.resolve("profiler-jfr-20260101-000100.jfr"));
 
@@ -141,12 +142,7 @@ class RotationBoundaryProcessorCollectTest {
     CapturingExporter exporter = new CapturingExporter();
     RotationBoundaryProcessor proc =
         new RotationBoundaryProcessor(
-            10_000,
-            new FakeWrapper(dir, AsyncProfilerWrapper.MODE_CPU),
-            60,
-            null,
-            exporter,
-            0);
+            10_000, new FakeWrapper(dir, AsyncProfilerWrapper.MODE_CPU), 60, null, exporter, 0);
 
     proc.collect();
 
@@ -200,8 +196,7 @@ class RotationBoundaryProcessorCollectTest {
     // A file that isn't a valid JFR -> JfrReader ctor throws IOException -> caught, returns 0.
     Path garbage = dir.resolve("profiler-jfr-bad.jfr");
     Files.write(garbage, new byte[] {1, 2, 3, 4, 5});
-    RotationBoundaryProcessor proc =
-        new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
+    RotationBoundaryProcessor proc = new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
 
     OtlpProfileBuilder builder = new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L);
     Map<String, TreeMap<Long, SpanMetadata>> spanIndex = new HashMap<>();
@@ -235,7 +230,8 @@ class RotationBoundaryProcessorCollectTest {
   void normalizeHiddenClassName_stripsPerRunSuffixLikeAsyncProfilerNorm() {
     // Lambda and hidden-class names as recorded by different JDKs (from a live capture).
     assertEquals(
-        "Foo$$Lambda$344", RotationBoundaryProcessor.normalizeHiddenClassName("Foo$$Lambda$344/7064297"));
+        "Foo$$Lambda$344",
+        RotationBoundaryProcessor.normalizeHiddenClassName("Foo$$Lambda$344/7064297"));
     assertEquals(
         "Foo$$Lambda$345",
         RotationBoundaryProcessor.normalizeHiddenClassName("Foo$$Lambda$345/0x00007f5e78000c10"));
@@ -254,7 +250,9 @@ class RotationBoundaryProcessorCollectTest {
             "com/example/Foo$$Lambda+0x00007f8177090218/543846639"));
     // Ordinary class names are untouched, including digits elsewhere in the name.
     for (String unchanged :
-        new String[] {"com/example/Foo", "Foo$1", "com/v2/Foo", "com/example/Foo$Inner2", "", "F"}) {
+        new String[] {
+          "com/example/Foo", "Foo$1", "com/v2/Foo", "com/example/Foo$Inner2", "", "F"
+        }) {
       assertEquals(unchanged, RotationBoundaryProcessor.normalizeHiddenClassName(unchanged));
     }
   }
@@ -290,14 +288,14 @@ class RotationBoundaryProcessorCollectTest {
   @Test
   void scan_namesFramesExactlyLikeAsyncProfiler_withLibrariesAsMappings(@TempDir Path dir)
       throws Exception {
-    RotationBoundaryProcessor proc =
-        new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
-    OtlpProfileBuilder builder =
-        new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L, 524_288L);
+    RotationBoundaryProcessor proc = new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
+    OtlpProfileBuilder builder = new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L, 524_288L);
     proc.scanJfrFileSinglePass(
         fixture(), new HashMap<String, TreeMap<Long, SpanMetadata>>(), builder, new HashMap<>());
     io.opentelemetry.proto.profiles.v1development.ProfilesDictionary ours =
-        builder.toExportRequest(io.opentelemetry.sdk.resources.Resource.getDefault()).getDictionary();
+        builder
+            .toExportRequest(io.opentelemetry.sdk.resources.Resource.getDefault())
+            .getDictionary();
 
     // async-profiler reference: wall (execution) samples, and allocation samples, dotted names.
     java.util.Set<String> expected = new java.util.TreeSet<>();
@@ -332,13 +330,15 @@ class RotationBoundaryProcessorCollectTest {
     assertEquals("Reference.java", fileByName.get("java.lang.ref.Reference$ReferenceHandler.run"));
     assertEquals(
         "AbstractQueuedSynchronizer.java",
-        fileByName.get("java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await"));
+        fileByName.get(
+            "java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await"));
 
     // Native frames: bare symbol + library as a Mapping (e.g. start_thread in libc.so.6).
     boolean sawStartThread = false;
     for (io.opentelemetry.proto.profiles.v1development.Location loc : ours.getLocationTableList()) {
       String fn =
-          ours.getStringTable(ours.getFunctionTable(loc.getLines(0).getFunctionIndex()).getNameStrindex());
+          ours.getStringTable(
+              ours.getFunctionTable(loc.getLines(0).getFunctionIndex()).getNameStrindex());
       String lib =
           ours.getStringTable(ours.getMappingTable(loc.getMappingIndex()).getFilenameStrindex());
       if ("start_thread".equals(fn)) {
@@ -376,7 +376,8 @@ class RotationBoundaryProcessorCollectTest {
     try (one.jfr.JfrReader r = new one.jfr.JfrReader(fixture().toString())) {
       for (one.jfr.event.Event e; (e = r.readEvent()) != null; ) {
         boolean isSample =
-            e instanceof one.jfr.event.ExecutionSample || e instanceof one.jfr.event.AllocationSample;
+            e instanceof one.jfr.event.ExecutionSample
+                || e instanceof one.jfr.event.AllocationSample;
         if (isSample && e.stackTraceId != 0 && thread.equals(r.threads.get(e.tid))) {
           sampleTimes.add(r.eventTimeToNanos(e.time));
         }
@@ -391,15 +392,17 @@ class RotationBoundaryProcessorCollectTest {
     spans.put(
         spanStart,
         new SpanMetadata(
-            "GET /first-half", spanStart, spanEnd, "0af7651916cd43dd8448eb211c80319c", "b7ad6b7169203331"));
+            "GET /first-half",
+            spanStart,
+            spanEnd,
+            "0af7651916cd43dd8448eb211c80319c",
+            "b7ad6b7169203331"));
     Map<String, TreeMap<Long, SpanMetadata>> spanIndex = new HashMap<>();
     spanIndex.put(thread, spans);
 
-    RotationBoundaryProcessor proc =
-        new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
+    RotationBoundaryProcessor proc = new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
     // Default aggregation (none): one OTLP sample per observation, each with its own timestamp.
-    OtlpProfileBuilder builder =
-        new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L, 524_288L);
+    OtlpProfileBuilder builder = new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L, 524_288L);
     proc.scanJfrFileSinglePass(fixture(), spanIndex, builder, new HashMap<>());
     ExportProfilesServiceRequest request =
         builder.toExportRequest(io.opentelemetry.sdk.resources.Resource.getDefault());
@@ -459,8 +462,7 @@ class RotationBoundaryProcessorCollectTest {
   @Test
   void parseJfrFilenameTimestamp_parsesValidName_elseFallsBackToLastModified(@TempDir Path dir)
       throws Exception {
-    RotationBoundaryProcessor proc =
-        new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
+    RotationBoundaryProcessor proc = new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
 
     // Valid %t name -> parsed epoch (not the file mtime).
     File good = dir.resolve("profiler-jfr-20260309-172942.jfr").toFile();
