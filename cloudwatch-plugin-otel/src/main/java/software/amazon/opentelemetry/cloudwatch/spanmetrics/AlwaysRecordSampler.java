@@ -24,6 +24,7 @@ import io.opentelemetry.sdk.trace.samplers.Sampler;
 import io.opentelemetry.sdk.trace.samplers.SamplingDecision;
 import io.opentelemetry.sdk.trace.samplers.SamplingResult;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 /**
@@ -45,6 +46,7 @@ public final class AlwaysRecordSampler implements Sampler {
   private final Sampler delegate;
 
   public static AlwaysRecordSampler create(Sampler delegate) {
+    Objects.requireNonNull(delegate, "delegate sampler must not be null");
     logger.info(
         "Span metrics: sampler wrapped ("
             + delegate.getDescription()

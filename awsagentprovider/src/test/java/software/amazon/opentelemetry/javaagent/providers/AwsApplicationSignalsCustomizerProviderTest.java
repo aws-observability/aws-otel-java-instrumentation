@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -296,17 +297,20 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @Test
   void testShouldEnableSigV4MetricsExporterIfConfigIsCorrect() {
-    customizeExporterTest(
-        Map.of(
-            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
-            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
-            "http/protobuf",
-            OTEL_METRICS_EXPORTER,
-            "otlp"),
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        OtlpAwsMetricExporter.class);
+    assertMetricsExporterSelectionLog(
+        () ->
+            customizeExporterTest(
+                Map.of(
+                    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                    "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
+                    OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+                    "http/protobuf",
+                    OTEL_METRICS_EXPORTER,
+                    "otlp"),
+                defaultHttpMetricsExporter,
+                this.provider::customizeMetricExporter,
+                OtlpAwsMetricExporter.class),
+        "Using the CloudWatch OTLP metrics exporter; destination=CloudWatch Metrics OTLP endpoint; authentication=ADOT SigV4.");
   }
 
   @ParameterizedTest
@@ -337,6 +341,26 @@ class AwsApplicationSignalsCustomizerProviderTest {
         "https://monitoring.us-east-1.amazonaws.com/V1/METRICS"
       })
   void testShouldEnableSigV4MetricsExporterForUppercaseEndpoint(String endpoint) {
+    customizeExporterTest(
+        Map.of(
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            endpoint,
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            "http/protobuf",
+            OTEL_METRICS_EXPORTER,
+            "otlp"),
+        defaultHttpMetricsExporter,
+        this.provider::customizeMetricExporter,
+        OtlpAwsMetricExporter.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "https://monitoring.cn-north-1.amazonaws.com.cn/v1/metrics",
+        "https://monitoring.cn-northwest-1.amazonaws.com.cn/v1/metrics"
+      })
+  void testShouldEnableSigV4MetricsExporterForChinaEndpoint(String endpoint) {
     customizeExporterTest(
         Map.of(
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
@@ -385,19 +409,25 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @Test
   void testShouldPreserveSignalSpecificMetricsAuthorizationHeader() {
-    customizeExporterTest(
-        Map.of(
-            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
-            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
-            "http/protobuf",
-            OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-            "Authorization=Bearer%20metrics-token",
-            OTEL_METRICS_EXPORTER,
-            "otlp"),
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        OtlpHttpMetricExporter.class);
+    String authorizationHeader = "Authorization=Bearer%20metrics-token";
+    assertMetricsExporterSelectionLog(
+        () ->
+            customizeExporterTest(
+                Map.of(
+                    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                    "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
+                    OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+                    "http/protobuf",
+                    OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+                    authorizationHeader,
+                    OTEL_METRICS_EXPORTER,
+                    "otlp"),
+                defaultHttpMetricsExporter,
+                this.provider::customizeMetricExporter,
+                OtlpHttpMetricExporter.class),
+        "Using the CloudWatch OTLP metrics exporter; destination=CloudWatch Metrics OTLP endpoint; authentication=signal-specific Authorization header; ADOT SigV4=disabled.",
+        "metrics-token",
+        authorizationHeader);
   }
 
   /**
@@ -569,11 +599,14 @@ class AwsApplicationSignalsCustomizerProviderTest {
     DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(validEmfConfig);
     this.provider.customizeProperties(configProps);
 
-    customizeExporterTest(
-        validEmfConfig,
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        AwsCloudWatchEmfExporter.class);
+    assertMetricsExporterSelectionLog(
+        () ->
+            customizeExporterTest(
+                validEmfConfig,
+                defaultHttpMetricsExporter,
+                this.provider::customizeMetricExporter,
+                AwsCloudWatchEmfExporter.class),
+        "Using the CloudWatch EMF metrics exporter; destination=CloudWatch Logs; authentication=AWS SDK SigV4.");
   }
 
   @ParameterizedTest
@@ -601,11 +634,14 @@ class AwsApplicationSignalsCustomizerProviderTest {
         DefaultConfigProperties.createFromMap(lambdaConsoleEmfConfig);
     this.provider.customizeProperties(configProps);
 
-    customizeExporterTest(
-        lambdaConsoleEmfConfig,
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        ConsoleEmfExporter.class);
+    assertMetricsExporterSelectionLog(
+        () ->
+            customizeExporterTest(
+                lambdaConsoleEmfConfig,
+                defaultHttpMetricsExporter,
+                this.provider::customizeMetricExporter,
+                ConsoleEmfExporter.class),
+        "Using the console EMF metrics exporter; destination=standard output; authentication=none because the exporter makes no network request.");
   }
 
   @ParameterizedTest
@@ -755,6 +791,58 @@ class AwsApplicationSignalsCustomizerProviderTest {
         .isThrownBy(() -> AwsApplicationSignalsCustomizerProvider.parseConfigString(absolutePath));
   }
 
+  private static void assertMetricsExporterSelectionLog(
+      Runnable action, String expectedMessage, String... sensitiveValues) {
+    Logger customizerLogger =
+        Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
+    List<LogRecord> logRecords = new ArrayList<>();
+    Handler handler =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            logRecords.add(record);
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    customizerLogger.addHandler(handler);
+    try {
+      action.run();
+
+      List<LogRecord> selectionLogs = new ArrayList<>();
+      for (LogRecord record : logRecords) {
+        if (isMetricsExporterSelectionLog(record.getMessage())) {
+          selectionLogs.add(record);
+        }
+      }
+
+      assertEquals(1, selectionLogs.size(), "expected exactly one metrics exporter selection log");
+      LogRecord selectionLog = selectionLogs.get(0);
+      assertEquals(Level.INFO, selectionLog.getLevel());
+      assertEquals(expectedMessage, selectionLog.getMessage());
+
+      for (String sensitiveValue : sensitiveValues) {
+        assertTrue(
+            logRecords.stream()
+                .map(LogRecord::getMessage)
+                .noneMatch(message -> message != null && message.contains(sensitiveValue)),
+            () -> "log output contained sensitive value: " + sensitiveValue);
+      }
+    } finally {
+      customizerLogger.removeHandler(handler);
+    }
+  }
+
+  private static boolean isMetricsExporterSelectionLog(String message) {
+    return message != null
+        && message.startsWith("Using the ")
+        && message.contains(" metrics exporter; destination=");
+  }
+
   private static <Exporter> void customizeExporterTest(
       Map<String, String> config,
       Exporter defaultExporter,
@@ -783,7 +871,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://xray.US-EAST-1.amazonaws.com/v1/traces",
       "https://xray.us-east-1.amazonaws.com/V1/TRACES",
       "https://XRAY.US-EAST-1.AMAZONAWS.COM/v1/traces",
-      "https://xray.us-east-1.AMAZONAWS.COM/V1/traces"
+      "https://xray.us-east-1.AMAZONAWS.COM/V1/traces",
+      "https://xray.cn-north-1.amazonaws.com.cn/v1/traces",
+      "https://xray.cn-northwest-1.amazonaws.com.cn/v1/traces"
     };
 
     for (String endpoint : tracesGoodEndpoints) {
@@ -825,6 +915,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://xray.us-east-1.amazonaws.com:443/v1/traces",
       "https:/xray.us-east-1.amazonaws.com/v1/traces",
       "https:://xray.us-east-1.amazonaws.com/v1/traces",
+      "https://xray.cn-north-1.amazonaws.com.cn.evil.example/v1/traces",
+      "https://xray.cn-north-1.amazonaws.comcn/v1/traces",
+      "https://xray.cn-north-1.amazonaws.cn/v1/traces",
     };
 
     Map<String, String> invalidProtocol =
@@ -884,6 +977,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https:://monitoring.us-east-1.amazonaws.com/v1/metrics",
       "https://monitoring.us-east-1.amazonaws.com/v1/cloudwatchmetrics",
       "https://monitoring.us-east-1.amazonaws.com/v1/cwmetrics",
+      "https://monitoring.cn-north-1.amazonaws.com.cn.evil.example/v1/metrics",
+      "https://monitoring.cn-north-1.amazonaws.comcn/v1/metrics",
+      "https://monitoring.cn-north-1.amazonaws.cn/v1/metrics",
       // NOTE: uppercase variants are deliberately absent. endpointMatches lowercases the endpoint
       // before matching, so they are VALID. See
       // testShouldEnableSigV4MetricsExporterForUppercaseEndpoint.
@@ -936,7 +1032,9 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.US-EAST-1.amazonaws.com/v1/logs",
       "https://logs.us-east-1.amazonaws.com/V1/LOGS",
       "https://LOGS.US-EAST-1.AMAZONAWS.COM/v1/logs",
-      "https://logs.us-east-1.AMAZONAWS.COM/V1/logs"
+      "https://logs.us-east-1.AMAZONAWS.COM/V1/logs",
+      "https://logs.cn-north-1.amazonaws.com.cn/v1/logs",
+      "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs"
     };
 
     for (String endpoint : logsGoodEndpoints) {
@@ -969,7 +1067,6 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.amazonaws.com/v1/logs",
       "https://logs.us-east-1.amazon.com/v1/logs",
       "https://logs.us-east-1.aws.com/v1/logs",
-      "https://logs.US-EAST-1.amazonaws.com/v1/logs",
       "https://logs.us_east_1.amazonaws.com/v1/logs",
       "https://logs.us.east.1.amazonaws.com/v1/logs",
       "https://logs..amazonaws.com/v1/logs",
@@ -984,11 +1081,12 @@ class AwsApplicationSignalsCustomizerProviderTest {
       "https://logs.us-east-1.amazonaws.com:443/v1/logs",
       "https:/logs.us-east-1.amazonaws.com/v1/logs",
       "https:://logs.us-east-1.amazonaws.com/v1/logs",
-      "https://LOGS.us-east-1.amazonaws.com/v1/logs",
-      "https://logs.us-east-1.amazonaws.com/V1/LOGS",
       "https://logs.us-east-1.amazonaws.com/v1/logging",
       "https://logs.us-east-1.amazonaws.com/v1/cloudwatchlogs",
-      "https://logs.us-east-1.amazonaws.com/v1/cwlogs"
+      "https://logs.us-east-1.amazonaws.com/v1/cwlogs",
+      "https://logs.cn-north-1.amazonaws.com.cn.evil.example/v1/logs",
+      "https://logs.cn-north-1.amazonaws.comcn/v1/logs",
+      "https://logs.cn-north-1.amazonaws.cn/v1/logs"
     };
 
     Map<String, String> noLogGroupHeader =
@@ -1046,6 +1144,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
       Map<String, String> badEndpoint =
           Map.of(
               OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, endpoint,
+              OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-log-group=test1,x-aws-log-stream=test2",
               OTEL_EXPORTER_OTLP_LOGS_PROTOCOL, "http/protobuf",
               OTEL_LOGS_EXPORTER, "otlp");
 

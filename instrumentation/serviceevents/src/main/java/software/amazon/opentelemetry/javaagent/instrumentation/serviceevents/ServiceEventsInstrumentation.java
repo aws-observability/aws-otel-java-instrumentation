@@ -73,7 +73,11 @@ public class ServiceEventsInstrumentation {
   }
 
   private static final String AWS_OTLP_LOGS_ENDPOINT_PATTERN =
-      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com/v1/logs$";
+      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/logs$";
+
+  static boolean isAwsOtlpLogsEndpoint(String endpoint) {
+    return endpoint.matches(AWS_OTLP_LOGS_ENDPOINT_PATTERN);
+  }
 
   private final ServiceEventsConfig config;
   private ServiceEventsOtlpEmitter otlpEmitter;
@@ -765,7 +769,7 @@ public class ServiceEventsInstrumentation {
 
       // Log the endpoint mode now (before lazy init)
       String logsEndpoint = config.getLogsEndpoint();
-      if (logsEndpoint.matches(AWS_OTLP_LOGS_ENDPOINT_PATTERN)) {
+      if (isAwsOtlpLogsEndpoint(logsEndpoint)) {
         logger().info("ServiceEvents OTLP logs: SigV4 direct-to-CloudWatch (" + logsEndpoint + ")");
       } else {
         logger().info("ServiceEvents OTLP logs: collector-proxied (" + logsEndpoint + ")");
@@ -792,7 +796,7 @@ public class ServiceEventsInstrumentation {
                       .addHeader("x-aws-log-stream", config.getLogStream())
                       .build();
 
-              if (logsEndpoint.matches(AWS_OTLP_LOGS_ENDPOINT_PATTERN)) {
+              if (isAwsOtlpLogsEndpoint(logsEndpoint)) {
                 logExporter =
                     OtlpAwsLogRecordExporterBuilder.create(plainLogExporter, logsEndpoint).build();
               } else {

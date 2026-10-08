@@ -64,8 +64,9 @@ public final class AwsApplicationSignalsConfigUtils {
    * Is the given configuration correct to enable SigV4 for Logs?
    *
    * <ul>
-   *   <li><code>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</code>
-   *       =https://logs.[AWS-REGION].amazonaws.com/v1/logs
+   *   <li><code>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</code> =<code>
+   *       https://logs.[AWS-REGION].amazonaws.com/v1/logs</code> or <code>
+   *       https://logs.[AWS-REGION].amazonaws.com.cn/v1/logs</code>
    *   <li><code>OTEL_AWS_LOG_GROUP</code>=[CW-LOG-GROUP-NAME]
    *   <li><code>OTEL_AWS_LOG_STREAM</code>=[CW-LOG-STREAM-NAME]
    *   <li><code>OTEL_EXPORTER_OTLP_LOGS_PROTOCOL</code>=http/protobuf
@@ -127,8 +128,9 @@ public final class AwsApplicationSignalsConfigUtils {
    * Is the given configuration correct to enable SigV4 for Metrics?
    *
    * <ul>
-   *   <li><code>OTEL_EXPORTER_OTLP_METRICS_ENDPOINT</code>
-   *       =https://monitoring.[AWS-REGION].amazonaws.com/v1/metrics
+   *   <li><code>OTEL_EXPORTER_OTLP_METRICS_ENDPOINT</code> =<code>
+   *       https://monitoring.[AWS-REGION].amazonaws.com/v1/metrics</code> or <code>
+   *       https://monitoring.[AWS-REGION].amazonaws.com.cn/v1/metrics</code>
    *   <li><code>OTEL_EXPORTER_OTLP_METRICS_PROTOCOL</code>=http/protobuf **
    *   <li><code>OTEL_METRICS_EXPORTER</code>=otlp **
    * </ul>
@@ -153,8 +155,7 @@ public final class AwsApplicationSignalsConfigUtils {
     }
 
     if (hasExplicitAuthorizationHeader(config, OTEL_EXPORTER_OTLP_METRICS_HEADERS)) {
-      logger.info(
-          "Detected an explicit OTLP metrics Authorization header; preserving configured authentication instead of applying SigV4.");
+      logger.info(OTLP_CONFIGURED_AUTH_EXPORTER_SELECTED_LOG);
       return false;
     }
 
@@ -197,8 +198,9 @@ public final class AwsApplicationSignalsConfigUtils {
    * Is the given configuration correct to enable SigV4 for Traces?
    *
    * <ul>
-   *   <li><code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>
-   *       =https://xray.[AWS-REGION].amazonaws.com/v1/traces
+   *   <li><code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code> =<code>
+   *       https://xray.[AWS-REGION].amazonaws.com/v1/traces</code> or <code>
+   *       https://xray.[AWS-REGION].amazonaws.com.cn/v1/traces</code>
    *   <li><code>OTEL_EXPORTER_OTLP_TRACES_PROTOCOL</code>=http/protobuf **
    *   <li><code>OTEL_TRACES_EXPORTER</code>=otlp **
    * </ul>

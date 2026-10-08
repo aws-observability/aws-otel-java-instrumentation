@@ -28,10 +28,34 @@ import io.opentelemetry.semconv.ServiceAttributes;
 import java.util.ArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.config.DynamicInstrumentationConfig;
 import software.amazon.opentelemetry.javaagent.providers.dynamicInstrumentation.model.InstrumentationConfiguration;
 
 class DynamicInstrumentationManagerTest {
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "https://logs.us-east-1.amazonaws.com/v1/logs",
+        "https://logs.cn-north-1.amazonaws.com.cn/v1/logs",
+        "https://logs.cn-northwest-1.amazonaws.com.cn/v1/logs"
+      })
+  void testAwsOtlpLogsEndpointSupportsCommercialAndChinaPartitions(String endpoint) {
+    assertThat(DynamicInstrumentationManager.isAwsOtlpLogsEndpoint(endpoint)).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "https://logs.cn-north-1.amazonaws.com.cn.evil.example/v1/logs",
+        "https://logs.cn-north-1.amazonaws.comcn/v1/logs",
+        "https://logs.cn-north-1.amazonaws.cn/v1/logs"
+      })
+  void testAwsOtlpLogsEndpointRejectsInvalidChinaSuffixes(String endpoint) {
+    assertThat(DynamicInstrumentationManager.isAwsOtlpLogsEndpoint(endpoint)).isFalse();
+  }
 
   @AfterEach
   void cleanup() {
