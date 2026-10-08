@@ -21,6 +21,16 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
   behavior change unless enabled.
   ([#1457](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1457))
+- Bump jackson-bom to 2.22.3 to fix CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, and
+  CVE-2026-91777
+  ([#1464](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1464))
+- fix: recognize AWS China (`.amazonaws.com.cn`) CloudWatch OTLP endpoints and apply SigV4 to
+  direct traces, logs, and metrics export, including Dynamic Instrumentation and Service Events
+  logs.
+  ([#1460](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1460))
+- feat: add INFO logs identifying the selected metrics exporter, destination, and authentication
+  mode for CloudWatch EMF, console EMF, and direct CloudWatch OTLP metrics export.
+  ([#1456](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1456))
 - feat: add SigV4 authentication for collector-less OTLP metrics export to the CloudWatch metrics
   endpoint (`https://monitoring.<region>.amazonaws.com/v1/metrics`, SigV4 service `monitoring`),
   matching the existing direct traces and logs behavior. Requires
