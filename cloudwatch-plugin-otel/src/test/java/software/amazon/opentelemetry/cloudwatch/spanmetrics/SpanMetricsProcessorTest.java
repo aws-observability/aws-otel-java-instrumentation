@@ -129,6 +129,43 @@ class SpanMetricsProcessorTest {
   }
 
   @Test
+  void clientPortNotADimensionOnServerSpan() {
+    // Legacy HTTP server instrumentation puts the client's ephemeral port in net.peer.port;
+    // requests from different client ports must still aggregate into one series.
+    for (long clientPort : new long[] {50001L, 50002L, 50003L}) {
+      processor.onEnd(
+          readableSpan(
+              SpanKind.SERVER,
+              StatusData.unset(),
+              Attributes.builder()
+                  .put("http.route", "/items/{id}")
+                  .put("net.peer.name", "client.example.com")
+                  .put("net.peer.port", clientPort)
+                  .put("net.host.name", "payments.example.com")
+                  .put("net.host.port", 8080L)
+                  .build()));
+    }
+
+    MetricData calls =
+        reader.collectAllMetrics().stream()
+            .filter(m -> m.getName().equals("traces.span.metrics.calls"))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("calls metric missing"));
+    assertThat(calls.getLongSumData().getPoints())
+        .filteredOn(
+            p -> "/items/{id}".equals(p.getAttributes().get(AttributeKey.stringKey("http.route"))))
+        .singleElement()
+        .satisfies(
+            p -> {
+              assertThat(p.getValue()).isEqualTo(3);
+              assertThat(p.getAttributes().get(AttributeKey.longKey("net.peer.port"))).isNull();
+              assertThat(p.getAttributes().get(AttributeKey.stringKey("net.peer.name"))).isNull();
+              assertThat(p.getAttributes().get(AttributeKey.longKey("net.host.port")))
+                  .isEqualTo(8080L);
+            });
+  }
+
+  @Test
   void onEndSwallowsExceptions() {
     ReadableSpan bad = Mockito.mock(ReadableSpan.class);
     Mockito.when(bad.toSpanData()).thenThrow(new RuntimeException("boom"));
