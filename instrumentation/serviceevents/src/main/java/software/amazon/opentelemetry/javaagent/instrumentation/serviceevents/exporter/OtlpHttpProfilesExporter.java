@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -59,6 +60,8 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
 
   private final OkHttpClient client;
   private final String endpoint;
+  // Parsed once: null when the endpoint is not a valid http(s) URL, which makes export a no-op.
+  private final HttpUrl url;
   private final boolean gzip;
   private final long maxPayloadBytes;
 
@@ -84,10 +87,15 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
   public OtlpHttpProfilesExporter(
       String endpoint, String compression, long timeoutMs, long maxPayloadBytes) {
     this.endpoint = endpoint;
+    this.url = endpoint == null ? null : HttpUrl.parse(endpoint);
     this.gzip = "gzip".equalsIgnoreCase(compression);
     this.maxPayloadBytes = maxPayloadBytes;
     this.client =
         new OkHttpClient.Builder().callTimeout(Duration.ofMillis(Math.max(1L, timeoutMs))).build();
+    if (url == null) {
+      logger.warning(
+          "Invalid profiles endpoint '" + endpoint + "'; profiles export will be a no-op");
+    }
   }
 
   /** The resolved endpoint URL this exporter POSTs to. */
@@ -113,7 +121,7 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
    */
   @Override
   public boolean export(byte[] payload) {
-    if (payload == null || payload.length == 0) {
+    if (payload == null || payload.length == 0 || url == null) {
       return false;
     }
 
@@ -144,7 +152,7 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
 
     Request.Builder requestBuilder =
         new Request.Builder()
-            .url(endpoint)
+            .url(url)
             .post(RequestBody.create(body, PROTOBUF))
             .header("Content-Type", "application/x-protobuf");
     if (gzip && body != payload) {
