@@ -116,6 +116,70 @@ class RotationBoundaryProcessorCollectTest {
     assertEquals(1, exporter.payloads.size(), "already-known files are not re-processed");
   }
 
+  /** Wrapper whose running state the test controls, to model async-profiler being stopped. */
+  private static final class StoppableWrapper extends AsyncProfilerWrapper {
+    volatile boolean running = true;
+
+    StoppableWrapper(Path dataDir) {
+      super(10, 10, "profiler-jfr", dataDir.toString(), false, 524288L, 60, MODE_WALL);
+    }
+
+    @Override
+    public boolean isAvailable() {
+      return true;
+    }
+
+    @Override
+    public boolean isRunning() {
+      return running;
+    }
+  }
+
+  /**
+   * After the profiler stops, the last (previously active) window is exported, exactly once, and
+   * windows already exported by collect() are not exported again.
+   */
+  @Test
+  void flushRemainingWindows_afterStop_exportsLastWindowOnce(@TempDir Path dir) throws Exception {
+    Files.copy(fixture(), dir.resolve("profiler-jfr-20260101-000000.jfr"));
+    Files.copy(fixture(), dir.resolve("profiler-jfr-20260101-000100.jfr"));
+    CapturingExporter exporter = new CapturingExporter();
+    StoppableWrapper wrapper = new StoppableWrapper(dir);
+    RotationBoundaryProcessor proc =
+        new RotationBoundaryProcessor(10_000, wrapper, 60, null, exporter, 0);
+
+    proc.collect();
+    assertEquals(1, exporter.payloads.size(), "collect() exports only the completed file");
+
+    proc.flushRemainingWindows();
+    assertEquals(1, exporter.payloads.size(), "no flush while the profiler is still running");
+
+    wrapper.running = false;
+    proc.flushRemainingWindows();
+    assertEquals(2, exporter.payloads.size(), "the last window is exported after stop");
+
+    proc.flushRemainingWindows();
+    proc.collect();
+    assertEquals(2, exporter.payloads.size(), "no window is exported twice");
+  }
+
+  /** A JVM that stops before the first rotation still exports its only window. */
+  @Test
+  void flushRemainingWindows_beforeFirstRotation_exportsOnlyWindow(@TempDir Path dir)
+      throws Exception {
+    Files.copy(fixture(), dir.resolve("profiler-jfr-20260101-000000.jfr"));
+    CapturingExporter exporter = new CapturingExporter();
+    StoppableWrapper wrapper = new StoppableWrapper(dir);
+    RotationBoundaryProcessor proc =
+        new RotationBoundaryProcessor(10_000, wrapper, 60, null, exporter, 0);
+
+    proc.collect();
+    assertTrue(exporter.payloads.isEmpty());
+    wrapper.running = false;
+    proc.flushRemainingWindows();
+    assertEquals(1, exporter.payloads.size());
+  }
+
   @Test
   void collect_whenProfilerNotRunning_isNoOp(@TempDir Path dir) throws Exception {
     Files.copy(fixture(), dir.resolve("profiler-jfr-20260101-000000.jfr"));
@@ -335,7 +399,8 @@ class RotationBoundaryProcessorCollectTest {
 
     // Native frames: bare symbol + library as a Mapping (e.g. start_thread in libc.so.6).
     boolean sawStartThread = false;
-    for (io.opentelemetry.proto.profiles.v1development.Location loc : ours.getLocationTableList()) {
+    for (io.opentelemetry.proto.profiles.v1development.Location loc :
+        ours.getLocationTableList().subList(1, ours.getLocationTableCount())) {
       String fn =
           ours.getStringTable(
               ours.getFunctionTable(loc.getLines(0).getFunctionIndex()).getNameStrindex());
@@ -451,6 +516,15 @@ class RotationBoundaryProcessorCollectTest {
       }
     }
     return null;
+  }
+
+  /** The last window ends when the profiler stopped writing, not a full window later. */
+  @Test
+  void windowEndMs_isNominalEndOrEarlierLastWrite() {
+    assertEquals(70_000L, RotationBoundaryProcessor.windowEndMs(10_000L, 60_000L, 75_000L));
+    assertEquals(32_000L, RotationBoundaryProcessor.windowEndMs(10_000L, 60_000L, 32_000L));
+    assertEquals(70_000L, RotationBoundaryProcessor.windowEndMs(10_000L, 60_000L, 0L));
+    assertEquals(70_000L, RotationBoundaryProcessor.windowEndMs(10_000L, 60_000L, 5_000L));
   }
 
   @Test

@@ -162,7 +162,8 @@ class OtlpProfileBuilderProtoTest {
     assertEquals(3, dict.getMappingTableCount(), "sentinel + libc.so.6 + libfoo.so");
     assertEquals(0, dict.getMappingTable(0).getFilenameStrindex(), "mapping 0 is the sentinel");
     java.util.List<String> libsOfMemcpy = new ArrayList<>();
-    for (io.opentelemetry.proto.profiles.v1development.Location loc : dict.getLocationTableList()) {
+    for (io.opentelemetry.proto.profiles.v1development.Location loc :
+        dict.getLocationTableList().subList(1, dict.getLocationTableCount())) {
       io.opentelemetry.proto.profiles.v1development.Function fn =
           dict.getFunctionTable(loc.getLines(0).getFunctionIndex());
       String name = dict.getStringTable(fn.getNameStrindex());
@@ -194,6 +195,144 @@ class OtlpProfileBuilderProtoTest {
     assertEquals(0, builder.getSampleCount());
     assertEquals(0, builder.getAllocSampleCount());
     assertFalse(builder.toExportRequest(Resource.getDefault()).getResourceProfilesList().isEmpty());
+  }
+
+  /**
+   * The OTLP profiles schema requires index 0 of every dictionary table to be present and the zero
+   * value ("string_table[0] must always be \"\"", "location_table[0] must always be zero value
+   * (Location{})", and so on), both with and without data.
+   */
+  @Test
+  void dictionary_index0_isZeroValueInEveryTable() {
+    for (OtlpProfileBuilder builder :
+        new OtlpProfileBuilder[] {
+          builderWithSamples(),
+          new OtlpProfileBuilder(1_700_000_000_000_000_000L, 60_000_000_000L, PERIOD_NS)
+        }) {
+      ProfilesDictionary d = builder.toExportRequest(Resource.getDefault()).getDictionary();
+      assertEquals("", d.getStringTable(0));
+      assertEquals(
+          io.opentelemetry.proto.profiles.v1development.Mapping.getDefaultInstance(),
+          d.getMappingTable(0));
+      assertEquals(
+          io.opentelemetry.proto.profiles.v1development.Location.getDefaultInstance(),
+          d.getLocationTable(0));
+      assertEquals(
+          io.opentelemetry.proto.profiles.v1development.Function.getDefaultInstance(),
+          d.getFunctionTable(0));
+      assertEquals(Link.getDefaultInstance(), d.getLinkTable(0));
+      assertEquals(KeyValueAndUnit.getDefaultInstance(), d.getAttributeTable(0));
+      assertEquals(
+          io.opentelemetry.proto.profiles.v1development.Stack.getDefaultInstance(),
+          d.getStackTable(0));
+    }
+  }
+
+  /**
+   * Samples recorded slightly after the nominal window (the real JFR rotation runs late) still fall
+   * inside the exported [time_unix_nano, time_unix_nano + duration_nano) range; with all samples
+   * inside the window the range is the nominal one.
+   */
+  @Test
+  void timeRange_coversSamplesOutsideNominalWindow() {
+    long start = 1_700_000_000_000_000_000L;
+    long window = 10_000_000_000L;
+    OtlpProfileBuilder inside = new OtlpProfileBuilder(start, window, PERIOD_NS);
+    inside.addSample(stack(), start + 5, "t", null, null, null);
+    Profile p =
+        inside
+            .toExportRequest(Resource.getDefault())
+            .getResourceProfiles(0)
+            .getScopeProfiles(0)
+            .getProfiles(0);
+    assertEquals(start, p.getTimeUnixNano());
+    assertEquals(window, p.getDurationNano());
+
+    OtlpProfileBuilder late = new OtlpProfileBuilder(start, window, PERIOD_NS, 524288L);
+    long lateTs = start + window + 270_000_000L;
+    late.addSample(stack(), start + 5, "t", null, null, null);
+    late.addAllocSample(stack(), lateTs, "t", null, null, null, 64L);
+    for (Profile q :
+        late.toExportRequest(Resource.getDefault())
+            .getResourceProfiles(0)
+            .getScopeProfiles(0)
+            .getProfilesList()) {
+      assertEquals(start, q.getTimeUnixNano());
+      assertTrue(lateTs < q.getTimeUnixNano() + q.getDurationNano(), "late sample inside range");
+    }
+  }
+
+  /**
+   * Reusing one frame-list instance for many samples (as the JFR scan does) yields exactly the same
+   * dictionary and samples as passing a fresh, equal list each time.
+   */
+  @Test
+  void reusedFrameList_producesSameOutputAsFreshEqualLists() {
+    long start = 1_700_000_000_000_000_000L;
+    OtlpProfileBuilder reused = new OtlpProfileBuilder(start, 60_000_000_000L, PERIOD_NS);
+    OtlpProfileBuilder fresh = new OtlpProfileBuilder(start, 60_000_000_000L, PERIOD_NS);
+    List<FrameInfo> shared = stack();
+    for (int i = 0; i < 5; i++) {
+      reused.addSample(shared, start + i, "t", "GET /a", null, null);
+      fresh.addSample(stack(), start + i, "t", "GET /a", null, null);
+    }
+    ExportProfilesServiceRequest a = reused.toExportRequest(Resource.getDefault());
+    ExportProfilesServiceRequest b = fresh.toExportRequest(Resource.getDefault());
+    assertEquals(b.getDictionary(), a.getDictionary());
+    assertEquals(
+        b.getResourceProfiles(0).getScopeProfiles(0).getProfiles(0).getSamplesList(),
+        a.getResourceProfiles(0).getScopeProfiles(0).getProfiles(0).getSamplesList());
+    assertEquals(fresh.getUniqueStackCount(), reused.getUniqueStackCount());
+  }
+
+  private static ExportProfilesServiceRequest withoutProfileIds(ExportProfilesServiceRequest r) {
+    ExportProfilesServiceRequest.Builder b = r.toBuilder();
+    for (int i = 0; i < b.getResourceProfilesCount(); i++) {
+      for (int j = 0; j < b.getResourceProfiles(i).getScopeProfilesCount(); j++) {
+        for (int k = 0; k < b.getResourceProfiles(i).getScopeProfiles(j).getProfilesCount(); k++) {
+          b.getResourceProfilesBuilder(i)
+              .getScopeProfilesBuilder(j)
+              .getProfilesBuilder(k)
+              .clearProfileId();
+        }
+      }
+    }
+    return b.build();
+  }
+
+  /**
+   * The streamed serialization parses to exactly the request {@link
+   * OtlpProfileBuilder#toExportRequest} builds (apart from the random profile ids), in every
+   * aggregation mode and with allocation samples.
+   */
+  @Test
+  void toExportRequestBytes_parsesToSameRequestAsToExportRequest() throws Exception {
+    Resource resource =
+        Resource.create(Attributes.of(AttributeKey.stringKey("service.name"), "svc"));
+    for (int mode :
+        new int[] {
+          OtlpProfileBuilder.AGG_NONE, OtlpProfileBuilder.AGG_SUM, OtlpProfileBuilder.AGG_FULL
+        }) {
+      long start = 1_700_000_000_000_000_000L;
+      OtlpProfileBuilder b =
+          new OtlpProfileBuilder(start, 60_000_000_000L, PERIOD_NS, 524288L, mode);
+      List<FrameInfo> s1 = stack();
+      for (int i = 0; i < 50; i++) {
+        b.addSample(
+            s1,
+            start + i,
+            "exec-" + (i % 3),
+            i % 2 == 0 ? "GET /a" : null,
+            i % 4 == 0 ? TRACE_ID : null,
+            i % 4 == 0 ? SPAN_ID : null);
+        b.addAllocSample(stack(), start + i, "exec-1", "GET /a", null, null, 64L * (i + 1));
+      }
+      ExportProfilesServiceRequest expected = withoutProfileIds(b.toExportRequest(resource));
+      ExportProfilesServiceRequest streamed =
+          withoutProfileIds(
+              ExportProfilesServiceRequest.parseFrom(b.toExportRequestBytes(resource)));
+      assertEquals(expected, streamed, "aggregation mode " + mode);
+    }
   }
 
   private OtlpProfileBuilder builderWithSamples() {

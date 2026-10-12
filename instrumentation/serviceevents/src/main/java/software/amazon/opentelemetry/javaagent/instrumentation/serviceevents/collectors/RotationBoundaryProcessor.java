@@ -15,7 +15,6 @@
 
 package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors;
 
-import io.opentelemetry.proto.collector.profiles.v1development.ExportProfilesServiceRequest;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.File;
 import java.io.IOException;
@@ -43,6 +42,7 @@ import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exp
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsOtlpEmitter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.AsyncProfilerWrapper;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.FrameInfo;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.HeapGuard;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.OtlpProfileBuilder;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProfilerDataDir;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProfilerSpanTag;
@@ -106,6 +106,28 @@ public class RotationBoundaryProcessor extends BaseCollector {
   /** Tracks known JFR files to detect rotation. */
   private final Set<String> knownJfrFiles = new HashSet<>();
 
+  /** Skips or abandons a window rather than push the application's heap into an OOM. */
+  private HeapGuard heapGuard = new HeapGuard(HeapGuard.JVM_HEAP);
+
+  /** How many JFR events are read between heap-pressure checks. */
+  private int heapCheckInterval = 4096;
+
+  /** Thrown inside a scan when the heap guard reports pressure; abandons the window. */
+  private static final class HeapPressureException extends RuntimeException {
+    HeapPressureException() {
+      super("heap pressure", null, false, false);
+    }
+  }
+
+  /** JFR files already scanned and exported, so no window is exported twice. */
+  private final Set<String> processedJfrFiles = new HashSet<>();
+
+  /**
+   * Serializes {@link #collect()} (collector thread) and {@link #flushRemainingWindows()} (shutdown
+   * thread), which share the file sets above and must not export the same window twice.
+   */
+  private final Object scanLock = new Object();
+
   /**
    * Initialize the rotation boundary processor.
    *
@@ -131,8 +153,33 @@ public class RotationBoundaryProcessor extends BaseCollector {
     this.windowMs = windowSeconds * 1000L;
   }
 
+  /**
+   * Abandon the current window (see {@link HeapPressureException}) if the heap is under pressure.
+   */
+  private void checkHeap() {
+    if (heapGuard.underPressure()) {
+      throw new HeapPressureException();
+    }
+  }
+
+  /** Replace the heap guard, e.g. with one on simulated heap figures in tests. */
+  void setHeapGuard(HeapGuard heapGuard) {
+    this.heapGuard = heapGuard;
+  }
+
+  /** Check heap pressure every {@code events} JFR events (tests use small values). */
+  void setHeapCheckInterval(int events) {
+    this.heapCheckInterval = Math.max(1, events);
+  }
+
   @Override
   protected void collect() {
+    synchronized (scanLock) {
+      collectLocked();
+    }
+  }
+
+  private void collectLocked() {
     // Always clean up old profiler data files
     cleanupOldFiles();
 
@@ -160,6 +207,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
         currentPaths.add(f.getAbsolutePath());
       }
       knownJfrFiles.retainAll(currentPaths);
+      processedJfrFiles.retainAll(currentPaths);
     }
 
     if (newFiles.isEmpty()) {
@@ -183,6 +231,48 @@ public class RotationBoundaryProcessor extends BaseCollector {
   }
 
   /**
+   * Export every window not exported yet, oldest first, including the last, partial one. Call only
+   * after async-profiler has stopped: stopping completes the file it was writing, which {@link
+   * #collect()} never reads. Does nothing while the profiler is still running. Each file is still
+   * exported at most once.
+   */
+  public void flushRemainingWindows() {
+    if (asyncProfilerWrapper == null
+        || !asyncProfilerWrapper.isAvailable()
+        || asyncProfilerWrapper.isRunning()) {
+      return;
+    }
+    synchronized (scanLock) {
+      flushRemainingWindowsLocked();
+    }
+  }
+
+  private void flushRemainingWindowsLocked() {
+    for (File file : findJfrFiles()) {
+      if (processedJfrFiles.contains(file.getAbsolutePath())) {
+        continue;
+      }
+      try {
+        processRotatedFile(file);
+      } catch (Exception e) {
+        logger.log(Level.SEVERE, "Error processing final JFR file: " + file.getName(), e);
+      }
+    }
+  }
+
+  /**
+   * End of a file's recording window: the nominal end ({@code start + window}), or the file's last
+   * write if that is earlier — which happens for the last window, cut short when the profiler
+   * stopped. A missing or nonsensical last-modified time falls back to the nominal end. Samples
+   * recorded past the end still widen the exported range (see {@link OtlpProfileBuilder}).
+   * Package-private for unit testing.
+   */
+  static long windowEndMs(long startMs, long windowMs, long lastModifiedMs) {
+    long nominalEnd = startMs + windowMs;
+    return lastModifiedMs > startMs ? Math.min(nominalEnd, lastModifiedMs) : nominalEnd;
+  }
+
+  /**
    * Process a newly rotated (completed) JFR file — scanned exactly once.
    *
    * <p>The completed file is scanned a single time for its samples, correlated against the {@code
@@ -194,6 +284,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
    */
   private void processRotatedFile(File rotatedFile) {
     long processingStartMs = System.currentTimeMillis();
+    processedJfrFiles.add(rotatedFile.getAbsolutePath());
 
     // 1. Window bounds for the builder's absolute time_nanos/duration: the completed file's OWN
     // recording window [start, start + windowMs], from its %t (file-start) filename timestamp. A
@@ -201,14 +292,45 @@ public class RotationBoundaryProcessor extends BaseCollector {
     // it.
     long rotatedFileTs = parseJfrFilenameTimestamp(rotatedFile);
     long jfrStartMs = rotatedFileTs;
-    long jfrEndMs = rotatedFileTs + windowMs;
+    long jfrEndMs = windowEndMs(rotatedFileTs, windowMs, rotatedFile.lastModified());
 
+    // Never let a window push the application's heap into an OOM: skip it if the heap has no
+    // room for it, and abandon it (below) if the heap fills up while it is processed.
+    long heapEstimate = rotatedFile.length() * HeapGuard.HEAP_BYTES_PER_JFR_BYTE;
+    if (!heapGuard.canStart(heapEstimate)) {
+      logger.warning(
+          "Skipping profile window "
+              + rotatedFile.getName()
+              + " to protect the application's heap: processing it needs about "
+              + (heapEstimate >> 20)
+              + " MB and "
+              + heapGuard.describe()
+              + ". Give the JVM more heap or lower OTEL_AWS_PROFILER_WINDOW_SECONDS.");
+      return;
+    }
+    try {
+      processWindow(rotatedFile, jfrStartMs, jfrEndMs, processingStartMs);
+    } catch (HeapPressureException e) {
+      logger.warning(
+          "Abandoned profile window "
+              + rotatedFile.getName()
+              + " to protect the application's heap ("
+              + heapGuard.describe()
+              + "). Give the JVM more heap or lower OTEL_AWS_PROFILER_WINDOW_SECONDS.");
+    }
+  }
+
+  /** Index, scan, serialize and export one window; throws {@link HeapPressureException}. */
+  private void processWindow(
+      File rotatedFile, long jfrStartMs, long jfrEndMs, long processingStartMs) {
     // 2. Build the per-thread request-interval index from THIS file's profiler.Span JFR events
     // (samples and markers share a single clock).
-    Map<String, TreeMap<Long, SpanMetadata>> spanIndex = new HashMap<>();
+    SpanIndex spanIndex = new SpanIndex();
     int spanCount = 0;
     try {
       spanCount += indexSpansFromJfr(rotatedFile.toPath(), spanIndex);
+    } catch (HeapPressureException e) {
+      throw e;
     } catch (Exception e) {
       logger.log(Level.WARNING, "Error indexing spans in JFR file: " + rotatedFile.getName(), e);
     }
@@ -238,9 +360,19 @@ public class RotationBoundaryProcessor extends BaseCollector {
       totalSamples +=
           scanJfrFileSinglePass(
               rotatedFile.toPath(), spanIndex, otlpProfileBuilder, stackTraceCache);
+    } catch (HeapPressureException e) {
+      throw e;
     } catch (Exception e) {
       logger.log(Level.WARNING, "Error scanning JFR file: " + rotatedFile.getName(), e);
     }
+    // Release each structure as soon as the next step no longer needs it, so the peak is the
+    // largest step rather than the sum of all of them: the span index and stack cache are only
+    // needed by the scan, and the builder only until the request is serialized. (This method runs
+    // once per window, typically in the interpreter, which
+    // keeps every local reachable until the method returns.)
+    spanIndex = null;
+    stackTraceCache = null;
+    int uniqueStacks = otlpProfileBuilder.getUniqueStackCount();
 
     // 4. Emit the primary (wall or cpu) + alloc profiles as one ExportProfilesServiceRequest. The
     // builder hoists its interned tables into the request-level ProfilesDictionary and emits the
@@ -249,8 +381,10 @@ public class RotationBoundaryProcessor extends BaseCollector {
     if ((otlpProfileBuilder.getSampleCount() > 0 || otlpProfileBuilder.getAllocSampleCount() > 0)
         && profilesExporter != null) {
       Resource resource = otlpEmitter != null ? otlpEmitter.getResource() : Resource.getDefault();
-      ExportProfilesServiceRequest request = otlpProfileBuilder.toExportRequest(resource);
-      profilesExporter.export(request.toByteArray());
+      checkHeap();
+      byte[] payload = otlpProfileBuilder.toExportRequestBytes(resource);
+      otlpProfileBuilder = null;
+      profilesExporter.export(payload);
     }
 
     long processingTimeMs = System.currentTimeMillis() - processingStartMs;
@@ -262,7 +396,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
             + " samples, "
             + spanCount
             + " profiler.Span events, "
-            + otlpProfileBuilder.getUniqueStackCount()
+            + uniqueStacks
             + " unique stacks, "
             + processingTimeMs
             + "ms");
@@ -283,12 +417,17 @@ public class RotationBoundaryProcessor extends BaseCollector {
    *
    * @return the number of {@code profiler.Span} events indexed
    */
-  int indexSpansFromJfr(Path jfrPath, Map<String, TreeMap<Long, SpanMetadata>> spanIndex) {
+  int indexSpansFromJfr(Path jfrPath, SpanIndex spanIndex) {
     int indexed = 0;
     try (JfrReader jfr = new JfrReader(jfrPath.toString())) {
       // readEvent(SpanEvent.class) skips every non-span event and auto-advances across chunks, so
       // one loop reads all profiler.Span markers in the file.
+      int sinceCheck = 0;
       for (SpanEvent event; (event = jfr.readEvent(SpanEvent.class)) != null; ) {
+        if (++sinceCheck >= heapCheckInterval) {
+          sinceCheck = 0;
+          checkHeap();
+        }
         String threadName = jfr.threads.get(event.tid);
         if (threadName == null || threadName.isEmpty()) {
           continue;
@@ -304,24 +443,55 @@ public class RotationBoundaryProcessor extends BaseCollector {
         long startNs = jfr.eventTimeToNanos(event.time);
         long endNs = jfr.eventTimeToNanos(event.time + event.duration);
 
-        SpanMetadata meta =
-            new SpanMetadata(decoded.operation, startNs, endNs, decoded.traceId, decoded.spanId);
+        spanIndex.add(
+            threadName, startNs, endNs, decoded.operation, decoded.traceId, decoded.spanId);
         // Keyed by startNs. On the (negligible) chance two spans on one thread share an identical
         // startNs, keep the one with the larger endNs (the enclosing/longer span) rather than let a
         // later put() arbitrarily drop the other's operation/trace metadata.
-        spanIndex
-            .computeIfAbsent(threadName, k -> new TreeMap<>())
-            .merge(
-                startNs,
-                meta,
-                (existing, added) -> added.endNs >= existing.endNs ? added : existing);
         indexed++;
       }
     } catch (IOException e) {
       logger.log(
           Level.WARNING, "Failed to open JFR file for span indexing: " + jfrPath.getFileName(), e);
     }
+    spanIndex.seal();
     return indexed;
+  }
+
+  /**
+   * {@link #indexSpansFromJfr(Path, SpanIndex)} into the per-thread {@code TreeMap<startNs,
+   * SpanMetadata>} form, for tests that inspect the index.
+   */
+  int indexSpansFromJfr(Path jfrPath, Map<String, TreeMap<Long, SpanMetadata>> out) {
+    SpanIndex index = new SpanIndex();
+    int indexed = indexSpansFromJfr(jfrPath, index);
+    for (String thread : index.threads()) {
+      TreeMap<Long, SpanMetadata> spans = out.computeIfAbsent(thread, k -> new TreeMap<>());
+      index.forEach(
+          thread,
+          (start, end, op, traceId, spanId) ->
+              spans.put(start, new SpanMetadata(op, start, end, traceId, spanId)));
+    }
+    return indexed;
+  }
+
+  /**
+   * {@link #scanJfrFileSinglePass(Path, SpanIndex, OtlpProfileBuilder, Map)} with the span index
+   * given in the per-thread {@code TreeMap<startNs, SpanMetadata>} form, for tests.
+   */
+  int scanJfrFileSinglePass(
+      Path jfrPath,
+      Map<String, TreeMap<Long, SpanMetadata>> spans,
+      OtlpProfileBuilder otlpProfileBuilder,
+      Map<Integer, List<FrameInfo>> stackTraceCache) {
+    SpanIndex index = new SpanIndex();
+    for (Map.Entry<String, TreeMap<Long, SpanMetadata>> thread : spans.entrySet()) {
+      for (SpanMetadata m : thread.getValue().values()) {
+        index.add(thread.getKey(), m.startNs, m.endNs, m.operation, m.traceId, m.spanId);
+      }
+    }
+    index.seal();
+    return scanJfrFileSinglePass(jfrPath, index, otlpProfileBuilder, stackTraceCache);
   }
 
   /**
@@ -341,7 +511,7 @@ public class RotationBoundaryProcessor extends BaseCollector {
    */
   int scanJfrFileSinglePass(
       Path jfrPath,
-      Map<String, TreeMap<Long, SpanMetadata>> spanIndex,
+      SpanIndex spanIndex,
       OtlpProfileBuilder otlpProfileBuilder,
       Map<Integer, List<FrameInfo>> stackTraceCache) {
 
@@ -367,7 +537,12 @@ public class RotationBoundaryProcessor extends BaseCollector {
         Map<Integer, String> threadStates =
             wallMode ? strippedThreadStates(jfr.enums.get("jdk.types.ThreadState")) : null;
 
+        int sinceCheck = 0;
         for (Event event; (event = jfr.readEvent()) != null; ) {
+          if (++sinceCheck >= heapCheckInterval) {
+            sinceCheck = 0;
+            checkHeap();
+          }
           // ExecutionSample = wall/execution samples; AllocationSample = the alloc events. Every
           // other event type (spans, settings, CPULoad, ...) is skipped.
           boolean isWall = event instanceof ExecutionSample;
@@ -409,24 +584,16 @@ public class RotationBoundaryProcessor extends BaseCollector {
           String traceId = null;
           String spanId = null;
 
-          TreeMap<Long, SpanMetadata> threadSpans = spanIndex.get(threadName);
-          if (threadSpans != null) {
-            // Walk from the greatest startNs <= ts downward: the innermost span is checked first,
-            // then enclosing (earlier-start, later-end) spans. This way a sample that falls inside
-            // an OUTER span but not the earlier-started inner one still correlates, instead of
-            // being dropped by a floorEntry-only check. Bounded by MAX_SPAN_WALK so a gap sample
-            // (inside no span) can't scan the whole per-thread map at high request volume.
-            Map.Entry<Long, SpanMetadata> entry = threadSpans.floorEntry(eventTimeNs);
-            for (int walk = 0; entry != null && walk < MAX_SPAN_WALK; walk++) {
-              SpanMetadata span = entry.getValue();
-              if (eventTimeNs > span.startNs && eventTimeNs < span.endNs) {
-                operation = span.operation;
-                traceId = span.traceId;
-                spanId = span.spanId;
-                break;
-              }
-              entry = threadSpans.lowerEntry(entry.getKey());
-            }
+          // Walk from the latest span starting at or before ts backwards: the innermost span is
+          // checked first, then enclosing (earlier-start, later-end) spans. This way a sample that
+          // falls inside an OUTER span but not the earlier-started inner one still correlates.
+          // Bounded by MAX_SPAN_WALK so a gap sample (inside no span) can't scan the whole thread's
+          // spans at high request volume.
+          SpanIndex.Match span = spanIndex.find(threadName, eventTimeNs, MAX_SPAN_WALK);
+          if (span != null) {
+            operation = span.operation;
+            traceId = span.traceId;
+            spanId = span.spanId;
           }
 
           if (isWall) {

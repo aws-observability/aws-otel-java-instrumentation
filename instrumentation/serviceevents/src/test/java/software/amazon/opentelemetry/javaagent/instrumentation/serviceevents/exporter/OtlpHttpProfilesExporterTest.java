@@ -71,6 +71,17 @@ class OtlpHttpProfilesExporterTest {
     return builder.toExportRequest(Resource.getDefault()).toByteArray();
   }
 
+  /** A malformed endpoint makes export a no-op instead of throwing on every window. */
+  @Test
+  void export_invalidEndpoint_isNoOpAndDoesNotThrow() {
+    for (String bad : new String[] {"not a url", "", "localhost:4318/v1development/profiles"}) {
+      OtlpHttpProfilesExporter exporter = new OtlpHttpProfilesExporter(bad, "gzip", 1000);
+      assertFalse(exporter.export(new byte[] {1, 2, 3}), bad);
+      exporter.shutdown();
+    }
+    assertEquals(0, server.getRequestCount());
+  }
+
   @Test
   void export_postsProtobufToVerbatimUrl_uncompressed() throws Exception {
     server.enqueue(response(200));

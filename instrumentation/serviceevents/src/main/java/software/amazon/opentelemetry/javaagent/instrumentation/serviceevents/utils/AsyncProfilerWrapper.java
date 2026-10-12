@@ -185,7 +185,12 @@ public class AsyncProfilerWrapper {
     } catch (Throwable e) {
       logger.log(
           Level.WARNING,
-          "async-profiler native library not available, profiling disabled: " + e.getMessage());
+          "async-profiler native library not available, profiling disabled: "
+              + e.getMessage()
+              + ". The library is extracted into the profiler data dir ("
+              + profilerDataDir
+              + "); if that is on a noexec filesystem (\"failed to map segment\"), set"
+              + " OTEL_AWS_PROFILER_DATA_DIR to a directory that allows executing files.");
       available = false;
     }
   }
@@ -405,7 +410,7 @@ public class AsyncProfilerWrapper {
       }
 
       if (deleted > 0) {
-        logger.info("Startup cleanup: deleted " + deleted + " existing JFR file(s)");
+        logger.info("Deleted " + deleted + " JFR file(s) from " + dir.getPath());
       }
     } catch (Throwable e) {
       logger.log(Level.WARNING, "Error deleting all JFR files on startup", e);

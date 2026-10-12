@@ -84,6 +84,12 @@ public final class OtlpProfileBuilder {
 
   private final List<List<Integer>> stackTable = new ArrayList<>();
   private final Map<List<Integer>, Integer> stackIndex = new HashMap<>();
+  // Stack index per frame-list instance. The JFR scan passes the same List instance for every
+  // sample of a given JFR stack (its per-chunk stack cache), so repeated stacks skip re-interning
+  // every frame. Keyed by identity: an equal list from another chunk is still interned correctly,
+  // just once more.
+  private final Map<List<FrameInfo>, Integer> stackIndexByFrames =
+      new java.util.IdentityHashMap<>();
 
   private final List<String[]> linkTable = new ArrayList<>(); // [traceId, spanId]
   private final Map<String, Integer> linkIndex = new HashMap<>();
@@ -116,6 +122,10 @@ public final class OtlpProfileBuilder {
   // Profile metadata
   private final long timeUnixNano;
   private final long durationNano;
+  // Earliest and latest sample timestamps added, to widen the profile's time range when samples
+  // fall outside the nominal window (the real JFR rotation can run slightly past it).
+  private long minSampleNanos = Long.MAX_VALUE;
+  private long maxSampleNanos = Long.MIN_VALUE;
   private final long periodNano;
   // period of the alloc_space Profile: async-profiler's alloc= sampling interval in bytes.
   private final long allocPeriodBytes;
@@ -265,7 +275,8 @@ public final class OtlpProfileBuilder {
   /**
    * Add a single JFR sample to the profile.
    *
-   * @param frames Stack trace frames ordered root → leaf
+   * @param frames Stack trace frames ordered root → leaf; must not be modified afterwards, since
+   *     the builder caches the stack per list instance
    * @param timestampNs Sample timestamp in epoch nanoseconds
    * @param threadName Thread that produced this sample
    * @param operation HTTP operation if the thread was serving a request, or null
@@ -325,6 +336,7 @@ public final class OtlpProfileBuilder {
     int idx = sampleCount++;
     sampleStackIndices[idx] = internStack(frames);
     sampleTimestamps[idx] = timestampNs;
+    trackTimestamp(timestampNs);
     sampleLinkIndices[idx] = linkIndexFor(traceId, spanId);
     sampleAttributeIndices[idx] = attributeIndicesFor(threadName, operation, threadState);
     sampleWallValues[idx] = (long) Math.max(1, wallSampleCount) * periodNano;
@@ -338,7 +350,8 @@ public final class OtlpProfileBuilder {
    * {@code alloc_objects} Profile in {@link #toExportRequest}, since {@code sample_type} is
    * singular in the OTLP profiles schema.
    *
-   * @param frames Stack trace frames ordered root → leaf
+   * @param frames Stack trace frames ordered root → leaf; must not be modified afterwards, since
+   *     the builder caches the stack per list instance
    * @param timestampNs Sample timestamp in epoch nanoseconds
    * @param threadName Thread that produced this allocation
    * @param operation HTTP operation if the thread was serving a request, or null
@@ -364,9 +377,33 @@ public final class OtlpProfileBuilder {
     int idx = allocSampleCount++;
     allocSampleStackIndices[idx] = internStack(frames);
     allocSampleTimestamps[idx] = timestampNs;
+    trackTimestamp(timestampNs);
     allocSampleLinkIndices[idx] = linkIndexFor(traceId, spanId);
     allocSampleAttributeIndices[idx] = attributeIndicesFor(threadName, operation);
     allocSampleBytes[idx] = bytes;
+  }
+
+  private void trackTimestamp(long timestampNs) {
+    minSampleNanos = Math.min(minSampleNanos, timestampNs);
+    maxSampleNanos = Math.max(maxSampleNanos, timestampNs);
+  }
+
+  /**
+   * Start of the exported time range: the nominal window start, or the earliest sample if earlier.
+   * The OTLP schema says sample timestamps should fall within [time_unix_nano, time_unix_nano +
+   * duration_nano).
+   */
+  private long rangeStartNanos() {
+    return Math.min(timeUnixNano, minSampleNanos);
+  }
+
+  /** Duration of the exported time range, extended past the nominal window to the last sample. */
+  private long rangeDurationNanos() {
+    long end = timeUnixNano + durationNano;
+    if (maxSampleNanos != Long.MIN_VALUE) {
+      end = Math.max(end, maxSampleNanos + 1);
+    }
+    return end - rangeStartNanos();
   }
 
   /** Interned link index for a trace/span pair, or 0 (sentinel) when there is no trace. */
@@ -444,16 +481,222 @@ public final class OtlpProfileBuilder {
    */
   public ExportProfilesServiceRequest toExportRequest(
       io.opentelemetry.sdk.resources.Resource resource) {
+    ScopeProfiles.Builder scopeProfilesBuilder = scopeProfilesHeader();
+    for (ProfileSpec spec : profileSpecs()) {
+      scopeProfilesBuilder.addProfiles(buildProfile(spec));
+    }
+    ResourceProfiles resourceProfiles =
+        ResourceProfiles.newBuilder()
+            .setResource(toProtoResource(resource))
+            .addScopeProfiles(scopeProfilesBuilder.build())
+            .build();
+    return ExportProfilesServiceRequest.newBuilder()
+        .addResourceProfiles(resourceProfiles)
+        .setDictionary(buildDictionary())
+        .build();
+  }
+
+  /**
+   * The serialized {@code ExportProfilesServiceRequest}, equal (once parsed) to {@link
+   * #toExportRequest}'s. Each sample is serialized as soon as it is built and then discarded,
+   * instead of first building every {@code Sample} message of every profile, which for a busy
+   * window is the largest memory peak of the whole export.
+   */
+  public byte[] toExportRequestBytes(io.opentelemetry.sdk.resources.Resource resource) {
+    try {
+      java.io.ByteArrayOutputStream scope = new java.io.ByteArrayOutputStream();
+      com.google.protobuf.CodedOutputStream scopeOut =
+          com.google.protobuf.CodedOutputStream.newInstance(scope);
+      scopeProfilesHeader().build().writeTo(scopeOut);
+      for (ProfileSpec spec : profileSpecs()) {
+        java.io.ByteArrayOutputStream profile = new java.io.ByteArrayOutputStream();
+        com.google.protobuf.CodedOutputStream profileOut =
+            com.google.protobuf.CodedOutputStream.newInstance(profile);
+        profileHeader(spec.sampleType, spec.sampleType, spec.period).build().writeTo(profileOut);
+        java.io.IOException[] failure = new java.io.IOException[1];
+        addSamplesToProfile(
+            sample -> {
+              try {
+                profileOut.writeMessage(PROFILE_SAMPLES_FIELD, sample);
+              } catch (java.io.IOException e) {
+                failure[0] = e;
+              }
+            },
+            spec.count,
+            spec.stackIndices,
+            spec.timestamps,
+            spec.linkIndices,
+            spec.attributeIndices,
+            spec.perSampleValue,
+            spec.fixedValue);
+        if (failure[0] != null) {
+          throw failure[0];
+        }
+        profileOut.flush();
+        scopeOut.writeByteArray(SCOPE_PROFILES_PROFILES_FIELD, profile.toByteArray());
+      }
+      scopeOut.flush();
+
+      java.io.ByteArrayOutputStream resourceProfiles = new java.io.ByteArrayOutputStream();
+      com.google.protobuf.CodedOutputStream resourceOut =
+          com.google.protobuf.CodedOutputStream.newInstance(resourceProfiles);
+      ResourceProfiles.newBuilder()
+          .setResource(toProtoResource(resource))
+          .build()
+          .writeTo(resourceOut);
+      resourceOut.writeByteArray(RESOURCE_PROFILES_SCOPE_FIELD, scope.toByteArray());
+      resourceOut.flush();
+      scope = null;
+
+      java.io.ByteArrayOutputStream request = new java.io.ByteArrayOutputStream();
+      com.google.protobuf.CodedOutputStream requestOut =
+          com.google.protobuf.CodedOutputStream.newInstance(request);
+      requestOut.writeByteArray(REQUEST_RESOURCE_PROFILES_FIELD, resourceProfiles.toByteArray());
+      resourceProfiles = null;
+      requestOut.writeMessage(REQUEST_DICTIONARY_FIELD, buildDictionary());
+      requestOut.flush();
+      return request.toByteArray();
+    } catch (java.io.IOException e) {
+      // Only in-memory streams are written, which do not throw.
+      throw new java.io.UncheckedIOException(e);
+    }
+  }
+
+  private static final int PROFILE_SAMPLES_FIELD =
+      Profile.getDescriptor().findFieldByName("samples").getNumber();
+  private static final int SCOPE_PROFILES_PROFILES_FIELD =
+      ScopeProfiles.getDescriptor().findFieldByName("profiles").getNumber();
+  private static final int RESOURCE_PROFILES_SCOPE_FIELD =
+      ResourceProfiles.getDescriptor().findFieldByName("scope_profiles").getNumber();
+  private static final int REQUEST_RESOURCE_PROFILES_FIELD =
+      ExportProfilesServiceRequest.getDescriptor().findFieldByName("resource_profiles").getNumber();
+  private static final int REQUEST_DICTIONARY_FIELD =
+      ExportProfilesServiceRequest.getDescriptor().findFieldByName("dictionary").getNumber();
+
+  private ScopeProfiles.Builder scopeProfilesHeader() {
+    return ScopeProfiles.newBuilder()
+        .setScope(InstrumentationScope.newBuilder().setName(INSTRUMENTATION_SCOPE).build());
+  }
+
+  /** One profile to emit: its type and the parallel sample arrays it is built from. */
+  private static final class ProfileSpec {
+    final ValueType sampleType;
+    final long period;
+    final int count;
+    final int[] stackIndices;
+    final long[] timestamps;
+    final int[] linkIndices;
+    final int[][] attributeIndices;
+    final long[] perSampleValue;
+    final long fixedValue;
+
+    ProfileSpec(
+        ValueType sampleType,
+        long period,
+        int count,
+        int[] stackIndices,
+        long[] timestamps,
+        int[] linkIndices,
+        int[][] attributeIndices,
+        long[] perSampleValue,
+        long fixedValue) {
+      this.sampleType = sampleType;
+      this.period = period;
+      this.count = count;
+      this.stackIndices = stackIndices;
+      this.timestamps = timestamps;
+      this.linkIndices = linkIndices;
+      this.attributeIndices = attributeIndices;
+      this.perSampleValue = perSampleValue;
+      this.fixedValue = fixedValue;
+    }
+  }
+
+  /**
+   * The profiles to emit, in order: the primary (wall or cpu) profile always, then alloc_space and
+   * alloc_objects when there are allocation samples. sample_type is singular in the OTLP profiles
+   * schema, so each value type is a separate Profile.
+   */
+  private List<ProfileSpec> profileSpecs() {
+    List<ProfileSpec> specs = new ArrayList<>(3);
+    int primaryTypeStr = (primaryType == PRIMARY_CPU) ? strCpu : strWall;
+    ValueType primaryNanos =
+        ValueType.newBuilder()
+            .setTypeStrindex(primaryTypeStr)
+            .setUnitStrindex(strNanoseconds)
+            .build();
+    specs.add(
+        new ProfileSpec(
+            primaryNanos,
+            periodNano,
+            sampleCount,
+            sampleStackIndices,
+            sampleTimestamps,
+            sampleLinkIndices,
+            sampleAttributeIndices,
+            sampleWallValues,
+            0L));
+    if (allocSampleCount > 0) {
+      specs.add(
+          new ProfileSpec(
+              ValueType.newBuilder()
+                  .setTypeStrindex(strAllocSpace)
+                  .setUnitStrindex(strBytes)
+                  .build(),
+              allocPeriodBytes,
+              allocSampleCount,
+              allocSampleStackIndices,
+              allocSampleTimestamps,
+              allocSampleLinkIndices,
+              allocSampleAttributeIndices,
+              allocSampleBytes,
+              0L));
+      specs.add(
+          new ProfileSpec(
+              ValueType.newBuilder()
+                  .setTypeStrindex(strAllocObjects)
+                  .setUnitStrindex(strCount)
+                  .build(),
+              1L,
+              allocSampleCount,
+              allocSampleStackIndices,
+              allocSampleTimestamps,
+              allocSampleLinkIndices,
+              allocSampleAttributeIndices,
+              null,
+              1L));
+    }
+    return specs;
+  }
+
+  private Profile buildProfile(ProfileSpec spec) {
+    return buildProfile(
+        spec.sampleType,
+        spec.sampleType,
+        spec.period,
+        spec.count,
+        spec.stackIndices,
+        spec.timestamps,
+        spec.linkIndices,
+        spec.attributeIndices,
+        spec.perSampleValue,
+        spec.fixedValue);
+  }
+
+  /** The request-level dictionary of interned strings, functions, locations, stacks, etc. */
+  private ProfilesDictionary buildDictionary() {
     ProfilesDictionary.Builder dictionary = ProfilesDictionary.newBuilder();
 
     // string_table (index 0 == "")
     dictionary.addAllStringTable(stringTable);
 
+    // The OTLP profiles schema requires index 0 of every dictionary table to be the zero value
+    // (e.g. Location{}, Stack{}), which is what the sentinels below encode.
+    //
     // mapping_table: index 0 is the empty sentinel ("mapping unknown or not applicable", used by
-    // Java
-    // frames); one entry per shared library that native/C++ frames came from, with filename = the
-    // library as recorded by async-profiler (e.g. "libc.so.6"). Addresses/build ids are not in the
-    // JFR, so only the filename is set.
+    // Java frames); one entry per shared library that native/C++ frames came from, with filename =
+    // the library as recorded by async-profiler (e.g. "libc.so.6"). Addresses/build ids are not in
+    // the JFR, so only the filename is set.
     for (int filenameStrindex : mappingTable) {
       dictionary.addMappingTable(
           Mapping.newBuilder().setFilenameStrindex(filenameStrindex).build());
@@ -470,11 +713,11 @@ public final class OtlpProfileBuilder {
               .build());
     }
 
-    // location_table (index 0 == {0,0,0} sentinel). Each location carries exactly one line; JFR
-    // does
-    // not expose a column, so only function_index + line are set, plus the mapping (library) for
-    // native/C++ frames.
-    for (int[] loc : locationTable) {
+    // location_table (index 0 == Location{}). Each other location carries exactly one line; JFR
+    // does not expose a column, so only function_index + line are set, plus the mapping (library)
+    // for native/C++ frames.
+    dictionary.addLocationTable(Location.getDefaultInstance());
+    for (int[] loc : locationTable.subList(1, locationTable.size())) {
       dictionary.addLocationTable(
           Location.newBuilder()
               .setMappingIndex(loc[2])
@@ -491,12 +734,13 @@ public final class OtlpProfileBuilder {
               .build());
     }
 
-    // attribute_table (index 0 == {0,0} sentinel). The value is emitted as an inline
+    // attribute_table (index 0 == KeyValueAndUnit{}). The value is emitted as an inline
     // AnyValue.string_value for backend compatibility (some backends reject the
     // string_value_strindex interned variant). attr[1] is the value's string-table index, so
     // resolve it back to the literal string. Keys remain interned via key_strindex, and
     // attribute_table entries are still deduped upstream.
-    for (int[] attr : attributeTable) {
+    dictionary.addAttributeTable(KeyValueAndUnit.getDefaultInstance());
+    for (int[] attr : attributeTable.subList(1, attributeTable.size())) {
       dictionary.addAttributeTable(
           KeyValueAndUnit.newBuilder()
               .setKeyStrindex(attr[0])
@@ -504,92 +748,28 @@ public final class OtlpProfileBuilder {
               .build());
     }
 
-    // stack_table (index 0 == [0] sentinel)
-    for (List<Integer> locIndices : stackTable) {
+    // stack_table (index 0 == Stack{})
+    dictionary.addStackTable(Stack.getDefaultInstance());
+    for (List<Integer> locIndices : stackTable.subList(1, stackTable.size())) {
       dictionary.addStackTable(Stack.newBuilder().addAllLocationIndices(locIndices).build());
     }
 
     // sample_type is singular in the OTLP profiles schema, so each value type is a separate
     // Profile. All profiles share the one request-level ProfilesDictionary above and ride under one
     // ScopeProfiles. Every Profile sets period_type + period (Pyroscope requires it).
-    ScopeProfiles.Builder scopeProfilesBuilder =
-        ScopeProfiles.newBuilder()
-            .setScope(InstrumentationScope.newBuilder().setName(INSTRUMENTATION_SCOPE).build());
+    return dictionary.build();
+  }
 
-    // Primary Profile: sample_type/period_type = {wall, nanoseconds} (wall mode) or {cpu,
-    // nanoseconds} (on-CPU mode); each sample's value is its async-profiler coalescing count × the
-    // sampling period (ns) — see sampleWallValues — so the values sum to the total attributed time
-    // even when async-profiler folds repeated samples.
-    int primaryTypeStr = (primaryType == PRIMARY_CPU) ? strCpu : strWall;
-    ValueType primaryNanos =
-        ValueType.newBuilder()
-            .setTypeStrindex(primaryTypeStr)
-            .setUnitStrindex(strNanoseconds)
-            .build();
-    scopeProfilesBuilder.addProfiles(
-        buildProfile(
-            primaryNanos,
-            primaryNanos,
-            periodNano,
-            sampleCount,
-            sampleStackIndices,
-            sampleTimestamps,
-            sampleLinkIndices,
-            sampleAttributeIndices,
-            sampleWallValues,
-            0L));
-
-    // Allocation Profiles, only when allocation samples were recorded.
-    if (allocSampleCount > 0) {
-      // alloc_space: sample_type/period_type = {alloc_space, bytes}; per-sample value is the
-      // event's byte weight (tlabSize), so the total matches async-profiler jfrconv's
-      // --alloc --total byte figure. period = async-profiler's alloc= sampling interval (bytes).
-      ValueType allocSpaceBytes =
-          ValueType.newBuilder().setTypeStrindex(strAllocSpace).setUnitStrindex(strBytes).build();
-      scopeProfilesBuilder.addProfiles(
-          buildProfile(
-              allocSpaceBytes,
-              allocSpaceBytes,
-              allocPeriodBytes,
-              allocSampleCount,
-              allocSampleStackIndices,
-              allocSampleTimestamps,
-              allocSampleLinkIndices,
-              allocSampleAttributeIndices,
-              allocSampleBytes,
-              0L));
-
-      // alloc_objects: sample_type/period_type = {alloc_objects, count}; per-sample value is 1
-      // (one sampled allocation event = one counted object), so the total matches jfrconv's
-      // default --alloc count. period = 1 (the natural count unit).
-      ValueType allocObjectsCount =
-          ValueType.newBuilder().setTypeStrindex(strAllocObjects).setUnitStrindex(strCount).build();
-      scopeProfilesBuilder.addProfiles(
-          buildProfile(
-              allocObjectsCount,
-              allocObjectsCount,
-              1L,
-              allocSampleCount,
-              allocSampleStackIndices,
-              allocSampleTimestamps,
-              allocSampleLinkIndices,
-              allocSampleAttributeIndices,
-              null,
-              1L));
-    }
-
-    ScopeProfiles scopeProfiles = scopeProfilesBuilder.build();
-
-    ResourceProfiles resourceProfiles =
-        ResourceProfiles.newBuilder()
-            .setResource(toProtoResource(resource))
-            .addScopeProfiles(scopeProfiles)
-            .build();
-
-    return ExportProfilesServiceRequest.newBuilder()
-        .addResourceProfiles(resourceProfiles)
-        .setDictionary(dictionary.build())
-        .build();
+  /** A {@link Profile} with everything but its samples. */
+  private Profile.Builder profileHeader(ValueType sampleType, ValueType periodType, long period) {
+    return Profile.newBuilder()
+        .setSampleType(sampleType)
+        .setTimeUnixNano(rangeStartNanos())
+        .setDurationNano(rangeDurationNanos())
+        .setPeriodType(periodType)
+        .setPeriod(period)
+        .setProfileId(
+            hexToByteString(UUID.randomUUID().toString().replace("-", ""), PROFILE_ID_BYTES));
   }
 
   /**
@@ -612,18 +792,10 @@ public final class OtlpProfileBuilder {
       int[][] attributeIndices,
       long[] perSampleValue,
       long fixedValue) {
-    Profile.Builder profile =
-        Profile.newBuilder()
-            .setSampleType(sampleType)
-            .setTimeUnixNano(timeUnixNano)
-            .setDurationNano(durationNano)
-            .setPeriodType(periodType)
-            .setPeriod(period)
-            .setProfileId(
-                hexToByteString(UUID.randomUUID().toString().replace("-", ""), PROFILE_ID_BYTES));
+    Profile.Builder profile = profileHeader(sampleType, periodType, period);
 
     addSamplesToProfile(
-        profile,
+        profile::addSamples,
         count,
         stackIndices,
         timestamps,
@@ -660,7 +832,7 @@ public final class OtlpProfileBuilder {
    * populated, which every shape above satisfies.
    */
   private void addSamplesToProfile(
-      Profile.Builder profile,
+      java.util.function.Consumer<Sample> sink,
       int count,
       int[] stackIndices,
       long[] timestamps,
@@ -685,7 +857,7 @@ public final class OtlpProfileBuilder {
             sample.addAttributeIndices(a);
           }
         }
-        profile.addSamples(sample.build());
+        sink.accept(sample.build());
       }
       return;
     }
@@ -739,7 +911,7 @@ public final class OtlpProfileBuilder {
           sample.addAttributeIndices(a);
         }
       }
-      profile.addSamples(sample.build());
+      sink.accept(sample.build());
     }
   }
 
@@ -899,6 +1071,16 @@ public final class OtlpProfileBuilder {
   }
 
   private int internStack(List<FrameInfo> frames) {
+    Integer cached = stackIndexByFrames.get(frames);
+    if (cached != null) {
+      return cached;
+    }
+    int idx = internStackFrames(frames);
+    stackIndexByFrames.put(frames, idx);
+    return idx;
+  }
+
+  private int internStackFrames(List<FrameInfo> frames) {
     // OTLP requires Stack.location_indices to be LEAF-FIRST — "The first location is the leaf
     // frame." (opentelemetry profiles.proto), matching the pprof convention that Pyroscope and
     // other profiles backends consume. addSample/addAllocSample receive frames root → leaf, so
