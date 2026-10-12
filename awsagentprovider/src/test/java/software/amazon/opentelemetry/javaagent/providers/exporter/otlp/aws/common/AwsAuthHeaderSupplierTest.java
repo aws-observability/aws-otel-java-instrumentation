@@ -43,12 +43,21 @@ import software.amazon.awssdk.http.auth.spi.signer.SignRequest;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 
-class AwsAuthHeaderSupplierChinaTest {
+/**
+ * Verifies that the signing region, signing service, and request URI are derived correctly from a
+ * CloudWatch OTLP endpoint.
+ *
+ * <p>None of this logic is partition-specific: {@link BaseOtlpAwsExporter} takes the region from
+ * the endpoint's second label and the service from the concrete exporter, so the partition is only
+ * test data. The cases below therefore cover both the commercial ({@code .amazonaws.com}) and China
+ * ({@code .amazonaws.com.cn}) endpoints for all three signals.
+ */
+class AwsAuthHeaderSupplierTest {
   private static final String AUTHORIZATION = "Authorization";
 
   @ParameterizedTest
-  @MethodSource("chinaEndpoints")
-  void testSignsChinaEndpointWithExpectedRegionServiceAndUri(
+  @MethodSource("awsOtlpEndpoints")
+  void testSignsEndpointWithExpectedRegionServiceAndUri(
       String endpoint, String expectedRegion, String expectedService) {
     DefaultCredentialsProvider credentialsProvider = mock(DefaultCredentialsProvider.class);
     AwsV4HttpSigner signer = mock(AwsV4HttpSigner.class);
@@ -97,8 +106,20 @@ class AwsAuthHeaderSupplierChinaTest {
     }
   }
 
-  private static Stream<Arguments> chinaEndpoints() {
+  private static Stream<Arguments> awsOtlpEndpoints() {
     return Stream.of(
+        // Commercial partition.
+        Arguments.of("https://xray.us-east-1.amazonaws.com/v1/traces", "us-east-1", "xray"),
+        Arguments.of("https://xray.eu-west-1.amazonaws.com/v1/traces", "eu-west-1", "xray"),
+        Arguments.of("https://logs.us-east-1.amazonaws.com/v1/logs", "us-east-1", "logs"),
+        Arguments.of("https://logs.ap-southeast-2.amazonaws.com/v1/logs", "ap-southeast-2", "logs"),
+        Arguments.of(
+            "https://monitoring.us-east-1.amazonaws.com/v1/metrics", "us-east-1", "monitoring"),
+        Arguments.of(
+            "https://monitoring.eu-central-1.amazonaws.com/v1/metrics",
+            "eu-central-1",
+            "monitoring"),
+        // China partition.
         Arguments.of("https://xray.cn-north-1.amazonaws.com.cn/v1/traces", "cn-north-1", "xray"),
         Arguments.of(
             "https://xray.cn-northwest-1.amazonaws.com.cn/v1/traces", "cn-northwest-1", "xray"),
