@@ -27,9 +27,9 @@ dependencies {
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
   implementation("javax.annotation:javax.annotation-api:1.3.2")
 
-  implementation("io.grpc:grpc-api:1.56.1")
-  implementation("io.grpc:grpc-protobuf:1.56.1")
-  implementation("io.grpc:grpc-stub:1.56.1")
+  implementation("io.grpc:grpc-api:1.75.0")
+  implementation("io.grpc:grpc-protobuf:1.75.0")
+  implementation("io.grpc:grpc-stub:1.75.0")
 
   runtimeOnly("io.grpc:grpc-netty-shaded")
   testImplementation(platform("org.junit:junit-bom:5.9.1"))

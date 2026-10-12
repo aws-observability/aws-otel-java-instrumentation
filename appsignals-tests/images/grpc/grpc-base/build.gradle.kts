@@ -25,9 +25,9 @@ dependencies {
   // see: https://github.com/grpc/grpc-java/issues/3633
   compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
-  compileOnly("io.grpc:grpc-api:1.56.1")
-  compileOnly("io.grpc:grpc-protobuf:1.56.1")
-  compileOnly("io.grpc:grpc-stub:1.56.1")
+  compileOnly("io.grpc:grpc-api:1.75.0")
+  compileOnly("io.grpc:grpc-protobuf:1.75.0")
+  compileOnly("io.grpc:grpc-stub:1.75.0")
 }
 
 protobuf {
