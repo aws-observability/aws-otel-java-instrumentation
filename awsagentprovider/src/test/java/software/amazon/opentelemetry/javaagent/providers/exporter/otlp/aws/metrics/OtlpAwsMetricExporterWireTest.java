@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterBuilder;
 
 /**
  * Wire-level tests that assert on the HTTP headers a server actually receives, rather than on which
