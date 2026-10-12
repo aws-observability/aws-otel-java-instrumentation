@@ -19,7 +19,7 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   instrumentation scope blocks differently, so CloudWatch rejected the export with
   `403 SignatureDoesNotMatch`. Affected direct OTLP metrics export from applications with more
   than one instrumentation scope, deterministically per process. Traces and logs were unaffected.
-  ([#1465](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1465))
+  ([#1469](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1469))
 - Bump jackson-bom to 2.22.3 to fix CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, and
   CVE-2026-91777
   ([#1464](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1464))
