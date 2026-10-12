@@ -35,7 +35,7 @@ dependencies {
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
 
   testImplementation("software.amazon.awssdk:aws-core:2.2.0")
-  testImplementation("com.amazonaws:aws-java-sdk-lambda:1.11.678")
+  testImplementation("com.amazonaws:aws-java-sdk-lambda:1.12.788")
   testImplementation("com.amazonaws:aws-java-sdk-kinesis:1.11.106")
   testImplementation("com.amazonaws:aws-java-sdk-sns:1.11.106")
   testImplementation("com.amazonaws:aws-java-sdk-stepfunctions:1.11.230")
