@@ -82,6 +82,8 @@ class ServiceEventsConfigTest {
     "otel.aws.service_events.incident.snapshot.max.same.error",
     "otel.aws.service_events.sampling.mode",
     "sun.java.command",
+    "otel.exporter.otlp.headers",
+    "otel.exporter.otlp.profiles.headers",
   };
 
   @BeforeEach
@@ -161,6 +163,52 @@ class ServiceEventsConfigTest {
     assertEquals(524288L, ServiceEventsConfig.fromEnv().getProfilerAllocIntervalBytes());
     System.setProperty("otel.aws.profiler.alloc.interval.bytes", "0");
     assertEquals(524288L, ServiceEventsConfig.fromEnv().getProfilerAllocIntervalBytes());
+  }
+
+  @Test
+  void profilerIntervalsAndTimeout_belowOne_fallBackToDefaults() {
+    // interval=0 means "async-profiler's own default" (wrong exported period) and a timeout <= 0
+    // fails every export, so values below 1 fall back to the defaults.
+    for (String bad : new String[] {"0", "-5"}) {
+      System.setProperty("otel.aws.profiler.wall.interval.ms", bad);
+      System.setProperty("otel.aws.profiler.cpu.interval.ms", bad);
+      System.setProperty("otel.aws.profiler.export.timeout.ms", bad);
+      ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+      assertEquals(10, cfg.getAsyncProfilerWallIntervalMs(), bad);
+      assertEquals(10, cfg.getAsyncProfilerCpuIntervalMs(), bad);
+      assertEquals(10000, cfg.getProfilerExportTimeoutMs(), bad);
+    }
+    System.setProperty("otel.aws.profiler.wall.interval.ms", "20");
+    System.setProperty("otel.aws.profiler.cpu.interval.ms", "5");
+    System.setProperty("otel.aws.profiler.export.timeout.ms", "3000");
+    ServiceEventsConfig cfg = ServiceEventsConfig.fromEnv();
+    assertEquals(20, cfg.getAsyncProfilerWallIntervalMs());
+    assertEquals(5, cfg.getAsyncProfilerCpuIntervalMs());
+    assertEquals(3000, cfg.getProfilerExportTimeoutMs());
+  }
+
+  @Test
+  void parseOtlpHeaders_standardFormat_percentDecoded_malformedSkipped() {
+    java.util.Map<String, String> h =
+        ServiceEventsConfig.parseOtlpHeaders(
+            " Authorization = Bearer%20abc ,x-tenant=acme,,=nokey,novalue-noequals,empty=");
+    assertEquals("Bearer abc", h.get("Authorization"));
+    assertEquals("acme", h.get("x-tenant"));
+    assertEquals("", h.get("empty"));
+    assertEquals(3, h.size(), h.keySet().toString());
+    assertTrue(ServiceEventsConfig.parseOtlpHeaders(null).isEmpty());
+    assertTrue(ServiceEventsConfig.parseOtlpHeaders("  ").isEmpty());
+  }
+
+  @Test
+  void profilerHeaders_profilesSpecificVariableWinsOverShared() {
+    assertTrue(ServiceEventsConfig.fromEnv().getProfilerHeaders().isEmpty(), "none by default");
+    System.setProperty("otel.exporter.otlp.headers", "a=shared");
+    assertEquals("shared", ServiceEventsConfig.fromEnv().getProfilerHeaders().get("a"));
+    System.setProperty("otel.exporter.otlp.profiles.headers", "a=profiles,b=2");
+    java.util.Map<String, String> h = ServiceEventsConfig.fromEnv().getProfilerHeaders();
+    assertEquals("profiles", h.get("a"));
+    assertEquals("2", h.get("b"));
   }
 
   @Test

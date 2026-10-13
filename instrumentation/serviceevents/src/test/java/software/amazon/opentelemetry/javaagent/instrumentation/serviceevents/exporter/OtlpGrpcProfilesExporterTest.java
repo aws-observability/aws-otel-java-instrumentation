@@ -112,6 +112,27 @@ class OtlpGrpcProfilesExporterTest {
     assertArrayEquals(payload, Arrays.copyOfRange(frame, 5, frame.length));
   }
 
+  /**
+   * Configured headers are sent as gRPC metadata; they cannot replace the gRPC protocol headers.
+   */
+  @Test
+  void export_sendsConfiguredHeadersAsMetadata_butNotOverProtocolHeaders() throws Exception {
+    server.enqueue(new MockResponse.Builder().code(200).addHeader("grpc-status", "0").build());
+    java.util.Map<String, String> headers = new java.util.LinkedHashMap<>();
+    headers.put("authorization", "Bearer secret-token");
+    headers.put("te", "gzip");
+    headers.put("content-type", "text/plain");
+    OtlpGrpcProfilesExporter exporter =
+        new OtlpGrpcProfilesExporter(server.url("/").toString(), "none", 10_000, 0L, headers);
+    assertTrue(exporter.export("payload".getBytes(StandardCharsets.UTF_8)));
+    exporter.shutdown();
+
+    RecordedRequest recorded = server.takeRequest();
+    assertEquals("Bearer secret-token", recorded.getHeaders().get("authorization"));
+    assertEquals("trailers", recorded.getHeaders().get("te"));
+    assertEquals("application/grpc", recorded.getHeaders().get("content-type"));
+  }
+
   @Test
   void export_grpcStatusZeroInHeaders_trailersOnly_returnsTrue() {
     // Trailers-Only response: grpc-status is in the initial headers, no body.

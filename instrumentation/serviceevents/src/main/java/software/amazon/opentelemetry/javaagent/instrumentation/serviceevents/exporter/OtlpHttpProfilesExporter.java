@@ -60,6 +60,10 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
 
   private final OkHttpClient client;
   private final String endpoint;
+  private final java.util.Map<String, String> headers;
+
+  private static final java.util.Set<String> RESERVED_HEADERS =
+      new java.util.HashSet<>(java.util.Arrays.asList("content-type", "content-encoding"));
   // Parsed once: null when the endpoint is not a valid http(s) URL, which makes export a no-op.
   private final HttpUrl url;
   private final boolean gzip;
@@ -86,7 +90,21 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
    */
   public OtlpHttpProfilesExporter(
       String endpoint, String compression, long timeoutMs, long maxPayloadBytes) {
+    this(endpoint, compression, timeoutMs, maxPayloadBytes, java.util.Collections.emptyMap());
+  }
+
+  /**
+   * @param headers extra request headers sent with every export (e.g. auth), from {@code
+   *     OTEL_EXPORTER_OTLP_PROFILES_HEADERS} / {@code OTEL_EXPORTER_OTLP_HEADERS}
+   */
+  public OtlpHttpProfilesExporter(
+      String endpoint,
+      String compression,
+      long timeoutMs,
+      long maxPayloadBytes,
+      java.util.Map<String, String> headers) {
     this.endpoint = endpoint;
+    this.headers = new java.util.LinkedHashMap<>(headers);
     this.url = endpoint == null ? null : HttpUrl.parse(endpoint);
     this.gzip = "gzip".equalsIgnoreCase(compression);
     this.maxPayloadBytes = maxPayloadBytes;
@@ -155,6 +173,12 @@ public final class OtlpHttpProfilesExporter implements ProfilesExporter {
             .url(url)
             .post(RequestBody.create(body, PROTOBUF))
             .header("Content-Type", "application/x-protobuf");
+    for (java.util.Map.Entry<String, String> h : headers.entrySet()) {
+      // Configured headers never replace the protocol headers this exporter sets.
+      if (!RESERVED_HEADERS.contains(h.getKey().toLowerCase(java.util.Locale.ROOT))) {
+        requestBuilder.header(h.getKey(), h.getValue());
+      }
+    }
     if (gzip && body != payload) {
       requestBuilder.header("Content-Encoding", "gzip");
     }

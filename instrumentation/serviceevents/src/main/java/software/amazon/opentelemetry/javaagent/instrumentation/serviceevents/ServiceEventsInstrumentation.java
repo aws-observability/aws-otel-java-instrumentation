@@ -542,12 +542,14 @@ public class ServiceEventsInstrumentation {
                             config.getProfilerEndpoint(),
                             config.getProfilerExportCompression(),
                             config.getProfilerExportTimeoutMs(),
-                            config.getProfilerMaxPayloadBytes())
+                            config.getProfilerMaxPayloadBytes(),
+                            config.getProfilerHeaders())
                         : new OtlpHttpProfilesExporter(
                             config.getProfilerEndpoint(),
                             config.getProfilerExportCompression(),
                             config.getProfilerExportTimeoutMs(),
-                            config.getProfilerMaxPayloadBytes()),
+                            config.getProfilerMaxPayloadBytes(),
+                            config.getProfilerHeaders()),
                 exporter ->
                     new RotationBoundaryProcessor(
                         10000, // check every 10s for new rotated files
