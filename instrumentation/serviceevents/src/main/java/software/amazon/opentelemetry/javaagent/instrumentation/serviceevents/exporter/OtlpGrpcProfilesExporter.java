@@ -80,6 +80,12 @@ public final class OtlpGrpcProfilesExporter implements ProfilesExporter {
   private static final int GRPC_UNAVAILABLE = 14;
 
   private final OkHttpClient client;
+  private final java.util.Map<String, String> headers;
+
+  private static final java.util.Set<String> RESERVED_HEADERS =
+      new java.util.HashSet<>(
+          java.util.Arrays.asList(
+              "content-type", "content-encoding", "te", "grpc-encoding", "grpc-accept-encoding"));
   private final String endpoint; // original resolved endpoint (for logging)
   private final HttpUrl rpcUrl; // endpoint authority + EXPORT_PATH
   private final boolean gzip;
@@ -100,6 +106,20 @@ public final class OtlpGrpcProfilesExporter implements ProfilesExporter {
    */
   public OtlpGrpcProfilesExporter(
       String endpoint, String compression, long timeoutMs, long maxPayloadBytes) {
+    this(endpoint, compression, timeoutMs, maxPayloadBytes, java.util.Collections.emptyMap());
+  }
+
+  /**
+   * @param headers extra request headers (gRPC metadata) sent with every export (e.g. auth), from
+   *     {@code OTEL_EXPORTER_OTLP_PROFILES_HEADERS} / {@code OTEL_EXPORTER_OTLP_HEADERS}
+   */
+  public OtlpGrpcProfilesExporter(
+      String endpoint,
+      String compression,
+      long timeoutMs,
+      long maxPayloadBytes,
+      java.util.Map<String, String> headers) {
+    this.headers = new java.util.LinkedHashMap<>(headers);
     this.endpoint = endpoint;
     this.gzip = "gzip".equalsIgnoreCase(compression);
     this.maxPayloadBytes = maxPayloadBytes;
@@ -179,6 +199,12 @@ public final class OtlpGrpcProfilesExporter implements ProfilesExporter {
             .header("Content-Type", "application/grpc")
             .header("te", "trailers")
             .header("grpc-accept-encoding", "gzip");
+    for (java.util.Map.Entry<String, String> h : headers.entrySet()) {
+      // Configured headers never replace the protocol headers this exporter sets.
+      if (!RESERVED_HEADERS.contains(h.getKey().toLowerCase(java.util.Locale.ROOT))) {
+        requestBuilder.header(h.getKey(), h.getValue());
+      }
+    }
     if (compressed) {
       requestBuilder.header("grpc-encoding", "gzip");
     }

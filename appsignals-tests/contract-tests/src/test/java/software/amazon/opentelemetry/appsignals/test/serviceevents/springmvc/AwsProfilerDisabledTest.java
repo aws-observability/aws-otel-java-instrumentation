@@ -48,10 +48,17 @@ class AwsProfilerDisabledTest extends ServiceEventsContractTestBase {
       sendRequest("success");
     }
 
-    // The profiler only exports on a JFR rotation (~60s); with it disabled there is never anything
-    // to export. Wait past a couple of RotationBoundaryProcessor check intervals to be certain no
-    // stray export slips through, then take a single non-blocking snapshot.
-    Thread.sleep(15000);
+    // An enabled profiler only exports after its first JFR rotation (~60-90s), so an empty profiles
+    // snapshot alone cannot show it is off. The agent's own log can: it must report the profiler as
+    // disabled and never load or start async-profiler.
+    String logs = application.getLogs();
+    assertThat(logs)
+        .as("agent must report the profiler as disabled")
+        .contains("Profiler is disabled via configuration");
+    assertThat(logs)
+        .as("async-profiler must not be loaded or started when the profiler is disabled")
+        .doesNotContain("async-profiler loaded")
+        .doesNotContain("Started async-profiler");
 
     assertThat(mockCollectorClient.getProfilesSnapshot())
         .as("no ExportProfilesServiceRequest should be captured when the profiler is disabled")

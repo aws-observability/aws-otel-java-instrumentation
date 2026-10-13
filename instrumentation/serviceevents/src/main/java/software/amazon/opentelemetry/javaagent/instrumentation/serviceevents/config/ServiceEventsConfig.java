@@ -17,7 +17,9 @@ package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.co
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -136,6 +138,9 @@ public class ServiceEventsConfig {
   // timeout bounds each best-effort send.
   private final String profilerEndpoint;
   private final String profilerExportCompression;
+  // Extra request headers for profiles export (e.g. auth), from OTEL_EXPORTER_OTLP_PROFILES_HEADERS
+  // or else OTEL_EXPORTER_OTLP_HEADERS. Never logged: values are often credentials.
+  private final Map<String, String> profilerHeaders;
   private final int profilerExportTimeoutMs;
   // OTLP transport for profiles: PROFILER_PROTOCOL_HTTP_PROTOBUF (default) or
   // PROFILER_PROTOCOL_GRPC, read from the shared OTEL_EXPORTER_OTLP_PROTOCOL (see fromEnv).
@@ -219,6 +224,8 @@ public class ServiceEventsConfig {
     this.profilerDataDir = builder.profilerDataDir;
     this.profilerEndpoint = builder.profilerEndpoint;
     this.profilerExportCompression = builder.profilerExportCompression;
+    this.profilerHeaders =
+        Collections.unmodifiableMap(new LinkedHashMap<>(builder.profilerHeaders));
     this.profilerExportTimeoutMs = builder.profilerExportTimeoutMs;
     this.profilerProtocol = builder.profilerProtocol;
     this.profilerMemoryEnabled = builder.profilerMemoryEnabled;
@@ -226,6 +233,43 @@ public class ServiceEventsConfig {
     this.profilerAggregationMode = builder.profilerAggregationMode;
     this.profilerWindowSeconds = builder.profilerWindowSeconds;
     this.profilerMaxPayloadBytes = builder.profilerMaxPayloadBytes;
+  }
+
+  private static String firstNonEmpty(String a, String b) {
+    return a != null && !a.trim().isEmpty() ? a : b;
+  }
+
+  /**
+   * Parse OTLP exporter headers in the standard {@code key1=value1,key2=value2} form, with values
+   * percent-decoded. Entries without a key or {@code =} are skipped with a warning that names only
+   * their position (header values are often credentials). Package-private for unit testing.
+   */
+  static Map<String, String> parseOtlpHeaders(String value) {
+    Map<String, String> headers = new LinkedHashMap<>();
+    if (value == null || value.trim().isEmpty()) {
+      return headers;
+    }
+    String[] entries = value.split(",");
+    for (int i = 0; i < entries.length; i++) {
+      String entry = entries[i].trim();
+      if (entry.isEmpty()) {
+        continue;
+      }
+      int eq = entry.indexOf('=');
+      String key = eq > 0 ? entry.substring(0, eq).trim() : "";
+      if (key.isEmpty()) {
+        Logger.getLogger(ServiceEventsConfig.class.getName())
+            .warning("Ignoring malformed OTLP header entry #" + (i + 1) + " (expected key=value)");
+        continue;
+      }
+      try {
+        headers.put(key, java.net.URLDecoder.decode(entry.substring(eq + 1).trim(), "UTF-8"));
+      } catch (java.io.UnsupportedEncodingException | IllegalArgumentException e) {
+        Logger.getLogger(ServiceEventsConfig.class.getName())
+            .warning("Ignoring OTLP header '" + key + "': value is not valid percent-encoding");
+      }
+    }
+    return headers;
   }
 
   /** Build configuration from environment variables. */
@@ -381,6 +425,13 @@ public class ServiceEventsConfig {
                     getConfigValue("OTEL_EXPORTER_OTLP_ENDPOINT"),
                     profilerProtocol))
             .profilerExportCompression(getStringEnv("OTEL_AWS_PROFILER_EXPORT_COMPRESSION", "gzip"))
+            // Extra export headers (e.g. auth): the profiles-specific variable wins over the shared
+            // one, as for the other OTLP exporters.
+            .profilerHeaders(
+                parseOtlpHeaders(
+                    firstNonEmpty(
+                        getConfigValue("OTEL_EXPORTER_OTLP_PROFILES_HEADERS"),
+                        getConfigValue("OTEL_EXPORTER_OTLP_HEADERS"))))
             .profilerExportTimeoutMs(getIntEnv("OTEL_AWS_PROFILER_EXPORT_TIMEOUT_MS", 10000))
             // Memory/allocation profiling: off by default; when enabled it adds async-profiler's
             // alloc= event to the same JFR session. The interval is alloc= sampling bytes.
@@ -1039,6 +1090,11 @@ public class ServiceEventsConfig {
   }
 
   /** Request compression for the profiles exporter ({@code gzip} by default). */
+  /** Extra request headers sent with every profiles export (see the field doc). */
+  public Map<String, String> getProfilerHeaders() {
+    return profilerHeaders;
+  }
+
   public String getProfilerExportCompression() {
     return profilerExportCompression;
   }
@@ -1157,6 +1213,7 @@ public class ServiceEventsConfig {
     private String profilerDataDir = "";
     private String profilerEndpoint = DEFAULT_PROFILER_ENDPOINT;
     private String profilerExportCompression = "gzip";
+    private Map<String, String> profilerHeaders = Collections.emptyMap();
     private int profilerProtocol = PROFILER_PROTOCOL_HTTP_PROTOBUF;
     private int profilerExportTimeoutMs = 10000;
     private boolean profilerMemoryEnabled = false;
@@ -1329,7 +1386,9 @@ public class ServiceEventsConfig {
     }
 
     public Builder asyncProfilerCpuIntervalMs(int asyncProfilerCpuIntervalMs) {
-      this.asyncProfilerCpuIntervalMs = asyncProfilerCpuIntervalMs;
+      // Must be >= 1 ms, as for the wall interval. Values below 1 fall back to the 10 default.
+      this.asyncProfilerCpuIntervalMs =
+          asyncProfilerCpuIntervalMs >= 1 ? asyncProfilerCpuIntervalMs : 10;
       return this;
     }
 
@@ -1341,7 +1400,11 @@ public class ServiceEventsConfig {
     }
 
     public Builder asyncProfilerWallIntervalMs(int asyncProfilerWallIntervalMs) {
-      this.asyncProfilerWallIntervalMs = asyncProfilerWallIntervalMs;
+      // Must be >= 1 ms: async-profiler reads interval=0 as its own default, which would make the
+      // exported period wrong, and a negative interval is undefined. Values below 1 fall back to
+      // the 10 default.
+      this.asyncProfilerWallIntervalMs =
+          asyncProfilerWallIntervalMs >= 1 ? asyncProfilerWallIntervalMs : 10;
       return this;
     }
 
@@ -1360,13 +1423,20 @@ public class ServiceEventsConfig {
       return this;
     }
 
+    public Builder profilerHeaders(Map<String, String> profilerHeaders) {
+      this.profilerHeaders = profilerHeaders == null ? Collections.emptyMap() : profilerHeaders;
+      return this;
+    }
+
     public Builder profilerExportCompression(String profilerExportCompression) {
       this.profilerExportCompression = profilerExportCompression;
       return this;
     }
 
     public Builder profilerExportTimeoutMs(int profilerExportTimeoutMs) {
-      this.profilerExportTimeoutMs = profilerExportTimeoutMs;
+      // Must be >= 1 ms: a zero or negative timeout would make every export fail. Values below 1
+      // fall back to the 10000 default.
+      this.profilerExportTimeoutMs = profilerExportTimeoutMs >= 1 ? profilerExportTimeoutMs : 10000;
       return this;
     }
 

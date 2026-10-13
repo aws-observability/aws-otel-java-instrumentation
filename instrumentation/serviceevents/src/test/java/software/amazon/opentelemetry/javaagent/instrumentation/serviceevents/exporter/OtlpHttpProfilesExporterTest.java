@@ -82,6 +82,26 @@ class OtlpHttpProfilesExporterTest {
     assertEquals(0, server.getRequestCount());
   }
 
+  /** Configured headers (e.g. auth) are sent; they cannot replace the protocol headers. */
+  @Test
+  void export_sendsConfiguredHeaders_butNotOverProtocolHeaders() throws Exception {
+    server.enqueue(response(200));
+    java.util.Map<String, String> headers = new java.util.LinkedHashMap<>();
+    headers.put("Authorization", "Bearer secret-token");
+    headers.put("x-tenant", "acme");
+    headers.put("Content-Type", "text/plain");
+    OtlpHttpProfilesExporter exporter =
+        new OtlpHttpProfilesExporter(
+            server.url("/v1development/profiles").toString(), "none", 10_000, 0L, headers);
+    assertTrue(exporter.export(sampleRequestBytes()));
+    exporter.shutdown();
+
+    RecordedRequest recorded = server.takeRequest();
+    assertEquals("Bearer secret-token", recorded.getHeaders().get("Authorization"));
+    assertEquals("acme", recorded.getHeaders().get("x-tenant"));
+    assertEquals("application/x-protobuf", recorded.getHeaders().get("Content-Type"));
+  }
+
   @Test
   void export_postsProtobufToVerbatimUrl_uncompressed() throws Exception {
     server.enqueue(response(200));

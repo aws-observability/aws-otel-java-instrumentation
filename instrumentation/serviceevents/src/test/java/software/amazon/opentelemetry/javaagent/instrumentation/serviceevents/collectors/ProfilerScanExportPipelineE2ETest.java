@@ -225,7 +225,9 @@ class ProfilerScanExportPipelineE2ETest {
     wrapper.shutdown(); // stops the session and finalizes the JFR file
 
     Path jfr = newestJfr(wrapper.getJfrBasePath());
-    assumeTrue(jfr != null, "async-profiler produced no JFR file on this platform");
+    // Platform support is gated above (isAvailable / isRunning); once the profiler ran, these are
+    // real outcomes, so they are asserted rather than assumed.
+    assertTrue(jfr != null, "a running async-profiler must produce a JFR file");
 
     server.enqueue(new MockResponse.Builder().code(200).build());
     String url = server.url("/v1development/profiles").toString();
@@ -241,10 +243,9 @@ class ProfilerScanExportPipelineE2ETest {
     // mechanics).
     newProcessor(exporter).scanJfrFileSinglePass(jfr, new HashMap<>(), builder, new HashMap<>());
 
-    // Skip (do not fail) if this constrained host produced a JFR with no scannable samples.
-    assumeTrue(
+    assertTrue(
         builder.getSampleCount() > 0 || builder.getAllocSampleCount() > 0,
-        "live async-profiler run captured no samples on this host");
+        "a 2s live async-profiler run must capture samples");
 
     ExportProfilesServiceRequest request = builder.toExportRequest(Resource.getDefault());
     assertTrue(
@@ -263,16 +264,14 @@ class ProfilerScanExportPipelineE2ETest {
     assertNotNull(wall, "wall Profile must be present from a live run");
     assertEquals(WALL_PERIOD_NS, wall.getPeriod());
 
-    // Wall samples carry the thread.state attribute — verifies the scan resolves
-    // ExecutionSample.threadState via the JFR jdk.types.ThreadState enum on a real recording.
-    // assumeTrue (not assertTrue): skip rather than fail on a reader/platform where that enum is
-    // absent, mirroring the isRunning gate above — this is a best-effort live smoke test.
-    if (wall.getSamplesCount() > 0) {
-      assumeTrue(
-          wall.getSamplesList().stream()
-              .anyMatch(s -> attributeValue(s, parsed.getDictionary(), "thread.state") != null),
-          "wall samples carry thread.state (skipped: JFR jdk.types.ThreadState enum unavailable)");
-    }
+    // Wall samples carry the thread.state attribute: verifies the scan resolves
+    // ExecutionSample.threadState via the JFR jdk.types.ThreadState enum, which the bundled
+    // async-profiler writes in wall mode, on a real recording.
+    assertTrue(wall.getSamplesCount() > 0, "wall Profile must carry samples");
+    assertTrue(
+        wall.getSamplesList().stream()
+            .anyMatch(s -> attributeValue(s, parsed.getDictionary(), "thread.state") != null),
+        "wall samples carry thread.state");
   }
 
   @Test
@@ -311,7 +310,9 @@ class ProfilerScanExportPipelineE2ETest {
     wrapper.shutdown(); // stops the session and finalizes the JFR file
 
     Path jfr = newestJfr(wrapper.getJfrBasePath());
-    assumeTrue(jfr != null, "async-profiler produced no JFR file on this platform");
+    // Platform support is gated above (isAvailable / isRunning); once the profiler ran, these are
+    // real outcomes, so they are asserted rather than assumed.
+    assertTrue(jfr != null, "a running async-profiler must produce a JFR file");
 
     server.enqueue(new MockResponse.Builder().code(200).build());
     String url = server.url("/v1development/profiles").toString();
@@ -331,10 +332,7 @@ class ProfilerScanExportPipelineE2ETest {
             OtlpProfileBuilder.PRIMARY_CPU);
     newProcessor(exporter).scanJfrFileSinglePass(jfr, new HashMap<>(), builder, new HashMap<>());
 
-    // Skip (do not fail) if this constrained host produced a JFR with no scannable samples.
-    assumeTrue(
-        builder.getSampleCount() > 0,
-        "live async-profiler cpu run captured no samples on this host");
+    assertTrue(builder.getSampleCount() > 0, "a live cpu-mode run must capture samples");
 
     ExportProfilesServiceRequest request = builder.toExportRequest(Resource.getDefault());
     assertTrue(
@@ -361,7 +359,7 @@ class ProfilerScanExportPipelineE2ETest {
     assertNull(profileByType(parsed, "wall"), "cpu mode must not emit a wall Profile");
 
     // cpu mode carries no thread.state attribute (every on-CPU sample is STATE_DEFAULT).
-    assumeTrue(
+    assertTrue(
         cpu.getSamplesList().stream()
             .noneMatch(s -> attributeValue(s, dict, "thread.state") != null),
         "cpu samples must not carry thread.state");
