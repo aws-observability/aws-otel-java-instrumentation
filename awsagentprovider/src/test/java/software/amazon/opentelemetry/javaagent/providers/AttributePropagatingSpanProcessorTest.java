@@ -15,10 +15,17 @@
 
 package software.amazon.opentelemetry.javaagent.providers;
 
+import static io.opentelemetry.semconv.HttpAttributes.HTTP_REQUEST_METHOD;
+import static io.opentelemetry.semconv.UrlAttributes.URL_PATH;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_METHOD;
+import static io.opentelemetry.semconv.incubating.HttpIncubatingAttributes.HTTP_TARGET;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MESSAGING_OPERATION;
 import static io.opentelemetry.semconv.incubating.MessagingIncubatingAttributes.MessagingOperationTypeIncubatingValues.PROCESS;
 import static io.opentelemetry.semconv.incubating.RpcIncubatingAttributes.RPC_SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Answers.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.withSettings;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
@@ -32,9 +39,11 @@ import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 class AttributePropagatingSpanProcessorTest {
 
@@ -259,6 +268,159 @@ class AttributePropagatingSpanProcessorTest {
             .startSpan();
     assertThat(((ReadableSpan) span).getAttribute(AwsAttributeKeys.AWS_CONSUMER_PARENT_SPAN_KIND))
         .isEqualTo(SpanKind.CONSUMER.name());
+  }
+
+  // OTEL_AWS_HTTP_OPERATION_PATHS: children of a SERVER span must inherit the overridden operation
+  // (the one used for the server span's own service metrics), not the original span name.
+  @Test
+  public void testChildOfServerSpanInheritsOperationPathOverride() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1"));
+      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
+      validateSpanAttributesInheritance(serverSpan, "POST /smart/v1/getAppraisers", null, null);
+      ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/getAppraisers");
+    }
+  }
+
+  @Test
+  public void testChildOfServerSpanUnchangedWhenOperationPathsUnset() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic.when(AwsSpanProcessingUtil::getOperationPaths).thenReturn(List.of());
+      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
+      validateSpanAttributesInheritance(serverSpan, "POST /smart/v1/**", null, null);
+      ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/**");
+    }
+  }
+
+  @Test
+  public void testChildOfServerSpanUnchangedWhenNoOperationPathMatches() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/other/getAppraisers"));
+      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
+      validateSpanAttributesInheritance(serverSpan, "POST /smart/v1/**", null, null);
+      ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/**");
+    }
+  }
+
+  @Test
+  public void testChildOfServerSpanInheritsWildcardOperationPathTemplate() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/schdefaults/{inscompId}", "/smart/v1"));
+      Span serverSpan = startCoarseServerSpan("/smart/v1/schdefaults/123");
+      ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
+      assertThat(clientChild.getAttribute(spanNameKey))
+          .isEqualTo("POST /smart/v1/schdefaults/{inscompId}");
+    }
+  }
+
+  @Test
+  public void testChildOfServerSpanInheritsOperationPathOverrideFromHttpTarget() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/getAppraisers"));
+      // Old HTTP semantic conventions: http.method + http.target (with a query string).
+      Span serverSpan =
+          tracer
+              .spanBuilder("POST /smart/v1/**")
+              .setSpanKind(SpanKind.SERVER)
+              .setAttribute(HTTP_METHOD, "POST")
+              .setAttribute(HTTP_TARGET, "/smart/v1/getAppraisers?id=1")
+              .startSpan();
+      ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/getAppraisers");
+    }
+  }
+
+  @Test
+  public void testChildrenOfDifferentServerSpansInheritTheirOwnOperationPathOverride() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1/appraiser/details"));
+      Span serverA = startCoarseServerSpan("/smart/v1/getAppraisers");
+      Span serverB = startCoarseServerSpan("/smart/v1/appraiser/details");
+      ReadableSpan childA = startChild(serverA, SpanKind.CLIENT);
+      ReadableSpan childB = startChild(serverB, SpanKind.CLIENT);
+      assertThat(childA.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/getAppraisers");
+      assertThat(childB.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/appraiser/details");
+    }
+  }
+
+  // The operation propagated to children must equal the operation the server span's own service
+  // metrics use (the override applied at span end, then getIngressOperation).
+  @Test
+  public void testChildOperationMatchesServerSpanServiceOperation() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1"));
+      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
+      ReadableSpan internalChild = startChild(serverSpan, SpanKind.INTERNAL);
+      serverSpan.end();
+      String serviceOperation =
+          AwsSpanProcessingUtil.getIngressOperation(
+              AwsSpanProcessingUtil.applyOperationPathSpanName(
+                  ((ReadableSpan) serverSpan).toSpanData()));
+      assertThat(internalChild.getAttribute(spanNameKey)).isEqualTo(serviceOperation);
+    }
+  }
+
+  // An INTERNAL local root keeps InternalOperation even when a pattern matches its URL path.
+  @Test
+  public void testInternalLocalRootUnchangedByOperationPathOverride() {
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/getAppraisers"));
+      Span localRoot =
+          tracer
+              .spanBuilder("POST /smart/v1/**")
+              .setSpanKind(SpanKind.INTERNAL)
+              .setAttribute(HTTP_REQUEST_METHOD, "POST")
+              .setAttribute(URL_PATH, "/smart/v1/getAppraisers")
+              .startSpan();
+      assertThat(((ReadableSpan) localRoot).getAttribute(spanNameKey))
+          .isEqualTo("InternalOperation");
+      validateSpanAttributesInheritance(localRoot, "InternalOperation", null, null);
+    }
+  }
+
+  private Span startCoarseServerSpan(String urlPath) {
+    return tracer
+        .spanBuilder("POST /smart/v1/**")
+        .setSpanKind(SpanKind.SERVER)
+        .setAttribute(HTTP_REQUEST_METHOD, "POST")
+        .setAttribute(URL_PATH, urlPath)
+        .startSpan();
+  }
+
+  private ReadableSpan startChild(Span parent, SpanKind kind) {
+    Span child =
+        tracer
+            .spanBuilder("child")
+            .setSpanKind(kind)
+            .setParent(Context.current().with(parent))
+            .startSpan();
+    child.end();
+    return (ReadableSpan) child;
   }
 
   private Span createNestedSpan(Span parentSpan, int depth) {
