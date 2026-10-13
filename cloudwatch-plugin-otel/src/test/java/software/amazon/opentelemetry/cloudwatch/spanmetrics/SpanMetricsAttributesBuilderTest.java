@@ -325,6 +325,89 @@ class SpanMetricsAttributesBuilderTest {
   }
 
   @Test
+  void legacyServerSpanPrefersHostOverClientPeer() {
+    // On a SERVER span the legacy net.peer.* keys describe the client; net.peer.port is the
+    // client's ephemeral port and would make every connection a new metric series.
+    Attributes span =
+        Attributes.builder()
+            .put("net.peer.name", "client.example.com")
+            .put("net.peer.port", 54321L)
+            .put("net.host.name", "payments.example.com")
+            .put("net.host.port", 8443L)
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("net.host.name")))
+        .isEqualTo("payments.example.com");
+    assertThat(attrs.get(AttributeKey.longKey("net.host.port"))).isEqualTo(8443L);
+    assertThat(attrs.get(AttributeKey.stringKey("net.peer.name"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("net.peer.port"))).isNull();
+    assertThat(attrs.get(AttributeKey.stringKey("server.address"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("server.port"))).isNull();
+  }
+
+  @Test
+  void legacyServerSpanWithOnlyClientPeerEmitsNoPeerDimension() {
+    Attributes span =
+        Attributes.builder()
+            .put("net.peer.name", "client.example.com")
+            .put("net.peer.port", 54321L)
+            .build();
+    Attributes attrs = SpanMetricsAttributesBuilder.build(span(SpanKind.SERVER, span).build());
+    assertThat(attrs.get(AttributeKey.stringKey("net.peer.name"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("net.peer.port"))).isNull();
+    assertThat(attrs.get(AttributeKey.stringKey("net.host.name"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("net.host.port"))).isNull();
+    assertThat(attrs.get(AttributeKey.stringKey("server.address"))).isNull();
+    assertThat(attrs.get(AttributeKey.longKey("server.port"))).isNull();
+  }
+
+  @Test
+  void legacyPeerAttributesKeptForNonServerKinds() {
+    // On CLIENT/PRODUCER/CONSUMER spans net.peer.* is the remote server or broker, so it is kept.
+    Attributes span =
+        Attributes.builder()
+            .put("net.peer.name", "payments.example.com")
+            .put("net.peer.port", 8443L)
+            .put("net.host.name", "local.example.com")
+            .put("net.host.port", 54321L)
+            .build();
+    for (SpanKind kind :
+        new SpanKind[] {SpanKind.CLIENT, SpanKind.PRODUCER, SpanKind.CONSUMER, SpanKind.INTERNAL}) {
+      Attributes attrs = SpanMetricsAttributesBuilder.build(span(kind, span).build());
+      assertThat(attrs.get(AttributeKey.stringKey("net.peer.name")))
+          .as(kind.name())
+          .isEqualTo("payments.example.com");
+      assertThat(attrs.get(AttributeKey.longKey("net.peer.port"))).as(kind.name()).isEqualTo(8443L);
+      assertThat(attrs.get(AttributeKey.stringKey("net.host.name"))).as(kind.name()).isNull();
+      assertThat(attrs.get(AttributeKey.longKey("net.host.port"))).as(kind.name()).isNull();
+    }
+  }
+
+  @Test
+  void stableServerAttributesWinForAllKinds() {
+    Attributes span =
+        Attributes.builder()
+            .put("server.address", "payments.example.com")
+            .put("server.port", 8443L)
+            .put("net.peer.name", "other.example.com")
+            .put("net.peer.port", 54321L)
+            .put("net.host.name", "local.example.com")
+            .put("net.host.port", 8080L)
+            .build();
+    for (SpanKind kind : new SpanKind[] {SpanKind.SERVER, SpanKind.CLIENT}) {
+      Attributes attrs = SpanMetricsAttributesBuilder.build(span(kind, span).build());
+      assertThat(attrs.get(AttributeKey.stringKey("server.address")))
+          .as(kind.name())
+          .isEqualTo("payments.example.com");
+      assertThat(attrs.get(AttributeKey.longKey("server.port"))).as(kind.name()).isEqualTo(8443L);
+      assertThat(attrs.get(AttributeKey.stringKey("net.peer.name"))).as(kind.name()).isNull();
+      assertThat(attrs.get(AttributeKey.longKey("net.peer.port"))).as(kind.name()).isNull();
+      assertThat(attrs.get(AttributeKey.stringKey("net.host.name"))).as(kind.name()).isNull();
+      assertThat(attrs.get(AttributeKey.longKey("net.host.port"))).as(kind.name()).isNull();
+    }
+  }
+
+  @Test
   void genAiAttributesCopied() {
     Attributes span =
         Attributes.builder()
