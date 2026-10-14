@@ -1089,12 +1089,12 @@ public class ServiceEventsConfig {
     return profilerEndpoint;
   }
 
-  /** Request compression for the profiles exporter ({@code gzip} by default). */
   /** Extra request headers sent with every profiles export (see the field doc). */
   public Map<String, String> getProfilerHeaders() {
     return profilerHeaders;
   }
 
+  /** Request compression for the profiles exporter ({@code gzip} by default). */
   public String getProfilerExportCompression() {
     return profilerExportCompression;
   }
