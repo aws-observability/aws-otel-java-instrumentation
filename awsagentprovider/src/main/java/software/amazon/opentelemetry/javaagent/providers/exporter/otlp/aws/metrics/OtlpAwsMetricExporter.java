@@ -54,8 +54,20 @@ public final class OtlpAwsMetricExporter extends BaseOtlpAwsExporter implements 
   private OtlpAwsMetricExporter(
       OtlpHttpMetricExporter parentExporter, String endpoint, CompressionMethod compression) {
     super(endpoint, compression);
+    // IMMUTABLE_DATA is required for correctness, not chosen for performance. export() signs the
+    // bytes produced by MetricsRequestMarshaler, while the parent exporter serializes the metrics
+    // again for the actual request. Under the default REUSABLE_DATA the parent uses
+    // LowAllocationMetricsRequestMarshaler, which groups metrics by instrumentation scope in a
+    // differently sized identity-keyed map and so can emit the scope blocks in a different order.
+    // The payloads stay semantically equal but differ byte-wise, the signed SHA-256 no longer
+    // matches the request body, and CloudWatch rejects the export with 403 SignatureDoesNotMatch.
+    // Pinning IMMUTABLE_DATA puts both serializations on the same marshaler. The span and log
+    // exporters pin it for the same reason.
     this.parentExporterBuilder =
-        parentExporter.toBuilder().setEndpoint(endpoint).setHeaders(this.headerSupplier);
+        parentExporter.toBuilder()
+            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+            .setEndpoint(endpoint)
+            .setHeaders(this.headerSupplier);
     this.parentExporter = this.parentExporterBuilder.build();
   }
 

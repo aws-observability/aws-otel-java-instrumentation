@@ -274,6 +274,15 @@ abstract class AbstractOtlpAwsExporterTest {
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
+    /** See the metrics equivalent: signing a re-serialization requires one shared marshaler. */
+    @Test
+    void testSpanExporterPinsImmutableMemoryModeSoSignedBytesMatchSentBytes() {
+      OtlpAwsSpanExporterBuilder.create(this.mockExporter, XRAY_OTLP_ENDPOINT).build();
+
+      verify(this.mockBuilder, atLeastOnce()).setMemoryMode(MemoryMode.IMMUTABLE_DATA);
+      verify(this.mockBuilder, never()).setMemoryMode(MemoryMode.REUSABLE_DATA);
+    }
+
     private static final class MockOtlpAwsSpanExporterWrapper implements OtlpAwsExporterTest {
       private final SpanExporter exporter;
 
@@ -347,6 +356,15 @@ abstract class AbstractOtlpAwsExporterTest {
       assertEquals(CompressionMethod.NONE, exporter.getCompression());
     }
 
+    /** See the metrics equivalent: signing a re-serialization requires one shared marshaler. */
+    @Test
+    void testLogsExporterPinsImmutableMemoryModeSoSignedBytesMatchSentBytes() {
+      OtlpAwsLogRecordExporterBuilder.create(this.mockExporter, LOGS_OTLP_ENDPOINT).build();
+
+      verify(this.mockBuilder, atLeastOnce()).setMemoryMode(MemoryMode.IMMUTABLE_DATA);
+      verify(this.mockBuilder, never()).setMemoryMode(MemoryMode.REUSABLE_DATA);
+    }
+
     private static final class MockOtlpAwsLogsExporterWrapper implements OtlpAwsExporterTest {
       private final LogRecordExporter exporter;
 
@@ -376,6 +394,7 @@ abstract class AbstractOtlpAwsExporterTest {
     void setup() {
       lenient().when(this.mockExporter.toBuilder()).thenReturn(mockBuilder);
       lenient().when(this.mockBuilder.setEndpoint(any())).thenReturn(mockBuilder);
+      lenient().when(this.mockBuilder.setMemoryMode(any())).thenReturn(this.mockBuilder);
       lenient()
           .when(this.mockBuilder.setHeaders(this.headersCaptor.capture()))
           .thenReturn(mockBuilder);
@@ -433,7 +452,6 @@ abstract class AbstractOtlpAwsExporterTest {
       when(this.mockExporter.getAggregationTemporality(InstrumentType.COUNTER))
           .thenReturn(AggregationTemporality.DELTA);
       when(this.mockExporter.getDefaultAggregation(InstrumentType.COUNTER)).thenReturn(aggregation);
-      when(this.mockExporter.getMemoryMode()).thenReturn(MemoryMode.REUSABLE_DATA);
 
       OtlpAwsMetricExporter exporter =
           OtlpAwsMetricExporterBuilder.create(this.mockExporter, METRICS_OTLP_ENDPOINT).build();
@@ -441,7 +459,23 @@ abstract class AbstractOtlpAwsExporterTest {
       assertEquals(
           AggregationTemporality.DELTA, exporter.getAggregationTemporality(InstrumentType.COUNTER));
       assertSame(aggregation, exporter.getDefaultAggregation(InstrumentType.COUNTER));
-      assertEquals(MemoryMode.REUSABLE_DATA, exporter.getMemoryMode());
+    }
+
+    /**
+     * Regression guard. The exporter signs bytes from {@code MetricsRequestMarshaler} while the
+     * parent exporter serializes the metrics a second time for the request itself. Under the
+     * default {@link MemoryMode#REUSABLE_DATA} the parent uses {@code
+     * LowAllocationMetricsRequestMarshaler}, which can order instrumentation scope blocks
+     * differently, so the signature stops matching the body and CloudWatch returns 403
+     * SignatureDoesNotMatch. Pinning {@link MemoryMode#IMMUTABLE_DATA} is what keeps both
+     * serializations on one marshaler.
+     */
+    @Test
+    void testMetricsExporterPinsImmutableMemoryModeSoSignedBytesMatchSentBytes() {
+      OtlpAwsMetricExporterBuilder.create(this.mockExporter, METRICS_OTLP_ENDPOINT).build();
+
+      verify(this.mockBuilder, atLeastOnce()).setMemoryMode(MemoryMode.IMMUTABLE_DATA);
+      verify(this.mockBuilder, never()).setMemoryMode(MemoryMode.REUSABLE_DATA);
     }
 
     @Test
