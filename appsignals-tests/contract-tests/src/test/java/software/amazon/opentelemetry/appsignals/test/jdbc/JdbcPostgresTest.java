@@ -25,6 +25,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.PullPolicy;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startable;
+import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -97,7 +98,9 @@ public class JdbcPostgresTest extends JdbcContractTestBase {
   @Override
   protected List<Startable> getApplicationDependsOnContainers() {
     this.postgreSqlContainer =
-        new PostgreSQLContainer<>("postgres:16.3")
+        new PostgreSQLContainer<>(
+                DockerImageName.parse("public.ecr.aws/docker/library/postgres:16.3")
+                    .asCompatibleSubstituteFor("postgres"))
             .withImagePullPolicy(PullPolicy.alwaysPull())
             .withUsername(DB_USER)
             .withPassword(DB_PASSWORD)

@@ -24,7 +24,10 @@ jobs:
   # Runs once for a patch series to any given minor version to create the initial release branch. Subsequent patches
   # will be applied to the existing release branch.
   prepare-release-branch:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     outputs:
       release-branch-name: ${{ steps.parse-release-branch.outputs.release-branch-name }}
     steps:
@@ -55,7 +58,10 @@ jobs:
           git checkout -b ${{ steps.parse-release-branch.outputs.release-branch-name }}
           git push --set-upstream origin ${{ steps.parse-release-branch.outputs.release-branch-name }}
   build:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: prepare-release-branch
     steps:
       - name: Checkout release branch

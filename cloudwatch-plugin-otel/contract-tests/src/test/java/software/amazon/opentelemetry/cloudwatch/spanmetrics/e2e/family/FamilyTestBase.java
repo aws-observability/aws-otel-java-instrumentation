@@ -55,7 +55,7 @@ abstract class FamilyTestBase extends SpanMetricsContractTestBase {
    * instead of launching one each.
    */
   private static final KafkaContainer SHARED_KAFKA =
-      new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
+      new KafkaContainer(DockerImageName.parse("mirror.gcr.io/confluentinc/cp-kafka:7.4.0").asCompatibleSubstituteFor("confluentinc/cp-kafka"))
           .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
           .withNetwork(SHARED_NETWORK)
           .withNetworkAliases(KAFKA_ALIAS);

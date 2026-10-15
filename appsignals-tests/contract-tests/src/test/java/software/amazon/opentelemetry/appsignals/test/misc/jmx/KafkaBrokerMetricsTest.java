@@ -39,7 +39,9 @@ public class KafkaBrokerMetricsTest extends JMXMetricsContractTestBase {
 
   @Override
   protected GenericContainer<?> getApplicationContainer() {
-    return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
+    return new KafkaContainer(
+            DockerImageName.parse("mirror.gcr.io/confluentinc/cp-kafka:7.4.0")
+                .asCompatibleSubstituteFor("confluentinc/cp-kafka"))
         .withImagePullPolicy(PullPolicy.alwaysPull())
         .withNetworkAliases("kafkaBroker")
         .withNetwork(network)

@@ -22,7 +22,10 @@ jobs:
   analyze:
     # This repository only have Java and Rust code. Rust is not supported currently.
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
 
     steps:
     - name: Checkout repository
@@ -65,7 +68,10 @@ jobs:
       uses: github/codeql-action/analyze@16df4fbc19aea13d921737861d6c622bf3cefe23 #v3.30.3
 
   all-codeql-checks-pass:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:small
     needs: [analyze]
     if: always()
     steps:

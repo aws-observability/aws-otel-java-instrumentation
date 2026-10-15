@@ -25,7 +25,10 @@ permissions:
 jobs:
   build-layer:
     environment: Release
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     outputs:
       aws_regions_json: ${{ steps.set-matrix.outputs.aws_regions_json }}
     steps:
@@ -64,7 +67,10 @@ jobs:
           path: lambda-layer/build/distributions/${{ env.LAYER_ARTIFACT_NAME }}
 
   publish-layer-prod:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: build-layer
     strategy:
       matrix:
@@ -192,7 +198,10 @@ jobs:
           aws s3 rb --force s3://${{ env.BUCKET_NAME }}
 
   generate-lambda-release-note:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: publish-layer-prod
     outputs:
       layer-note: ${{ steps.layer-note.outputs.layer-note }}

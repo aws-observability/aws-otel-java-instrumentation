@@ -22,7 +22,10 @@ permissions:
 
 jobs:
   stale-close:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
       - name: Mark the issues/pr
         uses: actions/stale@3a9db7e6a41a89f618792c92c0e97cc736e1b13f #10.0.0

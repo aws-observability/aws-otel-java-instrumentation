@@ -32,7 +32,10 @@ permissions:
 jobs:
   build-sdk:
     environment: Release
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
@@ -89,7 +92,10 @@ jobs:
 
   build-layer:
     needs: build-sdk
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     outputs:
       aws_regions_json: ${{ steps.set-matrix.outputs.aws_regions_json }}
     steps:
@@ -128,7 +134,10 @@ jobs:
           path: lambda-layer/build/distributions/${{ env.LAYER_ARTIFACT_NAME }}
 
   publish-sdk:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: [build-sdk, build-layer]
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
@@ -283,7 +292,10 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
   publish-layer-prod:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: [build-layer, publish-sdk]
     strategy:
       matrix:
@@ -411,7 +423,10 @@ jobs:
           aws s3 rb --force s3://${{ env.BUCKET_NAME }}
 
   generate-lambda-release-note:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: publish-layer-prod
     outputs:
       layer-note: ${{ steps.layer-note.outputs.layer-note }}
@@ -478,7 +493,10 @@ jobs:
 
   publish-github:
     needs: generate-lambda-release-note
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
@@ -564,7 +582,10 @@ jobs:
              layer.zip.sha256
 
   sign-public-ecr-image:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: publish-sdk
     steps:
       - name: Configure AWS Credentials for public ECR

@@ -24,11 +24,14 @@ env:
 
 jobs:
   static-code-checks:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
 
       # This action wrapper by raven-actions provides cross-platform support and caching
       # Catches the same issues as GitHub's web editor: syntax errors, type mismatches,
@@ -133,7 +136,7 @@ jobs:
 
   testpatch:
     name: Test patches applied to dependencies
-    runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:xlarge"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -162,7 +165,7 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}      
+    runs-on: ${{ github.event.pull_request.head.repo.fork && (matrix.os) || (matrix.os == 'macos-latest' && 'macos-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", {2}]', github.run_id, github.run_attempt, startsWith(matrix.os, 'windows') && '"image:windows-ec2-2022", "instance-size:large"' || '"image:ubuntu-8.0", "instance-size:large"'))) }}
     strategy:
       matrix:
         os:
@@ -176,8 +179,17 @@ jobs:
           # https://github.com/square/wire/issues/2188
           # https://github.com/open-telemetry/opentelemetry-java/issues/4560
           - os: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') && 'windows-latest' || '' }}
+    env:
+      # CodeBuild Windows images do not enable git long paths like GitHub's images do, and checkout fails
+      # without them. Set through env because checkout runs before any setup step can.
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: true
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -264,7 +276,7 @@ jobs:
       - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
 
   pull-base-images:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     timeout-minutes: 10
     steps:
       - name: Pull and export base images
@@ -283,7 +295,7 @@ jobs:
           retention-days: 1
 
   contract-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     needs: pull-base-images
     timeout-minutes: 45
     strategy:
@@ -296,6 +308,9 @@ jobs:
     name: ${{ matrix.suite.name }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -337,7 +352,7 @@ jobs:
           arguments: ${{ matrix.suite.task }} -PlocalDocker=true -i
 
   build-lambda:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     timeout-minutes: 45
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
@@ -353,7 +368,7 @@ jobs:
         uses: ./.github/actions/build-lambda-layer
 
   all-pr-checks-pass:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:small"]', github.run_id, github.run_attempt)) }}
     needs: [static-code-checks, testpatch, build, pull-base-images, contract-tests, build-lambda]
     if: always()
     steps:
