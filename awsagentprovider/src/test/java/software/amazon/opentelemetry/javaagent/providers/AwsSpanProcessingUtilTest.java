@@ -781,6 +781,25 @@ public class AwsSpanProcessingUtilTest {
   // --- applyOperationPathSpanName: integration tests ---
 
   @Test
+  public void testApplyOperationPathSpanName_isIdempotent() {
+    when(spanDataMock.getName()).thenReturn("POST /smart/v1/**");
+    when(attributesMock.get(URL_PATH)).thenReturn("/smart/v1/getAppraisers");
+    when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("POST");
+
+    try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
+        mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+      utilStatic
+          .when(AwsSpanProcessingUtil::getOperationPaths)
+          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1"));
+
+      SpanData once = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
+      SpanData twice = AwsSpanProcessingUtil.applyOperationPathSpanName(once);
+      assertThat(once.getName()).isEqualTo("POST /smart/v1/getAppraisers");
+      assertThat(twice.getName()).isEqualTo("POST /smart/v1/getAppraisers");
+    }
+  }
+
+  @Test
   public void testApplyOperationPathSpanName_matchesUrlPath() {
     when(spanDataMock.getName()).thenReturn("GET /api");
     when(attributesMock.get(URL_PATH)).thenReturn("/api/contests/123/leaderboard");

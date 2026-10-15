@@ -101,10 +101,10 @@ public final class AttributePropagatingSpanProcessor implements SpanProcessor {
     SpanData spanData = span.toSpanData();
     if (AwsSpanProcessingUtil.isLocalRoot(spanData)) {
       if (!isServerKind(spanData)) {
-        propagationData = propagationDataExtractor.apply(spanData);
+        propagationData = extractPropagationData(spanData);
       }
     } else if (parentReadableSpan != null && isServerKind(parentReadableSpan.toSpanData())) {
-      propagationData = propagationDataExtractor.apply(parentReadableSpan.toSpanData());
+      propagationData = extractPropagationData(parentReadableSpan.toSpanData());
     } else if (parentReadableSpan != null) {
       propagationData = parentReadableSpan.getAttribute(propagationDataKey);
     }
@@ -113,6 +113,17 @@ public final class AttributePropagatingSpanProcessor implements SpanProcessor {
       span.setAttribute(propagationDataKey, propagationData);
     }
     span.setAttribute(AwsAttributeKeys.AWS_TRACE_FLAG_SAMPLED, span.getSpanContext().isSampled());
+  }
+
+  /**
+   * Apply the OTEL_AWS_HTTP_OPERATION_PATHS span name override (if configured and matching) before
+   * extracting the propagation data, so that children inherit the same operation that the parent's
+   * own metrics and exported span use (the override is otherwise only applied at span end). This is
+   * a no-op when the env var is unset or no pattern matches the span's URL path.
+   */
+  private String extractPropagationData(SpanData spanData) {
+    return propagationDataExtractor.apply(
+        AwsSpanProcessingUtil.applyOperationPathSpanName(spanData));
   }
 
   private boolean isConsumerKind(ReadableSpan span) {

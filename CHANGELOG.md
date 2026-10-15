@@ -22,6 +22,10 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
   behavior change unless enabled.
   ([#1457](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1457))
+- fix: with `OTEL_AWS_HTTP_OPERATION_PATHS` set, child spans now inherit the overridden operation
+  from their server span, so dependency metrics are reported under the same operation as the
+  service metrics instead of the original span name.
+  ([#1471](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1471))
 - Bump jackson-bom to 2.22.3 to fix CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, and
   CVE-2026-91777
   ([#1464](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1464))
