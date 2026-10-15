@@ -80,6 +80,8 @@ val dependencyLists = listOf(
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
   "io.opentelemetry:opentelemetry-extension-aws:1.20.1",
   "net.bytebuddy:byte-buddy:1.14.10",
+  "tools.profiler:async-profiler:4.5",
+  "tools.profiler:jfr-converter:4.5",
 )
 
 javaPlatform {

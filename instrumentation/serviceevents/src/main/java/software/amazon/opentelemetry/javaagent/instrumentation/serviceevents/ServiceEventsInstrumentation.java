@@ -39,11 +39,17 @@ import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.col
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.DeploymentEventCollector;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.EndpointCollector;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.FunctionCallCollector;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.RotationBoundaryProcessor;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.config.ServiceEventsConfig;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.FunctionMetricsBridgeImpl;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.OtlpGrpcProfilesExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.OtlpHttpProfilesExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ProfilesExporter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsCloudWatchLogFileExporter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsCloudWatchMetricFileExporter;
 import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsOtlpEmitter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.AsyncProfilerWrapper;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProfilerDataDir;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 
 /**
@@ -75,6 +81,13 @@ public class ServiceEventsInstrumentation {
 
   private final ServiceEventsConfig config;
   private ServiceEventsOtlpEmitter otlpEmitter;
+  private AsyncProfilerWrapper asyncProfilerWrapper;
+  private ProfilesExporter profilesExporter;
+  private RotationBoundaryProcessor rotationProcessor;
+  // Per-PID profiler data dir this instance created, deleted on shutdown; null when the configured
+  // dir is used as is (PID unknown), which is never deleted.
+  private java.io.File createdProfilerDataDir;
+  private Thread shutdownHook;
   private final List<BaseCollector> collectors = new ArrayList<>();
   private boolean initialized = false;
 
@@ -133,15 +146,21 @@ public class ServiceEventsInstrumentation {
       return;
     }
 
-    if (!config.isEnabled()) {
-      logger().info("ServiceEvents instrumentation disabled via configuration");
+    // Feature flags are independent: ServiceEvents is gated on isEnabled(), the profiler on
+    // isProfilerEnabled(). Only bail entirely when BOTH are off. Below, the ServiceEvents
+    // emitters/collectors are guarded by isEnabled() and the profiler pieces by isProfilerEnabled()
+    // so the profiler can run on its own even when ServiceEvents / App Signals is disabled.
+    if (!config.isEnabled() && !config.isProfilerEnabled()) {
+      logger().info("ServiceEvents instrumentation and profiler both disabled via configuration");
       return;
     }
 
     try {
       logger().info("Initializing ServiceEvents instrumentation");
 
-      // Initialize dedicated OTLP providers for ServiceEvents telemetry signals.
+      // Initialize dedicated OTLP providers. Created whenever ServiceEvents OR the profiler is
+      // enabled: the ServiceEvents collectors and the profiler's RotationBoundaryProcessor both
+      // emit through this emitter.
       // Fully isolated from OTel application logs/metrics and Application Signals.
       // When OUTPUT_FILE is set, exporters are file-backed (CloudWatch-faithful NDJSON)
       // instead of OTLP HTTP; LOGS_ENDPOINT + METRICS_ENDPOINT are ignored for the duration.
@@ -154,6 +173,46 @@ public class ServiceEventsInstrumentation {
       }
       otlpEmitter = createOtlpEmitter();
 
+      if (config.isEnabled()) {
+        initializeServiceEventsSignals();
+      } else {
+        logger()
+            .info(
+                "ServiceEvents signals disabled (profiler-only mode: OTEL_AWS_PROFILER_ENABLED is"
+                    + " on but ServiceEvents is off)");
+      }
+
+      // Initialize the profiler independently of ServiceEvents enablement.
+      initializeProfiler();
+
+      initialized = true;
+      if (asyncProfilerWrapper != null) {
+        registerShutdownHook();
+      }
+      logger()
+          .info(
+              "ServiceEvents instrumentation initialized successfully (service="
+                  + config.getServiceName()
+                  + ", serviceEvents="
+                  + config.isEnabled()
+                  + ", profiler="
+                  + config.isProfilerEnabled()
+                  + ")");
+
+    } catch (Exception e) {
+      logger().log(Level.SEVERE, "Failed to initialize ServiceEvents instrumentation", e);
+      // Don't crash application - graceful degradation
+      initialized = false;
+    }
+  }
+
+  /**
+   * Initialize the ServiceEvents-only telemetry pipeline: OTLP emitter wiring, deployment /
+   * function / endpoint collectors, latency-threshold + incident-snapshot bridges. Only invoked
+   * when {@code config.isEnabled()}.
+   */
+  private void initializeServiceEventsSignals() {
+    {
       // Initialize DeploymentEventCollector (emits once at startup, then every 24h).
       DeploymentEventCollector deploymentEventCollector =
           new DeploymentEventCollector(
@@ -373,19 +432,434 @@ public class ServiceEventsInstrumentation {
       software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
           .setIncidentSnapshotEmitterBridge(incidentEmitter);
       logger().info("Installed IncidentSnapshotEmitter: incidents emit synchronously");
+    }
+  }
 
-      initialized = true;
+  /**
+   * Initialize the profiler pieces (AsyncProfilerWrapper + RotationBoundaryProcessor). Gated
+   * independently on {@code config.isProfilerEnabled()}, so the profiler runs even when
+   * ServiceEvents / App Signals is disabled. Correlation uses async-profiler's Span API: the {@code
+   * ServiceEventsSpanProcessor} writes {@code profiler.Span} markers into the JFR and the {@code
+   * RotationBoundaryProcessor} reads them back from the same JFR (a single clock).
+   *
+   * <p>Before starting async-profiler, proactive runtime gates ({@link
+   * #profilerUnsupportedReason()} — not Lambda, not Windows) turn unsupported runtimes into a clean
+   * no-op with a clear INFO log. This method never throws: any failure degrades to a disabled
+   * profiler.
+   */
+  private void initializeProfiler() {
+    if (!config.isProfilerEnabled()) {
+      logger().info("Profiler is disabled via configuration");
+      return;
+    }
+    try {
+      // Proactive platform / runtime gate. The AsyncProfilerWrapper available=false native-lib
+      // load-failure path remains the backstop; this just avoids attempting it on runtimes we
+      // already know are unsupported.
+      String unsupported = profilerUnsupportedReason();
+      if (unsupported != null) {
+        logger()
+            .info(
+                "Profiler enabled but not started: "
+                    + unsupported
+                    + ". Profiler is a clean no-op on this runtime.");
+        return;
+      }
+
       logger()
           .info(
-              "ServiceEvents instrumentation initialized successfully (service="
-                  + config.getServiceName()
-                  + ")");
+              "Profiler config: enabled=true, cpuInterval="
+                  + config.getAsyncProfilerCpuIntervalMs()
+                  + "ms, wallInterval="
+                  + config.getAsyncProfilerWallIntervalMs()
+                  + "ms, memory="
+                  + config.isProfilerMemoryEnabled()
+                  + ", allocInterval="
+                  + config.getProfilerAllocIntervalBytes()
+                  + "B, jfrPath="
+                  + config.getAsyncProfilerJfrFilePath());
 
-    } catch (Exception e) {
-      logger().log(Level.SEVERE, "Failed to initialize ServiceEvents instrumentation", e);
-      // Don't crash application - graceful degradation
-      initialized = false;
+      // Per-PID storage isolation: namespace the profiler data dir by PID so multiple JVMs on one
+      // host don't collide on JFR files, and each RotationBoundaryProcessor scans only its own
+      // JVM's files. The per-PID dir is passed to the AsyncProfilerWrapper.
+      String pidDataDir = resolvePerPidProfilerDataDir(config.getProfilerDataDir());
+      if (!pidDataDir.equals(config.getProfilerDataDir())
+          && !pidDataDir.equals(defaultProfilerDataDirBase())) {
+        createdProfilerDataDir = new java.io.File(pidDataDir);
+      }
+
+      // Operational-safety pre-flight on the resolved data dir: a writability probe so an
+      // unwritable dir becomes a clean "disabled" no-op instead of a SEVERE on every rotation
+      // later.
+      java.io.File dataDirFile = new java.io.File(pidDataDir);
+      if (!ProfilerDataDir.probeWritable(dataDirFile)) {
+        logger()
+            .warning(
+                "Profiler enabled but its data dir is not writable: "
+                    + pidDataDir
+                    + " — set OTEL_AWS_PROFILER_DATA_DIR to a writable path."
+                    + " Profiler disabled (clean no-op).");
+        return;
+      }
+
+      asyncProfilerWrapper =
+          new AsyncProfilerWrapper(
+              config.getAsyncProfilerCpuIntervalMs(),
+              config.getAsyncProfilerWallIntervalMs(),
+              config.getAsyncProfilerJfrFilePath(),
+              pidDataDir,
+              config.isProfilerMemoryEnabled(),
+              config.getProfilerAllocIntervalBytes(),
+              config.getProfilerWindowSeconds(),
+              // Explicit translation: ServiceEventsConfig.PROFILER_MODE_* and
+              // AsyncProfilerWrapper's MODE_* are independent constant sets — map them rather than
+              // rely on coincidental values, so a future renumber can't silently swap cpu/wall.
+              config.getProfilerMode() == ServiceEventsConfig.PROFILER_MODE_CPU
+                  ? AsyncProfilerWrapper.MODE_CPU
+                  : AsyncProfilerWrapper.MODE_WALL);
+
+      if (asyncProfilerWrapper.isAvailable()) {
+        // Clean all existing JFR files from previous runs before starting
+        asyncProfilerWrapper.deleteAllJfrFiles();
+
+        // Start the profiler (single session in the configured wall/cpu mode + JFR output).
+        // Correlation is driven by the ServiceEventsSpanProcessor writing profiler.Span markers
+        // into this JFR session — a single JFR carries both the samples and the correlation
+        // markers.
+        //
+        // Native OTLP profiles exporter: sends the ExportProfilesServiceRequest protobuf
+        // to the resolved profiles endpoint. Transport is chosen once here from the resolved
+        // protocol (OTEL_EXPORTER_OTLP_PROTOCOL) — gRPC or HTTP/protobuf. Constructed from config
+        // and drained in shutdown().
+        boolean grpc = config.getProfilerProtocol() == ServiceEventsConfig.PROFILER_PROTOCOL_GRPC;
+        AsyncProfilerWrapper wrapper = asyncProfilerWrapper;
+        ProfilerPipeline pipeline =
+            startProfilerPipeline(
+                wrapper,
+                () ->
+                    grpc
+                        ? new OtlpGrpcProfilesExporter(
+                            config.getProfilerEndpoint(),
+                            config.getProfilerExportCompression(),
+                            config.getProfilerExportTimeoutMs(),
+                            config.getProfilerMaxPayloadBytes(),
+                            config.getProfilerHeaders())
+                        : new OtlpHttpProfilesExporter(
+                            config.getProfilerEndpoint(),
+                            config.getProfilerExportCompression(),
+                            config.getProfilerExportTimeoutMs(),
+                            config.getProfilerMaxPayloadBytes(),
+                            config.getProfilerHeaders()),
+                exporter ->
+                    new RotationBoundaryProcessor(
+                        10000, // check every 10s for new rotated files
+                        wrapper,
+                        config.getProfilerWindowSeconds(), // must match the wrapper's loop=
+                        otlpEmitter,
+                        exporter,
+                        config.getProfilerAggregationMode()),
+                collectors);
+        profilesExporter = pipeline.exporter;
+        rotationProcessor = pipeline.processor;
+        logger()
+            .info(
+                "ServiceEvents profiles exporter: "
+                    + config.getProfilerEndpoint()
+                    + " (protocol="
+                    + (grpc ? "grpc" : "http/protobuf")
+                    + ", compression="
+                    + config.getProfilerExportCompression()
+                    + ", timeoutMs="
+                    + config.getProfilerExportTimeoutMs()
+                    + ", maxPayloadBytes="
+                    + config.getProfilerMaxPayloadBytes()
+                    + ")");
+
+        logger().info("Started RotationBoundaryProcessor (checkInterval: 10000ms)");
+
+        boolean cpuMode = config.getProfilerMode() == ServiceEventsConfig.PROFILER_MODE_CPU;
+        logger()
+            .info(
+                "Started async-profiler (mode="
+                    + (cpuMode ? "cpu" : "wall")
+                    + ", interval="
+                    + (cpuMode
+                        ? config.getAsyncProfilerCpuIntervalMs()
+                        : config.getAsyncProfilerWallIntervalMs())
+                    + "ms, memory="
+                    + config.isProfilerMemoryEnabled()
+                    + ", JFR: "
+                    + config.getAsyncProfilerJfrFilePath()
+                    + ", dataDir: "
+                    + pidDataDir
+                    + ")");
+      } else {
+        logger().warning("async-profiler native library not available, profiling disabled");
+        asyncProfilerWrapper = null;
+      }
+    } catch (Throwable e) {
+      // startProfilerPipeline already undid a partial start; whatever started before it (nothing
+      // that needs stopping) or after it (only logging) leaves nothing running.
+      logger().log(Level.WARNING, "Failed to initialize async-profiler: " + e.getMessage(), e);
+      rotationProcessor = null;
+      asyncProfilerWrapper = null;
+      profilesExporter = null;
     }
+  }
+
+  /** The exporter and rotation processor of a successfully started profiler. */
+  static final class ProfilerPipeline {
+    final ProfilesExporter exporter;
+    final RotationBoundaryProcessor processor;
+
+    ProfilerPipeline(ProfilesExporter exporter, RotationBoundaryProcessor processor) {
+      this.exporter = exporter;
+      this.processor = processor;
+    }
+  }
+
+  /**
+   * Start async-profiler, then create the exporter and start the rotation processor. If any step
+   * fails, the steps already done are undone ({@link #cleanupFailedProfilerStart}) before the
+   * failure is rethrown, so a failed start never leaves async-profiler writing JFR files that
+   * nothing deletes. Package-private for unit testing.
+   */
+  static ProfilerPipeline startProfilerPipeline(
+      AsyncProfilerWrapper wrapper,
+      java.util.function.Supplier<ProfilesExporter> exporterFactory,
+      java.util.function.Function<ProfilesExporter, RotationBoundaryProcessor> processorFactory,
+      List<BaseCollector> collectors) {
+    ProfilesExporter exporter = null;
+    RotationBoundaryProcessor processor = null;
+    try {
+      wrapper.startProfiling();
+      exporter = exporterFactory.get();
+      processor = processorFactory.apply(exporter);
+      collectors.add(processor);
+      processor.start();
+      return new ProfilerPipeline(exporter, processor);
+    } catch (Throwable t) {
+      cleanupFailedProfilerStart(collectors, processor, wrapper, exporter);
+      throw t;
+    }
+  }
+
+  /**
+   * Undo a partly completed profiler start, so a failed initialization leaves nothing running: stop
+   * and drop the rotation processor, stop async-profiler (it would otherwise keep writing JFR files
+   * that nothing deletes), delete its JFR files and close the exporter. Any argument may be null.
+   * Never throws. Package-private for unit testing.
+   */
+  static void cleanupFailedProfilerStart(
+      List<BaseCollector> collectors,
+      RotationBoundaryProcessor processor,
+      AsyncProfilerWrapper wrapper,
+      ProfilesExporter exporter) {
+    if (processor != null) {
+      collectors.remove(processor);
+      try {
+        processor.stop();
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error stopping RotationBoundaryProcessor after failed start", t);
+      }
+    }
+    if (wrapper != null) {
+      try {
+        wrapper.shutdown();
+        wrapper.deleteAllJfrFiles();
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error stopping async-profiler after failed start", t);
+      }
+    }
+    if (exporter != null) {
+      try {
+        exporter.shutdown();
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error closing profiles exporter after failed start", t);
+      }
+    }
+  }
+
+  /**
+   * How long JVM shutdown waits for the last profile windows to be exported. Bounds the delay when
+   * the profiles endpoint is slow or unreachable (each export attempt can otherwise block for the
+   * full export timeout), and stays well inside common container stop grace periods.
+   */
+  static final long FINAL_EXPORT_TIMEOUT_MS = 5_000;
+
+  /**
+   * Export the windows not exported yet on a separate daemon thread, waiting at most {@code
+   * timeoutMs}. If the export does not finish in time it is abandoned and shutdown continues.
+   * Returns whether it finished. Never throws. Package-private for unit testing.
+   */
+  static boolean exportFinalWindows(RotationBoundaryProcessor processor, long timeoutMs) {
+    Thread exporter =
+        new Thread(
+            () -> {
+              try {
+                processor.flushRemainingWindows();
+              } catch (Throwable t) {
+                logger().log(Level.WARNING, "Error exporting the final profile window", t);
+              }
+            },
+            "aws-profiler-final-export");
+    exporter.setDaemon(true);
+    try {
+      exporter.start();
+      exporter.join(timeoutMs);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (Throwable t) {
+      logger().log(Level.WARNING, "Could not export the final profile window", t);
+      return false;
+    }
+    if (exporter.isAlive()) {
+      logger()
+          .warning(
+              "Final profile export did not finish within "
+                  + timeoutMs
+                  + "ms; skipping it so the JVM can exit");
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Run {@link #shutdownProfiler()} when the JVM exits, so the last profile window is exported and
+   * the profiler's data dir is removed. Only the profiler is shut down there; the ServiceEvents
+   * signals keep their existing exit behavior. Removed again when the profiler is shut down
+   * directly.
+   */
+  private void registerShutdownHook() {
+    try {
+      Thread hook = new Thread(this::shutdownProfiler, "aws-profiler-shutdown");
+      Runtime.getRuntime().addShutdownHook(hook);
+      shutdownHook = hook;
+    } catch (Throwable t) {
+      // IllegalStateException when the JVM is already shutting down; SecurityException if denied.
+      logger().log(Level.WARNING, "Could not register profiler shutdown hook", t);
+    }
+  }
+
+  /**
+   * Resolve a per-PID profiler data directory so multiple JVMs on one host keep their JFR files
+   * isolated (and each RotationBoundaryProcessor scans only its own files). Base = the configured
+   * data dir, or {@code <java.io.tmpdir>/aws-serviceevents-profiler} when unset; the current PID is
+   * appended and the dir created. Returns the base unchanged if the PID is unknown.
+   */
+  private static String resolvePerPidProfilerDataDir(String configuredDataDir) {
+    String base =
+        (configuredDataDir != null && !configuredDataDir.isEmpty())
+            ? configuredDataDir
+            : defaultProfilerDataDirBase();
+    long pid =
+        software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProcessUtils
+            .currentPid();
+    if (pid < 0) {
+      return base;
+    }
+    java.io.File dir = new java.io.File(base, Long.toString(pid));
+    dir.mkdirs();
+    // Owner-only (0700): the per-PID dir holds JFR recordings with stack traces, operation names,
+    // thread names, and trace/span ids — keep other local users from reading them on a shared host.
+    ProfilerDataDir.restrictToOwner(dir);
+    return dir.getPath();
+  }
+
+  /**
+   * Default base of the per-PID profiler data dirs: {@code
+   * <java.io.tmpdir>/aws-serviceevents-profiler}.
+   */
+  private static String defaultProfilerDataDirBase() {
+    return new java.io.File(
+            System.getProperty("java.io.tmpdir", "/tmp"), "aws-serviceevents-profiler")
+        .getPath();
+  }
+
+  /**
+   * Proactive profiler runtime/platform gate. Returns {@code null} when the profiler may start, or
+   * a short human-readable reason string when it must no-op.
+   *
+   * <p>async-profiler has no Windows build and the profiler is not supported on AWS Lambda, so it
+   * is skipped there. It runs on Java 8+ on glibc and musl Linux. Never throws — on any unexpected
+   * error it returns {@code null} (don't block) and lets the {@code AsyncProfilerWrapper}
+   * load-failure backstop handle it.
+   */
+  private static String profilerUnsupportedReason() {
+    try {
+      if (ServiceEventsConfig.isLambdaEnvironment()) {
+        return "AWS Lambda (profiler unsupported on this platform)";
+      }
+      String osName = System.getProperty("os.name");
+      if (osName != null && osName.toLowerCase(java.util.Locale.ROOT).startsWith("windows")) {
+        return "Windows (profiler unsupported on this platform)";
+      }
+      return null;
+    } catch (Throwable t) {
+      // Never let the gate itself break init — fall through to the load-failure backstop.
+      return null;
+    }
+  }
+
+  /**
+   * Stop the profiler: stop its collector, stop async-profiler, export the windows not exported yet
+   * (bounded by {@link #FINAL_EXPORT_TIMEOUT_MS}), delete this JVM's JFR files and data dir, and
+   * close the profiles exporter. Run at JVM exit by the shutdown hook, which touches nothing but
+   * the profiler, and by {@link #shutdown()}. Safe to call more than once.
+   */
+  synchronized void shutdownProfiler() {
+    if (rotationProcessor != null) {
+      collectors.remove(rotationProcessor);
+      try {
+        rotationProcessor.stop();
+      } catch (Exception e) {
+        logger().log(Level.WARNING, "Error stopping RotationBoundaryProcessor", e);
+      }
+    }
+    // Stop async-profiler, then export what is left. Stopping completes the JFR file it was
+    // writing; the collectors only ever read completed files, so without this the last window
+    // would be lost. Then delete this JVM's JFR files and data dir.
+    if (asyncProfilerWrapper != null) {
+      try {
+        asyncProfilerWrapper.shutdown();
+        logger().fine("Shut down async-profiler");
+      } catch (Exception e) {
+        logger().log(Level.WARNING, "Error shutting down async-profiler", e);
+      }
+      if (rotationProcessor != null) {
+        exportFinalWindows(rotationProcessor, FINAL_EXPORT_TIMEOUT_MS);
+      }
+      try {
+        asyncProfilerWrapper.deleteAllJfrFiles();
+        if (createdProfilerDataDir != null && !createdProfilerDataDir.delete()) {
+          logger().fine("Profiler data dir not removed (not empty): " + createdProfilerDataDir);
+        }
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error removing profiler data dir", t);
+      }
+      asyncProfilerWrapper = null;
+      rotationProcessor = null;
+    }
+
+    // Drain the native OTLP profiles exporter's OkHttp pool.
+    if (profilesExporter != null) {
+      try {
+        profilesExporter.shutdown();
+        logger().fine("Shut down profiles exporter");
+      } catch (Exception e) {
+        logger().log(Level.WARNING, "Error shutting down profiles exporter", e);
+      }
+      profilesExporter = null;
+    }
+
+    if (shutdownHook != null && Thread.currentThread() != shutdownHook) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+      } catch (IllegalStateException e) {
+        // The JVM is already shutting down; the hook will find nothing left to do.
+      }
+    }
+    shutdownHook = null;
   }
 
   /**
@@ -400,6 +874,8 @@ public class ServiceEventsInstrumentation {
 
     try {
       logger().info("Shutting down ServiceEvents instrumentation");
+
+      shutdownProfiler();
 
       // Stop all collectors
       for (BaseCollector collector : collectors) {
