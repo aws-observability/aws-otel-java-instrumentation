@@ -68,8 +68,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.Immutable;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
-import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
@@ -106,10 +104,6 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final Logger logger =
       Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
 
-  static final String CLOUDWATCH_EMF_EXPORTER_SELECTED_LOG =
-      "Using the CloudWatch EMF metrics exporter; destination=CloudWatch Logs; authentication=AWS SDK SigV4.";
-  static final String CONSOLE_EMF_EXPORTER_SELECTED_LOG =
-      "Using the console EMF metrics exporter; destination=standard output; authentication=none because the exporter makes no network request.";
   static final String OTLP_SIGV4_EXPORTER_SELECTED_LOG =
       "Using the CloudWatch OTLP metrics exporter; destination=CloudWatch Metrics OTLP endpoint; authentication=ADOT SigV4.";
   static final String OTLP_CONFIGURED_AUTH_EXPORTER_SELECTED_LOG =
@@ -198,7 +192,6 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final int LAMBDA_SPAN_EXPORT_BATCH_SIZE = 10;
 
   private Sampler sampler;
-  private boolean isEmfExporterEnabled = false;
 
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesCustomizer(this::customizeProperties);
@@ -220,14 +213,6 @@ public final class AwsApplicationSignalsCustomizerProvider
       ConfigProperties configProps) {
     return new AwsMetricAttributeGenerator(
         configProps.getBoolean(PRESIGNED_URL_ATTRIBUTION_ENABLED_CONFIG, false));
-  }
-
-  private static Optional<String> getAwsRegionFromConfig(ConfigProperties configProps) {
-    String region = configProps.getString(AWS_REGION);
-    if (region != null) {
-      return Optional.of(region);
-    }
-    return Optional.ofNullable(configProps.getString(AWS_DEFAULT_REGION));
   }
 
   static boolean isLambdaEnvironment(ConfigProperties props) {
@@ -254,14 +239,6 @@ public final class AwsApplicationSignalsCustomizerProvider
   Map<String, String> customizeProperties(ConfigProperties configProps) {
     Map<String, String> propsOverride = new HashMap<>();
     boolean isLambdaEnvironment = isLambdaEnvironment();
-
-    // Check if awsemf was specified and remove it from OTEL_METRICS_EXPORTER
-    Optional<String> filteredExporters =
-        AwsApplicationSignalsConfigUtils.removeEmfExporterIfEnabled(configProps);
-    if (filteredExporters.isPresent()) {
-      this.isEmfExporterEnabled = true;
-      propsOverride.put(OTEL_METRICS_EXPORTER, filteredExporters.get());
-    }
 
     // Enable AWS Resource Providers
     propsOverride.put(OTEL_RESOURCE_PROVIDERS_AWS_ENABLED, "true");
@@ -587,55 +564,8 @@ public final class AwsApplicationSignalsCustomizerProvider
   MetricExporter customizeMetricExporter(
       MetricExporter metricExporter, ConfigProperties configProps) {
 
-    if (isEmfExporterEnabled) {
-      boolean shouldAddApplicationSignalsDimensions =
-          AwsApplicationSignalsCustomizerProvider.shouldAddApplicationSignalsDimensionsEnabled(
-              configProps);
-      Map<String, String> headers =
-          AwsApplicationSignalsConfigUtils.parseOtlpHeaders(
-              configProps.getString(OTEL_EXPORTER_OTLP_LOGS_HEADERS));
-      Optional<String> awsRegion = getAwsRegionFromConfig(configProps);
-      String namespace = headers.get(AWS_EMF_METRICS_NAMESPACE);
-
-      if (awsRegion.isPresent()) {
-        if (headers.containsKey(AWS_OTLP_LOGS_GROUP_HEADER)
-            && headers.containsKey(AWS_OTLP_LOGS_STREAM_HEADER)) {
-          String logGroup = headers.get(AWS_OTLP_LOGS_GROUP_HEADER);
-          String logStream = headers.get(AWS_OTLP_LOGS_STREAM_HEADER);
-          logger.info(CLOUDWATCH_EMF_EXPORTER_SELECTED_LOG);
-          return AwsCloudWatchEmfExporter.builder()
-              .setNamespace(namespace)
-              .setLogGroupName(logGroup)
-              .setLogStreamName(logStream)
-              .setAwsRegion(awsRegion.get())
-              .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
-              .build();
-        }
-
-        if (isLambdaEnvironment(configProps)) {
-          logger.info(CONSOLE_EMF_EXPORTER_SELECTED_LOG);
-          return ConsoleEmfExporter.builder()
-              .setNamespace(namespace)
-              .setShouldAddApplicationSignalsDimensions(shouldAddApplicationSignalsDimensions)
-              .build();
-        }
-        logger.warning(
-            String.format(
-                "Improper EMF Exporter configuration: Please configure the environment variable OTEL_EXPORTER_OTLP_LOGS_HEADERS to have values for %s, %s, and %s",
-                AWS_OTLP_LOGS_GROUP_HEADER,
-                AWS_OTLP_LOGS_STREAM_HEADER,
-                AWS_EMF_METRICS_NAMESPACE));
-
-      } else {
-        logger.warning(
-            String.format(
-                "Improper EMF Exporter configuration: AWS region not found in environment variables please set %s or %s",
-                AWS_REGION, AWS_DEFAULT_REGION));
-      }
-    }
-
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledMetrics(configProps)
-        && metricExporter instanceof OtlpHttpMetricExporter) {
+    if (metricExporter instanceof OtlpHttpMetricExporter
+        && AwsApplicationSignalsConfigUtils.isSigV4EnabledMetrics(configProps)) {
       String compression =
           configProps.getString(
               OTEL_EXPORTER_OTLP_METRICS_COMPRESSION_CONFIG,
