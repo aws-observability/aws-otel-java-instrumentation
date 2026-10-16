@@ -15,6 +15,8 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics;
 
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DATA_TYPE_METRICS;
+
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.internal.ExporterBuilderUtil;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
@@ -26,7 +28,7 @@ import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.util.concurrent.atomic.AtomicReference;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsExporterConfig;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil;
 
 /** Java autoconfiguration SPI registration for the {@code otlp/sigv4} metrics exporter. */
 public final class OtlpAwsMetricExporterProvider
@@ -36,17 +38,17 @@ public final class OtlpAwsMetricExporterProvider
 
   @Override
   public String getName() {
-    return OtlpAwsExporterConfig.EXPORTER_NAME;
+    return "otlp/sigv4";
   }
 
   @Override
   public MetricExporter createExporter(ConfigProperties config) {
-    OtlpAwsExporterConfig.validate("metrics", config);
-    String compression = OtlpAwsExporterConfig.compression("metrics", config);
+    OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_METRICS, config);
+    String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_METRICS, config);
     OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
     AtomicReference<String> endpoint = new AtomicReference<>("http://localhost:4318/v1/metrics");
     OtlpConfigUtil.configureOtlpExporterBuilder(
-        "metrics",
+        DATA_TYPE_METRICS,
         config,
         builder::setComponentLoader,
         value -> {
@@ -68,8 +70,8 @@ public final class OtlpAwsMetricExporterProvider
     builder.setMeterProvider(meterProviderRef::get);
     return OtlpAwsMetricExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
-        .setAwsRegion(OtlpAwsExporterConfig.region(config, endpoint.get()))
-        .setAwsService(OtlpAwsExporterConfig.service("metrics", config, "monitoring"))
+        .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
+        .setAwsService(OtlpAwsConfigUtil.getSigV4Service(DATA_TYPE_METRICS, config, "monitoring"))
         .build();
   }
 

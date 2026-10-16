@@ -96,7 +96,8 @@ class OtlpAwsExporterProviderTest {
 
   @ParameterizedTest
   @CsvSource({"traces,xray", "metrics,monitoring", "logs,logs"})
-  void defaultsAndServiceOverrides(String signal, String defaultService) {
+  void testOtlpSigV4ExporterShouldApplySigningServicePrecedence(
+      String signal, String defaultService) {
     Map<String, String> properties = properties();
     for (String expected : List.of(defaultService, "osis", "custom-service")) {
       if (expected.equals("osis")) {
@@ -118,7 +119,7 @@ class OtlpAwsExporterProviderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void signalProtocolAndCompressionOverrideSharedSettings(String signal) {
+  void testOtlpSigV4ExporterShouldApplyProtocolAndCompressionPrecedence(String signal) {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.protocol", "grpc");
     properties.put("otel.exporter.otlp." + signal + ".protocol", "http/protobuf");
@@ -134,7 +135,8 @@ class OtlpAwsExporterProviderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void rejectsUnsupportedProtocolsAndCompression(String signal) {
+  void testOtlpSigV4ExporterShouldFailToInitializeWithUnsupportedProtocolOrCompression(
+      String signal) {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp." + signal + ".protocol", "grpc");
     assertThatThrownBy(() -> createExporter(signal, properties))
@@ -149,7 +151,8 @@ class OtlpAwsExporterProviderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void rejectsConflictingAuthorizationHeaders(String signal) {
+  void testOtlpSigV4ExporterShouldFailToInitializeWithConflictingAuthorizationHeaders(
+      String signal) {
     Map<String, String> properties = properties();
     for (String key :
         List.of("otel.exporter.otlp.headers", "otel.exporter.otlp." + signal + ".headers")) {
@@ -163,7 +166,8 @@ class OtlpAwsExporterProviderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void upstreamValidatesEndpointsAndTlsConfiguration(String signal) {
+  void testOtlpSigV4ExporterShouldFailToInitializeWithInvalidEndpointOrTlsConfiguration(
+      String signal) {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.endpoint", "not-a-url");
     assertThatThrownBy(() -> createExporter(signal, properties))
@@ -177,7 +181,7 @@ class OtlpAwsExporterProviderTest {
   }
 
   @Test
-  void metricsPreserveUpstreamTemporalityAndAggregation() {
+  void testOtlpSigV4MetricExporterShouldPreserveTemporalityAndAggregation() {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.metrics.temporality.preference", "DELTA");
     properties.put(
@@ -195,7 +199,7 @@ class OtlpAwsExporterProviderTest {
   }
 
   @Test
-  void nativeSdkAutoconfigurationLoadsBothOtlpAndSigv4ForEverySignal() {
+  void testOtlpSigV4ExporterShouldLoadAlongsideOtlpExporter() {
     Map<String, String> properties = properties();
     properties.put("otel.aws.application.signals.enabled", "false");
     properties.put("otel.traces.sampler", "always_on");

@@ -15,6 +15,8 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs;
 
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DATA_TYPE_LOGS;
+
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporterBuilder;
@@ -25,7 +27,7 @@ import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.logs.ConfigurableLogRecordExporterProvider;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import java.util.concurrent.atomic.AtomicReference;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsExporterConfig;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil;
 
 /** Java autoconfiguration SPI registration for the {@code otlp/sigv4} logs exporter. */
 public final class OtlpAwsLogRecordExporterProvider
@@ -35,17 +37,17 @@ public final class OtlpAwsLogRecordExporterProvider
 
   @Override
   public String getName() {
-    return OtlpAwsExporterConfig.EXPORTER_NAME;
+    return "otlp/sigv4";
   }
 
   @Override
   public LogRecordExporter createExporter(ConfigProperties config) {
-    OtlpAwsExporterConfig.validate("logs", config);
-    String compression = OtlpAwsExporterConfig.compression("logs", config);
+    OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_LOGS, config);
+    String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_LOGS, config);
     OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
     AtomicReference<String> endpoint = new AtomicReference<>("http://localhost:4318/v1/logs");
     OtlpConfigUtil.configureOtlpExporterBuilder(
-        "logs",
+        DATA_TYPE_LOGS,
         config,
         builder::setComponentLoader,
         value -> {
@@ -63,8 +65,8 @@ public final class OtlpAwsLogRecordExporterProvider
     builder.setMeterProvider(meterProviderRef::get);
     return OtlpAwsLogRecordExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
-        .setAwsRegion(OtlpAwsExporterConfig.region(config, endpoint.get()))
-        .setAwsService(OtlpAwsExporterConfig.service("logs", config, "logs"))
+        .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
+        .setAwsService(OtlpAwsConfigUtil.getSigV4Service(DATA_TYPE_LOGS, config, "logs"))
         .build();
   }
 

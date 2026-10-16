@@ -25,10 +25,11 @@ import java.util.regex.Pattern;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 
-/** Shared configuration for the {@code otlp/sigv4} exporter providers. */
-public final class OtlpAwsExporterConfig {
-  public static final String EXPORTER_NAME = "otlp/sigv4";
-  public static final String SIGV4_SERVICE = "otel.exporter.otlp.sigv4.service";
+/** Configuration utilities for the AWS SigV4 OTLP exporters. */
+public final class OtlpAwsConfigUtil {
+  public static final String DATA_TYPE_TRACES = "traces";
+  public static final String DATA_TYPE_METRICS = "metrics";
+  public static final String DATA_TYPE_LOGS = "logs";
 
   private static final Pattern AWS_ENDPOINT_REGION =
       Pattern.compile(
@@ -37,17 +38,17 @@ public final class OtlpAwsExporterConfig {
               + "|cloud\\.adc-e\\.uk|csp\\.hci\\.ic\\.gov)",
           Pattern.CASE_INSENSITIVE);
 
-  private OtlpAwsExporterConfig() {}
+  private OtlpAwsConfigUtil() {}
 
-  public static void validate(String signal, ConfigProperties config) {
-    String protocol = OtlpConfigUtil.getOtlpProtocol(signal, config);
+  public static void validateConfiguration(String dataType, ConfigProperties config) {
+    String protocol = OtlpConfigUtil.getOtlpProtocol(dataType, config);
     if (!OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF.equals(protocol)) {
       throw new ConfigurationException(
           "otlp/sigv4 requires OTEL_EXPORTER_OTLP_"
-              + signal.toUpperCase(java.util.Locale.ROOT)
+              + dataType.toUpperCase(java.util.Locale.ROOT)
               + "_PROTOCOL=http/protobuf (or OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf).");
     }
-    Map<String, String> headers = config.getMap("otel.exporter.otlp." + signal + ".headers");
+    Map<String, String> headers = config.getMap("otel.exporter.otlp." + dataType + ".headers");
     if (headers.isEmpty()) {
       headers = config.getMap("otel.exporter.otlp.headers");
     }
@@ -58,21 +59,25 @@ public final class OtlpAwsExporterConfig {
     }
   }
 
-  public static String service(String signal, ConfigProperties config, String defaultService) {
+  /** Determine the configured signing service for the {@code dataType}. */
+  public static String getSigV4Service(
+      String dataType, ConfigProperties config, String defaultService) {
     return config.getString(
-        "otel.exporter.otlp." + signal + ".sigv4.service",
-        config.getString(SIGV4_SERVICE, defaultService));
+        "otel.exporter.otlp." + dataType + ".sigv4.service",
+        config.getString("otel.exporter.otlp.sigv4.service", defaultService));
   }
 
-  public static String region(ConfigProperties config, String endpoint) {
+  /** Determine the signing region from the configuration and resolved OTLP endpoint. */
+  public static String getAwsRegion(ConfigProperties config, String endpoint) {
     return resolveRegion(
         config.getString("aws.region", config.getString("aws.default.region")), endpoint);
   }
 
-  public static String compression(String signal, ConfigProperties config) {
+  /** Determine the configured compression for the {@code dataType}. */
+  public static String getCompression(String dataType, ConfigProperties config) {
     String compression =
         config.getString(
-            "otel.exporter.otlp." + signal + ".compression",
+            "otel.exporter.otlp." + dataType + ".compression",
             config.getString("otel.exporter.otlp.compression", "none"));
     if (!"none".equals(compression) && !"gzip".equals(compression)) {
       throw new ConfigurationException("otlp/sigv4 supports only none or gzip compression.");
@@ -81,7 +86,7 @@ public final class OtlpAwsExporterConfig {
   }
 
   /** Explicit region, Java/AWS region settings, AWS hostname, then the AWS SDK region chain. */
-  public static String resolveRegion(String explicitRegion, String endpoint) {
+  static String resolveRegion(String explicitRegion, String endpoint) {
     String region = explicitRegion;
     if (region == null || region.isEmpty()) {
       region = System.getProperty("aws.region");

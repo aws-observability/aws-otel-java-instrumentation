@@ -32,7 +32,7 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 
-class OtlpAwsExporterConfigTest {
+class OtlpAwsConfigUtilTest {
   @ParameterizedTest
   @CsvSource({
     "https://xray.us-east-1.amazonaws.com/v1/traces,us-east-1",
@@ -43,30 +43,30 @@ class OtlpAwsExporterConfigTest {
     "https://logs.us-east-1.api.aws/v1/logs,us-east-1",
     "https://logs.us-iso-east-1.c2s.ic.gov/v1/logs,us-iso-east-1"
   })
-  void infersRegionFromAwsHostnames(String endpoint, String expectedRegion) {
-    assertThat(OtlpAwsExporterConfig.resolveRegion(null, endpoint)).isEqualTo(expectedRegion);
+  void testShouldDetectRegionFromAwsEndpoint(String endpoint, String expectedRegion) {
+    assertThat(OtlpAwsConfigUtil.resolveRegion(null, endpoint)).isEqualTo(expectedRegion);
   }
 
   @Test
-  void javaRegionPropertiesOverrideEndpointInference() {
+  void testShouldApplyRegionPrecedenceWithExplicitRegion() {
     String endpoint = "https://pipeline.us-east-1.osis.amazonaws.com/v1/traces";
     assertThat(
-            OtlpAwsExporterConfig.region(
+            OtlpAwsConfigUtil.getAwsRegion(
                 DefaultConfigProperties.createFromMap(
                     Map.of("aws.region", "eu-west-1", "aws.default.region", "us-west-2")),
                 endpoint))
         .isEqualTo("eu-west-1");
     assertThat(
-            OtlpAwsExporterConfig.region(
+            OtlpAwsConfigUtil.getAwsRegion(
                 DefaultConfigProperties.createFromMap(Map.of("aws.default.region", "us-west-2")),
                 endpoint))
         .isEqualTo("us-west-2");
-    assertThat(OtlpAwsExporterConfig.resolveRegion("ap-southeast-2", endpoint))
+    assertThat(OtlpAwsConfigUtil.resolveRegion("ap-southeast-2", endpoint))
         .isEqualTo("ap-southeast-2");
   }
 
   @Test
-  void customEndpointsUseNativeAwsSdkRegionChainAndFailIfNoRegionExists() {
+  void testOtlpSigV4ExporterShouldFailToInitializeWhenRegionCannotBeResolved() {
     DefaultAwsRegionProviderChain.Builder builder =
         mock(DefaultAwsRegionProviderChain.Builder.class);
     DefaultAwsRegionProviderChain chain = mock(DefaultAwsRegionProviderChain.class);
@@ -76,12 +76,11 @@ class OtlpAwsExporterConfigTest {
       factory.when(DefaultAwsRegionProviderChain::builder).thenReturn(builder);
       when(chain.getRegion()).thenReturn(Region.EU_WEST_1);
       // Region-looking labels outside recognized AWS suffixes must not be trusted.
-      assertThat(
-              OtlpAwsExporterConfig.resolveRegion(null, "https://us-east-1.example.com/v1/traces"))
+      assertThat(OtlpAwsConfigUtil.resolveRegion(null, "https://us-east-1.example.com/v1/traces"))
           .isEqualTo("eu-west-1");
       when(chain.getRegion()).thenThrow(SdkClientException.builder().message("no region").build());
       assertThatThrownBy(
-              () -> OtlpAwsExporterConfig.resolveRegion(null, "http://localhost:4318/v1/traces"))
+              () -> OtlpAwsConfigUtil.resolveRegion(null, "http://localhost:4318/v1/traces"))
           .isInstanceOf(ConfigurationException.class)
           .hasMessageContaining("AWS SDK region provider chain");
     }

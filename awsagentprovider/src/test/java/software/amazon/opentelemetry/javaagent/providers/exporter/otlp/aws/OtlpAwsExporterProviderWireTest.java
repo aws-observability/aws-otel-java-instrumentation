@@ -124,7 +124,7 @@ class OtlpAwsExporterProviderWireTest {
     "traces,none,true", "metrics,none,true", "logs,none,true",
     "traces,gzip,true", "metrics,gzip,true", "logs,gzip,true"
   })
-  void spiExportersPreserveOtlpConfigurationAndSignTheBytesSent(
+  void testOtlpSigV4ExporterShouldPreserveOtlpConfigurationAndSignTheBytesSent(
       String signal, String compression, boolean signalEndpoint) throws Exception {
     Map<String, String> properties = OtlpAwsExporterProviderTest.properties();
     properties.put("otel.exporter.otlp.endpoint", origin() + "/Root");
@@ -170,7 +170,8 @@ class OtlpAwsExporterProviderWireTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void signingFailurePreservesExistingExporterBehavior(String signal) throws Exception {
+  void testOtlpSigV4ExporterShouldPreserveExistingSigningFailureBehavior(String signal)
+      throws Exception {
     Map<String, String> properties = OtlpAwsExporterProviderTest.properties();
     properties.put("otel.exporter.otlp.endpoint", origin());
     when(credentialsProvider.resolveCredentials())
@@ -188,7 +189,8 @@ class OtlpAwsExporterProviderWireTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void javaBuildersOverrideRegionServiceAndCredentials(String signal) throws Exception {
+  void testOtlpSigV4ExporterShouldPreserveExplicitRegionAndCredentialsProvider(String signal)
+      throws Exception {
     String endpoint = origin() + "/Custom/" + signal;
     StaticCredentialsProvider credentials = StaticCredentialsProvider.create(CREDENTIALS);
     Object exporter;

@@ -15,6 +15,8 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces;
 
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DATA_TYPE_TRACES;
+
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
@@ -25,7 +27,7 @@ import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterProvider;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.util.concurrent.atomic.AtomicReference;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsExporterConfig;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil;
 
 /** Java autoconfiguration SPI registration for the {@code otlp/sigv4} traces exporter. */
 public final class OtlpAwsSpanExporterProvider
@@ -35,17 +37,17 @@ public final class OtlpAwsSpanExporterProvider
 
   @Override
   public String getName() {
-    return OtlpAwsExporterConfig.EXPORTER_NAME;
+    return "otlp/sigv4";
   }
 
   @Override
   public SpanExporter createExporter(ConfigProperties config) {
-    OtlpAwsExporterConfig.validate("traces", config);
-    String compression = OtlpAwsExporterConfig.compression("traces", config);
+    OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_TRACES, config);
+    String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_TRACES, config);
     OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder();
     AtomicReference<String> endpoint = new AtomicReference<>("http://localhost:4318/v1/traces");
     OtlpConfigUtil.configureOtlpExporterBuilder(
-        "traces",
+        DATA_TYPE_TRACES,
         config,
         builder::setComponentLoader,
         value -> {
@@ -63,8 +65,8 @@ public final class OtlpAwsSpanExporterProvider
     builder.setMeterProvider(meterProviderRef::get);
     return OtlpAwsSpanExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
-        .setAwsRegion(OtlpAwsExporterConfig.region(config, endpoint.get()))
-        .setAwsService(OtlpAwsExporterConfig.service("traces", config, "xray"))
+        .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
+        .setAwsService(OtlpAwsConfigUtil.getSigV4Service(DATA_TYPE_TRACES, config, "xray"))
         .build();
   }
 

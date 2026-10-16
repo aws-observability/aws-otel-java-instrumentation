@@ -43,7 +43,7 @@ public abstract class BaseOtlpAwsExporter {
       AwsCredentialsProvider credentialsProvider) {
     this.endpoint = endpoint;
     this.compression = compression;
-    this.awsRegion = OtlpAwsExporterConfig.resolveRegion(awsRegion, endpoint);
+    this.awsRegion = OtlpAwsConfigUtil.resolveRegion(awsRegion, endpoint);
     this.awsService = awsService;
     this.credentialsProvider = credentialsProvider;
     this.data = new AtomicReference<>();

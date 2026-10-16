@@ -218,7 +218,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
-  void testPreservesSigV4SpanExporterLoadedThroughJavaSpi() {
+  void testOtlpSigV4SpanExporterShouldPreserveExplicitSigningServiceWhenCustomized() {
     ConfigProperties config =
         DefaultConfigProperties.createFromMap(
             Map.of(
