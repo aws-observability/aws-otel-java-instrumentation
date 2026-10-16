@@ -197,24 +197,19 @@ class AwsApplicationSignalsCustomizerProviderTest {
     }
   }
 
-  // This technically should never happen as the validator checks for the correct env variables. But
-  // just to be safe.
   @Test
-  void testShouldThrowIllegalStateExceptionIfIncorrectSpanExporter() {
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            customizeExporterTest(
-                Map.of(
-                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-                    "https://xray.us-east-1.amazonaws.com/v1/traces",
-                    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
-                    "http/protobuf",
-                    OTEL_TRACES_EXPORTER,
-                    "otlp"),
-                OtlpGrpcSpanExporter.getDefault(),
-                this.provider::customizeSpanExporter,
-                OtlpHttpSpanExporter.class));
+  void testShouldPassThroughNonHttpSpanExporterWhenSigV4Enabled() {
+    customizeExporterTest(
+        Map.of(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            "https://xray.us-east-1.amazonaws.com/v1/traces",
+            OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+            "http/protobuf",
+            OTEL_TRACES_EXPORTER,
+            "otlp"),
+        OtlpGrpcSpanExporter.getDefault(),
+        this.provider::customizeSpanExporter,
+        OtlpGrpcSpanExporter.class);
   }
 
   @Test

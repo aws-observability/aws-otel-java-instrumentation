@@ -671,6 +671,5 @@ class AwsAuthHeaderSupplierTest {
       payload.write(PAYLOAD, 0, PAYLOAD.length);
       data.set(payload);
     }
-
   }
 }
