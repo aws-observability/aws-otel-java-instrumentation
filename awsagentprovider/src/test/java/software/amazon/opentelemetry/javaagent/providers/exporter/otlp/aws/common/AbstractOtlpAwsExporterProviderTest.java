@@ -52,7 +52,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
   }
 
   @Test
-  protected void testOtlpSigV4ExporterShouldApplySigningServicePrecedence() {
+  protected void testOtlpAwsExporterShouldApplySigningServicePrecedence() {
     Map<String, String> properties = properties();
     for (String expected : List.of(defaultAwsService, "custom-service", "osis")) {
       if (expected.equals("custom-service")) {
@@ -73,7 +73,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
   }
 
   @Test
-  protected void testAwsExporterShouldPreserveServiceWhenInvalidServiceRejected() {
+  protected void testOtlpAwsExporterShouldPreserveServiceWhenInvalidServiceRejected() {
     for (String expected : List.of(defaultAwsService, "custom-service")) {
       if (expected.equals("custom-service")) {
         setAwsService.accept(expected);
@@ -93,7 +93,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
   }
 
   @Test
-  protected void testOtlpSigV4ExporterShouldApplyCompressionPrecedence() {
+  protected void testOtlpAwsExporterShouldApplyCompressionPrecedence() {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.compression", "gzip");
     properties.put("otel.exporter.otlp." + dataType + ".compression", "none");
@@ -106,8 +106,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
   }
 
   @Test
-  protected void
-      testOtlpSigV4ExporterShouldFailToInitializeWithInvalidEndpointOrTlsConfiguration() {
+  protected void testOtlpAwsExporterShouldFailToInitializeWithInvalidEndpointOrTlsConfiguration() {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.endpoint", "not-a-url");
     assertThatThrownBy(() -> createExporter(properties))
@@ -121,7 +120,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
   }
 
   @Test
-  protected void testOtlpSigV4ExporterShouldLoadAlongsideOtlpExporter() {
+  protected void testOtlpAwsExporterShouldLoadAlongsideOtlpExporter() {
     Map<String, String> properties = properties();
     properties.put("otel.aws.application.signals.enabled", "false");
     properties.put("otel.traces.sampler", "always_on");

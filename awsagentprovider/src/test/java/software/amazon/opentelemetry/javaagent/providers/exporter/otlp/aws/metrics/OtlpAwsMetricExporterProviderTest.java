@@ -46,7 +46,7 @@ class OtlpAwsMetricExporterProviderTest
   }
 
   @Test
-  void testOtlpSigV4MetricExporterShouldPreserveTemporalityAndAggregation() {
+  void testOtlpAwsExporterShouldPreserveTemporalityAndAggregation() {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.metrics.temporality.preference", "DELTA");
     properties.put(
