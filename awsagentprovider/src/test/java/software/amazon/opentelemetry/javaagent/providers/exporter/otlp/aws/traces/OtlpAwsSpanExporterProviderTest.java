@@ -22,22 +22,12 @@ import io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterPro
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.BeforeEach;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.AbstractOtlpAwsExporterProviderTest;
 
 class OtlpAwsSpanExporterProviderTest
     extends AbstractOtlpAwsExporterProviderTest<OtlpAwsSpanExporter> {
   OtlpAwsSpanExporterProviderTest() {
     super("traces", "xray", OtlpAwsSpanExporter.class, OtlpHttpSpanExporter.class);
-  }
-
-  @BeforeEach
-  void setup() {
-    OtlpAwsSpanExporterBuilder builder =
-        OtlpAwsSpanExporterBuilder.create(OtlpHttpSpanExporter.builder(), endpoint)
-            .setAwsRegion("us-east-1");
-    setAwsService = builder::setAwsService;
-    buildExporter = builder::build;
   }
 
   @Override

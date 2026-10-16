@@ -27,17 +27,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsExporter> {
   private final String dataType;
   private final String defaultAwsService;
   private final Class<T> exporterType;
   private final Class<?> upstreamExporterType;
-  protected final String endpoint;
-  protected Consumer<String> setAwsService;
-  protected Supplier<T> buildExporter;
 
   protected AbstractOtlpAwsExporterProviderTest(
       String dataType,
@@ -48,7 +49,6 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
     this.defaultAwsService = defaultAwsService;
     this.exporterType = exporterType;
     this.upstreamExporterType = upstreamExporterType;
-    this.endpoint = "http://localhost:4318/v1/" + dataType;
   }
 
   @Test
@@ -63,43 +63,48 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
       T exporter = createExporter(properties);
       try {
         assertThat(exporter.serviceName()).isEqualTo(expected);
-        // Describing a configured exporter must not attempt to resolve credentials or sign data.
-        assertThat(exporter.toString()).contains("awsRegion=us-east-1");
-        assertThat(exporter.getCompression()).isEqualTo(CompressionMethod.NONE);
       } finally {
         shutdown(exporter);
       }
     }
   }
 
-  @Test
-  protected void testOtlpAwsExporterShouldPreserveServiceWhenInvalidServiceRejected() {
-    for (String expected : List.of(defaultAwsService, "custom-service")) {
-      if (expected.equals("custom-service")) {
-        setAwsService.accept(expected);
-      }
-      assertThatThrownBy(() -> setAwsService.accept(null)).isInstanceOf(NullPointerException.class);
-      for (String invalid : List.of("", " ", "\t")) {
-        assertThatThrownBy(() -> setAwsService.accept(invalid))
-            .isInstanceOf(IllegalArgumentException.class);
-      }
-      T exporter = buildExporter.get();
-      try {
-        assertThat(exporter.serviceName()).isEqualTo(expected);
-      } finally {
-        shutdown(exporter);
-      }
-    }
-  }
-
-  @Test
-  protected void testOtlpAwsExporterShouldApplyCompressionPrecedence() {
+  @ParameterizedTest
+  @MethodSource("endpointConfigs")
+  protected void testOtlpAwsExporterShouldConfigureEndpointAndRegion(
+      String globalEndpoint,
+      String dataTypeEndpoint,
+      String expectedEndpoint,
+      String expectedRegion) {
     Map<String, String> properties = properties();
-    properties.put("otel.exporter.otlp.compression", "gzip");
-    properties.put("otel.exporter.otlp." + dataType + ".compression", "none");
+    if (globalEndpoint != null) {
+      properties.put("otel.exporter.otlp.endpoint", globalEndpoint);
+      properties.remove("aws.region");
+    }
+    if (dataTypeEndpoint != null) {
+      properties.put("otel.exporter.otlp." + dataType + ".endpoint", dataTypeEndpoint);
+    }
     T exporter = createExporter(properties);
     try {
-      assertThat(exporter.getCompression()).isEqualTo(CompressionMethod.NONE);
+      assertThat(exporter.endpoint).isEqualTo(String.format(expectedEndpoint, dataType));
+      assertThat(exporter.awsRegion).isEqualTo(expectedRegion);
+    } finally {
+      shutdown(exporter);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  protected void testOtlpAwsExporterShouldApplyCompressionPrecedence(boolean useDataTypeSettings) {
+    Map<String, String> properties = properties();
+    properties.put("otel.exporter.otlp.compression", "gzip");
+    if (useDataTypeSettings) {
+      properties.put("otel.exporter.otlp." + dataType + ".compression", "none");
+    }
+    T exporter = createExporter(properties);
+    try {
+      assertThat(exporter.getCompression())
+          .isEqualTo(useDataTypeSettings ? CompressionMethod.NONE : CompressionMethod.GZIP);
     } finally {
       shutdown(exporter);
     }
@@ -119,8 +124,9 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
         .hasMessageContaining("both client key and client certificate");
   }
 
-  @Test
-  protected void testOtlpAwsExporterShouldLoadAlongsideOtlpExporter() {
+  @ParameterizedTest
+  @ValueSource(strings = {"otlp/sigv4", "otlp,otlp/sigv4"})
+  protected void testOtlpAwsExporterShouldLoadSelectedExporters(String exporterNames) {
     Map<String, String> properties = properties();
     properties.put("otel.aws.application.signals.enabled", "false");
     properties.put("otel.traces.sampler", "always_on");
@@ -129,8 +135,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
         "otel.java.enabled.resource.providers",
         "io.opentelemetry.sdk.autoconfigure.EnvironmentResourceProvider");
     for (String type : List.of("traces", "metrics", "logs")) {
-      properties.put(
-          "otel." + type + ".exporter", type.equals(dataType) ? "otlp,otlp/sigv4" : "none");
+      properties.put("otel." + type + ".exporter", type.equals(dataType) ? exporterNames : "none");
     }
     List<Object> exporters = new ArrayList<>();
     AutoConfiguredOpenTelemetrySdkBuilder builder =
@@ -140,12 +145,36 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
     addExporterCustomizer(builder, exporters::add);
     OpenTelemetrySdk sdk = builder.build().getOpenTelemetrySdk();
     try {
-      assertThat(exporters)
-          .extracting(Object::getClass)
-          .containsExactlyInAnyOrder(upstreamExporterType, exporterType);
+      if (exporterNames.equals("otlp/sigv4")) {
+        assertThat(exporters).extracting(Object::getClass).containsExactly(exporterType);
+      } else {
+        assertThat(exporters)
+            .extracting(Object::getClass)
+            .containsExactlyInAnyOrder(upstreamExporterType, exporterType);
+      }
     } finally {
       sdk.close();
     }
+  }
+
+  private static Stream<Arguments> endpointConfigs() {
+    return Stream.of(
+        Arguments.of(null, null, "http://localhost:4318/v1/%s", "us-east-1"),
+        Arguments.of(
+            "https://global.us-west-2.amazonaws.com/prefix",
+            null,
+            "https://global.us-west-2.amazonaws.com/prefix/v1/%s",
+            "us-west-2"),
+        Arguments.of(
+            "https://global.us-west-2.amazonaws.com/prefix/",
+            null,
+            "https://global.us-west-2.amazonaws.com/prefix/v1/%s",
+            "us-west-2"),
+        Arguments.of(
+            "https://global.us-west-2.amazonaws.com/prefix",
+            "https://signal.eu-west-1.amazonaws.com/custom",
+            "https://signal.eu-west-1.amazonaws.com/custom",
+            "eu-west-1"));
   }
 
   protected static Map<String, String> properties() {

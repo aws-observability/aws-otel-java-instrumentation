@@ -22,22 +22,12 @@ import io.opentelemetry.sdk.autoconfigure.spi.logs.ConfigurableLogRecordExporter
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.BeforeEach;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.AbstractOtlpAwsExporterProviderTest;
 
 class OtlpAwsLogRecordExporterProviderTest
     extends AbstractOtlpAwsExporterProviderTest<OtlpAwsLogRecordExporter> {
   OtlpAwsLogRecordExporterProviderTest() {
     super("logs", "logs", OtlpAwsLogRecordExporter.class, OtlpHttpLogRecordExporter.class);
-  }
-
-  @BeforeEach
-  void setup() {
-    OtlpAwsLogRecordExporterBuilder builder =
-        OtlpAwsLogRecordExporterBuilder.create(OtlpHttpLogRecordExporter.builder(), endpoint)
-            .setAwsRegion("us-east-1");
-    setAwsService = builder::setAwsService;
-    buildExporter = builder::build;
   }
 
   @Override

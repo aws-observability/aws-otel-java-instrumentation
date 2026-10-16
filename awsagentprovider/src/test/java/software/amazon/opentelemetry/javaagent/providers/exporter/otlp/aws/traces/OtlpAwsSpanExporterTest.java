@@ -34,9 +34,11 @@ import io.opentelemetry.sdk.testing.trace.TestSpanData;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Test;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.AbstractOtlpAwsExporterTest;
 
 class OtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest<SpanData> {
@@ -46,6 +48,15 @@ class OtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest<SpanData> {
 
   OtlpAwsSpanExporterTest() {
     super(XRAY_OTLP_ENDPOINT, "us-east-1", "xray");
+  }
+
+  @Test
+  void testOtlpAwsExporterShouldPreserveServiceWhenInvalidServiceRejected() throws IOException {
+    OtlpAwsSpanExporterBuilder builder =
+        OtlpAwsSpanExporterBuilder.create(
+                OtlpHttpSpanExporter.builder().setComponentLoader(componentLoader), endpoint)
+            .setAwsRegion("us-east-1");
+    assertAwsServiceValidation(builder::setAwsService, builder::build);
   }
 
   @Override

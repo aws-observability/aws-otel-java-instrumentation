@@ -26,7 +26,6 @@ import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.AbstractOtlpAwsExporterProviderTest;
 
@@ -34,15 +33,6 @@ class OtlpAwsMetricExporterProviderTest
     extends AbstractOtlpAwsExporterProviderTest<OtlpAwsMetricExporter> {
   OtlpAwsMetricExporterProviderTest() {
     super("metrics", "monitoring", OtlpAwsMetricExporter.class, OtlpHttpMetricExporter.class);
-  }
-
-  @BeforeEach
-  void setup() {
-    OtlpAwsMetricExporterBuilder builder =
-        OtlpAwsMetricExporterBuilder.create(OtlpHttpMetricExporter.builder(), endpoint)
-            .setAwsRegion("us-east-1");
-    setAwsService = builder::setAwsService;
-    buildExporter = builder::build;
   }
 
   @Test
