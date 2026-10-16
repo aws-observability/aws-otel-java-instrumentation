@@ -90,7 +90,7 @@ public final class OtlpAwsMetricExporter extends BaseOtlpAwsExporter implements 
       MetricsRequestMarshaler.create(metrics).writeBinaryTo(buffer);
       this.data.set(buffer);
       return this.parentExporter.export(metrics);
-    } catch (IOException | IllegalStateException e) {
+    } catch (IOException e) {
       return CompletableResultCode.ofFailure();
     }
   }

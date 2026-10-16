@@ -87,7 +87,7 @@ public final class OtlpAwsLogRecordExporter extends BaseOtlpAwsExporter
       LogsRequestMarshaler.create(logs).writeBinaryTo(buffer);
       this.data.set(buffer);
       return this.parentExporter.export(logs);
-    } catch (IOException | IllegalStateException e) {
+    } catch (IOException e) {
       return CompletableResultCode.ofFailure();
     }
   }

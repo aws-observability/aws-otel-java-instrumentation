@@ -96,7 +96,7 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
               "Failed to sign/authenticate export request to %s with error: %s",
               exporter.endpoint, e.getMessage()));
 
-      throw new IllegalStateException("Failed to sign/authenticate OTLP export request", e);
+      return Collections.emptyMap();
     }
   }
 

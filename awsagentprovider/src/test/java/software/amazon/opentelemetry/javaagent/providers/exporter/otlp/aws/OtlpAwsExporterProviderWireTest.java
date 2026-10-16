@@ -170,16 +170,17 @@ class OtlpAwsExporterProviderWireTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void signingFailureDoesNotSendAnUnsignedRequest(String signal) throws Exception {
+  void signingFailurePreservesExistingExporterBehavior(String signal) throws Exception {
     Map<String, String> properties = OtlpAwsExporterProviderTest.properties();
     properties.put("otel.exporter.otlp.endpoint", origin());
     when(credentialsProvider.resolveCredentials())
         .thenThrow(SdkClientException.builder().message("no credentials").build());
     Object exporter = OtlpAwsExporterProviderTest.createExporter(signal, properties);
     try {
-      assertThat(export(exporter).join(5, TimeUnit.SECONDS).isSuccess()).isFalse();
-      assertThat(received.await(100, TimeUnit.MILLISECONDS)).isFalse();
-      assertThat(receivedHeaders.get()).isNull();
+      assertThat(export(exporter).join(5, TimeUnit.SECONDS).isSuccess()).isTrue();
+      assertThat(received.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(receivedHeaders.get().getFirst("Authorization")).isNull();
+      assertThat(receivedHeaders.get().getFirst("X-Amz-Security-Token")).isNull();
     } finally {
       OtlpAwsExporterProviderTest.shutdown(exporter);
     }
