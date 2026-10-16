@@ -51,6 +51,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   `OTEL_EXPORTER_OTLP_METRICS_HEADERS`) selects bearer authentication; a global
   `OTEL_EXPORTER_OTLP_HEADERS` does not disable SigV4.
   ([#1455](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1455))
+- Update OpenTelemetry dependencies to 2.32.0 (contrib 1.61.0)
+  ([#1462](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1462))
 
 ## v2.31.0 - 2026-09-17
 

@@ -319,6 +319,15 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
+    // ADOT loads its own JMX rules for the target systems it ships (see AwsJmxRulesInstaller), the
+    // other target systems are left to the upstream installer.
+    String overriddenTargets = propsOverride.get(OTEL_JMX_TARGET_SYSTEM_CONFIG);
+    List<String> jmxTargets =
+        overriddenTargets != null
+            ? Arrays.asList(overriddenTargets.split(","))
+            : configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
+    propsOverride.putAll(AwsJmxRulesInstaller.splitTargetSystems(jmxTargets));
+
     return propsOverride;
   }
 
