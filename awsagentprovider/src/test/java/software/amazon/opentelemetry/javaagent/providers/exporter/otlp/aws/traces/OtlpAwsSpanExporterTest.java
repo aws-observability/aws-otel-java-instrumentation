@@ -83,45 +83,49 @@ class OtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest<SpanData> {
   }
 
   @Override
-  protected void validateOtlpPayload(byte[] payload, Collection<SpanData> signals)
-      throws Exception {
+  protected void validateOtlpPayload(byte[] payload, Collection<SpanData> data) throws Exception {
     ExportTraceServiceRequest decoded = ExportTraceServiceRequest.parseFrom(payload);
     assertEquals(1, decoded.getResourceSpansCount());
     ResourceSpans resource = decoded.getResourceSpans(0);
     assertResource(resource.getResource());
-    assertEquals(signals.size(), resource.getScopeSpansCount());
+    assertEquals(data.size(), resource.getScopeSpansCount());
     Map<String, SpanData> expected =
-        signals.stream()
+        data.stream()
             .collect(
                 Collectors.toMap(
-                    signal -> signal.getInstrumentationScopeInfo().getName(), signal -> signal));
+                    expectedData -> expectedData.getInstrumentationScopeInfo().getName(),
+                    expectedData -> expectedData));
     for (ScopeSpans scope : resource.getScopeSpansList()) {
-      SpanData signal = expected.remove(scope.getScope().getName());
-      assertNotNull(signal, "unexpected or repeated scope " + scope.getScope().getName());
-      assertScope(signal.getInstrumentationScopeInfo(), scope.getScope());
+      SpanData expectedData = expected.remove(scope.getScope().getName());
+      assertNotNull(expectedData, "unexpected or repeated scope " + scope.getScope().getName());
+      assertScope(expectedData.getInstrumentationScopeInfo(), scope.getScope());
       assertEquals(1, scope.getSpansCount());
       Span span = scope.getSpans(0);
-      assertEquals(signal.getName(), span.getName());
-      assertEquals(signal.getKind().ordinal() + 1, span.getKindValue());
-      assertArrayEquals(signal.getSpanContext().getTraceIdBytes(), span.getTraceId().toByteArray());
-      assertArrayEquals(signal.getSpanContext().getSpanIdBytes(), span.getSpanId().toByteArray());
+      assertEquals(expectedData.getName(), span.getName());
+      assertEquals(expectedData.getKind().ordinal() + 1, span.getKindValue());
       assertArrayEquals(
-          signal.getParentSpanContext().getSpanIdBytes(), span.getParentSpanId().toByteArray());
+          expectedData.getSpanContext().getTraceIdBytes(), span.getTraceId().toByteArray());
+      assertArrayEquals(
+          expectedData.getSpanContext().getSpanIdBytes(), span.getSpanId().toByteArray());
+      assertArrayEquals(
+          expectedData.getParentSpanContext().getSpanIdBytes(),
+          span.getParentSpanId().toByteArray());
       assertEquals("test=state", span.getTraceState());
-      assertEquals(signal.getStartEpochNanos(), span.getStartTimeUnixNano());
-      assertEquals(signal.getEndEpochNanos(), span.getEndTimeUnixNano());
-      assertEquals(signal.getStatus().getStatusCode().ordinal(), span.getStatus().getCodeValue());
-      assertEquals(signal.getStatus().getDescription(), span.getStatus().getMessage());
-      assertAttributes(signal.getAttributes(), span.getAttributesList());
+      assertEquals(expectedData.getStartEpochNanos(), span.getStartTimeUnixNano());
+      assertEquals(expectedData.getEndEpochNanos(), span.getEndTimeUnixNano());
+      assertEquals(
+          expectedData.getStatus().getStatusCode().ordinal(), span.getStatus().getCodeValue());
+      assertEquals(expectedData.getStatus().getDescription(), span.getStatus().getMessage());
+      assertAttributes(expectedData.getAttributes(), span.getAttributesList());
       assertEquals(0, span.getDroppedAttributesCount());
-      assertEquals(signal.getEvents().size(), span.getEventsCount());
-      assertEquals(signal.getLinks().size(), span.getLinksCount());
+      assertEquals(expectedData.getEvents().size(), span.getEventsCount());
+      assertEquals(expectedData.getLinks().size(), span.getLinksCount());
     }
     assertTrue(expected.isEmpty());
   }
 
   @Override
-  protected CompletableResultCode export(Collection<SpanData> signals) {
+  protected CompletableResultCode export(Collection<SpanData> data) {
     if (exporter == null) {
       exporter =
           OtlpAwsSpanExporterBuilder.create(
@@ -134,7 +138,7 @@ class OtlpAwsSpanExporterTest extends AbstractOtlpAwsExporterTest<SpanData> {
               .setCompression(compression)
               .build();
     }
-    return exporter.export(signals);
+    return exporter.export(data);
   }
 
   @Override

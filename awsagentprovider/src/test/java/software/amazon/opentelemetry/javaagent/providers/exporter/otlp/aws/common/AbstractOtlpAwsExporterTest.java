@@ -105,10 +105,9 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
 
   protected abstract T createOtlpData(int index);
 
-  protected abstract CompletableResultCode export(Collection<T> signals);
+  protected abstract CompletableResultCode export(Collection<T> data);
 
-  protected abstract void validateOtlpPayload(byte[] payload, Collection<T> signals)
-      throws Exception;
+  protected abstract void validateOtlpPayload(byte[] payload, Collection<T> data) throws Exception;
 
   protected abstract void shutdownExporter();
 
@@ -191,10 +190,10 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
 
   @Test
   protected void testAwsExporterAddsSigV4Headers() throws Exception {
-    T signal = createOtlpData(0);
-    assertTrue(export(List.of(signal)).isSuccess());
+    T data = createOtlpData(0);
+    assertTrue(export(List.of(data)).isSuccess());
     assertEquals(1, requests.size());
-    assertOtlpRequest(0, List.of(signal));
+    assertOtlpRequest(0, List.of(data));
     assertSigningHeaders(requests.get(0));
     verify(credentialsProvider).resolveCredentials();
     verify(signer).sign(any(Consumer.class));
@@ -206,10 +205,10 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
       credentials =
           AwsSessionCredentials.create("test_access_key", "test_secret_key", "test_token" + i);
       signedRequest = createSignedRequest(i);
-      T signal = createOtlpData(i);
-      assertTrue(export(List.of(signal)).isSuccess());
+      T data = createOtlpData(i);
+      assertTrue(export(List.of(data)).isSuccess());
       assertEquals(i + 1, requests.size());
-      assertOtlpRequest(i, List.of(signal));
+      assertOtlpRequest(i, List.of(data));
       assertSigningHeaders(requests.get(i));
     }
     assertEquals(
@@ -227,10 +226,10 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
       throws Exception {
     when(credentialsProvider.resolveCredentials())
         .thenThrow(SdkClientException.builder().message("bad credentials").build());
-    T signal = createOtlpData(0);
-    assertTrue(export(List.of(signal)).isSuccess());
+    T data = createOtlpData(0);
+    assertTrue(export(List.of(data)).isSuccess());
     assertEquals(1, requests.size());
-    assertOtlpRequest(0, List.of(signal));
+    assertOtlpRequest(0, List.of(data));
     assertFalse(requests.get(0).headers.containsKey(AUTHORIZATION_HEADER));
     assertFalse(requests.get(0).headers.containsKey(X_AMZ_DATE_HEADER));
     assertFalse(requests.get(0).headers.containsKey(X_AMZ_SECURITY_TOKEN_HEADER));
@@ -238,14 +237,13 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
   }
 
   @Test
-  protected void testAwsSpanExporterDoesNotAddSigV4HeadersIfFailureToSignHeaders()
-      throws Exception {
+  protected void testAwsExporterDoesNotAddSigV4HeadersIfFailureToSignHeaders() throws Exception {
     when(signer.sign(any(Consumer.class)))
         .thenThrow(SdkClientException.builder().message("bad signature").build());
-    T signal = createOtlpData(0);
-    assertTrue(export(List.of(signal)).isSuccess());
+    T data = createOtlpData(0);
+    assertTrue(export(List.of(data)).isSuccess());
     assertEquals(1, requests.size());
-    assertOtlpRequest(0, List.of(signal));
+    assertOtlpRequest(0, List.of(data));
     assertFalse(requests.get(0).headers.containsKey(AUTHORIZATION_HEADER));
     assertFalse(requests.get(0).headers.containsKey(X_AMZ_DATE_HEADER));
     assertFalse(requests.get(0).headers.containsKey(X_AMZ_SECURITY_TOKEN_HEADER));
@@ -259,19 +257,19 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
       String compression, String encoding) throws Exception {
     this.compression = compression;
     otlpCompression = encoding.isEmpty() ? "none" : encoding;
-    List<List<T>> expectedSignals = new ArrayList<>();
+    List<List<T>> expectedData = new ArrayList<>();
     for (int scopeCount = 1; scopeCount <= 10; scopeCount++) {
-      List<T> signals = new ArrayList<>();
+      List<T> data = new ArrayList<>();
       for (int i = 0; i < scopeCount; i++) {
-        signals.add(createOtlpData(i));
+        data.add(createOtlpData(i));
       }
-      expectedSignals.add(signals);
-      assertTrue(export(signals).isSuccess());
+      expectedData.add(data);
+      assertTrue(export(data).isSuccess());
       assertEquals(scopeCount, requests.size());
       assertEquals(scopeCount, signedPayloads.size());
     }
-    for (int i = 0; i < expectedSignals.size(); i++) {
-      assertOtlpRequest(i, expectedSignals.get(i));
+    for (int i = 0; i < expectedData.size(); i++) {
+      assertOtlpRequest(i, expectedData.get(i));
       assertSigningHeaders(requests.get(i));
       assertEquals(encoding, requests.get(i).encoding);
       assertArrayEquals(
@@ -281,38 +279,6 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
     }
     verify(credentialsProvider, times(10)).resolveCredentials();
     verify(signer, times(10)).sign(any(Consumer.class));
-  }
-
-  private static Stream<Arguments> compressionCases() {
-    return Stream.of(
-        Arguments.of(null, ""),
-        Arguments.of("gzip", "gzip"),
-        Arguments.of("GZIP", "gzip"),
-        Arguments.of("unknown", ""));
-  }
-
-  private SignedRequest createSignedRequest(int index) {
-    return SignedRequest.builder()
-        .request(
-            SdkHttpFullRequest.builder()
-                .method(SdkHttpMethod.POST)
-                .uri(URI.create(endpoint))
-                .putHeader(
-                    AUTHORIZATION_HEADER,
-                    "AWS4-HMAC-SHA256 Credential="
-                        + credentials.accessKeyId()
-                        + "/20260101/"
-                        + region
-                        + "/"
-                        + service
-                        + "/aws4_request, Signature="
-                        + String.format("%064x", index))
-                .putHeader(X_AMZ_DATE_HEADER, String.format("20260101T0000%02dZ", index))
-                .putHeader(
-                    X_AMZ_SECURITY_TOKEN_HEADER,
-                    ((AwsSessionCredentials) credentials).sessionToken())
-                .build())
-        .build();
   }
 
   private byte[] assertSigningRequest(
@@ -351,7 +317,7 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
             .contains("/" + region + "/" + service + "/aws4_request"));
   }
 
-  private void assertOtlpRequest(int index, Collection<T> signals) throws Exception {
+  private void assertOtlpRequest(int index, Collection<T> data) throws Exception {
     CapturedRequest request = requests.get(index);
     assertEquals(URI.create(endpoint), request.endpoint);
     assertEquals("application/x-protobuf", request.contentType);
@@ -364,7 +330,7 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
     } else {
       assertEquals("", request.encoding);
     }
-    validateOtlpPayload(payload, signals);
+    validateOtlpPayload(payload, data);
   }
 
   protected static void assertResource(io.opentelemetry.proto.resource.v1.Resource actual) {
@@ -405,6 +371,38 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
           actualValues.put(attribute.getKey(), value), "duplicate attribute " + attribute.getKey());
     }
     assertEquals(expectedValues, actualValues);
+  }
+
+  private static Stream<Arguments> compressionCases() {
+    return Stream.of(
+        Arguments.of(null, ""),
+        Arguments.of("gzip", "gzip"),
+        Arguments.of("GZIP", "gzip"),
+        Arguments.of("unknown", ""));
+  }
+
+  private SignedRequest createSignedRequest(int index) {
+    return SignedRequest.builder()
+        .request(
+            SdkHttpFullRequest.builder()
+                .method(SdkHttpMethod.POST)
+                .uri(URI.create(endpoint))
+                .putHeader(
+                    AUTHORIZATION_HEADER,
+                    "AWS4-HMAC-SHA256 Credential="
+                        + credentials.accessKeyId()
+                        + "/20260101/"
+                        + region
+                        + "/"
+                        + service
+                        + "/aws4_request, Signature="
+                        + String.format("%064x", index))
+                .putHeader(X_AMZ_DATE_HEADER, String.format("20260101T0000%02dZ", index))
+                .putHeader(
+                    X_AMZ_SECURITY_TOKEN_HEADER,
+                    ((AwsSessionCredentials) credentials).sessionToken())
+                .build())
+        .build();
   }
 
   private static final class CapturedRequest {

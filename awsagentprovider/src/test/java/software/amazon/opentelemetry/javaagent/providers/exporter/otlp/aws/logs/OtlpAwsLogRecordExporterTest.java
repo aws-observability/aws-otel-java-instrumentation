@@ -75,40 +75,43 @@ class OtlpAwsLogRecordExporterTest extends AbstractOtlpAwsExporterTest<LogRecord
   }
 
   @Override
-  protected void validateOtlpPayload(byte[] payload, Collection<LogRecordData> signals)
+  protected void validateOtlpPayload(byte[] payload, Collection<LogRecordData> data)
       throws Exception {
     ExportLogsServiceRequest decoded = ExportLogsServiceRequest.parseFrom(payload);
     assertEquals(1, decoded.getResourceLogsCount());
     ResourceLogs resource = decoded.getResourceLogs(0);
     assertResource(resource.getResource());
-    assertEquals(signals.size(), resource.getScopeLogsCount());
+    assertEquals(data.size(), resource.getScopeLogsCount());
     Map<String, LogRecordData> expected =
-        signals.stream()
+        data.stream()
             .collect(
                 Collectors.toMap(
-                    signal -> signal.getInstrumentationScopeInfo().getName(), signal -> signal));
+                    expectedData -> expectedData.getInstrumentationScopeInfo().getName(),
+                    expectedData -> expectedData));
     for (ScopeLogs scope : resource.getScopeLogsList()) {
-      LogRecordData signal = expected.remove(scope.getScope().getName());
-      assertNotNull(signal, "unexpected or repeated scope " + scope.getScope().getName());
-      assertScope(signal.getInstrumentationScopeInfo(), scope.getScope());
+      LogRecordData expectedData = expected.remove(scope.getScope().getName());
+      assertNotNull(expectedData, "unexpected or repeated scope " + scope.getScope().getName());
+      assertScope(expectedData.getInstrumentationScopeInfo(), scope.getScope());
       assertEquals(1, scope.getLogRecordsCount());
       LogRecord log = scope.getLogRecords(0);
-      assertEquals(signal.getBodyValue().asString(), log.getBody().getStringValue());
-      assertEquals(signal.getSeverity().getSeverityNumber(), log.getSeverityNumberValue());
-      assertEquals(signal.getSeverityText(), log.getSeverityText());
-      assertEquals(signal.getTimestampEpochNanos(), log.getTimeUnixNano());
-      assertEquals(signal.getObservedTimestampEpochNanos(), log.getObservedTimeUnixNano());
-      assertArrayEquals(signal.getSpanContext().getTraceIdBytes(), log.getTraceId().toByteArray());
-      assertArrayEquals(signal.getSpanContext().getSpanIdBytes(), log.getSpanId().toByteArray());
-      assertEquals(signal.getSpanContext().getTraceFlags().asByte(), log.getFlags());
-      assertAttributes(signal.getAttributes(), log.getAttributesList());
+      assertEquals(expectedData.getBodyValue().asString(), log.getBody().getStringValue());
+      assertEquals(expectedData.getSeverity().getSeverityNumber(), log.getSeverityNumberValue());
+      assertEquals(expectedData.getSeverityText(), log.getSeverityText());
+      assertEquals(expectedData.getTimestampEpochNanos(), log.getTimeUnixNano());
+      assertEquals(expectedData.getObservedTimestampEpochNanos(), log.getObservedTimeUnixNano());
+      assertArrayEquals(
+          expectedData.getSpanContext().getTraceIdBytes(), log.getTraceId().toByteArray());
+      assertArrayEquals(
+          expectedData.getSpanContext().getSpanIdBytes(), log.getSpanId().toByteArray());
+      assertEquals(expectedData.getSpanContext().getTraceFlags().asByte(), log.getFlags());
+      assertAttributes(expectedData.getAttributes(), log.getAttributesList());
       assertEquals(0, log.getDroppedAttributesCount());
     }
     assertTrue(expected.isEmpty());
   }
 
   @Override
-  protected CompletableResultCode export(Collection<LogRecordData> signals) {
+  protected CompletableResultCode export(Collection<LogRecordData> data) {
     if (exporter == null) {
       exporter =
           OtlpAwsLogRecordExporterBuilder.create(
@@ -121,7 +124,7 @@ class OtlpAwsLogRecordExporterTest extends AbstractOtlpAwsExporterTest<LogRecord
               .setCompression(compression)
               .build();
     }
-    return exporter.export(signals);
+    return exporter.export(data);
   }
 
   @Override

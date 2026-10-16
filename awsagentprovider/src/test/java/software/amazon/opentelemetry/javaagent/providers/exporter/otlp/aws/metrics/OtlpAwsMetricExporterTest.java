@@ -92,31 +92,32 @@ class OtlpAwsMetricExporterTest extends AbstractOtlpAwsExporterTest<MetricData> 
   }
 
   @Override
-  protected void validateOtlpPayload(byte[] payload, Collection<MetricData> signals)
-      throws Exception {
+  protected void validateOtlpPayload(byte[] payload, Collection<MetricData> data) throws Exception {
     ExportMetricsServiceRequest decoded = ExportMetricsServiceRequest.parseFrom(payload);
     assertEquals(1, decoded.getResourceMetricsCount());
     ResourceMetrics resource = decoded.getResourceMetrics(0);
     assertResource(resource.getResource());
-    assertEquals(signals.size(), resource.getScopeMetricsCount());
+    assertEquals(data.size(), resource.getScopeMetricsCount());
     Map<String, MetricData> expected =
-        signals.stream()
+        data.stream()
             .collect(
                 Collectors.toMap(
-                    signal -> signal.getInstrumentationScopeInfo().getName(), signal -> signal));
+                    expectedData -> expectedData.getInstrumentationScopeInfo().getName(),
+                    expectedData -> expectedData));
     for (ScopeMetrics scope : resource.getScopeMetricsList()) {
-      MetricData signal = expected.remove(scope.getScope().getName());
-      assertNotNull(signal, "unexpected or repeated scope " + scope.getScope().getName());
-      assertScope(signal.getInstrumentationScopeInfo(), scope.getScope());
+      MetricData expectedData = expected.remove(scope.getScope().getName());
+      assertNotNull(expectedData, "unexpected or repeated scope " + scope.getScope().getName());
+      assertScope(expectedData.getInstrumentationScopeInfo(), scope.getScope());
       assertEquals(1, scope.getMetricsCount());
       Metric metric = scope.getMetrics(0);
-      assertEquals(signal.getName(), metric.getName());
-      assertEquals(signal.getDescription(), metric.getDescription());
-      assertEquals(signal.getUnit(), metric.getUnit());
+      assertEquals(expectedData.getName(), metric.getName());
+      assertEquals(expectedData.getDescription(), metric.getDescription());
+      assertEquals(expectedData.getUnit(), metric.getUnit());
       assertTrue(metric.hasGauge());
       assertEquals(1, metric.getGauge().getDataPointsCount());
       NumberDataPoint point = metric.getGauge().getDataPoints(0);
-      DoublePointData expectedPoint = signal.getDoubleGaugeData().getPoints().iterator().next();
+      DoublePointData expectedPoint =
+          expectedData.getDoubleGaugeData().getPoints().iterator().next();
       assertEquals(NumberDataPoint.ValueCase.AS_DOUBLE, point.getValueCase());
       assertEquals(expectedPoint.getValue(), point.getAsDouble());
       assertEquals(expectedPoint.getStartEpochNanos(), point.getStartTimeUnixNano());
@@ -129,7 +130,7 @@ class OtlpAwsMetricExporterTest extends AbstractOtlpAwsExporterTest<MetricData> 
   }
 
   @Override
-  protected CompletableResultCode export(Collection<MetricData> signals) {
+  protected CompletableResultCode export(Collection<MetricData> data) {
     if (exporter == null) {
       exporter =
           OtlpAwsMetricExporterBuilder.create(
@@ -142,7 +143,7 @@ class OtlpAwsMetricExporterTest extends AbstractOtlpAwsExporterTest<MetricData> 
               .setCompression(compression)
               .build();
     }
-    return exporter.export(signals);
+    return exporter.export(data);
   }
 
   @Override
