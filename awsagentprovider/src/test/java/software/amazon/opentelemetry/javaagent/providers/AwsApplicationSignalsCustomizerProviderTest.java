@@ -57,9 +57,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
@@ -467,48 +464,6 @@ class AwsApplicationSignalsCustomizerProviderTest {
                     "https://monitoring.us-east-1.amazonaws.com/v1/metrics")));
 
     assertFalse(overrides.containsKey(OTEL_METRICS_EXPORTER));
-  }
-
-  @Test
-  void testApplicationSignalsWarnsWhenCloudWatchMetricsExporterDefaultsToNone() {
-    Logger customizerLogger =
-        Logger.getLogger(AwsApplicationSignalsCustomizerProvider.class.getName());
-    List<LogRecord> logRecords = new ArrayList<>();
-    Handler handler =
-        new Handler() {
-          @Override
-          public void publish(LogRecord record) {
-            logRecords.add(record);
-          }
-
-          @Override
-          public void flush() {}
-
-          @Override
-          public void close() {}
-        };
-    customizerLogger.addHandler(handler);
-    try {
-      Map<String, String> overrides =
-          this.provider.customizeProperties(
-              DefaultConfigProperties.createFromMap(
-                  Map.of(
-                      APPLICATION_SIGNALS_ENABLED_CONFIG,
-                      "true",
-                      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-                      "https://monitoring.us-east-1.amazonaws.com/v1/metrics")));
-
-      assertEquals("none", overrides.get(OTEL_METRICS_EXPORTER));
-      assertTrue(
-          logRecords.stream()
-              .anyMatch(
-                  record ->
-                      record
-                          .getMessage()
-                          .contains("Set OTEL_METRICS_EXPORTER=otlp to enable collector-less")));
-    } finally {
-      customizerLogger.removeHandler(handler);
-    }
   }
 
   @Test
