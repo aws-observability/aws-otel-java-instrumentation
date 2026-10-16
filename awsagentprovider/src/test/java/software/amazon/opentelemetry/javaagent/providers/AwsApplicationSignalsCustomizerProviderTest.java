@@ -59,6 +59,7 @@ import org.mockito.MockedStatic;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporter;
@@ -216,23 +217,38 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @Test
   void testCustomizeSpanExporterShouldPreserveSigV4ExporterAndSigningService() {
-    ConfigProperties config =
-        DefaultConfigProperties.createFromMap(
-            Map.of(
-                OTEL_TRACES_EXPORTER,
-                "otlp/sigv4",
-                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-                "https://xray.us-east-1.amazonaws.com/v1/traces",
-                OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
-                "http/protobuf",
-                "aws.traces.exporter.service",
-                "custom-service"));
-    SpanExporter exporter = new OtlpAwsSpanExporterProvider().createExporter(config);
+    Map<String, String> config =
+        Map.of(
+            OTEL_TRACES_EXPORTER,
+            "otlp/sigv4",
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            "https://xray.us-east-1.amazonaws.com/v1/traces",
+            OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+            "http/protobuf",
+            "otel.exporter.otlp.traces.compression",
+            "gzip",
+            "aws.region",
+            "us-west-2",
+            "aws.traces.exporter.service",
+            "custom-service");
+    SpanExporter expectedExporter =
+        new OtlpAwsSpanExporterProvider()
+            .createExporter(DefaultConfigProperties.createFromMap(config));
     try {
-      assertSame(exporter, this.provider.customizeSpanExporter(exporter, config));
-      assertEquals("custom-service", ((OtlpAwsSpanExporter) exporter).serviceName());
+      SpanExporter actualExporter =
+          customizeExporterTest(
+              config,
+              expectedExporter,
+              this.provider::customizeSpanExporter,
+              OtlpAwsSpanExporter.class);
+      assertSame(expectedExporter, actualExporter);
+      assertEquals("custom-service", ((OtlpAwsSpanExporter) actualExporter).serviceName());
+      assertEquals(CompressionMethod.GZIP, ((OtlpAwsSpanExporter) actualExporter).getCompression());
+      assertThat(actualExporter.toString())
+          .contains(
+              "endpoint=https://xray.us-east-1.amazonaws.com/v1/traces", "awsRegion=us-west-2");
     } finally {
-      exporter.shutdown();
+      expectedExporter.shutdown();
     }
   }
 
@@ -257,25 +273,40 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @Test
   void testOtlpSigV4LogsExporterShouldPreserveExplicitSigningServiceWhenCustomized() {
-    ConfigProperties config =
-        DefaultConfigProperties.createFromMap(
-            Map.of(
-                OTEL_LOGS_EXPORTER,
-                "otlp/sigv4",
-                OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-                "https://logs.us-east-1.amazonaws.com/v1/logs",
-                OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
-                "http/protobuf",
-                OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-                "x-aws-log-group=test1,x-aws-log-stream=test2",
-                "aws.logs.exporter.service",
-                "custom-service"));
-    LogRecordExporter exporter = new OtlpAwsLogRecordExporterProvider().createExporter(config);
+    Map<String, String> config =
+        Map.of(
+            OTEL_LOGS_EXPORTER,
+            "otlp/sigv4",
+            OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+            "https://logs.us-east-1.amazonaws.com/v1/logs",
+            OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+            "http/protobuf",
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            "x-aws-log-group=test1,x-aws-log-stream=test2",
+            "otel.exporter.otlp.logs.compression",
+            "gzip",
+            "aws.region",
+            "us-west-2",
+            "aws.logs.exporter.service",
+            "custom-service");
+    LogRecordExporter expectedExporter =
+        new OtlpAwsLogRecordExporterProvider()
+            .createExporter(DefaultConfigProperties.createFromMap(config));
     try {
-      assertSame(exporter, this.provider.customizeLogsExporter(exporter, config));
-      assertEquals("custom-service", ((OtlpAwsLogRecordExporter) exporter).serviceName());
+      LogRecordExporter actualExporter =
+          customizeExporterTest(
+              config,
+              expectedExporter,
+              this.provider::customizeLogsExporter,
+              OtlpAwsLogRecordExporter.class);
+      assertSame(expectedExporter, actualExporter);
+      assertEquals("custom-service", ((OtlpAwsLogRecordExporter) actualExporter).serviceName());
+      assertEquals(
+          CompressionMethod.GZIP, ((OtlpAwsLogRecordExporter) actualExporter).getCompression());
+      assertThat(actualExporter.toString())
+          .contains("endpoint=https://logs.us-east-1.amazonaws.com/v1/logs", "awsRegion=us-west-2");
     } finally {
-      exporter.shutdown();
+      expectedExporter.shutdown();
     }
   }
 
@@ -390,23 +421,40 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @Test
   void testOtlpSigV4MetricsExporterShouldPreserveExplicitSigningServiceWhenCustomized() {
-    ConfigProperties config =
-        DefaultConfigProperties.createFromMap(
-            Map.of(
-                OTEL_METRICS_EXPORTER,
-                "otlp/sigv4",
-                OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-                "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
-                OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
-                "http/protobuf",
-                "aws.metrics.exporter.service",
-                "custom-service"));
-    MetricExporter exporter = new OtlpAwsMetricExporterProvider().createExporter(config);
+    Map<String, String> config =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "otlp/sigv4",
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            "http/protobuf",
+            "otel.exporter.otlp.metrics.compression",
+            "gzip",
+            "aws.region",
+            "us-west-2",
+            "aws.metrics.exporter.service",
+            "custom-service");
+    MetricExporter expectedExporter =
+        new OtlpAwsMetricExporterProvider()
+            .createExporter(DefaultConfigProperties.createFromMap(config));
     try {
-      assertSame(exporter, this.provider.customizeMetricExporter(exporter, config));
-      assertEquals("custom-service", ((OtlpAwsMetricExporter) exporter).serviceName());
+      MetricExporter actualExporter =
+          customizeExporterTest(
+              config,
+              expectedExporter,
+              this.provider::customizeMetricExporter,
+              OtlpAwsMetricExporter.class);
+      assertSame(expectedExporter, actualExporter);
+      assertEquals("custom-service", ((OtlpAwsMetricExporter) actualExporter).serviceName());
+      assertEquals(
+          CompressionMethod.GZIP, ((OtlpAwsMetricExporter) actualExporter).getCompression());
+      assertThat(actualExporter.toString())
+          .contains(
+              "endpoint=https://monitoring.us-east-1.amazonaws.com/v1/metrics",
+              "awsRegion=us-west-2");
     } finally {
-      exporter.shutdown();
+      expectedExporter.shutdown();
     }
   }
 
@@ -1280,14 +1328,15 @@ class AwsApplicationSignalsCustomizerProviderTest {
         .doesNotContainKey("otel.aws.jmx.target.system");
   }
 
-  private static <Exporter> void customizeExporterTest(
+  private static <Exporter> Exporter customizeExporterTest(
       Map<String, String> config,
-      Exporter defaultExporter,
+      Exporter expectedExporter,
       BiFunction<Exporter, ConfigProperties, Exporter> executor,
       Class<?> expectedExporterType) {
 
     DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(config);
-    Exporter result = executor.apply(defaultExporter, configProps);
-    assertEquals(expectedExporterType, result.getClass());
+    Exporter actualExporter = executor.apply(expectedExporter, configProps);
+    assertEquals(expectedExporterType, actualExporter.getClass());
+    return actualExporter;
   }
 }

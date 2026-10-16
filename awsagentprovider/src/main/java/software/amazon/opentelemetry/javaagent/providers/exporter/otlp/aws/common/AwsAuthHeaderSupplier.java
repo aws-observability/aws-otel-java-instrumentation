@@ -25,6 +25,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.SdkHttpRequest;
@@ -33,10 +35,16 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 
 final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
   private final BaseOtlpAwsExporter exporter;
+  private final AwsCredentialsProvider credentialsProvider;
   private final Logger logger;
 
-  public AwsAuthHeaderSupplier(BaseOtlpAwsExporter exporter) {
+  public AwsAuthHeaderSupplier(
+      BaseOtlpAwsExporter exporter, AwsCredentialsProvider credentialsProvider) {
     this.exporter = exporter;
+    // create() returns the SDK's shared singleton.
+    // The supplier does not own this default or caller-supplied providers.
+    this.credentialsProvider =
+        credentialsProvider != null ? credentialsProvider : DefaultCredentialsProvider.create();
     this.logger = Logger.getLogger(exporter.getClass().getName());
   }
 
@@ -60,7 +68,7 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
         compressedData = data;
       }
 
-      AwsCredentials credentials = exporter.credentialsProvider.resolveCredentials();
+      AwsCredentials credentials = credentialsProvider.resolveCredentials();
 
       SignedRequest signedRequest =
           AwsV4HttpSigner.create()

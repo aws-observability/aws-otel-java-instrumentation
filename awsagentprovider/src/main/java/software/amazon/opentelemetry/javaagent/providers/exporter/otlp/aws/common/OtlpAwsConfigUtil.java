@@ -18,6 +18,7 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.comm
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import java.net.URI;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -77,7 +78,7 @@ public final class OtlpAwsConfigUtil {
     if (host != null) {
       Matcher matcher = AWS_ENDPOINT_REGION.matcher(host);
       if (matcher.matches()) {
-        return matcher.group(1).toLowerCase(java.util.Locale.ROOT);
+        return matcher.group(1).toLowerCase(Locale.ROOT);
       }
     }
     try {
