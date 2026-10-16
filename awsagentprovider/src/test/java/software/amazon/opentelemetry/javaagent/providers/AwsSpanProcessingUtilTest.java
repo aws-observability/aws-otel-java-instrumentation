@@ -782,20 +782,20 @@ public class AwsSpanProcessingUtilTest {
 
   @Test
   public void testApplyOperationPathSpanName_isIdempotent() {
-    when(spanDataMock.getName()).thenReturn("POST /smart/v1/**");
-    when(attributesMock.get(URL_PATH)).thenReturn("/smart/v1/getAppraisers");
+    when(spanDataMock.getName()).thenReturn("POST /api/v1/**");
+    when(attributesMock.get(URL_PATH)).thenReturn("/api/v1/orders");
     when(attributesMock.get(HTTP_REQUEST_METHOD)).thenReturn("POST");
 
     try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1"));
+          .thenReturn(List.of("/api/v1/orders", "/api/v1"));
 
       SpanData once = AwsSpanProcessingUtil.applyOperationPathSpanName(spanDataMock);
       SpanData twice = AwsSpanProcessingUtil.applyOperationPathSpanName(once);
-      assertThat(once.getName()).isEqualTo("POST /smart/v1/getAppraisers");
-      assertThat(twice.getName()).isEqualTo("POST /smart/v1/getAppraisers");
+      assertThat(once.getName()).isEqualTo("POST /api/v1/orders");
+      assertThat(twice.getName()).isEqualTo("POST /api/v1/orders");
     }
   }
 
