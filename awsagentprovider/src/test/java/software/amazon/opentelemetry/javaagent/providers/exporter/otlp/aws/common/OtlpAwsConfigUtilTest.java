@@ -44,7 +44,7 @@ class OtlpAwsConfigUtilTest {
     "https://logs.us-iso-east-1.c2s.ic.gov/v1/logs,us-iso-east-1"
   })
   void testShouldDetectRegionFromAwsEndpoint(String endpoint, String expectedRegion) {
-    assertThat(OtlpAwsConfigUtil.resolveRegion(null, endpoint)).isEqualTo(expectedRegion);
+    assertThat(OtlpAwsConfigUtil.resolveRegion(null, endpoint, null)).isEqualTo(expectedRegion);
   }
 
   @Test
@@ -61,8 +61,9 @@ class OtlpAwsConfigUtilTest {
                 DefaultConfigProperties.createFromMap(Map.of("aws.default.region", "us-west-2")),
                 endpoint))
         .isEqualTo("us-west-2");
-    assertThat(OtlpAwsConfigUtil.resolveRegion("ap-southeast-2", endpoint))
+    assertThat(OtlpAwsConfigUtil.resolveRegion("ap-southeast-2", endpoint, "eu-west-1"))
         .isEqualTo("ap-southeast-2");
+    assertThat(OtlpAwsConfigUtil.resolveRegion(null, endpoint, "eu-west-1")).isEqualTo("eu-west-1");
   }
 
   @Test
@@ -76,11 +77,13 @@ class OtlpAwsConfigUtilTest {
       factory.when(DefaultAwsRegionProviderChain::builder).thenReturn(builder);
       when(chain.getRegion()).thenReturn(Region.EU_WEST_1);
       // Region-looking labels outside recognized AWS suffixes must not be trusted.
-      assertThat(OtlpAwsConfigUtil.resolveRegion(null, "https://us-east-1.example.com/v1/traces"))
+      assertThat(
+              OtlpAwsConfigUtil.resolveRegion(
+                  null, "https://us-east-1.example.com/v1/traces", null))
           .isEqualTo("eu-west-1");
       when(chain.getRegion()).thenThrow(SdkClientException.builder().message("no region").build());
       assertThatThrownBy(
-              () -> OtlpAwsConfigUtil.resolveRegion(null, "http://localhost:4318/v1/traces"))
+              () -> OtlpAwsConfigUtil.resolveRegion(null, "http://localhost:4318/v1/traces", null))
           .isInstanceOf(ConfigurationException.class)
           .hasMessageContaining("AWS SDK region provider chain");
     }

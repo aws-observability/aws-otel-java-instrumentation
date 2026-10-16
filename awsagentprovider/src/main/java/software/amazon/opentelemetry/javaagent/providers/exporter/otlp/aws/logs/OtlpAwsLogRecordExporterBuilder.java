@@ -59,10 +59,11 @@ public class OtlpAwsLogRecordExporterBuilder {
 
   /** Sets the AWS signing service. Defaults to {@code logs}. */
   public OtlpAwsLogRecordExporterBuilder setAwsService(String awsService) {
-    this.awsService = requireNonNull(awsService, "awsService");
+    requireNonNull(awsService, "awsService");
     if (awsService.trim().isEmpty()) {
       throw new IllegalArgumentException("awsService must not be empty");
     }
+    this.awsService = awsService;
     return this;
   }
 

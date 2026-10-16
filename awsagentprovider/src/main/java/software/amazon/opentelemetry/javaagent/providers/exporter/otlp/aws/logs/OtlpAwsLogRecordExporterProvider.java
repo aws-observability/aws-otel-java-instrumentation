@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs;
 
 import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DATA_TYPE_LOGS;
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DEFAULT_LOGS_ENDPOINT;
 
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
@@ -44,8 +45,9 @@ public final class OtlpAwsLogRecordExporterProvider
   public LogRecordExporter createExporter(ConfigProperties config) {
     OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_LOGS, config);
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_LOGS, config);
+    String defaultAwsService = "logs";
     OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
-    AtomicReference<String> endpoint = new AtomicReference<>("http://localhost:4318/v1/logs");
+    AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_LOGS_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
         DATA_TYPE_LOGS,
         config,
@@ -66,7 +68,7 @@ public final class OtlpAwsLogRecordExporterProvider
     return OtlpAwsLogRecordExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
         .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
-        .setAwsService(OtlpAwsConfigUtil.getSigV4Service(DATA_TYPE_LOGS, config, "logs"))
+        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_LOGS, config, defaultAwsService))
         .build();
   }
 

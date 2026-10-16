@@ -130,7 +130,7 @@ class OtlpAwsExporterProviderWireTest {
     properties.put("otel.exporter.otlp.endpoint", origin() + "/Root");
     properties.put("otel.exporter.otlp.compression", compression);
     properties.put("otel.exporter.otlp.headers", "x-test-label=hello%20world");
-    properties.put("otel.exporter.otlp.sigv4.service", "osis");
+    properties.put("aws.exporter.service", "osis");
     String path = "/Root/v1/" + signal;
     if (signalEndpoint) {
       path = "/Custom/" + signal.toUpperCase(java.util.Locale.ROOT);

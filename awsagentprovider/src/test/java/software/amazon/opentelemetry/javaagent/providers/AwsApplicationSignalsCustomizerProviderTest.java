@@ -60,7 +60,9 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.Compa
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterProvider;
 
@@ -223,7 +225,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
                 "https://xray.us-east-1.amazonaws.com/v1/traces",
                 OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
                 "http/protobuf",
-                "otel.exporter.otlp.traces.sigv4.service",
+                "aws.traces.exporter.service",
                 "custom-service"));
     SpanExporter exporter = new OtlpAwsSpanExporterProvider().createExporter(config);
     try {
@@ -251,6 +253,30 @@ class AwsApplicationSignalsCustomizerProviderTest {
         OtlpGrpcLogRecordExporter.getDefault(),
         this.provider::customizeLogsExporter,
         OtlpGrpcLogRecordExporter.class);
+  }
+
+  @Test
+  void testOtlpSigV4LogsExporterShouldPreserveExplicitSigningServiceWhenCustomized() {
+    ConfigProperties config =
+        DefaultConfigProperties.createFromMap(
+            Map.of(
+                OTEL_LOGS_EXPORTER,
+                "otlp/sigv4",
+                OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+                "https://logs.us-east-1.amazonaws.com/v1/logs",
+                OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+                "http/protobuf",
+                OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+                "x-aws-log-group=test1,x-aws-log-stream=test2",
+                "aws.logs.exporter.service",
+                "custom-service"));
+    LogRecordExporter exporter = new OtlpAwsLogRecordExporterProvider().createExporter(config);
+    try {
+      assertSame(exporter, this.provider.customizeLogsExporter(exporter, config));
+      assertEquals("custom-service", ((OtlpAwsLogRecordExporter) exporter).serviceName());
+    } finally {
+      exporter.shutdown();
+    }
   }
 
   @Test
@@ -360,6 +386,28 @@ class AwsApplicationSignalsCustomizerProviderTest {
         OtlpGrpcMetricExporter.getDefault(),
         this.provider::customizeMetricExporter,
         OtlpGrpcMetricExporter.class);
+  }
+
+  @Test
+  void testOtlpSigV4MetricsExporterShouldPreserveExplicitSigningServiceWhenCustomized() {
+    ConfigProperties config =
+        DefaultConfigProperties.createFromMap(
+            Map.of(
+                OTEL_METRICS_EXPORTER,
+                "otlp/sigv4",
+                OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
+                OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+                "http/protobuf",
+                "aws.metrics.exporter.service",
+                "custom-service"));
+    MetricExporter exporter = new OtlpAwsMetricExporterProvider().createExporter(config);
+    try {
+      assertSame(exporter, this.provider.customizeMetricExporter(exporter, config));
+      assertEquals("custom-service", ((OtlpAwsMetricExporter) exporter).serviceName());
+    } finally {
+      exporter.shutdown();
+    }
   }
 
   @Test

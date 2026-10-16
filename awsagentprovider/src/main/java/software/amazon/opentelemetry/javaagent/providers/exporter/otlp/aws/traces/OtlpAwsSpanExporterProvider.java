@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces;
 
 import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DATA_TYPE_TRACES;
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DEFAULT_TRACES_ENDPOINT;
 
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
@@ -44,8 +45,9 @@ public final class OtlpAwsSpanExporterProvider
   public SpanExporter createExporter(ConfigProperties config) {
     OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_TRACES, config);
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_TRACES, config);
+    String defaultAwsService = "xray";
     OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder();
-    AtomicReference<String> endpoint = new AtomicReference<>("http://localhost:4318/v1/traces");
+    AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_TRACES_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
         DATA_TYPE_TRACES,
         config,
@@ -66,7 +68,7 @@ public final class OtlpAwsSpanExporterProvider
     return OtlpAwsSpanExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
         .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
-        .setAwsService(OtlpAwsConfigUtil.getSigV4Service(DATA_TYPE_TRACES, config, "xray"))
+        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_TRACES, config, defaultAwsService))
         .build();
   }
 

@@ -31,6 +31,10 @@ public final class OtlpAwsConfigUtil {
   public static final String DATA_TYPE_METRICS = "metrics";
   public static final String DATA_TYPE_LOGS = "logs";
 
+  public static final String DEFAULT_TRACES_ENDPOINT = "http://localhost:4318/v1/traces";
+  public static final String DEFAULT_METRICS_ENDPOINT = "http://localhost:4318/v1/metrics";
+  public static final String DEFAULT_LOGS_ENDPOINT = "http://localhost:4318/v1/logs";
+
   private static final Pattern AWS_ENDPOINT_REGION =
       Pattern.compile(
           "(?:[a-z0-9-]+\\.)*([a-z]+(?:-[a-z]+)+-\\d+)(?:\\.[a-z0-9-]+)*\\."
@@ -40,6 +44,11 @@ public final class OtlpAwsConfigUtil {
 
   private OtlpAwsConfigUtil() {}
 
+  /**
+   * Validates explicit {@code otlp/sigv4} selection. A nonempty per-data-type headers map replaces
+   * global headers, matching upstream OTLP configuration. Automatic Application Signals wrapping
+   * checks both maps conservatively before choosing SigV4.
+   */
   public static void validateConfiguration(String dataType, ConfigProperties config) {
     String protocol = OtlpConfigUtil.getOtlpProtocol(dataType, config);
     if (!OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF.equals(protocol)) {
@@ -59,15 +68,18 @@ public final class OtlpAwsConfigUtil {
     }
   }
 
-  /** Determine the configured signing service for the {@code dataType}. */
-  public static String getSigV4Service(
-      String dataType, ConfigProperties config, String defaultService) {
+  /** Global AWS exporter service, per-data-type service, then the default AWS service. */
+  public static String getAwsService(
+      String dataType, ConfigProperties config, String defaultAwsService) {
     return config.getString(
-        "otel.exporter.otlp." + dataType + ".sigv4.service",
-        config.getString("otel.exporter.otlp.sigv4.service", defaultService));
+        "aws.exporter.service",
+        config.getString("aws." + dataType + ".exporter.service", defaultAwsService));
   }
 
-  /** Determine the signing region from the configuration and resolved OTLP endpoint. */
+  /**
+   * Determine the signing region from the configuration and resolved OTLP endpoint. OTel normalizes
+   * {@code AWS_REGION} and {@code AWS_DEFAULT_REGION} to the corresponding dotted property keys.
+   */
   public static String getAwsRegion(ConfigProperties config, String endpoint) {
     return resolveRegion(
         config.getString("aws.region", config.getString("aws.default.region")), endpoint);
@@ -87,16 +99,22 @@ public final class OtlpAwsConfigUtil {
 
   /** Explicit region, Java/AWS region settings, AWS hostname, then the AWS SDK region chain. */
   static String resolveRegion(String explicitRegion, String endpoint) {
-    String region = explicitRegion;
-    if (region == null || region.isEmpty()) {
-      region = System.getProperty("aws.region");
+    if (explicitRegion != null && !explicitRegion.isEmpty()) {
+      return explicitRegion;
     }
+    String region = System.getProperty("aws.region");
     if (region == null || region.isEmpty()) {
       region = System.getenv("AWS_REGION");
     }
     if (region == null || region.isEmpty()) {
       region = System.getenv("AWS_DEFAULT_REGION");
     }
+    return resolveRegion(explicitRegion, endpoint, region);
+  }
+
+  static String resolveRegion(String explicitRegion, String endpoint, String environmentRegion) {
+    String region =
+        explicitRegion != null && !explicitRegion.isEmpty() ? explicitRegion : environmentRegion;
     if (region != null && !region.isEmpty()) {
       return region;
     }

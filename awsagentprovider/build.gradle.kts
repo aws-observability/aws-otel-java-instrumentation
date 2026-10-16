@@ -97,6 +97,8 @@ tasks {
   val shadowJar by existing(ShadowJar::class) {
     archiveClassifier.set("")
 
+    relocate("io.opentelemetry.common", "io.opentelemetry.javaagent.shaded.io.opentelemetry.common")
+
     // Relocate ASM to avoid conflicts with the application's ASM or ByteBuddy's internal ASM.
     relocate("org.objectweb.asm", "software.amazon.opentelemetry.javaagent.shaded.org.objectweb.asm")
   }

@@ -218,6 +218,9 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
             .distinct()
             .count());
     verify(credentialsProvider, times(10)).resolveCredentials();
+    mockDefaultCredentialsProvider.verify(DefaultCredentialsProvider::create, times(1));
+    shutdownExporter();
+    verify(credentialsProvider, never()).close();
     verify(signer, times(10)).sign(any(Consumer.class));
   }
 

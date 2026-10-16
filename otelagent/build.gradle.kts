@@ -90,6 +90,8 @@ tasks {
   val relocateJavaagentLibs by registering(ShadowJar::class) {
     configurations = listOf(javaagentLibs)
 
+    relocate("io.opentelemetry.common", "io.opentelemetry.javaagent.shaded.io.opentelemetry.common")
+
     duplicatesStrategy = DuplicatesStrategy.FAIL
 
     archiveFileName.set("javaagentLibs-relocated.jar")

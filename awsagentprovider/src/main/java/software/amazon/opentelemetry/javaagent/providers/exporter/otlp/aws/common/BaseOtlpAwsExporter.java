@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 /**
  * Abstract base class providing shared functionality for AWS (OTLP) exporters authenticated with
@@ -45,7 +46,9 @@ public abstract class BaseOtlpAwsExporter {
     this.compression = compression;
     this.awsRegion = OtlpAwsConfigUtil.resolveRegion(awsRegion, endpoint);
     this.awsService = awsService;
-    this.credentialsProvider = credentialsProvider;
+    // create() returns the SDK's shared singleton; its lifetime is independent of this exporter.
+    this.credentialsProvider =
+        credentialsProvider != null ? credentialsProvider : DefaultCredentialsProvider.create();
     this.data = new AtomicReference<>();
     this.headerSupplier = new AwsAuthHeaderSupplier(this);
   }

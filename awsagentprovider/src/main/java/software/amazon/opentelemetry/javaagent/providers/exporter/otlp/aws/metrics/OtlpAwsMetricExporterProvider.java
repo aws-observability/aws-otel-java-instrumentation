@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics;
 
 import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DATA_TYPE_METRICS;
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DEFAULT_METRICS_ENDPOINT;
 
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.internal.ExporterBuilderUtil;
@@ -45,8 +46,9 @@ public final class OtlpAwsMetricExporterProvider
   public MetricExporter createExporter(ConfigProperties config) {
     OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_METRICS, config);
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_METRICS, config);
+    String defaultAwsService = "monitoring";
     OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
-    AtomicReference<String> endpoint = new AtomicReference<>("http://localhost:4318/v1/metrics");
+    AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_METRICS_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
         DATA_TYPE_METRICS,
         config,
@@ -71,7 +73,8 @@ public final class OtlpAwsMetricExporterProvider
     return OtlpAwsMetricExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
         .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
-        .setAwsService(OtlpAwsConfigUtil.getSigV4Service(DATA_TYPE_METRICS, config, "monitoring"))
+        .setAwsService(
+            OtlpAwsConfigUtil.getAwsService(DATA_TYPE_METRICS, config, defaultAwsService))
         .build();
   }
 

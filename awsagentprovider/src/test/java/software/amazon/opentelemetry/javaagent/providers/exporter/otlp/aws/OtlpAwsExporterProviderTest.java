@@ -39,6 +39,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -46,8 +48,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
 class OtlpAwsExporterProviderTest {
   static Object createExporter(String signal, Map<String, String> properties) {
@@ -97,13 +102,13 @@ class OtlpAwsExporterProviderTest {
   @ParameterizedTest
   @CsvSource({"traces,xray", "metrics,monitoring", "logs,logs"})
   void testOtlpSigV4ExporterShouldApplySigningServicePrecedence(
-      String signal, String defaultService) {
+      String signal, String defaultAwsService) {
     Map<String, String> properties = properties();
-    for (String expected : List.of(defaultService, "osis", "custom-service")) {
-      if (expected.equals("osis")) {
-        properties.put("otel.exporter.otlp.sigv4.service", expected);
-      } else if (expected.equals("custom-service")) {
-        properties.put("otel.exporter.otlp." + signal + ".sigv4.service", expected);
+    for (String expected : List.of(defaultAwsService, "custom-service", "osis")) {
+      if (expected.equals("custom-service")) {
+        properties.put("aws." + signal + ".exporter.service", expected);
+      } else if (expected.equals("osis")) {
+        properties.put("aws.exporter.service", expected);
       }
       BaseOtlpAwsExporter exporter = (BaseOtlpAwsExporter) createExporter(signal, properties);
       try {
@@ -111,6 +116,53 @@ class OtlpAwsExporterProviderTest {
         // Describing a configured exporter must not attempt to resolve credentials or sign data.
         assertThat(exporter.toString()).contains("awsRegion=us-east-1");
         assertThat(exporter.getCompression()).isEqualTo(CompressionMethod.NONE);
+      } finally {
+        shutdown(exporter);
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"traces,xray", "metrics,monitoring", "logs,logs"})
+  void testAwsExporterShouldPreserveServiceWhenInvalidServiceRejected(
+      String dataType, String defaultAwsService) {
+    String endpoint = "http://localhost:4318/v1/" + dataType;
+    Consumer<String> setAwsService;
+    Supplier<? extends BaseOtlpAwsExporter> build;
+    switch (dataType) {
+      case "traces":
+        OtlpAwsSpanExporterBuilder spanBuilder =
+            OtlpAwsSpanExporterBuilder.create(OtlpHttpSpanExporter.builder(), endpoint)
+                .setAwsRegion("us-east-1");
+        setAwsService = spanBuilder::setAwsService;
+        build = spanBuilder::build;
+        break;
+      case "metrics":
+        OtlpAwsMetricExporterBuilder metricBuilder =
+            OtlpAwsMetricExporterBuilder.create(OtlpHttpMetricExporter.builder(), endpoint)
+                .setAwsRegion("us-east-1");
+        setAwsService = metricBuilder::setAwsService;
+        build = metricBuilder::build;
+        break;
+      default:
+        OtlpAwsLogRecordExporterBuilder logBuilder =
+            OtlpAwsLogRecordExporterBuilder.create(OtlpHttpLogRecordExporter.builder(), endpoint)
+                .setAwsRegion("us-east-1");
+        setAwsService = logBuilder::setAwsService;
+        build = logBuilder::build;
+    }
+    for (String expected : List.of(defaultAwsService, "custom-service")) {
+      if (expected.equals("custom-service")) {
+        setAwsService.accept(expected);
+      }
+      assertThatThrownBy(() -> setAwsService.accept(null)).isInstanceOf(NullPointerException.class);
+      for (String invalid : List.of("", " ", "\t")) {
+        assertThatThrownBy(() -> setAwsService.accept(invalid))
+            .isInstanceOf(IllegalArgumentException.class);
+      }
+      BaseOtlpAwsExporter exporter = build.get();
+      try {
+        assertThat(exporter.serviceName()).isEqualTo(expected);
       } finally {
         shutdown(exporter);
       }
