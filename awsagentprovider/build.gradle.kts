@@ -37,9 +37,9 @@ dependencies {
   compileOnly("com.google.errorprone:error_prone_annotations:2.19.1")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   compileOnly("org.slf4j:slf4j-api")
-  // JMX Metric Insight library and config, bundled in the agent, used to load the ADOT JMX rules
+  // JMX Metric Insight library and SDK autoconfigure, bundled in the agent, used to load the ADOT
+  // JMX rules
   compileOnly("io.opentelemetry.instrumentation:opentelemetry-jmx-metrics")
-  compileOnly("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api-incubator")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
   // byte-buddy-dep from the extension API conflicts with Mockito's byte-buddy
   testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api") {

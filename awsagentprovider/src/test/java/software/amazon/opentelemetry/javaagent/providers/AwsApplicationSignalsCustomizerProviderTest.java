@@ -1294,4 +1294,89 @@ class AwsApplicationSignalsCustomizerProviderTest {
                 OTEL_METRICS_EXPORTER, "awsemf",
                 OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace")));
   }
+
+  @Test
+  void testApplicationSignalsRuntimeLoadsAdotJvmRules() {
+    Map<String, String> props =
+        provider.customizeProperties(
+            DefaultConfigProperties.createFromMap(
+                Map.of(APPLICATION_SIGNALS_ENABLED_CONFIG, "true")));
+
+    assertThat(props)
+        .containsEntry("otel.jmx.target.system", "")
+        .containsEntry("otel.aws.jmx.target.system", "jvm");
+  }
+
+  @Test
+  void testApplicationSignalsKeepsUpstreamOnlyJmxTargets() {
+    Map<String, String> props =
+        provider.customizeProperties(
+            DefaultConfigProperties.createFromMap(
+                Map.of(
+                    APPLICATION_SIGNALS_ENABLED_CONFIG,
+                    "true",
+                    "otel.jmx.target.system",
+                    "tomcat,activemq")));
+
+    assertThat(props)
+        .containsEntry("otel.jmx.target.system", "activemq")
+        .containsEntry("otel.aws.jmx.target.system", "tomcat,jvm");
+  }
+
+  @Test
+  void testApplicationSignalsWithoutRuntimeLoadsAdotRulesForConfiguredTargets() {
+    Map<String, String> props =
+        provider.customizeProperties(
+            DefaultConfigProperties.createFromMap(
+                Map.of(
+                    APPLICATION_SIGNALS_ENABLED_CONFIG,
+                    "true",
+                    "otel.aws.application.signals.runtime.enabled",
+                    "false",
+                    "otel.jmx.target.system",
+                    "tomcat")));
+
+    assertThat(props)
+        .containsEntry("otel.jmx.target.system", "")
+        .containsEntry("otel.aws.jmx.target.system", "tomcat");
+  }
+
+  @Test
+  void testAwsJmxExporterLoadsAdotRules() {
+    Map<String, String> props =
+        provider.customizeProperties(
+            DefaultConfigProperties.createFromMap(
+                Map.of(
+                    "otel.aws.jmx.exporter.metrics.endpoint",
+                    "http://localhost:4314/v1/metrics",
+                    "otel.jmx.target.system",
+                    "kafka")));
+
+    assertThat(props)
+        .containsEntry("otel.jmx.target.system", "")
+        .containsEntry("otel.aws.jmx.target.system", "kafka");
+  }
+
+  @Test
+  void testAdotJmxRulesLoadedWithoutApplicationSignalsOrAwsJmxExporter() {
+    Map<String, String> props =
+        provider.customizeProperties(
+            DefaultConfigProperties.createFromMap(
+                Map.of("otel.jmx.target.system", "jvm,activemq,kafka")));
+
+    assertThat(props)
+        .containsEntry("otel.jmx.target.system", "activemq")
+        .containsEntry("otel.aws.jmx.target.system", "jvm,kafka");
+  }
+
+  @Test
+  void testUpstreamOnlyJmxTargetsLeftUnchanged() {
+    Map<String, String> props =
+        provider.customizeProperties(
+            DefaultConfigProperties.createFromMap(Map.of("otel.jmx.target.system", "activemq")));
+
+    assertThat(props)
+        .doesNotContainKey("otel.jmx.target.system")
+        .doesNotContainKey("otel.aws.jmx.target.system");
+  }
 }
