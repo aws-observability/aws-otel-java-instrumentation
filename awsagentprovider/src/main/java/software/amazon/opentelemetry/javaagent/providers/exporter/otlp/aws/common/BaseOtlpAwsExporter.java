@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 /**
  * Abstract base class providing shared functionality for AWS (OTLP) exporters authenticated with
@@ -31,16 +32,27 @@ public abstract class BaseOtlpAwsExporter {
   protected final AtomicReference<ByteArrayOutputStream> data;
   protected final Supplier<Map<String, String>> headerSupplier;
   protected final CompressionMethod compression;
+  final AwsCredentialsProvider credentialsProvider;
+  private final String awsService;
 
-  protected BaseOtlpAwsExporter(String endpoint, CompressionMethod compression) {
-    this.endpoint = endpoint.toLowerCase();
+  protected BaseOtlpAwsExporter(
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    this.endpoint = endpoint;
     this.compression = compression;
-    this.awsRegion = endpoint.split("\\.")[1];
+    this.awsRegion = OtlpAwsExporterConfig.resolveRegion(awsRegion, endpoint);
+    this.awsService = awsService;
+    this.credentialsProvider = credentialsProvider;
     this.data = new AtomicReference<>();
     this.headerSupplier = new AwsAuthHeaderSupplier(this);
   }
 
-  public abstract String serviceName();
+  public final String serviceName() {
+    return this.awsService;
+  }
 
   public CompressionMethod getCompression() {
     return this.compression;

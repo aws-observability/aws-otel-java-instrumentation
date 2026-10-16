@@ -72,6 +72,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.Aw
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterBuilder;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterBuilder;
 
 /**
@@ -523,7 +524,8 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)) {
+    if (!(spanExporter instanceof OtlpAwsSpanExporter)
+        && AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)) {
       // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
       // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
       // so the given spanExporter will be an instance of OtlpHttpSpanExporter

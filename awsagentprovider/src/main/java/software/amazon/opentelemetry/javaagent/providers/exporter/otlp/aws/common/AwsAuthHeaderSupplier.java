@@ -61,7 +61,11 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
         compressedData = data;
       }
 
-      AwsCredentials credentials = DefaultCredentialsProvider.create().resolveCredentials();
+      AwsCredentials credentials =
+          (exporter.credentialsProvider != null
+                  ? exporter.credentialsProvider
+                  : DefaultCredentialsProvider.create())
+              .resolveCredentials();
 
       SignedRequest signedRequest =
           AwsV4HttpSigner.create()
@@ -92,7 +96,7 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
               "Failed to sign/authenticate export request to %s with error: %s",
               exporter.endpoint, e.getMessage()));
 
-      return Collections.emptyMap();
+      throw new IllegalStateException("Failed to sign/authenticate OTLP export request", e);
     }
   }
 

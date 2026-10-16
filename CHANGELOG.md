@@ -13,6 +13,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- feat: register `otlp/sigv4` for traces, metrics, and logs using the OpenTelemetry Java exporter
+  SPIs, with shared and signal-specific signing-service overrides and AWS SDK region and credential
+  resolution.
 - feat: add an experimental, opt-in continuous code profiler (async-profiler based) that exports
   native OTLP profiles. It uses the OTLP `v1development` profiles schema, which is not yet stable
   and may change in incompatible ways. Enabled with `OTEL_AWS_PROFILER_ENABLED=true`; supports

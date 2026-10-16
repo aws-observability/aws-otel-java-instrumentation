@@ -86,10 +86,7 @@ import software.amazon.awssdk.utils.internal.SystemSettingUtilsTestBackdoor;
 /**
  * Verifies signing headers, payloads, credential refresh, and Java SDK credential providers.
  *
- * <p>None of this logic is partition-specific: {@link BaseOtlpAwsExporter} takes the region from
- * the endpoint's second label and the service from the concrete exporter, so the partition is only
- * test data. The cases below therefore cover both the commercial ({@code .amazonaws.com}) and China
- * ({@code .amazonaws.com.cn}) endpoints for all three signals.
+ * <p>The cases cover commercial and China endpoints for all three signals.
  */
 @ResourceLock(Resources.SYSTEM_PROPERTIES)
 class AwsAuthHeaderSupplierTest {
@@ -665,7 +662,7 @@ class AwsAuthHeaderSupplierTest {
 
     private TestExporter(
         String endpoint, String region, String serviceName, CompressionMethod compression) {
-      super(endpoint, compression);
+      super(endpoint, compression, null, serviceName, null);
       this.expectedEndpoint = endpoint;
       this.expectedRegion = region;
       this.serviceName = serviceName;
@@ -675,9 +672,5 @@ class AwsAuthHeaderSupplierTest {
       data.set(payload);
     }
 
-    @Override
-    public String serviceName() {
-      return serviceName;
-    }
   }
 }

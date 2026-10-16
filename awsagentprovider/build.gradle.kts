@@ -72,6 +72,7 @@ dependencies {
   runtimeOnly("software.amazon.awssdk:sts")
   implementation("software.amazon.awssdk:auth")
   implementation("software.amazon.awssdk:http-auth-aws")
+  implementation("software.amazon.awssdk:regions")
   // For EMF exporter
   implementation("software.amazon.awssdk:cloudwatchlogs")
 

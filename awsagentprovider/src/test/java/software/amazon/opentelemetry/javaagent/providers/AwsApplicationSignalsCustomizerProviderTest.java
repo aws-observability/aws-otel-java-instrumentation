@@ -62,6 +62,7 @@ import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.Co
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces.OtlpAwsSpanExporterProvider;
 
 class AwsApplicationSignalsCustomizerProviderTest {
   private AwsApplicationSignalsCustomizerProvider provider;
@@ -214,6 +215,28 @@ class AwsApplicationSignalsCustomizerProviderTest {
                 OtlpGrpcSpanExporter.getDefault(),
                 this.provider::customizeSpanExporter,
                 OtlpHttpSpanExporter.class));
+  }
+
+  @Test
+  void testPreservesSigV4SpanExporterLoadedThroughJavaSpi() {
+    ConfigProperties config =
+        DefaultConfigProperties.createFromMap(
+            Map.of(
+                OTEL_TRACES_EXPORTER,
+                "otlp/sigv4",
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "https://xray.us-east-1.amazonaws.com/v1/traces",
+                OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+                "http/protobuf",
+                "otel.exporter.otlp.traces.sigv4.service",
+                "custom-service"));
+    SpanExporter exporter = new OtlpAwsSpanExporterProvider().createExporter(config);
+    try {
+      assertSame(exporter, this.provider.customizeSpanExporter(exporter, config));
+      assertEquals("custom-service", ((OtlpAwsSpanExporter) exporter).serviceName());
+    } finally {
+      exporter.shutdown();
+    }
   }
 
   // When SigV4 is enabled but the exporter is not OtlpHttpLogRecordExporter,
