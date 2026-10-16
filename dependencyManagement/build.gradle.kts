@@ -35,7 +35,7 @@ val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVe
 
 val dependencyBoms = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.599",
-  "com.fasterxml.jackson:jackson-bom:2.21.4",
+  "com.fasterxml.jackson:jackson-bom:2.22.3",
   "com.google.guava:guava-bom:33.0.0-jre",
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
@@ -80,6 +80,8 @@ val dependencyLists = listOf(
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
   "io.opentelemetry:opentelemetry-extension-aws:1.20.1",
   "net.bytebuddy:byte-buddy:1.14.10",
+  "tools.profiler:async-profiler:4.5",
+  "tools.profiler:jfr-converter:4.5",
 )
 
 javaPlatform {

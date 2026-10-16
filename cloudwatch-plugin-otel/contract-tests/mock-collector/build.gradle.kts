@@ -34,7 +34,7 @@ dependencies {
   implementation(platform("com.linecorp.armeria:armeria-bom:1.26.4"))
   implementation(platform("io.grpc:grpc-bom:1.59.1"))
   implementation(platform("com.google.guava:guava-bom:33.0.0-jre"))
-  implementation(platform("com.fasterxml.jackson:jackson-bom:2.21.4"))
+  implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
 
   implementation("com.linecorp.armeria:armeria")
   implementation("com.linecorp.armeria:armeria-grpc")

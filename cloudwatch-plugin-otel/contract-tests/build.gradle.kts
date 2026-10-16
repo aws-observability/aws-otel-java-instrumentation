@@ -45,7 +45,7 @@ dependencies {
   testImplementation(platform("com.linecorp.armeria:armeria-bom:1.26.4"))
   testImplementation(platform("io.grpc:grpc-bom:1.59.1"))
   testImplementation(platform("com.google.guava:guava-bom:33.0.0-jre"))
-  testImplementation(platform("com.fasterxml.jackson:jackson-bom:2.21.4"))
+  testImplementation(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
   testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.3"))
   testImplementation(platform("org.junit:junit-bom:5.10.1"))
 

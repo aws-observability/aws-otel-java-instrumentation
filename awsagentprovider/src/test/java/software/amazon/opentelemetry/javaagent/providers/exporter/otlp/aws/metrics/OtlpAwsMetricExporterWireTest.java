@@ -13,16 +13,29 @@
  * permissions and limitations under the License.
  */
 
-package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws;
+package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.exporter.internal.otlp.metrics.MetricsRequestMarshaler;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableGaugeData;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableMetricData;
+import io.opentelemetry.sdk.resources.Resource;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -31,7 +44,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterBuilder;
 
 /**
  * Wire-level tests that assert on the HTTP headers a server actually receives, rather than on which
@@ -49,6 +61,7 @@ class OtlpAwsMetricExporterWireTest {
 
   private HttpServer server;
   private final AtomicReference<List<String>> authorizationValues = new AtomicReference<>();
+  private final AtomicReference<byte[]> requestBody = new AtomicReference<>();
   private CountDownLatch requestReceived;
   private String previousAccessKeyId;
   private String previousSecretAccessKey;
@@ -61,6 +74,7 @@ class OtlpAwsMetricExporterWireTest {
         "/v1/metrics",
         exchange -> {
           this.authorizationValues.set(exchange.getRequestHeaders().get("Authorization"));
+          this.requestBody.set(readFully(exchange.getRequestBody()));
           exchange.sendResponseHeaders(200, 0);
           exchange.getResponseBody().close();
           this.requestReceived.countDown();
@@ -169,5 +183,110 @@ class OtlpAwsMetricExporterWireTest {
     assertNotNull(received, "no Authorization header received");
     assertEquals(
         2, received.size(), "expected the documented duplicate-header behavior, got " + received);
+  }
+
+  /**
+   * The SigV4 signature must cover the bytes that actually reach the server.
+   *
+   * <p>{@code export()} signs bytes produced by {@link MetricsRequestMarshaler}, while the wrapped
+   * upstream exporter serializes the metrics a second time for the request itself. Under the
+   * default {@code REUSABLE_DATA} memory mode that second serialization uses {@code
+   * LowAllocationMetricsRequestMarshaler}, which groups metrics by instrumentation scope in a
+   * differently sized identity-keyed map and so can emit the scope blocks in a different order. The
+   * payloads stay semantically equal but differ byte-wise, the signature no longer matches the
+   * request body, and CloudWatch rejects the export with 403 SignatureDoesNotMatch. Pinning {@code
+   * IMMUTABLE_DATA} on the parent builder is what keeps both serializations on one marshaler.
+   *
+   * <p>Two notes on the shape of this test. It sweeps a range of scope counts because whether the
+   * two marshalers actually disagree depends both on how many scopes there are and on identity hash
+   * codes assigned at JVM start. Measured against this upstream version, one scope and eleven or
+   * more scopes happen to agree, two through four are roughly a coin flip, and five through ten
+   * disagree consistently, so a single fixed count can silently land in a range where the defect is
+   * invisible. It also asserts on bytes rather than on a 200 response, because the local test
+   * server does not verify signatures and so cannot reject a mismatched one.
+   */
+  @Test
+  void testSignedPayloadMatchesTheBytesSentAcrossInstrumentationScopeCounts() throws Exception {
+    OtlpHttpMetricExporter parentExporter =
+        OtlpHttpMetricExporter.builder().setEndpoint(endpoint()).build();
+    MetricExporter exporter =
+        OtlpAwsMetricExporterBuilder.create(parentExporter, endpoint()).build();
+
+    List<Integer> divergentScopeCounts = new ArrayList<>();
+    for (int scopeCount = 2; scopeCount <= 10; scopeCount++) {
+      List<MetricData> metrics = metricsWithDistinctScopes(scopeCount);
+
+      byte[] sentBody = exportAndCaptureBody(exporter, metrics);
+      assertNotNull(sentBody, "no request body captured for " + scopeCount + " scopes");
+
+      // The bytes export() hands to the signer.
+      ByteArrayOutputStream signedPayload = new ByteArrayOutputStream();
+      MetricsRequestMarshaler.create(metrics).writeBinaryTo(signedPayload);
+
+      if (!sha256Hex(signedPayload.toByteArray()).equals(sha256Hex(sentBody))) {
+        divergentScopeCounts.add(scopeCount);
+      }
+    }
+
+    assertEquals(
+        Collections.emptyList(),
+        divergentScopeCounts,
+        "the signed payload and the payload sent to the server differ at these instrumentation "
+            + "scope counts, so the SigV4 signature cannot match the request body. Both "
+            + "serializations must use the same marshaler.");
+
+    exporter.shutdown().join(5, TimeUnit.SECONDS);
+  }
+
+  /** Exports once and returns the request body the server received. */
+  private byte[] exportAndCaptureBody(MetricExporter exporter, List<MetricData> metrics)
+      throws Exception {
+    this.requestReceived = new CountDownLatch(1);
+    this.requestBody.set(null);
+
+    exporter.export(metrics).join(10, TimeUnit.SECONDS);
+    assertTrue(this.requestReceived.await(10, TimeUnit.SECONDS), "no request reached the server");
+
+    return this.requestBody.get();
+  }
+
+  /**
+   * Builds one metric per instrumentation scope, each scope distinctly named, so the marshalers
+   * have a non-trivial set of scope blocks to group and order.
+   */
+  private static List<MetricData> metricsWithDistinctScopes(int scopeCount) {
+    List<MetricData> metrics = new ArrayList<>(scopeCount);
+    for (int i = 0; i < scopeCount; i++) {
+      metrics.add(
+          ImmutableMetricData.createDoubleGauge(
+              Resource.empty(),
+              InstrumentationScopeInfo.create("test.scope." + i),
+              "test.metric." + i,
+              "",
+              "1",
+              ImmutableGaugeData.create(
+                  Collections.singletonList(
+                      ImmutableDoublePointData.create(0L, 1L, Attributes.empty(), i)))));
+    }
+    return metrics;
+  }
+
+  private static byte[] readFully(InputStream in) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    byte[] chunk = new byte[8192];
+    int read;
+    while ((read = in.read(chunk)) != -1) {
+      out.write(chunk, 0, read);
+    }
+    return out.toByteArray();
+  }
+
+  private static String sha256Hex(byte[] data) throws Exception {
+    byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
+    StringBuilder hex = new StringBuilder(digest.length * 2);
+    for (byte b : digest) {
+      hex.append(String.format("%02x", b));
+    }
+    return hex.toString();
   }
 }
