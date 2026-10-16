@@ -200,7 +200,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
-  void testShouldPassThroughNonHttpSpanExporterWhenSigV4Enabled() {
+  void testCustomizeSpanExporterShouldNotWrapGrpcExporter() {
     customizeExporterTest(
         Map.of(
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
@@ -215,7 +215,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
-  void testOtlpSigV4SpanExporterShouldPreserveExplicitSigningServiceWhenCustomized() {
+  void testCustomizeSpanExporterShouldPreserveSigV4ExporterAndSigningService() {
     ConfigProperties config =
         DefaultConfigProperties.createFromMap(
             Map.of(
