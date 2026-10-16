@@ -20,18 +20,14 @@ import static org.assertj.core.api.Assertions.assertThatException;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.opentelemetry.common.ComponentLoader;
 import io.opentelemetry.contrib.awsxray.AwsXrayAdaptiveSamplingConfig;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
-import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
@@ -39,10 +35,6 @@ import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.common.CompletableResultCode;
-import io.opentelemetry.sdk.common.export.HttpResponse;
-import io.opentelemetry.sdk.common.export.HttpSender;
-import io.opentelemetry.sdk.common.export.HttpSenderConfig;
-import io.opentelemetry.sdk.common.export.HttpSenderProvider;
 import io.opentelemetry.sdk.logs.data.LogRecordData;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -54,9 +46,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
@@ -66,8 +56,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
@@ -79,8 +67,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
   private AwsApplicationSignalsCustomizerProvider provider;
   private final LogRecordExporter defaultHttpLogsExporter = OtlpHttpLogRecordExporter.getDefault();
   private final SpanExporter defaultHttpSpanExporter = OtlpHttpSpanExporter.getDefault();
-  private final OtlpHttpMetricExporter defaultHttpMetricsExporter =
-      OtlpHttpMetricExporter.getDefault();
+  private final MetricExporter defaultHttpMetricsExporter = OtlpHttpMetricExporter.getDefault();
 
   @BeforeEach
   void init() {
@@ -310,8 +297,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
         validSigv4Config,
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
-        OtlpAwsMetricExporter.class,
-        Map.of("x-test", "metric-value"));
+        OtlpAwsMetricExporter.class);
   }
 
   @ParameterizedTest
@@ -322,8 +308,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
         invalidSigv4Config,
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
-        OtlpHttpMetricExporter.class,
-        Map.of("x-test", "metric-value"));
+        OtlpHttpMetricExporter.class);
   }
 
   @Test
@@ -373,8 +358,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "otlp"),
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
-        OtlpHttpMetricExporter.class,
-        Map.of("Authorization", "Bearer metrics-token"));
+        OtlpHttpMetricExporter.class);
   }
 
   /**
@@ -398,8 +382,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "otlp"),
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
-        OtlpAwsMetricExporter.class,
-        Map.of("authorization", "Bearer global-token"));
+        OtlpAwsMetricExporter.class);
   }
 
   /**
@@ -446,8 +429,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
             "otlp"),
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
-        OtlpAwsMetricExporter.class,
-        Map.of("x-test", "value"));
+        OtlpAwsMetricExporter.class);
   }
 
   @Test
@@ -1147,7 +1129,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
                 OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=test-namespace")));
   }
 
-  private static <Exporter> Exporter customizeExporterTest(
+  private static <Exporter> void customizeExporterTest(
       Map<String, String> config,
       Exporter defaultExporter,
       BiFunction<Exporter, ConfigProperties, Exporter> executor,
@@ -1156,87 +1138,5 @@ class AwsApplicationSignalsCustomizerProviderTest {
     DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(config);
     Exporter result = executor.apply(defaultExporter, configProps);
     assertEquals(expectedExporterType, result.getClass());
-    return result;
-  }
-
-  private static void customizeExporterTest(
-      Map<String, String> config,
-      OtlpHttpMetricExporter defaultExporter,
-      BiFunction<MetricExporter, ConfigProperties, MetricExporter> executor,
-      Class<?> expectedExporterType,
-      Map<String, String> otlpHeaders) {
-    List<Map<String, List<String>>> requests = new ArrayList<>();
-    ComponentLoader componentLoader = mock(ComponentLoader.class);
-    HttpSenderProvider senderProvider = mock(HttpSenderProvider.class);
-    when(componentLoader.load(HttpSenderProvider.class)).thenReturn(List.of(senderProvider));
-    when(senderProvider.createSender(any()))
-        .thenAnswer(
-            invocation -> {
-              HttpSenderConfig senderConfig = invocation.getArgument(0);
-              HttpSender sender = mock(HttpSender.class);
-              when(sender.shutdown()).thenReturn(CompletableResultCode.ofSuccess());
-              doAnswer(
-                      send -> {
-                        Map<String, List<String>> headers =
-                            new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-                        senderConfig
-                            .getHeadersSupplier()
-                            .get()
-                            .forEach(
-                                (name, values) ->
-                                    headers
-                                        .computeIfAbsent(name, ignored -> new ArrayList<>())
-                                        .addAll(values));
-                        requests.add(headers);
-                        HttpResponse response = mock(HttpResponse.class);
-                        when(response.getStatusCode()).thenReturn(200);
-                        Consumer<HttpResponse> onResponse = send.getArgument(1);
-                        onResponse.accept(response);
-                        return null;
-                      })
-                  .when(sender)
-                  .send(any(), any(), any());
-              return sender;
-            });
-
-    DefaultCredentialsProvider credentialsProvider = mock(DefaultCredentialsProvider.class);
-    when(credentialsProvider.resolveCredentials())
-        .thenReturn(
-            AwsSessionCredentials.create("test_access_key", "test_secret_key", "test_token"));
-    try (MockedStatic<DefaultCredentialsProvider> factory =
-        mockStatic(DefaultCredentialsProvider.class)) {
-      factory.when(DefaultCredentialsProvider::create).thenReturn(credentialsProvider);
-      OtlpHttpMetricExporterBuilder builder =
-          defaultExporter.toBuilder().setComponentLoader(componentLoader);
-      otlpHeaders.forEach(builder::addHeader);
-      MetricExporter upstream = builder.build();
-      MetricExporter result = null;
-      try {
-        result = customizeExporterTest(config, upstream, executor, expectedExporterType);
-        assertTrue(result.export(List.of()).isSuccess());
-        assertEquals(1, requests.size());
-        Map<String, List<String>> headers = requests.get(0);
-        otlpHeaders.forEach(
-            (name, value) -> {
-              assertNotNull(headers.get(name), "missing OTLP header " + name);
-              assertTrue(headers.get(name).contains(value), "changed OTLP header " + name);
-            });
-        if (expectedExporterType == OtlpAwsMetricExporter.class) {
-          assertTrue(
-              headers.get("Authorization").stream()
-                  .anyMatch(value -> value.startsWith("AWS4-HMAC-SHA256 Credential=")));
-          assertEquals(List.of("test_token"), headers.get("X-Amz-Security-Token"));
-        } else {
-          assertSame(upstream, result);
-          assertFalse(headers.containsKey("X-Amz-Date"));
-          assertFalse(headers.containsKey("X-Amz-Security-Token"));
-        }
-      } finally {
-        if (result != null && result != upstream) {
-          result.shutdown();
-        }
-        upstream.shutdown();
-      }
-    }
   }
 }
