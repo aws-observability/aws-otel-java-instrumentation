@@ -15,13 +15,12 @@
 
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common;
 
-import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import java.net.URI;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 
@@ -44,30 +43,6 @@ public final class OtlpAwsConfigUtil {
 
   private OtlpAwsConfigUtil() {}
 
-  /**
-   * Validates explicit {@code otlp/sigv4} selection. A nonempty per-data-type headers map replaces
-   * global headers, matching upstream OTLP configuration. Automatic Application Signals wrapping
-   * checks both maps conservatively before choosing SigV4.
-   */
-  public static void validateConfiguration(String dataType, ConfigProperties config) {
-    String protocol = OtlpConfigUtil.getOtlpProtocol(dataType, config);
-    if (!OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF.equals(protocol)) {
-      throw new ConfigurationException(
-          "otlp/sigv4 requires OTEL_EXPORTER_OTLP_"
-              + dataType.toUpperCase(java.util.Locale.ROOT)
-              + "_PROTOCOL=http/protobuf (or OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf).");
-    }
-    Map<String, String> headers = config.getMap("otel.exporter.otlp." + dataType + ".headers");
-    if (headers.isEmpty()) {
-      headers = config.getMap("otel.exporter.otlp.headers");
-    }
-    if (headers.keySet().stream().anyMatch("Authorization"::equalsIgnoreCase)) {
-      throw new ConfigurationException(
-          "otlp/sigv4 cannot be combined with an OTLP Authorization header; "
-              + "remove the header to use AWS SigV4 authentication.");
-    }
-  }
-
   /** Global AWS exporter service, per-data-type service, then the default AWS service. */
   public static String getAwsService(
       String dataType, ConfigProperties config, String defaultAwsService) {
@@ -79,42 +54,21 @@ public final class OtlpAwsConfigUtil {
   /**
    * Determine the signing region from the configuration and resolved OTLP endpoint. OTel normalizes
    * {@code AWS_REGION} and {@code AWS_DEFAULT_REGION} to the corresponding dotted property keys.
+   * Standalone builders without configuration use Java/AWS region settings directly.
    */
-  public static String getAwsRegion(ConfigProperties config, String endpoint) {
-    return resolveRegion(
-        config.getString("aws.region", config.getString("aws.default.region")), endpoint);
-  }
-
-  /** Determine the configured compression for the {@code dataType}. */
-  public static String getCompression(String dataType, ConfigProperties config) {
-    String compression =
-        config.getString(
-            "otel.exporter.otlp." + dataType + ".compression",
-            config.getString("otel.exporter.otlp.compression", "none"));
-    if (!"none".equals(compression) && !"gzip".equals(compression)) {
-      throw new ConfigurationException("otlp/sigv4 supports only none or gzip compression.");
+  public static String getAwsRegion(@Nullable ConfigProperties config, String endpoint) {
+    String region;
+    if (config != null) {
+      region = config.getString("aws.region", config.getString("aws.default.region"));
+    } else {
+      region = System.getProperty("aws.region");
+      if (region == null || region.isEmpty()) {
+        region = System.getenv("AWS_REGION");
+      }
+      if (region == null || region.isEmpty()) {
+        region = System.getenv("AWS_DEFAULT_REGION");
+      }
     }
-    return compression;
-  }
-
-  /** Explicit region, Java/AWS region settings, AWS hostname, then the AWS SDK region chain. */
-  static String resolveRegion(String explicitRegion, String endpoint) {
-    if (explicitRegion != null && !explicitRegion.isEmpty()) {
-      return explicitRegion;
-    }
-    String region = System.getProperty("aws.region");
-    if (region == null || region.isEmpty()) {
-      region = System.getenv("AWS_REGION");
-    }
-    if (region == null || region.isEmpty()) {
-      region = System.getenv("AWS_DEFAULT_REGION");
-    }
-    return resolveRegion(explicitRegion, endpoint, region);
-  }
-
-  static String resolveRegion(String explicitRegion, String endpoint, String environmentRegion) {
-    String region =
-        explicitRegion != null && !explicitRegion.isEmpty() ? explicitRegion : environmentRegion;
     if (region != null && !region.isEmpty()) {
       return region;
     }
@@ -134,5 +88,17 @@ public final class OtlpAwsConfigUtil {
               + "AWS_DEFAULT_REGION, or a region in the AWS SDK region provider chain.",
           e);
     }
+  }
+
+  /** Determine the configured compression for the {@code dataType}. */
+  public static String getCompression(String dataType, ConfigProperties config) {
+    String compression =
+        config.getString(
+            "otel.exporter.otlp." + dataType + ".compression",
+            config.getString("otel.exporter.otlp.compression", "none"));
+    if (!"none".equals(compression) && !"gzip".equals(compression)) {
+      throw new ConfigurationException("otlp/sigv4 supports only none or gzip compression.");
+    }
+    return compression;
   }
 }

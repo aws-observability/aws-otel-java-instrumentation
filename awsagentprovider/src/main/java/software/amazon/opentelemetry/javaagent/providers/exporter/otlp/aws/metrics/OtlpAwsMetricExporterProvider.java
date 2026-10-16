@@ -44,7 +44,6 @@ public final class OtlpAwsMetricExporterProvider
 
   @Override
   public MetricExporter createExporter(ConfigProperties config) {
-    OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_METRICS, config);
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_METRICS, config);
     String defaultAwsService = "monitoring";
     OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();

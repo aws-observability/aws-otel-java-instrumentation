@@ -44,7 +44,10 @@ public abstract class BaseOtlpAwsExporter {
       AwsCredentialsProvider credentialsProvider) {
     this.endpoint = endpoint;
     this.compression = compression;
-    this.awsRegion = OtlpAwsConfigUtil.resolveRegion(awsRegion, endpoint);
+    this.awsRegion =
+        awsRegion != null && !awsRegion.isEmpty()
+            ? awsRegion
+            : OtlpAwsConfigUtil.getAwsRegion(null, endpoint);
     this.awsService = awsService;
     // create() returns the SDK's shared singleton; its lifetime is independent of this exporter.
     this.credentialsProvider =

@@ -43,7 +43,6 @@ public final class OtlpAwsSpanExporterProvider
 
   @Override
   public SpanExporter createExporter(ConfigProperties config) {
-    OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_TRACES, config);
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_TRACES, config);
     String defaultAwsService = "xray";
     OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder();

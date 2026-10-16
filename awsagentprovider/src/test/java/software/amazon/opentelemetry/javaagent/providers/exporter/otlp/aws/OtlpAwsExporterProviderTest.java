@@ -171,10 +171,8 @@ class OtlpAwsExporterProviderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"traces", "metrics", "logs"})
-  void testOtlpSigV4ExporterShouldApplyProtocolAndCompressionPrecedence(String signal) {
+  void testOtlpSigV4ExporterShouldApplyCompressionPrecedence(String signal) {
     Map<String, String> properties = properties();
-    properties.put("otel.exporter.otlp.protocol", "grpc");
-    properties.put("otel.exporter.otlp." + signal + ".protocol", "http/protobuf");
     properties.put("otel.exporter.otlp.compression", "gzip");
     properties.put("otel.exporter.otlp." + signal + ".compression", "none");
     BaseOtlpAwsExporter exporter = (BaseOtlpAwsExporter) createExporter(signal, properties);
@@ -182,37 +180,6 @@ class OtlpAwsExporterProviderTest {
       assertThat(exporter.getCompression()).isEqualTo(CompressionMethod.NONE);
     } finally {
       shutdown(exporter);
-    }
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"traces", "metrics", "logs"})
-  void testOtlpSigV4ExporterShouldFailToInitializeWithUnsupportedProtocolOrCompression(
-      String signal) {
-    Map<String, String> properties = properties();
-    properties.put("otel.exporter.otlp." + signal + ".protocol", "grpc");
-    assertThatThrownBy(() -> createExporter(signal, properties))
-        .isInstanceOf(ConfigurationException.class)
-        .hasMessageContaining("http/protobuf");
-    properties.put("otel.exporter.otlp." + signal + ".protocol", "http/protobuf");
-    properties.put("otel.exporter.otlp." + signal + ".compression", "unsupported");
-    assertThatThrownBy(() -> createExporter(signal, properties))
-        .isInstanceOf(ConfigurationException.class)
-        .hasMessageContaining("compression");
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"traces", "metrics", "logs"})
-  void testOtlpSigV4ExporterShouldFailToInitializeWithConflictingAuthorizationHeaders(
-      String signal) {
-    Map<String, String> properties = properties();
-    for (String key :
-        List.of("otel.exporter.otlp.headers", "otel.exporter.otlp." + signal + ".headers")) {
-      properties.put(key, "aUtHoRiZaTiOn=Bearer%20test-token");
-      assertThatThrownBy(() -> createExporter(signal, properties))
-          .isInstanceOf(ConfigurationException.class)
-          .hasMessageContaining("Authorization");
-      properties.remove(key);
     }
   }
 

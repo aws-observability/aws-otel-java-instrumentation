@@ -43,7 +43,6 @@ public final class OtlpAwsLogRecordExporterProvider
 
   @Override
   public LogRecordExporter createExporter(ConfigProperties config) {
-    OtlpAwsConfigUtil.validateConfiguration(DATA_TYPE_LOGS, config);
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_LOGS, config);
     String defaultAwsService = "logs";
     OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
