@@ -70,14 +70,16 @@ dependencies {
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
-  // testImplementation rather than testRuntimeOnly: OtlpAwsMetricExporterWireTest compiles against
-  // MetricsRequestMarshaler to assert that the bytes we sign are the bytes we send.
-  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
   testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
+  testImplementation("io.opentelemetry.proto:opentelemetry-proto")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")
   testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+  testImplementation("software.amazon.awssdk:sts")
+  testImplementation("software.amazon.awssdk:sso")
+  testImplementation("software.amazon.awssdk:ssooidc")
 }
 
 tasks {
