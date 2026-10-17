@@ -523,31 +523,19 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)) {
-      // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
-      // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
-      // so the given spanExporter will be an instance of OtlpHttpSpanExporter
-
-      // get compression method from environment
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)
+        && spanExporter instanceof OtlpHttpSpanExporter) {
       String compression =
           configProps.getString(
               OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
-      try {
-        spanExporter =
-            OtlpAwsSpanExporterBuilder.create(
-                    (OtlpHttpSpanExporter) spanExporter,
-                    configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
-                .setCompression(compression)
-                .build();
-      } catch (Exception e) {
-        // This technically should never happen as the validator checks for the correct env
-        // variables
-        throw new IllegalStateException(
-            "Given SpanExporter is not an instance of OtlpHttpSpanExporter, please check that you have the correct environment variables: ",
-            e);
-      }
+      spanExporter =
+          OtlpAwsSpanExporterBuilder.create(
+                  (OtlpHttpSpanExporter) spanExporter,
+                  configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
+              .setCompression(compression)
+              .build();
     }
 
     if (isApplicationSignalsEnabled(configProps)) {

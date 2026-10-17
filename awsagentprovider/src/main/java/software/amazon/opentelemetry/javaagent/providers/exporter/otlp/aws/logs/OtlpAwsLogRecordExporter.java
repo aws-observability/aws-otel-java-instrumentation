@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
@@ -45,21 +46,32 @@ public final class OtlpAwsLogRecordExporter extends BaseOtlpAwsExporter
   private final OtlpHttpLogRecordExporter parentExporter;
 
   static OtlpAwsLogRecordExporter getDefault(String endpoint) {
-    return new OtlpAwsLogRecordExporter(
-        OtlpHttpLogRecordExporter.getDefault(), endpoint, CompressionMethod.NONE);
+    return OtlpAwsLogRecordExporterBuilder.create(OtlpHttpLogRecordExporter.builder(), endpoint)
+        .build();
   }
 
   static OtlpAwsLogRecordExporter create(
-      OtlpHttpLogRecordExporter parent, String endpoint, CompressionMethod compression) {
-    return new OtlpAwsLogRecordExporter(parent, endpoint, compression);
+      OtlpHttpLogRecordExporterBuilder parent,
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    return new OtlpAwsLogRecordExporter(
+        parent, endpoint, compression, awsRegion, awsService, credentialsProvider);
   }
 
   private OtlpAwsLogRecordExporter(
-      OtlpHttpLogRecordExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint, compression);
+      OtlpHttpLogRecordExporterBuilder parentExporterBuilder,
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    super(endpoint, compression, awsRegion, awsService, credentialsProvider);
 
     this.parentExporterBuilder =
-        parentExporter.toBuilder()
+        parentExporterBuilder
             .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
             .setEndpoint(endpoint)
             .setHeaders(this.headerSupplier);
@@ -67,11 +79,7 @@ public final class OtlpAwsLogRecordExporter extends BaseOtlpAwsExporter
     this.parentExporter = this.parentExporterBuilder.build();
   }
 
-  /**
-   * Overrides the upstream implementation of export. All behaviors are the same except if the
-   * endpoint is an CloudWatch Logs OTLP endpoint, we will sign the request with SigV4 in headers
-   * before sending it to the endpoint. Otherwise, we will skip signing.
-   */
+  /** Signs each OTLP/HTTP request with AWS SigV4 before exporting it. */
   @Override
   public CompletableResultCode export(@Nonnull Collection<LogRecordData> logs) {
     try {
@@ -97,13 +105,11 @@ public final class OtlpAwsLogRecordExporter extends BaseOtlpAwsExporter
   @Override
   public String toString() {
     StringJoiner joiner = new StringJoiner(", ", "OtlpAwsLogsExporter{", "}");
-    joiner.add(this.parentExporterBuilder.toString());
+    joiner.add("endpoint=" + this.endpoint);
+    joiner.add("awsRegion=" + this.awsRegion);
+    joiner.add("awsService=" + serviceName());
+    joiner.add("compression=" + getCompression());
     joiner.add("memoryMode=" + MemoryMode.IMMUTABLE_DATA);
     return joiner.toString();
-  }
-
-  @Override
-  public String serviceName() {
-    return "logs";
   }
 }

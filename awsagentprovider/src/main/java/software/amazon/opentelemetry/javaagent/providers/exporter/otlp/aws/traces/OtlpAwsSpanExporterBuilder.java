@@ -18,16 +18,28 @@ package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.trac
 import static java.util.Objects.requireNonNull;
 
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
+/** Builder for {@link OtlpAwsSpanExporter}. */
 public class OtlpAwsSpanExporterBuilder {
-  private final OtlpHttpSpanExporter parentExporter;
+  private final OtlpHttpSpanExporterBuilder parentExporterBuilder;
   private final String endpoint;
   private String compression;
+  private String awsRegion;
+  private String awsService = "xray";
+  private AwsCredentialsProvider credentialsProvider;
 
   public static OtlpAwsSpanExporterBuilder create(
       OtlpHttpSpanExporter parentExporter, String endpoint) {
-    return new OtlpAwsSpanExporterBuilder(parentExporter, endpoint);
+    return create(
+        requireNonNull(parentExporter, "Must set a parentExporter").toBuilder(), endpoint);
+  }
+
+  public static OtlpAwsSpanExporterBuilder create(
+      OtlpHttpSpanExporterBuilder parentExporterBuilder, String endpoint) {
+    return new OtlpAwsSpanExporterBuilder(parentExporterBuilder, endpoint);
   }
 
   public static OtlpAwsSpanExporter getDefault(String endpoint) {
@@ -39,9 +51,27 @@ public class OtlpAwsSpanExporterBuilder {
     return this;
   }
 
-  private OtlpAwsSpanExporterBuilder(OtlpHttpSpanExporter parentExporter, String endpoint) {
-    this.parentExporter = requireNonNull(parentExporter, "Must set a parentExporter");
-    this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
+  /** Sets the signing region, overriding region settings and endpoint inference. */
+  public OtlpAwsSpanExporterBuilder setAwsRegion(String awsRegion) {
+    this.awsRegion = requireNonNull(awsRegion, "awsRegion");
+    return this;
+  }
+
+  /** Sets the AWS signing service. Defaults to {@code xray}. */
+  public OtlpAwsSpanExporterBuilder setAwsService(String awsService) {
+    requireNonNull(awsService, "awsService");
+    if (awsService.trim().isEmpty()) {
+      throw new IllegalArgumentException("awsService must not be empty");
+    }
+    this.awsService = awsService;
+    return this;
+  }
+
+  /** Sets a credential provider; otherwise uses the AWS SDK default credential chain. */
+  public OtlpAwsSpanExporterBuilder setCredentialsProvider(
+      AwsCredentialsProvider credentialsProvider) {
+    this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider");
+    return this;
   }
 
   public OtlpAwsSpanExporter build() {
@@ -49,7 +79,23 @@ public class OtlpAwsSpanExporterBuilder {
     if (this.compression != null && "gzip".equalsIgnoreCase(this.compression)) {
       compression = CompressionMethod.GZIP;
     }
+    if (this.compression != null) {
+      this.parentExporterBuilder.setCompression(
+          compression == CompressionMethod.GZIP ? "gzip" : "none");
+    }
+    return OtlpAwsSpanExporter.create(
+        this.parentExporterBuilder,
+        this.endpoint,
+        compression,
+        this.awsRegion,
+        this.awsService,
+        this.credentialsProvider);
+  }
 
-    return OtlpAwsSpanExporter.create(this.parentExporter, this.endpoint, compression);
+  private OtlpAwsSpanExporterBuilder(
+      OtlpHttpSpanExporterBuilder parentExporterBuilder, String endpoint) {
+    this.parentExporterBuilder =
+        requireNonNull(parentExporterBuilder, "Must set a parentExporterBuilder");
+    this.endpoint = requireNonNull(endpoint, "Must set an endpoint");
   }
 }

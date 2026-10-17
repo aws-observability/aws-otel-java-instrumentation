@@ -32,6 +32,8 @@ import io.opentelemetry.sdk.common.export.MessageWriter;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import org.junit.jupiter.api.AfterEach;
@@ -218,6 +221,9 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
             .distinct()
             .count());
     verify(credentialsProvider, times(10)).resolveCredentials();
+    mockDefaultCredentialsProvider.verify(DefaultCredentialsProvider::create, times(1));
+    shutdownExporter();
+    verify(credentialsProvider, never()).close();
     verify(signer, times(10)).sign(any(Consumer.class));
   }
 
@@ -279,6 +285,22 @@ public abstract class AbstractOtlpAwsExporterTest<T> {
     }
     verify(credentialsProvider, times(10)).resolveCredentials();
     verify(signer, times(10)).sign(any(Consumer.class));
+  }
+
+  protected <Exporter extends BaseOtlpAwsExporter & Closeable> void assertAwsServiceValidation(
+      Consumer<String> setAwsService, Supplier<Exporter> buildExporter) throws IOException {
+    for (String expected : List.of(service, "custom-service")) {
+      if (expected.equals("custom-service")) {
+        setAwsService.accept(expected);
+      }
+      assertThrows(NullPointerException.class, () -> setAwsService.accept(null));
+      for (String invalid : List.of("", " ", "\t")) {
+        assertThrows(IllegalArgumentException.class, () -> setAwsService.accept(invalid));
+      }
+      try (Exporter exporter = buildExporter.get()) {
+        assertEquals(expected, exporter.serviceName());
+      }
+    }
   }
 
   private byte[] assertSigningRequest(

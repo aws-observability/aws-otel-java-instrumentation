@@ -32,10 +32,12 @@ import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.logs.data.LogRecordData;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import io.opentelemetry.sdk.testing.logs.TestLogRecordData;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Test;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.AbstractOtlpAwsExporterTest;
 
 class OtlpAwsLogRecordExporterTest extends AbstractOtlpAwsExporterTest<LogRecordData> {
@@ -45,6 +47,15 @@ class OtlpAwsLogRecordExporterTest extends AbstractOtlpAwsExporterTest<LogRecord
 
   OtlpAwsLogRecordExporterTest() {
     super(LOGS_OTLP_ENDPOINT, "us-east-1", "logs");
+  }
+
+  @Test
+  void testOtlpAwsExporterShouldPreserveServiceWhenInvalidServiceRejected() throws IOException {
+    OtlpAwsLogRecordExporterBuilder builder =
+        OtlpAwsLogRecordExporterBuilder.create(
+                OtlpHttpLogRecordExporter.builder().setComponentLoader(componentLoader), endpoint)
+            .setAwsRegion("us-east-1");
+    assertAwsServiceValidation(builder::setAwsService, builder::build);
   }
 
   @Override
