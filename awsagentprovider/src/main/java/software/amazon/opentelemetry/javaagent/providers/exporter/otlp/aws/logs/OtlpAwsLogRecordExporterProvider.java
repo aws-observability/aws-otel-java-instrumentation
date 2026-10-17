@@ -24,6 +24,7 @@ import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporterBuilder
 import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.logs.ConfigurableLogRecordExporterProvider;
 import io.opentelemetry.sdk.logs.export.LogRecordExporter;
@@ -43,9 +44,14 @@ public final class OtlpAwsLogRecordExporterProvider
 
   @Override
   public LogRecordExporter createExporter(ConfigProperties config) {
+    String protocol = OtlpConfigUtil.getOtlpProtocol(DATA_TYPE_LOGS, config);
+    if (!OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF.equals(protocol)) {
+      throw new ConfigurationException(
+          "Unsupported OTLP logs protocol: " + protocol + ". otlp/sigv4 requires http/protobuf.");
+    }
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_LOGS, config);
     String defaultAwsService = "logs";
-    OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
+    OtlpHttpLogRecordExporterBuilder builder = httpBuilder();
     AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_LOGS_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
         DATA_TYPE_LOGS,
@@ -74,5 +80,9 @@ public final class OtlpAwsLogRecordExporterProvider
   @Override
   public void afterAutoConfigure(OpenTelemetrySdk sdk) {
     meterProviderRef.set(sdk.getMeterProvider());
+  }
+
+  OtlpHttpLogRecordExporterBuilder httpBuilder() {
+    return OtlpHttpLogRecordExporter.builder();
   }
 }

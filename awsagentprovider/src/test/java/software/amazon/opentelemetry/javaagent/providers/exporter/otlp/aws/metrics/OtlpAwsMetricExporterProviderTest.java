@@ -16,27 +16,44 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
-import io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider;
+import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import java.time.Duration;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Spy;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.AbstractOtlpAwsExporterProviderTest;
 
 class OtlpAwsMetricExporterProviderTest
     extends AbstractOtlpAwsExporterProviderTest<OtlpAwsMetricExporter> {
+  @Spy private OtlpAwsMetricExporterProvider provider;
+  @Spy private OtlpHttpMetricExporterBuilder httpBuilder;
+
   OtlpAwsMetricExporterProviderTest() {
     super("metrics", "monitoring", OtlpAwsMetricExporter.class, OtlpHttpMetricExporter.class);
   }
 
+  @BeforeEach
+  void setup() {
+    doReturn(httpBuilder).when(provider).httpBuilder();
+  }
+
   @Test
-  void testOtlpAwsExporterShouldPreserveTemporalityAndAggregation() {
+  void testCreateExporterHttpWithMetricConfiguration() {
     Map<String, String> properties = properties();
     properties.put("otel.exporter.otlp.metrics.temporality.preference", "DELTA");
     properties.put(
@@ -54,19 +71,66 @@ class OtlpAwsMetricExporterProviderTest
   }
 
   @Override
+  protected String providerName() {
+    return provider.getName();
+  }
+
+  @Override
+  protected AutoConfigureListener provider() {
+    return provider;
+  }
+
+  @Override
   protected OtlpAwsMetricExporter createExporter(Map<String, String> properties) {
     return (OtlpAwsMetricExporter)
-        ServiceLoader.load(ConfigurableMetricExporterProvider.class).stream()
-            .map(ServiceLoader.Provider::get)
-            .filter(provider -> provider.getName().equals("otlp/sigv4"))
-            .findFirst()
-            .orElseThrow()
-            .createExporter(DefaultConfigProperties.createFromMap(properties));
+        provider.createExporter(DefaultConfigProperties.createFromMap(properties));
   }
 
   @Override
   protected void shutdown(OtlpAwsMetricExporter exporter) {
     exporter.shutdown();
+  }
+
+  @Override
+  protected void verifyDefaults(String endpoint) {
+    verify(httpBuilder).build();
+    verify(httpBuilder).setComponentLoader(any());
+    verify(httpBuilder).setEndpoint(endpoint);
+    verify(httpBuilder, never()).addHeader(any(), any());
+    verify(httpBuilder).setCompression("none");
+    verify(httpBuilder, never()).setTimeout(any());
+    verify(httpBuilder, never()).setTrustedCertificates(any());
+    verify(httpBuilder, never()).setClientTls(any(), any());
+    verify(httpBuilder).setMemoryMode(MemoryMode.IMMUTABLE_DATA);
+    assertThat(httpBuilder).extracting("delegate").extracting("retryPolicy").isNotNull();
+  }
+
+  @Override
+  protected void verifyConfiguration(
+      String endpoint, Map<String, String> headers, boolean retryDisabled) {
+    verify(httpBuilder).build();
+    verify(httpBuilder).setComponentLoader(any());
+    verify(httpBuilder, atLeastOnce()).setEndpoint(endpoint);
+    headers.forEach((key, value) -> verify(httpBuilder).addHeader(key, value));
+    verify(httpBuilder, times(headers.size())).addHeader(any(), any());
+    verify(httpBuilder, atLeastOnce()).setCompression("gzip");
+    verify(httpBuilder).setTimeout(Duration.ofSeconds(15));
+    verify(httpBuilder).setTrustedCertificates(trustedCertificates);
+    verify(httpBuilder).setClientTls(clientKey, clientCertificates);
+    verify(httpBuilder, atLeastOnce()).setMemoryMode(MemoryMode.IMMUTABLE_DATA);
+    if (retryDisabled) {
+      assertThat(httpBuilder).extracting("delegate").extracting("retryPolicy").isNull();
+    } else {
+      assertThat(httpBuilder).extracting("delegate").extracting("retryPolicy").isNotNull();
+    }
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  protected Supplier<MeterProvider> meterProviderSupplier() {
+    ArgumentCaptor<Supplier<MeterProvider>> supplier = ArgumentCaptor.forClass(Supplier.class);
+    verify(httpBuilder).setMeterProvider(supplier.capture());
+    return supplier.getValue();
   }
 
   @Override

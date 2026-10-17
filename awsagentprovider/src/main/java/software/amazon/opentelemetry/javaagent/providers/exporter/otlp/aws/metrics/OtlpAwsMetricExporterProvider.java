@@ -25,6 +25,7 @@ import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder
 import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -44,9 +45,16 @@ public final class OtlpAwsMetricExporterProvider
 
   @Override
   public MetricExporter createExporter(ConfigProperties config) {
+    String protocol = OtlpConfigUtil.getOtlpProtocol(DATA_TYPE_METRICS, config);
+    if (!OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF.equals(protocol)) {
+      throw new ConfigurationException(
+          "Unsupported OTLP metrics protocol: "
+              + protocol
+              + ". otlp/sigv4 requires http/protobuf.");
+    }
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_METRICS, config);
     String defaultAwsService = "monitoring";
-    OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
+    OtlpHttpMetricExporterBuilder builder = httpBuilder();
     AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_METRICS_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
         DATA_TYPE_METRICS,
@@ -80,5 +88,9 @@ public final class OtlpAwsMetricExporterProvider
   @Override
   public void afterAutoConfigure(OpenTelemetrySdk sdk) {
     meterProviderRef.set(sdk.getMeterProvider());
+  }
+
+  OtlpHttpMetricExporterBuilder httpBuilder() {
+    return OtlpHttpMetricExporter.builder();
   }
 }

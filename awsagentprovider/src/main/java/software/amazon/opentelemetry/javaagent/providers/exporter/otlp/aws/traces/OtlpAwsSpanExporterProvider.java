@@ -24,6 +24,7 @@ import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
 import io.opentelemetry.exporter.otlp.internal.OtlpConfigUtil;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterProvider;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
@@ -43,9 +44,14 @@ public final class OtlpAwsSpanExporterProvider
 
   @Override
   public SpanExporter createExporter(ConfigProperties config) {
+    String protocol = OtlpConfigUtil.getOtlpProtocol(DATA_TYPE_TRACES, config);
+    if (!OtlpConfigUtil.PROTOCOL_HTTP_PROTOBUF.equals(protocol)) {
+      throw new ConfigurationException(
+          "Unsupported OTLP traces protocol: " + protocol + ". otlp/sigv4 requires http/protobuf.");
+    }
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_TRACES, config);
     String defaultAwsService = "xray";
-    OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder();
+    OtlpHttpSpanExporterBuilder builder = httpBuilder();
     AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_TRACES_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
         DATA_TYPE_TRACES,
@@ -74,5 +80,9 @@ public final class OtlpAwsSpanExporterProvider
   @Override
   public void afterAutoConfigure(OpenTelemetrySdk sdk) {
     meterProviderRef.set(sdk.getMeterProvider());
+  }
+
+  OtlpHttpSpanExporterBuilder httpBuilder() {
+    return OtlpHttpSpanExporter.builder();
   }
 }
