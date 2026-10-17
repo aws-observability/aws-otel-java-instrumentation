@@ -41,8 +41,9 @@ final class AwsAuthHeaderSupplier implements Supplier<Map<String, String>> {
   public AwsAuthHeaderSupplier(
       BaseOtlpAwsExporter exporter, AwsCredentialsProvider credentialsProvider) {
     this.exporter = exporter;
-    // create() returns the SDK's shared singleton.
-    // The supplier does not own this default or caller-supplied providers.
+    // Do not close this provider: DefaultCredentialsProvider.create() returns the SDK's shared
+    // singleton, and caller-supplied providers are owned by the caller.
+    // https://github.com/aws/aws-sdk-java-v2/blob/2.30.17/core/auth/src/main/java/software/amazon/awssdk/auth/credentials/DefaultCredentialsProvider.java#L76-L83
     this.credentialsProvider =
         credentialsProvider != null ? credentialsProvider : DefaultCredentialsProvider.create();
     this.logger = Logger.getLogger(exporter.getClass().getName());
