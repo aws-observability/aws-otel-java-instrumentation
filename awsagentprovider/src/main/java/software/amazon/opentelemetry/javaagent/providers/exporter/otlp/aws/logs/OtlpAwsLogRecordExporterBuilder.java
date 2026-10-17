@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs;
 
 import static java.util.Objects.requireNonNull;
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DEFAULT_LOGS_AWS_SERVICE;
 
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
 import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporterBuilder;
@@ -28,7 +29,7 @@ public class OtlpAwsLogRecordExporterBuilder {
   private final String endpoint;
   private String compression;
   private String awsRegion;
-  private String awsService = "logs";
+  private String awsService = DEFAULT_LOGS_AWS_SERVICE;
   private AwsCredentialsProvider credentialsProvider;
 
   public static OtlpAwsLogRecordExporterBuilder create(

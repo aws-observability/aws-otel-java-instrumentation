@@ -85,13 +85,9 @@ class OtlpAwsConfigUtilTest {
   @ParameterizedTest
   @MethodSource("awsServiceConfigs")
   void testGetAwsServiceShouldReturnExpectedService(
-      String dataType,
-      Map<String, String> properties,
-      String defaultAwsService,
-      String expectedAwsService) {
+      String dataType, Map<String, String> properties, String expectedAwsService) {
     ConfigProperties config = DefaultConfigProperties.createFromMap(properties);
-    assertThat(OtlpAwsConfigUtil.getAwsService(dataType, config, defaultAwsService))
-        .isEqualTo(expectedAwsService);
+    assertThat(OtlpAwsConfigUtil.getAwsService(dataType, config)).isEqualTo(expectedAwsService);
   }
 
   @ParameterizedTest
@@ -188,21 +184,16 @@ class OtlpAwsConfigUtilTest {
       String dataType = entry.getKey();
       String defaultAwsService = entry.getValue();
       String serviceKey = "aws." + dataType + ".exporter.service";
-      configurations.add(Arguments.of(dataType, Map.of(), defaultAwsService, defaultAwsService));
+      configurations.add(Arguments.of(dataType, Map.of(), defaultAwsService));
+      configurations.add(
+          Arguments.of(dataType, Map.of(serviceKey, "custom-service"), "custom-service"));
       configurations.add(
           Arguments.of(
-              dataType, Map.of(serviceKey, "custom-service"), defaultAwsService, "custom-service"));
-      configurations.add(
-          Arguments.of(
-              dataType,
-              Map.of("aws.exporter.service", "global-service"),
-              defaultAwsService,
-              "global-service"));
+              dataType, Map.of("aws.exporter.service", "global-service"), "global-service"));
       configurations.add(
           Arguments.of(
               dataType,
               Map.of("aws.exporter.service", "global-service", serviceKey, "custom-service"),
-              defaultAwsService,
               "global-service"));
     }
     return configurations.stream();

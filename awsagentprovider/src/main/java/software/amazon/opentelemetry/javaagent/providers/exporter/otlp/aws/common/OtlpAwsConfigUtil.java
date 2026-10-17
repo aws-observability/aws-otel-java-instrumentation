@@ -35,6 +35,10 @@ public final class OtlpAwsConfigUtil {
   public static final String DEFAULT_METRICS_ENDPOINT = "http://localhost:4318/v1/metrics";
   public static final String DEFAULT_LOGS_ENDPOINT = "http://localhost:4318/v1/logs";
 
+  public static final String DEFAULT_TRACES_AWS_SERVICE = "xray";
+  public static final String DEFAULT_METRICS_AWS_SERVICE = "monitoring";
+  public static final String DEFAULT_LOGS_AWS_SERVICE = "logs";
+
   private static final Pattern AWS_ENDPOINT_REGION =
       Pattern.compile(
           "(?:[a-z0-9-]+\\.)*([a-z]+(?:-[a-z]+)+-\\d+)(?:\\.[a-z0-9-]+)*\\."
@@ -45,8 +49,21 @@ public final class OtlpAwsConfigUtil {
   private OtlpAwsConfigUtil() {}
 
   /** Global AWS exporter service, per-data-type service, then the default AWS service. */
-  public static String getAwsService(
-      String dataType, ConfigProperties config, String defaultAwsService) {
+  public static String getAwsService(String dataType, ConfigProperties config) {
+    String defaultAwsService;
+    switch (dataType) {
+      case DATA_TYPE_TRACES:
+        defaultAwsService = DEFAULT_TRACES_AWS_SERVICE;
+        break;
+      case DATA_TYPE_METRICS:
+        defaultAwsService = DEFAULT_METRICS_AWS_SERVICE;
+        break;
+      case DATA_TYPE_LOGS:
+        defaultAwsService = DEFAULT_LOGS_AWS_SERVICE;
+        break;
+      default:
+        throw new IllegalArgumentException("Unsupported OTLP data type: " + dataType);
+    }
     return config.getString(
         "aws.exporter.service",
         config.getString("aws." + dataType + ".exporter.service", defaultAwsService));

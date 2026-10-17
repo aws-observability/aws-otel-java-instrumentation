@@ -50,7 +50,6 @@ public final class OtlpAwsSpanExporterProvider
           "Unsupported OTLP traces protocol: " + protocol + ". otlp/sigv4 requires http/protobuf.");
     }
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_TRACES, config);
-    String defaultAwsService = "xray";
     OtlpHttpSpanExporterBuilder builder = httpBuilder();
     AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_TRACES_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
@@ -73,7 +72,7 @@ public final class OtlpAwsSpanExporterProvider
     return OtlpAwsSpanExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
         .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
-        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_TRACES, config, defaultAwsService))
+        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_TRACES, config))
         .build();
   }
 

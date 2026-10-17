@@ -53,7 +53,6 @@ public final class OtlpAwsMetricExporterProvider
               + ". otlp/sigv4 requires http/protobuf.");
     }
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_METRICS, config);
-    String defaultAwsService = "monitoring";
     OtlpHttpMetricExporterBuilder builder = httpBuilder();
     AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_METRICS_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
@@ -80,8 +79,7 @@ public final class OtlpAwsMetricExporterProvider
     return OtlpAwsMetricExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
         .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
-        .setAwsService(
-            OtlpAwsConfigUtil.getAwsService(DATA_TYPE_METRICS, config, defaultAwsService))
+        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_METRICS, config))
         .build();
   }
 

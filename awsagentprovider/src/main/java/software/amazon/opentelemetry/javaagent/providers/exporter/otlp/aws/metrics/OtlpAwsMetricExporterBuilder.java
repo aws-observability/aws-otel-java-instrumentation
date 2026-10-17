@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics;
 
 import static java.util.Objects.requireNonNull;
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DEFAULT_METRICS_AWS_SERVICE;
 
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
@@ -28,7 +29,7 @@ public final class OtlpAwsMetricExporterBuilder {
   private final String endpoint;
   private String compression;
   private String awsRegion;
-  private String awsService = "monitoring";
+  private String awsService = DEFAULT_METRICS_AWS_SERVICE;
   private AwsCredentialsProvider credentialsProvider;
 
   public static OtlpAwsMetricExporterBuilder create(

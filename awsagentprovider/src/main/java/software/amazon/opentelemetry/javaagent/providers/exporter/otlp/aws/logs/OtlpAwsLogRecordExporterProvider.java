@@ -50,7 +50,6 @@ public final class OtlpAwsLogRecordExporterProvider
           "Unsupported OTLP logs protocol: " + protocol + ". otlp/sigv4 requires http/protobuf.");
     }
     String compression = OtlpAwsConfigUtil.getCompression(DATA_TYPE_LOGS, config);
-    String defaultAwsService = "logs";
     OtlpHttpLogRecordExporterBuilder builder = httpBuilder();
     AtomicReference<String> endpoint = new AtomicReference<>(DEFAULT_LOGS_ENDPOINT);
     OtlpConfigUtil.configureOtlpExporterBuilder(
@@ -73,7 +72,7 @@ public final class OtlpAwsLogRecordExporterProvider
     return OtlpAwsLogRecordExporterBuilder.create(builder, endpoint.get())
         .setCompression(compression)
         .setAwsRegion(OtlpAwsConfigUtil.getAwsRegion(config, endpoint.get()))
-        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_LOGS, config, defaultAwsService))
+        .setAwsService(OtlpAwsConfigUtil.getAwsService(DATA_TYPE_LOGS, config))
         .build();
   }
 

@@ -16,6 +16,7 @@
 package software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.traces;
 
 import static java.util.Objects.requireNonNull;
+import static software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.OtlpAwsConfigUtil.DEFAULT_TRACES_AWS_SERVICE;
 
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
@@ -28,7 +29,7 @@ public class OtlpAwsSpanExporterBuilder {
   private final String endpoint;
   private String compression;
   private String awsRegion;
-  private String awsService = "xray";
+  private String awsService = DEFAULT_TRACES_AWS_SERVICE;
   private AwsCredentialsProvider credentialsProvider;
 
   public static OtlpAwsSpanExporterBuilder create(
