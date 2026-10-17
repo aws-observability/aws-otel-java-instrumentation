@@ -26,8 +26,8 @@ import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.AutoConfigureListener;
 import io.opentelemetry.sdk.common.export.MemoryMode;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -78,9 +78,9 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
 
   @BeforeEach
   void setup(@TempDir Path tempDir) throws IOException {
-    trustedCertificates = readFixture("provider-server.cert");
-    clientKey = readFixture("provider-client.key");
-    clientCertificates = readFixture("provider-client.cert");
+    trustedCertificates = "test-trusted-certificates".getBytes(StandardCharsets.UTF_8);
+    clientKey = "test-client-key".getBytes(StandardCharsets.UTF_8);
+    clientCertificates = "test-client-certificates".getBytes(StandardCharsets.UTF_8);
     certificatePath =
         Files.write(tempDir.resolve("certificate.cert"), trustedCertificates).toString();
     clientKeyPath = Files.write(tempDir.resolve("clientKey.key"), clientKey).toString();
@@ -328,12 +328,6 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
       assertThat(meterProviderSupplier().get()).isSameAs(MeterProvider.noop());
     } finally {
       shutdown(exporter);
-    }
-  }
-
-  private static byte[] readFixture(String name) throws IOException {
-    try (InputStream input = AbstractOtlpAwsExporterProviderTest.class.getResourceAsStream(name)) {
-      return input.readAllBytes();
     }
   }
 

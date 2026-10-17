@@ -47,6 +47,8 @@ class OtlpAwsLogRecordExporterProviderTest
   @BeforeEach
   void setup() {
     doReturn(httpBuilder).when(provider).httpBuilder();
+    doReturn(httpBuilder).when(httpBuilder).setTrustedCertificates(any());
+    doReturn(httpBuilder).when(httpBuilder).setClientTls(any(), any());
   }
 
   @Override
