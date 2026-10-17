@@ -97,6 +97,10 @@ tasks {
   val shadowJar by existing(ShadowJar::class) {
     archiveClassifier.set("")
 
+    // We use io.opentelemetry.common for ComponentLoader, which discovers OTLP HTTP senders and
+    // compressors. Match OTel's agent package names so our providers and its builders use the same
+    // ComponentLoader type. OTel uses the same relocation:
+    // https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/7b5713f7905abe16c80110c21992d7db998e7c35/conventions/src/main/kotlin/io.opentelemetry.instrumentation.javaagent-shadowing.gradle.kts#L44
     relocate("io.opentelemetry.common", "io.opentelemetry.javaagent.shaded.io.opentelemetry.common")
 
     // Relocate ASM to avoid conflicts with the application's ASM or ByteBuddy's internal ASM.
