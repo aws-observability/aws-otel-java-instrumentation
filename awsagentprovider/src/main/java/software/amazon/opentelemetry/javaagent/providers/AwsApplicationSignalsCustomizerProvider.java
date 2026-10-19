@@ -530,12 +530,20 @@ public final class AwsApplicationSignalsCustomizerProvider
               OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
               configProps.getString(OTEL_EXPORTER_OTLP_COMPRESSION_CONFIG, "none"));
 
-      spanExporter =
-          OtlpAwsSpanExporterBuilder.create(
-                  (OtlpHttpSpanExporter) spanExporter,
-                  configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
-              .setCompression(compression)
-              .build();
+      try {
+        spanExporter =
+            OtlpAwsSpanExporterBuilder.create(
+                    (OtlpHttpSpanExporter) spanExporter,
+                    configProps.getString(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT))
+                .setCompression(compression)
+                .build();
+      } catch (Exception e) {
+        // This technically should never happen as the validator checks for the correct env
+        // variables
+        throw new IllegalStateException(
+            "Given SpanExporter is not an instance of OtlpHttpSpanExporter, please check that you have the correct environment variables: ",
+            e);
+      }
     }
 
     if (isApplicationSignalsEnabled(configProps)) {
