@@ -4,6 +4,15 @@ description: >
   Only changes what is missing, so it is a no-op on GitHub-hosted runners.
   Git long paths on Windows must already be enabled for checkout (see the GIT_CONFIG_* env in the
   calling workflow), since this action is only available after checkout.
+inputs:
+  dockerhub-username:
+    description: Docker Hub username. With dockerhub-token, logs in on self-hosted (CodeBuild) runners to lift Docker Hub's anonymous pull limits.
+    required: false
+    default: ''
+  dockerhub-token:
+    description: Docker Hub access token (read-only scope is enough).
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -114,3 +123,23 @@ runs:
             sudo rm -f /.dockerenv
           fi
         fi
+
+    # Docker Hub rate-limits anonymous pulls per IP, and CodeBuild shares AWS's egress IPs with other customers,
+    # so log in on self-hosted runners. GitHub-hosted runners (including fork PRs, which get no secrets) keep
+    # pulling anonymously, as they always have.
+    - name: Log in to Docker Hub (self-hosted runners only)
+      if: runner.os == 'Linux' && runner.environment == 'self-hosted'
+      shell: bash
+      env:
+        DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
+        DOCKERHUB_TOKEN: ${{ inputs.dockerhub-token }}
+      run: |
+        if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+          echo "::warning::No Docker Hub credentials passed; pulling anonymously (may hit Docker Hub rate limits on CodeBuild)."
+          exit 0
+        fi
+        for i in 1 2 3; do
+          if echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin; then exit 0; fi
+          sleep $((i * 5))
+        done
+        echo "::warning::Docker Hub login failed; pulling anonymously."

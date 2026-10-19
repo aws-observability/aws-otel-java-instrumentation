@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/python:3.9
+FROM python:3.9
 
 COPY . .
 

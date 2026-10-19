@@ -29,7 +29,6 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.PullPolicy;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startable;
-import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(Lifecycle.PER_CLASS)
@@ -102,9 +101,7 @@ public class JdbcMySQLTest extends JdbcContractTestBase {
   @Override
   protected List<Startable> getApplicationDependsOnContainers() {
     mySQLContainer =
-        new MySQLContainer<>(
-                DockerImageName.parse("public.ecr.aws/docker/library/mysql:8.4")
-                    .asCompatibleSubstituteFor("mysql"))
+        new MySQLContainer<>("mysql:8.4")
             .withImagePullPolicy(PullPolicy.alwaysPull())
             .withUsername(DB_USER)
             .withPassword(DB_PASSWORD)

@@ -56,9 +56,7 @@ public class KafkaProducerMetricsTest extends JMXMetricsContractTestBase {
   @Override
   protected List<Startable> getApplicationDependsOnContainers() {
     kafka =
-        new KafkaContainer(
-                DockerImageName.parse("mirror.gcr.io/confluentinc/cp-kafka:7.4.0")
-                    .asCompatibleSubstituteFor("confluentinc/cp-kafka"))
+        new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
             .withImagePullPolicy(PullPolicy.alwaysPull())
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
             .withNetworkAliases("kafkaBroker")

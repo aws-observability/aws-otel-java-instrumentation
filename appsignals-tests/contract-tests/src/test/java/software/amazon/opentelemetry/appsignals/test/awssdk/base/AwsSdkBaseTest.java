@@ -37,9 +37,7 @@ import software.amazon.opentelemetry.appsignals.test.utils.SemanticConventionsCo
 public abstract class AwsSdkBaseTest extends ContractTestBase {
 
   private final LocalStackContainer localstack =
-      new LocalStackContainer(
-              DockerImageName.parse("public.ecr.aws/localstack/localstack:3.5.0")
-                  .asCompatibleSubstituteFor("localstack/localstack"))
+      new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.5.0"))
           .withServices(
               LocalStackContainer.Service.S3,
               LocalStackContainer.Service.DYNAMODB,
