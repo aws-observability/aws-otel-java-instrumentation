@@ -1,10 +1,10 @@
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
-index 53fc42a35c..501aa65627 100644
+index 676664b9..cf9a11eb 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestHandlerInstrumentation.java
-@@ -80,7 +80,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
-         AwsLambdaRequest lambdaRequest =
-             AwsLambdaRequest.create(context, arg, Collections.emptyMap());
+@@ -77,7 +77,7 @@ class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentation {
+       public static AdviceScope start(Object arg, Context context) {
+         AwsLambdaRequest lambdaRequest = AwsLambdaRequest.create(context, arg, emptyMap());
          io.opentelemetry.context.Context parentContext =
 -            functionInstrumenter().extract(lambdaRequest);
 +            functionInstrumenter().extract(lambdaRequest, context);
@@ -12,20 +12,20 @@ index 53fc42a35c..501aa65627 100644
            return null;
          }
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
-index f9c0217ade..e4ceaefa38 100644
+index d7166c8f..a738ccc7 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdacore/v1_0/AwsLambdaRequestStreamHandlerInstrumentation.java
-@@ -80,7 +80,7 @@ public class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrum
-         AwsLambdaRequest lambdaRequest =
-             AwsLambdaRequest.create(context, input, Collections.emptyMap());
+@@ -77,7 +77,7 @@ class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrumentatio
+       public static AdviceScope start(InputStream input, Context context) {
+         AwsLambdaRequest lambdaRequest = AwsLambdaRequest.create(context, input, emptyMap());
          io.opentelemetry.context.Context parentContext =
 -            functionInstrumenter().extract(lambdaRequest);
 +            functionInstrumenter().extract(lambdaRequest, context);
-
+ 
          if (!functionInstrumenter().shouldStart(parentContext, lambdaRequest)) {
            return null;
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
-index df605add2f..e16c736990 100644
+index fe5f4560..2bce3f2e 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/build.gradle.kts
 @@ -5,11 +5,12 @@ plugins {
@@ -33,54 +33,54 @@ index df605add2f..e16c736990 100644
    compileOnly("io.opentelemetry:opentelemetry-sdk")
    compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
 +  compileOnly(project(":muzzle"))
-
+ 
    compileOnly("com.google.auto.value:auto-value-annotations")
    annotationProcessor("com.google.auto.value:auto-value")
-
+ 
 -  library("com.amazonaws:aws-lambda-java-core:1.0.0")
 +  library("com.amazonaws:aws-lambda-java-core:1.4.0")
-
+ 
    // We do lightweight parsing of JSON to extract HTTP headers from requests for propagation.
    // This will be commonly needed even for users that don't use events, but luckily it's not too big.
 @@ -26,6 +27,7 @@ dependencies {
-
+ 
    testImplementation(project(":instrumentation:aws-lambda:aws-lambda-core-1.0:testing"))
    testImplementation("uk.org.webcompere:system-stubs-jupiter")
 +  testImplementation("com.google.guava:guava")
  }
-
+ 
  tasks.withType<Test>().configureEach {
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java
-index 873040f66e..b38648e8cf 100644
+index f3970a9c..d4ec8c10 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestHandler.java
-@@ -66,7 +66,7 @@ public abstract class TracingRequestHandler<I, O> implements RequestHandler<I, O
+@@ -67,7 +67,7 @@ public abstract class TracingRequestHandler<I, O> implements RequestHandler<I, O
    @Override
    public final O handleRequest(I input, Context context) {
      AwsLambdaRequest request = AwsLambdaRequest.create(context, input, extractHttpHeaders(input));
 -    io.opentelemetry.context.Context parentContext = instrumenter.extract(request);
 +    io.opentelemetry.context.Context parentContext = instrumenter.extract(request, context);
-
+ 
      if (!instrumenter.shouldStart(parentContext, request)) {
        return doHandleRequest(input, context);
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestStreamHandler.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestStreamHandler.java
-index ae6a42bd6d..8c3663aedf 100644
+index c7185030..ff818105 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestStreamHandler.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/TracingRequestStreamHandler.java
-@@ -70,7 +70,7 @@ public abstract class TracingRequestStreamHandler implements RequestStreamHandle
+@@ -71,7 +71,7 @@ public abstract class TracingRequestStreamHandler implements RequestStreamHandle
        throws IOException {
      ApiGatewayProxyRequest proxyRequest = ApiGatewayProxyRequest.forStream(input);
      AwsLambdaRequest request = createRequest(input, context, proxyRequest);
 -    io.opentelemetry.context.Context parentContext = instrumenter.extract(request);
 +    io.opentelemetry.context.Context parentContext = instrumenter.extract(request, context);
-
+ 
      if (!instrumenter.shouldStart(parentContext, request)) {
        doHandleRequest(proxyRequest.freshStream(), output, context, request);
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ApiGatewayProxyRequest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ApiGatewayProxyRequest.java
-index 1582ee649e..7e130bd49e 100644
+index 1b4a9053..f12f73fb 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ApiGatewayProxyRequest.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ApiGatewayProxyRequest.java
-@@ -30,7 +30,14 @@ public abstract class ApiGatewayProxyRequest {
+@@ -29,7 +29,14 @@ public abstract class ApiGatewayProxyRequest {
    private static boolean noHttpPropagationNeeded() {
      Collection<String> fields =
          GlobalOpenTelemetry.getPropagators().getTextMapPropagator().fields();
@@ -94,56 +94,103 @@ index 1582ee649e..7e130bd49e 100644
 +        && ParentContextExtractor.AWS_TRACE_HEADER_PROPAGATOR_KEY.equalsIgnoreCase(
 +            fields.iterator().next());
    }
-
+ 
    public static ApiGatewayProxyRequest forStream(InputStream source) {
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/AwsLambdaFunctionInstrumenter.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/AwsLambdaFunctionInstrumenter.java
-index 9341bf6f79..f719c1ea93 100644
+index 1c5a23a5..f719c1ea 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/AwsLambdaFunctionInstrumenter.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/AwsLambdaFunctionInstrumenter.java
-@@ -12,7 +12,6 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
+@@ -11,11 +11,7 @@ import io.opentelemetry.context.propagation.TextMapGetter;
+ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
  import io.opentelemetry.instrumentation.api.internal.ContextPropagationDebug;
  import io.opentelemetry.instrumentation.awslambdacore.v1_0.AwsLambdaRequest;
+-import java.lang.invoke.MethodHandle;
+-import java.lang.invoke.MethodHandles;
+-import java.lang.invoke.MethodType;
  import java.util.HashMap;
 -import java.util.Locale;
  import java.util.Map;
  import javax.annotation.Nullable;
-
-@@ -22,8 +21,6 @@ import javax.annotation.Nullable;
+ 
+@@ -25,10 +21,6 @@ import javax.annotation.Nullable;
   */
  public class AwsLambdaFunctionInstrumenter {
-
+ 
+-  private static final String AWS_TRACE_HEADER_PROP = "com.amazonaws.xray.traceHeader";
+-  @Nullable private static final MethodHandle GET_XRAY_TRACE_ID = findGetXrayTraceId();
 -  private static final MapGetter mapGetter = new MapGetter();
 -
    private final OpenTelemetry openTelemetry;
    final Instrumenter<AwsLambdaRequest, Object> instrumenter;
-
-@@ -49,8 +46,8 @@ public class AwsLambdaFunctionInstrumenter {
+ 
+@@ -54,79 +46,27 @@ public class AwsLambdaFunctionInstrumenter {
      instrumenter.end(context, input, response, error);
    }
-
+ 
 -  public Context extract(AwsLambdaRequest input) {
 -    ContextPropagationDebug.debugContextLeakIfEnabled();
 +  public Context extract(
 +      AwsLambdaRequest input, com.amazonaws.services.lambda.runtime.Context lambdaContext) {
      // Look in both the http headers and the custom client context
      Map<String, String> headers = input.getHeaders();
-     if (input.getAwsContext() != null && input.getAwsContext().getClientContext() != null) {
-@@ -61,26 +58,15 @@ public class AwsLambdaFunctionInstrumenter {
+-    com.amazonaws.services.lambda.runtime.Context awsContext = input.getAwsContext();
+-    Map<String, String> customContext = null;
+-    if (awsContext != null && awsContext.getClientContext() != null) {
+-      customContext = awsContext.getClientContext().getCustom();
+-    }
+-    String xrayTraceId = getXrayTraceId(awsContext);
+-    if (customContext != null || !isEmptyOrNull(xrayTraceId)) {
+-      headers = new HashMap<>(headers);
++    if (input.getAwsContext() != null && input.getAwsContext().getClientContext() != null) {
++      Map<String, String> customContext = input.getAwsContext().getClientContext().getCustom();
+       if (customContext != null) {
++        headers = new HashMap<>(headers);
+         headers.putAll(customContext);
        }
+-      if (!isEmptyOrNull(xrayTraceId)) {
+-        headers.put(AWS_TRACE_HEADER_PROP.toLowerCase(Locale.ROOT), xrayTraceId);
+-      }
      }
-
-+    return ParentContextExtractor.extract(headers, this, lambdaContext);
-+  }
-+
-+  public Context extract(Map<String, String> headers, TextMapGetter<Map<String, String>> getter) {
-+    ContextPropagationDebug.debugContextLeakIfEnabled();
-+
-     return openTelemetry
-         .getPropagators()
-         .getTextMapPropagator()
+ 
+-    return openTelemetry
+-        .getPropagators()
+-        .getTextMapPropagator()
 -        .extract(Context.root(), headers, mapGetter);
-+        .extract(Context.root(), headers, getter);
++    return ParentContextExtractor.extract(headers, this, lambdaContext);
    }
+ 
+-  @Nullable
+-  private static String getXrayTraceId(
+-      @Nullable com.amazonaws.services.lambda.runtime.Context awsContext) {
+-    if (awsContext == null) {
+-      return null;
+-    }
+-    if (GET_XRAY_TRACE_ID == null) {
+-      return null;
+-    }
+-    try {
+-      return (String) GET_XRAY_TRACE_ID.invoke(awsContext);
+-    } catch (Throwable ignored) {
+-      return null;
+-    }
+-  }
+-
+-  @Nullable
+-  private static MethodHandle findGetXrayTraceId() {
+-    try {
+-      return MethodHandles.publicLookup()
+-          .findVirtual(
+-              com.amazonaws.services.lambda.runtime.Context.class,
+-              "getXrayTraceId",
+-              MethodType.methodType(String.class));
+-    } catch (NoSuchMethodException | IllegalAccessException | SecurityException ignored) {
+-      return null;
+-    }
+-  }
+-
+-  private static boolean isEmptyOrNull(@Nullable String value) {
+-    return value == null || value.isEmpty();
+-  }
 -
 -  private static class MapGetter implements TextMapGetter<Map<String, String>> {
 -
@@ -151,7 +198,9 @@ index 9341bf6f79..f719c1ea93 100644
 -    public Iterable<String> keys(Map<String, String> map) {
 -      return map.keySet();
 -    }
--
++  public Context extract(Map<String, String> headers, TextMapGetter<Map<String, String>> getter) {
++    ContextPropagationDebug.debugContextLeakIfEnabled();
+ 
 -    @Override
 -    @Nullable
 -    public String get(@Nullable Map<String, String> map, String s) {
@@ -160,11 +209,15 @@ index 9341bf6f79..f719c1ea93 100644
 -      }
 -      return map.get(s.toLowerCase(Locale.ROOT));
 -    }
--  }
++    return openTelemetry
++        .getPropagators()
++        .getTextMapPropagator()
++        .extract(Context.root(), headers, getter);
+   }
  }
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
 new file mode 100644
-index 0000000000..6349d1bb29
+index 00000000..6349d1bb
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/main/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractor.java
 @@ -0,0 +1,85 @@
@@ -254,21 +307,40 @@ index 0000000000..6349d1bb29
 +  private ParentContextExtractor() {}
 +}
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/InstrumenterExtractionTest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/InstrumenterExtractionTest.java
-index de9aa4006c..ac58c4e528 100644
+index 9b41d72e..eda3f85d 100644
 --- a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/InstrumenterExtractionTest.java
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/InstrumenterExtractionTest.java
-@@ -37,7 +37,7 @@ class InstrumenterExtractionTest {
-
+@@ -29,7 +29,8 @@ import java.util.concurrent.atomic.AtomicReference;
+ import org.junit.jupiter.api.Test;
+ 
+ class InstrumenterExtractionTest {
+-  private static final String AWS_TRACE_HEADER_PROP = "com.amazonaws.xray.traceHeader";
++  private static final String AWS_TRACE_HEADER_PROP =
++      ParentContextExtractor.AWS_TRACE_HEADER_PROPAGATOR_KEY;
+ 
+   @Test
+   void useCustomContext() {
+@@ -47,7 +48,7 @@ class InstrumenterExtractionTest {
+ 
      AwsLambdaRequest input = AwsLambdaRequest.create(awsContext, new HashMap<>(), new HashMap<>());
-
+ 
 -    Context extracted = instr.extract(input);
 +    Context extracted = instr.extract(input, awsContext);
      SpanContext spanContext = Span.fromContext(extracted).getSpanContext();
      assertThat(spanContext.getTraceId()).isEqualTo("4bf92f3577b34da6a3ce929d0e0e4736");
      assertThat(spanContext.getSpanId()).isEqualTo("00f067aa0ba902b7");
+@@ -70,7 +71,7 @@ class InstrumenterExtractionTest {
+     AwsLambdaRequest input =
+         AwsLambdaRequest.create(contextWithXrayTraceId, new Object(), emptyMap());
+ 
+-    instr.extract(input);
++    instr.extract(input, contextWithXrayTraceId);
+ 
+     assertThat(extractedTraceHeader.get()).isEqualTo(traceHeader);
+   }
 diff --git a/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java
 new file mode 100644
-index 0000000000..4b0f354769
+index 00000000..4b0f3547
 --- /dev/null
 +++ b/instrumentation/aws-lambda/aws-lambda-core-1.0/library/src/test/java/io/opentelemetry/instrumentation/awslambdacore/v1_0/internal/ParentContextExtractorTest.java
 @@ -0,0 +1,375 @@
@@ -648,25 +720,25 @@ index 0000000000..4b0f354769
 +  }
 +}
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
-index 66a5c7ca67..a0befed258 100644
+index 5a0845f9..914dfcc6 100644
 --- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
 +++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestHandlerInstrumentation.java
-@@ -86,7 +86,7 @@ public class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentati
-         }
-         AwsLambdaRequest lambdaRequest = AwsLambdaRequest.create(context, arg, headers);
-         io.opentelemetry.context.Context parentContext =
--            functionInstrumenter().extract(lambdaRequest);
-+            functionInstrumenter().extract(lambdaRequest, context);
-
-         if (!functionInstrumenter().shouldStart(parentContext, lambdaRequest)) {
-           return null;
+@@ -94,7 +94,7 @@ class AwsLambdaRequestHandlerInstrumentation implements TypeInstrumentation {
+             arg instanceof SQSEvent && SqsProcessingSelection.isPresent(ambientContext);
+         if (!processingSelectionPresent) {
+           io.opentelemetry.context.Context parentContext =
+-              functionInstrumenter().extract(lambdaRequest);
++              functionInstrumenter().extract(lambdaRequest, context);
+           if (functionInstrumenter().shouldStart(parentContext, lambdaRequest)) {
+             functionContext = functionInstrumenter().start(parentContext, lambdaRequest);
+             functionScope = functionContext.makeCurrent();
 diff --git a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
-index f09a8bfa30..972a49876e 100644
+index 99c3c924..aa856933 100644
 --- a/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
 +++ b/instrumentation/aws-lambda/aws-lambda-events-2.2/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/awslambdaevents/v2_2/AwsLambdaRequestStreamHandlerInstrumentation.java
-@@ -72,7 +72,7 @@ public class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrum
-         AwsLambdaRequest lambdaRequest =
-             AwsLambdaRequest.create(context, arg, Collections.emptyMap());
+@@ -69,7 +69,7 @@ class AwsLambdaRequestStreamHandlerInstrumentation implements TypeInstrumentatio
+       public static AdviceScope start(Object arg, Context context) {
+         AwsLambdaRequest lambdaRequest = AwsLambdaRequest.create(context, arg, emptyMap());
          io.opentelemetry.context.Context parentContext =
 -            functionInstrumenter().extract(lambdaRequest);
 +            functionInstrumenter().extract(lambdaRequest, context);
@@ -674,16 +746,16 @@ index f09a8bfa30..972a49876e 100644
            return null;
          }
 diff --git a/version.gradle.kts b/version.gradle.kts
-index 40545be..35ae745 100644
+index b63dc1f9..af17dda1 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.31.1"
--val alphaVersion = "2.31.1-alpha"
-+val stableVersion = "2.31.1-adot-lambda1"
-+val alphaVersion = "2.31.1-adot-lambda1-alpha"
+-val stableVersion = "2.32.0"
+-val alphaVersion = "2.32.0-alpha"
++val stableVersion = "2.32.0-adot-lambda1"
++val alphaVersion = "2.32.0-adot-lambda1-alpha"
  
- val apidiffBaselineVersion = "2.30.0"
+ val apidiffBaselineVersion = "2.31.1"
  
 -- 
 2.45.1

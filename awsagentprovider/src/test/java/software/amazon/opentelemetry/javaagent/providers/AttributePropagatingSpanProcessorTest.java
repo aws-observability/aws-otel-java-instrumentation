@@ -278,11 +278,11 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1"));
-      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
-      validateSpanAttributesInheritance(serverSpan, "POST /smart/v1/getAppraisers", null, null);
+          .thenReturn(List.of("/api/v1/orders", "/api/v1"));
+      Span serverSpan = startCoarseServerSpan("/api/v1/orders");
+      validateSpanAttributesInheritance(serverSpan, "POST /api/v1/orders", null, null);
       ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
-      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/getAppraisers");
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /api/v1/orders");
     }
   }
 
@@ -291,10 +291,10 @@ class AttributePropagatingSpanProcessorTest {
     try (MockedStatic<AwsSpanProcessingUtil> utilStatic =
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic.when(AwsSpanProcessingUtil::getOperationPaths).thenReturn(List.of());
-      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
-      validateSpanAttributesInheritance(serverSpan, "POST /smart/v1/**", null, null);
+      Span serverSpan = startCoarseServerSpan("/api/v1/orders");
+      validateSpanAttributesInheritance(serverSpan, "POST /api/v1/**", null, null);
       ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
-      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/**");
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /api/v1/**");
     }
   }
 
@@ -304,11 +304,11 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/other/getAppraisers"));
-      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
-      validateSpanAttributesInheritance(serverSpan, "POST /smart/v1/**", null, null);
+          .thenReturn(List.of("/other/orders"));
+      Span serverSpan = startCoarseServerSpan("/api/v1/orders");
+      validateSpanAttributesInheritance(serverSpan, "POST /api/v1/**", null, null);
       ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
-      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/**");
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /api/v1/**");
     }
   }
 
@@ -318,11 +318,11 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/schdefaults/{inscompId}", "/smart/v1"));
-      Span serverSpan = startCoarseServerSpan("/smart/v1/schdefaults/123");
+          .thenReturn(List.of("/api/v1/products/{productId}", "/api/v1"));
+      Span serverSpan = startCoarseServerSpan("/api/v1/products/123");
       ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
       assertThat(clientChild.getAttribute(spanNameKey))
-          .isEqualTo("POST /smart/v1/schdefaults/{inscompId}");
+          .isEqualTo("POST /api/v1/products/{productId}");
     }
   }
 
@@ -332,17 +332,17 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/getAppraisers"));
+          .thenReturn(List.of("/api/v1/orders"));
       // Old HTTP semantic conventions: http.method + http.target (with a query string).
       Span serverSpan =
           tracer
-              .spanBuilder("POST /smart/v1/**")
+              .spanBuilder("POST /api/v1/**")
               .setSpanKind(SpanKind.SERVER)
               .setAttribute(HTTP_METHOD, "POST")
-              .setAttribute(HTTP_TARGET, "/smart/v1/getAppraisers?id=1")
+              .setAttribute(HTTP_TARGET, "/api/v1/orders?id=1")
               .startSpan();
       ReadableSpan clientChild = startChild(serverSpan, SpanKind.CLIENT);
-      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/getAppraisers");
+      assertThat(clientChild.getAttribute(spanNameKey)).isEqualTo("POST /api/v1/orders");
     }
   }
 
@@ -352,13 +352,13 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1/appraiser/details"));
-      Span serverA = startCoarseServerSpan("/smart/v1/getAppraisers");
-      Span serverB = startCoarseServerSpan("/smart/v1/appraiser/details");
+          .thenReturn(List.of("/api/v1/orders", "/api/v1/users/profile"));
+      Span serverA = startCoarseServerSpan("/api/v1/orders");
+      Span serverB = startCoarseServerSpan("/api/v1/users/profile");
       ReadableSpan childA = startChild(serverA, SpanKind.CLIENT);
       ReadableSpan childB = startChild(serverB, SpanKind.CLIENT);
-      assertThat(childA.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/getAppraisers");
-      assertThat(childB.getAttribute(spanNameKey)).isEqualTo("POST /smart/v1/appraiser/details");
+      assertThat(childA.getAttribute(spanNameKey)).isEqualTo("POST /api/v1/orders");
+      assertThat(childB.getAttribute(spanNameKey)).isEqualTo("POST /api/v1/users/profile");
     }
   }
 
@@ -370,8 +370,8 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/getAppraisers", "/smart/v1"));
-      Span serverSpan = startCoarseServerSpan("/smart/v1/getAppraisers");
+          .thenReturn(List.of("/api/v1/orders", "/api/v1"));
+      Span serverSpan = startCoarseServerSpan("/api/v1/orders");
       ReadableSpan internalChild = startChild(serverSpan, SpanKind.INTERNAL);
       serverSpan.end();
       String serviceOperation =
@@ -389,13 +389,13 @@ class AttributePropagatingSpanProcessorTest {
         mockStatic(AwsSpanProcessingUtil.class, withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
       utilStatic
           .when(AwsSpanProcessingUtil::getOperationPaths)
-          .thenReturn(List.of("/smart/v1/getAppraisers"));
+          .thenReturn(List.of("/api/v1/orders"));
       Span localRoot =
           tracer
-              .spanBuilder("POST /smart/v1/**")
+              .spanBuilder("POST /api/v1/**")
               .setSpanKind(SpanKind.INTERNAL)
               .setAttribute(HTTP_REQUEST_METHOD, "POST")
-              .setAttribute(URL_PATH, "/smart/v1/getAppraisers")
+              .setAttribute(URL_PATH, "/api/v1/orders")
               .startSpan();
       assertThat(((ReadableSpan) localRoot).getAttribute(spanNameKey))
           .isEqualTo("InternalOperation");
@@ -405,7 +405,7 @@ class AttributePropagatingSpanProcessorTest {
 
   private Span startCoarseServerSpan(String urlPath) {
     return tracer
-        .spanBuilder("POST /smart/v1/**")
+        .spanBuilder("POST /api/v1/**")
         .setSpanKind(SpanKind.SERVER)
         .setAttribute(HTTP_REQUEST_METHOD, "POST")
         .setAttribute(URL_PATH, urlPath)

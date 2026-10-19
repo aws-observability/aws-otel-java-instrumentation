@@ -37,6 +37,16 @@ dependencies {
   compileOnly("com.google.errorprone:error_prone_annotations:2.19.1")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   compileOnly("org.slf4j:slf4j-api")
+  // JMX Metric Insight library and SDK autoconfigure, bundled in the agent, used to load the ADOT
+  // JMX rules
+  compileOnly("io.opentelemetry.instrumentation:opentelemetry-jmx-metrics")
+  compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
+  // byte-buddy-dep from the extension API conflicts with Mockito's byte-buddy
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api") {
+    exclude(group = "net.bytebuddy")
+  }
+  testImplementation("io.opentelemetry.instrumentation:opentelemetry-jmx-metrics")
+  testImplementation(project(":instrumentation:jmx-metrics"))
 
   // Trace ID Generation and Sampling Rules
   implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
@@ -70,14 +80,16 @@ dependencies {
   testImplementation("io.opentelemetry:opentelemetry-extension-aws")
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
   testImplementation("com.google.guava:guava")
-  // testImplementation rather than testRuntimeOnly: OtlpAwsMetricExporterWireTest compiles against
-  // MetricsRequestMarshaler to assert that the bytes we sign are the bytes we send.
-  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp-common")
+  testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
   testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
+  testImplementation("io.opentelemetry.proto:opentelemetry-proto")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")
   testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+  testImplementation("software.amazon.awssdk:sts")
+  testImplementation("software.amazon.awssdk:sso")
+  testImplementation("software.amazon.awssdk:ssooidc")
 }
 
 tasks {
