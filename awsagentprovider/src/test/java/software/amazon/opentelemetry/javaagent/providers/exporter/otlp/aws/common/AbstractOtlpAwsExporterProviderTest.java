@@ -234,6 +234,7 @@ public abstract class AbstractOtlpAwsExporterProviderTest<T extends BaseOtlpAwsE
       String expectedEndpoint,
       String expectedRegion) {
     Map<String, String> properties = properties();
+    properties.remove("aws.region");
     properties.put("otel.exporter.otlp.endpoint", globalEndpoint);
     if (dataTypeEndpoint != null) {
       properties.put("otel.exporter.otlp." + dataType + ".endpoint", dataTypeEndpoint);

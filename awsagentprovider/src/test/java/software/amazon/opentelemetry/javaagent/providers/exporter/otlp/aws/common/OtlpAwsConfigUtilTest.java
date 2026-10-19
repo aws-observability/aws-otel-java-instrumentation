@@ -146,28 +146,28 @@ class OtlpAwsConfigUtilTest {
                 "eu-west-1",
                 "aws.default.region",
                 "us-west-2"),
-            "us-east-1"),
+            "eu-west-1"),
         Arguments.of(
             Map.of(
                 "otel.exporter.otlp.endpoint",
                 "https://pipeline.us-east-1.osis.amazonaws.com/v1/traces",
                 "aws.default.region",
                 "us-west-2"),
-            "us-east-1"),
+            "us-west-2"),
         Arguments.of(
             Map.of(
                 "otel.exporter.otlp.endpoint",
                 "https://pipeline.us-east-1.osis.amazonaws.com/v1/traces",
                 "aws.region",
                 "ap-southeast-2"),
-            "us-east-1"),
+            "ap-southeast-2"),
         Arguments.of(
             Map.of(
                 "otel.exporter.otlp.endpoint",
                 "https://xray.us-west-2.amazonaws.com/v1/traces",
                 "aws.region",
                 "us-east-1"),
-            "us-west-2"),
+            "us-east-1"),
         Arguments.of(
             Map.of(
                 "otel.exporter.otlp.endpoint",

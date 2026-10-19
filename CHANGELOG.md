@@ -14,9 +14,9 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 ## Unreleased
 
 - feat: register OTLP SigV4 exporters with Java SPI
-  If no AWS region can be parsed from the endpoint, region detection falls back to
-  `aws.region` / `AWS_REGION`, then `aws.default.region` / `AWS_DEFAULT_REGION`, and finally
-  the default AWS SDK region provider chain.
+  SigV4 region detection checks `aws.region` / `AWS_REGION`, then
+  `aws.default.region` / `AWS_DEFAULT_REGION`. If neither is configured, it falls back to
+  the endpoint region, then the default AWS SDK region provider chain.
   ([#1475](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1475))
 
 - feat: add an experimental, opt-in continuous code profiler (async-profiler based) that exports

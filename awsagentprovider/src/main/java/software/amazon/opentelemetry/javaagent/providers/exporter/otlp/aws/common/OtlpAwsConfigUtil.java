@@ -70,20 +70,12 @@ public final class OtlpAwsConfigUtil {
   }
 
   /**
-   * Determine the signing region from the resolved AWS endpoint, then region configuration, then
+   * Determine the signing region from region configuration, then the resolved AWS endpoint, then
    * the AWS SDK region provider chain. OTel normalizes {@code AWS_REGION} and {@code
    * AWS_DEFAULT_REGION} to the corresponding dotted property keys. Standalone builders without
    * configuration use Java/AWS region settings directly.
    */
   public static String getAwsRegion(@Nullable ConfigProperties config, String endpoint) {
-    String host = URI.create(endpoint).getHost();
-    if (host != null) {
-      Matcher matcher = AWS_ENDPOINT_REGION.matcher(host);
-      if (matcher.matches()) {
-        return matcher.group(1).toLowerCase(Locale.ROOT);
-      }
-    }
-
     String region;
     if (config != null) {
       region = config.getString("aws.region", config.getString("aws.default.region"));
@@ -98,6 +90,14 @@ public final class OtlpAwsConfigUtil {
     }
     if (region != null && !region.isEmpty()) {
       return region;
+    }
+
+    String host = URI.create(endpoint).getHost();
+    if (host != null) {
+      Matcher matcher = AWS_ENDPOINT_REGION.matcher(host);
+      if (matcher.matches()) {
+        return matcher.group(1).toLowerCase(Locale.ROOT);
+      }
     }
     try {
       return DefaultAwsRegionProviderChain.builder().build().getRegion().id();
