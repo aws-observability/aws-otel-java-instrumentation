@@ -246,7 +246,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
       assertEquals(CompressionMethod.GZIP, ((OtlpAwsSpanExporter) actualExporter).getCompression());
       assertThat(actualExporter.toString())
           .contains(
-              "endpoint=https://xray.us-east-1.amazonaws.com/v1/traces", "awsRegion=us-west-2");
+              "endpoint=https://xray.us-east-1.amazonaws.com/v1/traces", "awsRegion=us-east-1");
     } finally {
       expectedExporter.shutdown();
     }
@@ -304,7 +304,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
       assertEquals(
           CompressionMethod.GZIP, ((OtlpAwsLogRecordExporter) actualExporter).getCompression());
       assertThat(actualExporter.toString())
-          .contains("endpoint=https://logs.us-east-1.amazonaws.com/v1/logs", "awsRegion=us-west-2");
+          .contains("endpoint=https://logs.us-east-1.amazonaws.com/v1/logs", "awsRegion=us-east-1");
     } finally {
       expectedExporter.shutdown();
     }
@@ -452,7 +452,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
       assertThat(actualExporter.toString())
           .contains(
               "endpoint=https://monitoring.us-east-1.amazonaws.com/v1/metrics",
-              "awsRegion=us-west-2");
+              "awsRegion=us-east-1");
     } finally {
       expectedExporter.shutdown();
     }

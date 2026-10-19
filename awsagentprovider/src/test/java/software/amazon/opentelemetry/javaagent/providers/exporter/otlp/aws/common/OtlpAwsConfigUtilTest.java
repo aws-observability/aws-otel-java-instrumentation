@@ -146,21 +146,44 @@ class OtlpAwsConfigUtilTest {
                 "eu-west-1",
                 "aws.default.region",
                 "us-west-2"),
-            "eu-west-1"),
+            "us-east-1"),
         Arguments.of(
             Map.of(
                 "otel.exporter.otlp.endpoint",
                 "https://pipeline.us-east-1.osis.amazonaws.com/v1/traces",
                 "aws.default.region",
                 "us-west-2"),
-            "us-west-2"),
+            "us-east-1"),
         Arguments.of(
             Map.of(
                 "otel.exporter.otlp.endpoint",
                 "https://pipeline.us-east-1.osis.amazonaws.com/v1/traces",
                 "aws.region",
                 "ap-southeast-2"),
-            "ap-southeast-2"),
+            "us-east-1"),
+        Arguments.of(
+            Map.of(
+                "otel.exporter.otlp.endpoint",
+                "https://xray.us-west-2.amazonaws.com/v1/traces",
+                "aws.region",
+                "us-east-1"),
+            "us-west-2"),
+        Arguments.of(
+            Map.of(
+                "otel.exporter.otlp.endpoint",
+                "https://collector.example.com/v1/traces",
+                "aws.region",
+                "eu-west-1",
+                "aws.default.region",
+                "us-west-2"),
+            "eu-west-1"),
+        Arguments.of(
+            Map.of(
+                "otel.exporter.otlp.endpoint",
+                "https://collector.example.com/v1/traces",
+                "aws.default.region",
+                "us-west-2"),
+            "us-west-2"),
         Arguments.of(
             Map.of("otel.exporter.otlp.endpoint", "https://us-east-1.example.com/v1/traces"),
             "us-west-1"),
@@ -194,7 +217,7 @@ class OtlpAwsConfigUtilTest {
           Arguments.of(
               dataType,
               Map.of("aws.exporter.service", "global-service", serviceKey, "custom-service"),
-              "global-service"));
+              "custom-service"));
     }
     return configurations.stream();
   }

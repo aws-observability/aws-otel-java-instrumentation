@@ -48,7 +48,7 @@ public final class OtlpAwsConfigUtil {
 
   private OtlpAwsConfigUtil() {}
 
-  /** Global AWS exporter service, per-data-type service, then the default AWS service. */
+  /** Per-data-type AWS exporter service, global service, then the default AWS service. */
   public static String getAwsService(String dataType, ConfigProperties config) {
     String defaultAwsService;
     switch (dataType) {
@@ -65,16 +65,25 @@ public final class OtlpAwsConfigUtil {
         throw new IllegalArgumentException("Unsupported OTLP data type: " + dataType);
     }
     return config.getString(
-        "aws.exporter.service",
-        config.getString("aws." + dataType + ".exporter.service", defaultAwsService));
+        "aws." + dataType + ".exporter.service",
+        config.getString("aws.exporter.service", defaultAwsService));
   }
 
   /**
-   * Determine the signing region from the configuration and resolved OTLP endpoint. OTel normalizes
-   * {@code AWS_REGION} and {@code AWS_DEFAULT_REGION} to the corresponding dotted property keys.
-   * Standalone builders without configuration use Java/AWS region settings directly.
+   * Determine the signing region from the resolved AWS endpoint, then region configuration, then
+   * the AWS SDK region provider chain. OTel normalizes {@code AWS_REGION} and {@code
+   * AWS_DEFAULT_REGION} to the corresponding dotted property keys. Standalone builders without
+   * configuration use Java/AWS region settings directly.
    */
   public static String getAwsRegion(@Nullable ConfigProperties config, String endpoint) {
+    String host = URI.create(endpoint).getHost();
+    if (host != null) {
+      Matcher matcher = AWS_ENDPOINT_REGION.matcher(host);
+      if (matcher.matches()) {
+        return matcher.group(1).toLowerCase(Locale.ROOT);
+      }
+    }
+
     String region;
     if (config != null) {
       region = config.getString("aws.region", config.getString("aws.default.region"));
@@ -89,14 +98,6 @@ public final class OtlpAwsConfigUtil {
     }
     if (region != null && !region.isEmpty()) {
       return region;
-    }
-
-    String host = URI.create(endpoint).getHost();
-    if (host != null) {
-      Matcher matcher = AWS_ENDPOINT_REGION.matcher(host);
-      if (matcher.matches()) {
-        return matcher.group(1).toLowerCase(Locale.ROOT);
-      }
     }
     try {
       return DefaultAwsRegionProviderChain.builder().build().getRegion().id();
