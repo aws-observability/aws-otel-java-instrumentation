@@ -38,6 +38,7 @@ import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableGaugeData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableMetricData;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +69,15 @@ class OtlpAwsMetricExporterTest extends AbstractOtlpAwsExporterTest<MetricData> 
     lenient().when(this.mockBuilder.setHeaders(any())).thenReturn(mockBuilder);
     lenient().when(this.mockBuilder.build()).thenReturn(this.mockExporter);
     super.setup();
+  }
+
+  @Test
+  void testOtlpAwsExporterShouldPreserveServiceWhenInvalidServiceRejected() throws IOException {
+    OtlpAwsMetricExporterBuilder builder =
+        OtlpAwsMetricExporterBuilder.create(
+                OtlpHttpMetricExporter.builder().setComponentLoader(componentLoader), endpoint)
+            .setAwsRegion("us-east-1");
+    assertAwsServiceValidation(builder::setAwsService, builder::build);
   }
 
   @Override

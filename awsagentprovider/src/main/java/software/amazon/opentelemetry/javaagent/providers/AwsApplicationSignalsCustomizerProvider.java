@@ -523,12 +523,8 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)) {
-      // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
-      // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
-      // so the given spanExporter will be an instance of OtlpHttpSpanExporter
-
-      // get compression method from environment
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)
+        && spanExporter instanceof OtlpHttpSpanExporter) {
       String compression =
           configProps.getString(
               OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
