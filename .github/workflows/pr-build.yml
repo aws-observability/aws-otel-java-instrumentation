@@ -168,7 +168,16 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    runs-on: ${{ github.event.pull_request.head.repo.fork && (matrix.os) || (matrix.os == 'macos-latest' && 'macos-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", {2}]', github.run_id, github.run_attempt, startsWith(matrix.os, 'windows') && '"image:windows-ec2-2022", "instance-size:large"' || '"image:ubuntu-8.0", "instance-size:large"'))) }}
+    # Fork PRs and macOS run on GitHub-hosted runners (matrix.os); Linux and Windows run on CodeBuild, where only the image
+    # differs. The labels are chosen in the expression rather than via matrix.include, because include entries are applied
+    # after exclude and would re-add the Windows leg excluded on release branches.
+    runs-on: >-
+      ${{
+        (github.event.pull_request.head.repo.fork || matrix.os == 'macos-latest') && matrix.os
+        || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "{2}", "instance-size:large"]',
+          github.run_id, github.run_attempt,
+          startsWith(matrix.os, 'windows') && 'image:windows-ec2-2022' || 'image:ubuntu-8.0'))
+      }}
     strategy:
       matrix:
         os:

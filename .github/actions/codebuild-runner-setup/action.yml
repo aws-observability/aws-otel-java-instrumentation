@@ -121,6 +121,8 @@ runs:
             echo "TESTCONTAINERS_HOST_OVERRIDE=$gateway" >> "$GITHUB_ENV"
             echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
             sudo rm -f /.dockerenv
+          else
+            echo "::warning::In a container but found no default gateway; Testcontainers will not reach mapped ports and may fail with KeyError: 'bridge'."
           fi
         fi
 
