@@ -425,12 +425,27 @@ class ServiceEventsConfigTest {
     assertEquals(64L * 1024L * 1024L, ServiceEventsConfig.fromEnv().getProfilerMaxPayloadBytes());
   }
 
-  // ───── Aggregation mode (name-valued: none|full|sum, default none) ─────
+  // ───── Aggregation mode (name-valued: none|full|sum, default full) ─────
 
   @Test
-  void profilerAggregationMode_defaultsToNone() {
-    // Default is NONE (0) — one OTLP Sample per raw sample; widest backend compatibility.
-    assertEquals(0, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+  void profilerAggregationMode_defaultsToFull() {
+    // Default is FULL (1) — merged by identity, every observation's value and timestamp kept.
+    assertEquals(1, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+  }
+
+  @Test
+  void profilerAggregationMode_builderDefaultsToFull() {
+    assertEquals(1, new ServiceEventsConfig.Builder().build().getProfilerAggregationMode());
+  }
+
+  @Test
+  void profilerAggregationMode_builderClampsOutOfRangeToFull() {
+    assertEquals(
+        1,
+        new ServiceEventsConfig.Builder()
+            .profilerAggregationMode(7)
+            .build()
+            .getProfilerAggregationMode());
   }
 
   @Test
@@ -444,10 +459,10 @@ class ServiceEventsConfigTest {
   }
 
   @Test
-  void profilerAggregationMode_unknownFallsBackToNone() {
-    // A typo must not silently select full (not pprof-compatible); it falls back to the default.
+  void profilerAggregationMode_unknownFallsBackToDefault() {
+    // A typo falls back to the default (full), not to a mode the user did not ask for.
     System.setProperty("otel.aws.profiler.aggregation.mode", "bogus");
-    assertEquals(0, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
+    assertEquals(1, ServiceEventsConfig.fromEnv().getProfilerAggregationMode());
   }
 
   // ───── Bundling rule (OTEL_AWS_SERVICE_EVENTS_ENABLED × APPLICATION_SIGNALS × Lambda) ─────
