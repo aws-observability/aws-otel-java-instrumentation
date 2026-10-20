@@ -662,7 +662,7 @@ class AwsAuthHeaderSupplierTest {
 
     private TestExporter(
         String endpoint, String region, String serviceName, CompressionMethod compression) {
-      super(endpoint, compression, null, serviceName, null);
+      super(endpoint, compression, region, serviceName, null);
       this.expectedEndpoint = endpoint;
       this.expectedRegion = region;
       this.serviceName = serviceName;
