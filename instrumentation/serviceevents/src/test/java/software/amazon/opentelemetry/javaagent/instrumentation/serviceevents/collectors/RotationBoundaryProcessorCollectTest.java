@@ -466,7 +466,8 @@ class RotationBoundaryProcessorCollectTest {
     spanIndex.put(thread, spans);
 
     RotationBoundaryProcessor proc = new RotationBoundaryProcessor(10_000, null, 60, null, null, 0);
-    // Default aggregation (none): one OTLP sample per observation, each with its own timestamp.
+    // The builder's 4-arg constructor does not aggregate (none): one OTLP sample per observation,
+    // each with its own timestamp.
     OtlpProfileBuilder builder = new OtlpProfileBuilder(0L, 60_000_000_000L, 10_000_000L, 524_288L);
     proc.scanJfrFileSinglePass(fixture(), spanIndex, builder, new HashMap<>());
     ExportProfilesServiceRequest request =

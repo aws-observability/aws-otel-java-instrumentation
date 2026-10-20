@@ -154,12 +154,13 @@ public class ServiceEventsConfig {
   private final boolean profilerMemoryEnabled;
   private final long profilerAllocIntervalBytes;
   // OtlpProfileBuilder sample-aggregation mode, chosen by name via
-  // OTEL_AWS_PROFILER_AGGREGATION_MODE (none|full|sum, case-insensitive; default none) and stored
+  // OTEL_AWS_PROFILER_AGGREGATION_MODE (none|full|sum, case-insensitive; default full) and stored
   // here as the builder's int. Samples
   // sharing an identity (stack + trace link + attributes) can be merged into one OTLP Sample, per
   // the OTLP profiles shapes:
-  //   none (0) — DEFAULT. no aggregation: one OTLP Sample per collected sample.
-  //   full (1) — merge by identity; keep all per-observation values + timestamps (full
+  //   none (0) — no aggregation: one OTLP Sample per collected sample. Kept for backwards
+  //              compatibility; a busy window easily exceeds a backend's per-profile sample cap.
+  //   full (1) — DEFAULT. merge by identity; keep all per-observation values + timestamps (full
   //              fidelity), using the most compact lossless shape per profile: a profile whose
   //              values are all 1 in its unit (alloc_objects) emits values=[],
   //              timestamps_unix_nano=[all] (count=1/ts); profiles with real weights (wall/cpu ns,
@@ -438,13 +439,13 @@ public class ServiceEventsConfig {
             .profilerMemoryEnabled(getBoolEnv("OTEL_AWS_PROFILER_MEMORY_ENABLED", false))
             .profilerAllocIntervalBytes(
                 getLongEnv("OTEL_AWS_PROFILER_ALLOC_INTERVAL_BYTES", 524288L))
-            // Sample-aggregation mode by name: none|full|sum (default none). none emits one OTLP
-            // Sample per raw sample (widest backend compatibility, largest payload); full/sum merge
-            // by identity to shrink the per-window payload (sum is the compact shape that best fits
-            // a finer interval under a backend's request cap). See the profilerAggregationMode
-            // field doc for the shapes.
+            // Sample-aggregation mode by name: none|full|sum (default full). full merges samples by
+            // identity but keeps every observation's value and timestamp, so it is lossless while
+            // sending far fewer OTLP Samples than none (one per raw sample); sum is the most compact
+            // but drops the per-observation timestamps. See the profilerAggregationMode field doc
+            // for the shapes.
             .profilerAggregationMode(
-                parseAggregationMode(getStringEnv("OTEL_AWS_PROFILER_AGGREGATION_MODE", "none")))
+                parseAggregationMode(getStringEnv("OTEL_AWS_PROFILER_AGGREGATION_MODE", "full")))
             // JFR rotation / export window in seconds (default 60). Shorter = smaller per-window
             // OTLP requests + fresher profiles; threaded to both async-profiler loop= and the
             // RotationBoundaryProcessor window.
@@ -741,7 +742,7 @@ public class ServiceEventsConfig {
   /**
    * Map the {@code OTEL_AWS_PROFILER_AGGREGATION_MODE} name (case-insensitive {@code none} | {@code
    * full} | {@code sum}) to the {@code OtlpProfileBuilder} mode int (0/1/2). An unrecognized value
-   * falls back to {@code none} (the default) with a WARN naming the valid set.
+   * falls back to {@code full} (the default) with a WARN naming the valid set.
    */
   private static int parseAggregationMode(String raw) {
     String v = (raw == null) ? "" : raw.trim().toLowerCase(java.util.Locale.ROOT);
@@ -757,8 +758,8 @@ public class ServiceEventsConfig {
             .warning(
                 "Unknown OTEL_AWS_PROFILER_AGGREGATION_MODE '"
                     + raw
-                    + "'; using 'none'. Valid values: none, full, sum.");
-        return 0;
+                    + "'; using 'full'. Valid values: none, full, sum.");
+        return 1;
     }
   }
 
@@ -1136,7 +1137,7 @@ public class ServiceEventsConfig {
   /**
    * OTLP profile sample-aggregation mode as the {@code OtlpProfileBuilder} int (chosen by name via
    * {@code OTEL_AWS_PROFILER_AGGREGATION_MODE} = {@code none} | {@code full} | {@code sum}, default
-   * {@code none}): {@code 0} NONE (one Sample per sample), {@code 1} FULL (merge by identity, keep
+   * {@code full}): {@code 0} NONE (one Sample per sample), {@code 1} FULL (merge by identity, keep
    * all per-observation values+timestamps; all-1-in-unit profiles use the empty-values shape),
    * {@code 2} SUM (merge by identity into a summed value with no timestamps — the compact shape
    * that lets a fine sample interval fit under a backend's request cap). All modes preserve
@@ -1218,7 +1219,7 @@ public class ServiceEventsConfig {
     private int profilerExportTimeoutMs = 10000;
     private boolean profilerMemoryEnabled = false;
     private long profilerAllocIntervalBytes = 524288L;
-    private int profilerAggregationMode = 0; // NONE (default)
+    private int profilerAggregationMode = 1; // FULL (default)
     private int profilerWindowSeconds = 60;
     private long profilerMaxPayloadBytes = OtlpHttpProfilesExporter.DEFAULT_MAX_PAYLOAD_BYTES;
 
@@ -1455,12 +1456,12 @@ public class ServiceEventsConfig {
     }
 
     public Builder profilerAggregationMode(int profilerAggregationMode) {
-      // Clamp to a known mode (0 NONE, 1 FULL, 2 SUM); out-of-range falls back to NONE (the
+      // Clamp to a known mode (0 NONE, 1 FULL, 2 SUM); out-of-range falls back to FULL (the
       // default).
       this.profilerAggregationMode =
           (profilerAggregationMode >= 0 && profilerAggregationMode <= 2)
               ? profilerAggregationMode
-              : 0;
+              : 1;
       return this;
     }
 
