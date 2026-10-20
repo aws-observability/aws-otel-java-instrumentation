@@ -441,9 +441,9 @@ public class ServiceEventsConfig {
                 getLongEnv("OTEL_AWS_PROFILER_ALLOC_INTERVAL_BYTES", 524288L))
             // Sample-aggregation mode by name: none|full|sum (default full). full merges samples by
             // identity but keeps every observation's value and timestamp, so it is lossless while
-            // sending far fewer OTLP Samples than none (one per raw sample); sum is the most compact
-            // but drops the per-observation timestamps. See the profilerAggregationMode field doc
-            // for the shapes.
+            // sending far fewer OTLP Samples than none (one per raw sample); sum is the most
+            // compact but drops the per-observation timestamps. See the profilerAggregationMode
+            // field doc for the shapes.
             .profilerAggregationMode(
                 parseAggregationMode(getStringEnv("OTEL_AWS_PROFILER_AGGREGATION_MODE", "full")))
             // JFR rotation / export window in seconds (default 60). Shorter = smaller per-window
