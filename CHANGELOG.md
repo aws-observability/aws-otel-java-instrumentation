@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.32.0 - 2026-10-21
+
 - feat: the continuous profiler now defaults to `full` sample aggregation
   (`OTEL_AWS_PROFILER_AGGREGATION_MODE`): samples with the same stack, trace link and attributes are
   merged into one OTLP sample that keeps every observation's value and timestamp. With `none`, the
