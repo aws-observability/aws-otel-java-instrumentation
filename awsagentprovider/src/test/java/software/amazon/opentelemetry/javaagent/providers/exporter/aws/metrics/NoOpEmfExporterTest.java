@@ -25,24 +25,40 @@ import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class NoOpEmfExporterTest {
-  @Test
-  void testDropsMetrics() {
-    MetricData metric = mock(MetricData.class);
-    NoOpEmfExporter exporter = NoOpEmfExporter.INSTANCE;
-
-    assertThat(exporter.getDefaultAggregation(InstrumentType.COUNTER))
-        .isEqualTo(Aggregation.drop());
-    assertThat(exporter.getAggregationTemporality(InstrumentType.COUNTER))
+  @ParameterizedTest
+  @EnumSource(InstrumentType.class)
+  void testGetAggregationTemporality(InstrumentType instrumentType) {
+    assertThat(NoOpEmfExporter.INSTANCE.getAggregationTemporality(instrumentType))
         .isEqualTo(AggregationTemporality.DELTA);
-    assertThat(exporter.export(Collections.singletonList(metric)).isSuccess()).isTrue();
+  }
+
+  @ParameterizedTest
+  @EnumSource(InstrumentType.class)
+  void testGetDefaultAggregation(InstrumentType instrumentType) {
+    assertThat(NoOpEmfExporter.INSTANCE.getDefaultAggregation(instrumentType))
+        .isEqualTo(Aggregation.drop());
+  }
+
+  @Test
+  void testExport() {
+    MetricData metric = mock(MetricData.class);
+
+    assertThat(NoOpEmfExporter.INSTANCE.export(Collections.singletonList(metric)).isSuccess())
+        .isTrue();
     verifyNoInteractions(metric);
   }
 
   @Test
-  void testFlushAndShutdown() {
+  void testFlush() {
     assertThat(NoOpEmfExporter.INSTANCE.flush().isSuccess()).isTrue();
+  }
+
+  @Test
+  void testShutdown() {
     assertThat(NoOpEmfExporter.INSTANCE.shutdown().isSuccess()).isTrue();
   }
 }
