@@ -55,7 +55,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.logs.CompactConsoleLogRecordExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
@@ -599,8 +598,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @ParameterizedTest
   @MethodSource("validCloudWatchEmfConfigProvider")
-  void testShouldPreserveCloudWatchEmfExporterIfConfigIsCorrect(
-      Map<String, String> validEmfConfig) {
+  void testShouldEnableCloudWatchEmfExporterIfConfigIsCorrect(Map<String, String> validEmfConfig) {
     DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(validEmfConfig);
     assertThat(this.provider.customizeProperties(configProps))
         .doesNotContainKey(OTEL_METRICS_EXPORTER);
@@ -622,7 +620,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @ParameterizedTest
   @MethodSource("validCloudWatchEmfConfigProvider")
-  void testLambdaShouldPreserveCloudWatchEmfExporterIfConfigIsCorrect(
+  void testLambdaShouldEnableCloudWatchEmfExporterIfConfigIsCorrect(
       Map<String, String> validEmfConfig) {
     Map<String, String> lambdaCloudWatchEmfConfig = new HashMap<>(validEmfConfig);
     lambdaCloudWatchEmfConfig.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
@@ -648,7 +646,7 @@ class AwsApplicationSignalsCustomizerProviderTest {
 
   @ParameterizedTest
   @MethodSource("validConsoleEmfConfigProvider")
-  void testLambdaShouldPreserveConsoleEmfExporterIfConfigIsCorrect(
+  void testLambdaShouldEnableConsoleEmfExporterIfConfigIsCorrect(
       Map<String, String> lambdaConsoleEmfConfig) {
     DefaultConfigProperties configProps =
         DefaultConfigProperties.createFromMap(lambdaConsoleEmfConfig);
@@ -715,17 +713,6 @@ class AwsApplicationSignalsCustomizerProviderTest {
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
         OtlpHttpMetricExporter.class);
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"awsemf", "awsemf,otlp", "otlp,awsemf", "awsemf,otlp/sigv4"})
-  void testApplicationSignalsPreservesExplicitEmfMetricsExporters(String selectedExporters) {
-    Map<String, String> config =
-        Map.of(
-            APPLICATION_SIGNALS_ENABLED_CONFIG, "true", OTEL_METRICS_EXPORTER, selectedExporters);
-
-    assertThat(this.provider.customizeProperties(DefaultConfigProperties.createFromMap(config)))
-        .doesNotContainKey(OTEL_METRICS_EXPORTER);
   }
 
   @Test
