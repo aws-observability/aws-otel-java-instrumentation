@@ -183,9 +183,41 @@ class AwsEmfMetricExporterProviderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {"awsemf", "awsemf,otlp", "otlp,awsemf", "awsemf,otlp/sigv4", "otlp", "none"})
+  @ValueSource(strings = {"awsemf", "awsemf,otlp", "otlp,awsemf", "otlp", "none"})
   void testCreateExporterNoMocks(String exporterNames) {
+    List<MetricExporter> exporters = new ArrayList<>();
+    try (OpenTelemetrySdk sdk = createSdk(exporterNames, exporters)) {
+      List<Class<?>> expected = new ArrayList<>();
+      for (String exporterName : exporterNames.split(",")) {
+        switch (exporterName) {
+          case "awsemf":
+            expected.add(AwsCloudWatchEmfExporter.class);
+            break;
+          case "otlp":
+            expected.add(OtlpHttpMetricExporter.class);
+            break;
+          default:
+            break;
+        }
+      }
+      assertThat(exporters)
+          .extracting(Object::getClass)
+          .containsExactlyInAnyOrderElementsOf(expected);
+    }
+  }
+
+  @Test
+  void testCreateExporterShouldCreateSeparateEmfAndSigV4Exporters() {
+    List<MetricExporter> exporters = new ArrayList<>();
+    try (OpenTelemetrySdk sdk = createSdk("awsemf,otlp/sigv4", exporters)) {
+      assertThat(exporters).hasSize(2);
+      assertThat(exporters)
+          .extracting(Object::getClass)
+          .containsExactlyInAnyOrder(AwsCloudWatchEmfExporter.class, OtlpAwsMetricExporter.class);
+    }
+  }
+
+  private static OpenTelemetrySdk createSdk(String exporterNames, List<MetricExporter> exporters) {
     Map<String, String> properties = properties();
     properties.put(APPLICATION_SIGNALS_ENABLED_CONFIG, "false");
     properties.put("otel.traces.sampler", "always_on");
@@ -197,41 +229,16 @@ class AwsEmfMetricExporterProviderTest {
     properties.put(OTEL_TRACES_EXPORTER, "none");
     properties.put(OTEL_LOGS_EXPORTER, "none");
     properties.put("otel.exporter.otlp.protocol", "http/protobuf");
-    List<MetricExporter> exporters = new ArrayList<>();
-    OpenTelemetrySdk sdk =
-        AutoConfiguredOpenTelemetrySdk.builder()
-            .disableShutdownHook()
-            .addPropertiesCustomizer(unused -> properties)
-            .addMetricExporterCustomizer(
-                (exporter, unused) -> {
-                  exporters.add(exporter);
-                  return exporter;
-                })
-            .build()
-            .getOpenTelemetrySdk();
-    try {
-      List<Class<?>> expected = new ArrayList<>();
-      for (String exporterName : exporterNames.split(",")) {
-        switch (exporterName) {
-          case "awsemf":
-            expected.add(AwsCloudWatchEmfExporter.class);
-            break;
-          case "otlp":
-            expected.add(OtlpHttpMetricExporter.class);
-            break;
-          case "otlp/sigv4":
-            expected.add(OtlpAwsMetricExporter.class);
-            break;
-          default:
-            break;
-        }
-      }
-      assertThat(exporters)
-          .extracting(Object::getClass)
-          .containsExactlyInAnyOrderElementsOf(expected);
-    } finally {
-      sdk.close();
-    }
+    return AutoConfiguredOpenTelemetrySdk.builder()
+        .disableShutdownHook()
+        .addPropertiesCustomizer(unused -> properties)
+        .addMetricExporterCustomizer(
+            (exporter, unused) -> {
+              exporters.add(exporter);
+              return exporter;
+            })
+        .build()
+        .getOpenTelemetrySdk();
   }
 
   private MetricExporter createExporter(Map<String, String> properties) {
