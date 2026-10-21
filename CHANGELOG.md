@@ -13,6 +13,32 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- feat: the continuous profiler now defaults to `full` sample aggregation
+  (`OTEL_AWS_PROFILER_AGGREGATION_MODE`): samples with the same stack, trace link and attributes are
+  merged into one OTLP sample that keeps every observation's value and timestamp. With `none`, the
+  previous default, every raw sample is its own OTLP sample, so a 60 s wall window easily exceeds
+  CloudWatch Profiles' 16,000-samples-per-profile limit and is rejected. `none` and `sum` are still
+  available.
+  (PR_LINK)
+- feat: register OTLP SigV4 exporters with Java SPI
+  SigV4 region detection checks `aws.region` / `AWS_REGION`, then
+  `aws.default.region` / `AWS_DEFAULT_REGION`. If neither is configured, it falls back to
+  the endpoint region, then the default AWS SDK region provider chain.
+  ([#1475](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1475))
+
+- feat: add an experimental, opt-in continuous code profiler (async-profiler based) that exports
+  native OTLP profiles. It uses the OTLP `v1development` profiles schema, which is not yet stable
+  and may change in incompatible ways. Enabled with `OTEL_AWS_PROFILER_ENABLED=true`; supports
+  `wall` (default) and `cpu` modes (`OTEL_AWS_PROFILER_MODE`), optional allocation profiling
+  (`OTEL_AWS_PROFILER_MEMORY_ENABLED`), a per-sample `thread.state` attribute on wall profiles, and
+  per-sample span correlation (`operation` attribute + trace/span link). Exports over OTLP/HTTP
+  protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
+  behavior change unless enabled.
+  ([#1457](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1457))
+- fix: with `OTEL_AWS_HTTP_OPERATION_PATHS` set, child spans now inherit the overridden operation
+  from their server span, so dependency metrics are reported under the same operation as the
+  service metrics instead of the original span name.
+  ([#1471](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1471))
 - Bump jackson-bom to 2.22.3 to fix CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, and
   CVE-2026-91777
   ([#1464](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1464))
@@ -38,6 +64,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   `OTEL_EXPORTER_OTLP_METRICS_HEADERS`) selects bearer authentication; a global
   `OTEL_EXPORTER_OTLP_HEADERS` does not disable SigV4.
   ([#1455](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1455))
+- Update OpenTelemetry dependencies to 2.32.0 (contrib 1.61.0)
+  ([#1462](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1462))
 
 ## v2.31.0 - 2026-09-17
 

@@ -30,6 +30,7 @@ import com.linecorp.armeria.client.WebClient;
 import io.netty.buffer.ByteBufAllocator;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
+import io.opentelemetry.proto.collector.profiles.v1development.ExportProfilesServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.IOException;
 import java.time.Duration;
@@ -60,6 +61,8 @@ public class MockCollectorClient {
       EXPORT_METRICS_SERVICE_REQUEST_LIST = new TypeReference<>() {};
   private static final TypeReference<List<ExportLogsServiceRequest>>
       EXPORT_LOGS_SERVICE_REQUEST_LIST = new TypeReference<>() {};
+  private static final TypeReference<List<ExportProfilesServiceRequest>>
+      EXPORT_PROFILES_SERVICE_REQUEST_LIST = new TypeReference<>() {};
   private static final int WAIT_INTERVAL_MS = 100;
 
   private static final JsonMapper OBJECT_MAPPER;
@@ -70,6 +73,7 @@ public class MockCollectorClient {
             .register(ExportTraceServiceRequest.getDefaultInstance())
             .register(ExportMetricsServiceRequest.getDefaultInstance())
             .register(ExportLogsServiceRequest.getDefaultInstance())
+            .register(ExportProfilesServiceRequest.getDefaultInstance())
             .build();
 
     var mapper = JsonMapper.builder();
@@ -109,6 +113,18 @@ public class MockCollectorClient {
               JsonParser parser, DeserializationContext ctxt)
               throws IOException, JsonProcessingException {
             var builder = ExportLogsServiceRequest.newBuilder();
+            marshaller.mergeValue(parser, builder);
+            return builder.build();
+          }
+        });
+    deserializers.addDeserializer(
+        ExportProfilesServiceRequest.class,
+        new StdDeserializer<ExportProfilesServiceRequest>(ExportProfilesServiceRequest.class) {
+          @Override
+          public ExportProfilesServiceRequest deserialize(
+              JsonParser parser, DeserializationContext ctxt)
+              throws IOException, JsonProcessingException {
+            var builder = ExportProfilesServiceRequest.newBuilder();
             marshaller.mergeValue(parser, builder);
             return builder.build();
           }
@@ -232,6 +248,63 @@ public class MockCollectorClient {
                 sm.getSecond().getMetricsList().stream()
                     .map(x -> new ResourceScopeMetric(sm.getFirst(), sm.getSecond(), x)))
         .collect(toImmutableList());
+  }
+
+  /**
+   * Get all OTLP profiles requests currently stored in the mock collector, blocking until at least
+   * one is present (and stable across two polls) or the poll deadline elapses.
+   *
+   * <p>Returns the raw {@link ExportProfilesServiceRequest} list — unlike {@code getTraces()} /
+   * {@code getLogs()} these are NOT flattened, because the OTLP profiles schema keeps the
+   * string/function/location/stack/link/attribute tables in a single request-level {@link
+   * io.opentelemetry.proto.profiles.v1development.ProfilesDictionary}; callers resolve sample
+   * indices against {@code request.getDictionary()}. Use for positive assertions.
+   *
+   * <p>The profiler exports on JFR rotation boundaries (a ~60s loop), which is longer than this
+   * client's single-call poll window — callers driving a live profiler should wrap this in a
+   * retry-until-deadline loop (see {@code AwsProfilerContractTest}).
+   */
+  public List<ExportProfilesServiceRequest> getProfiles() {
+    return waitForContent("/get-profiles", EXPORT_PROFILES_SERVICE_REQUEST_LIST);
+  }
+
+  /**
+   * Non-blocking single-fetch snapshot of the OTLP profiles requests currently stored in the mock
+   * collector. Performs exactly one GET and returns immediately (no await/polling) — the correct
+   * shape for the negative case (assert that a profiler-OFF run captured no profiles), where a
+   * blocking getter would spuriously fail on its timeout instead of returning the empty result.
+   */
+  public List<ExportProfilesServiceRequest> getProfilesSnapshot() {
+    return fetchOnce("/get-profiles", EXPORT_PROFILES_SERVICE_REQUEST_LIST);
+  }
+
+  /**
+   * Non-blocking single-fetch snapshot of the OTLP logs currently stored in the mock collector.
+   * Performs exactly one GET and returns immediately (no await/polling) — the correct shape for the
+   * negative case (assert that a profiler-only, ServiceEvents-OFF run captured no ServiceEvents
+   * incident-snapshot logs), where the blocking {@link #getLogs()} would throw on its timeout
+   * instead of returning the empty result. Mirrors {@link #getProfilesSnapshot()}.
+   */
+  public List<ResourceScopeLog> getLogsSnapshot() {
+    return fetchOnce("/get-logs", EXPORT_LOGS_SERVICE_REQUEST_LIST).stream()
+        .flatMap(req -> req.getResourceLogsList().stream())
+        .flatMap(rl -> rl.getScopeLogsList().stream().map(x -> new Pair<>(rl, x)))
+        .flatMap(
+            sl ->
+                sl.getSecond().getLogRecordsList().stream()
+                    .map(x -> new ResourceScopeLog(sl.getFirst(), sl.getSecond(), x)))
+        .collect(toImmutableList());
+  }
+
+  /** Single GET + parse with no await. Returns an empty list on I/O error. */
+  private <T> List<T> fetchOnce(String url, TypeReference<List<T>> t) {
+    try (var content =
+        client.get(url).aggregateWithPooledObjects(ByteBufAllocator.DEFAULT).join().content()) {
+      return OBJECT_MAPPER.readValue(content.toInputStream(), t);
+    } catch (IOException e) {
+      logger.error("Error while reading content", e);
+      return ImmutableList.of();
+    }
   }
 
   private <T> List<T> waitForContent(String url, TypeReference<List<T>> t) {

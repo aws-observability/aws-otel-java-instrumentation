@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
@@ -42,20 +43,43 @@ public final class OtlpAwsMetricExporter extends BaseOtlpAwsExporter implements 
   private final OtlpHttpMetricExporter parentExporter;
 
   static OtlpAwsMetricExporter getDefault(String endpoint) {
-    return new OtlpAwsMetricExporter(
-        OtlpHttpMetricExporter.getDefault(), endpoint, CompressionMethod.NONE);
+    return OtlpAwsMetricExporterBuilder.create(OtlpHttpMetricExporter.builder(), endpoint).build();
   }
 
   static OtlpAwsMetricExporter create(
-      OtlpHttpMetricExporter parent, String endpoint, CompressionMethod compression) {
-    return new OtlpAwsMetricExporter(parent, endpoint, compression);
+      OtlpHttpMetricExporterBuilder parent,
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    return new OtlpAwsMetricExporter(
+        parent, endpoint, compression, awsRegion, awsService, credentialsProvider);
   }
 
   private OtlpAwsMetricExporter(
-      OtlpHttpMetricExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint, compression);
+      OtlpHttpMetricExporterBuilder parentExporterBuilder,
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    super(endpoint, compression, awsRegion, awsService, credentialsProvider);
+
+    // IMMUTABLE_DATA is required for correctness, not chosen for performance. export() signs the
+    // bytes produced by MetricsRequestMarshaler, while the parent exporter serializes the metrics
+    // again for the actual request. Under the default REUSABLE_DATA the parent uses
+    // LowAllocationMetricsRequestMarshaler, which groups metrics by instrumentation scope in a
+    // differently sized identity-keyed map and so can emit the scope blocks in a different order.
+    // The payloads stay semantically equal but differ byte-wise, the signed SHA-256 no longer
+    // matches the request body, and CloudWatch rejects the export with 403 SignatureDoesNotMatch.
+    // Pinning IMMUTABLE_DATA puts both serializations on the same marshaler. The span and log
+    // exporters pin it for the same reason.
     this.parentExporterBuilder =
-        parentExporter.toBuilder().setEndpoint(endpoint).setHeaders(this.headerSupplier);
+        parentExporterBuilder
+            .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
+            .setEndpoint(endpoint)
+            .setHeaders(this.headerSupplier);
     this.parentExporter = this.parentExporterBuilder.build();
   }
 
@@ -97,14 +121,12 @@ public final class OtlpAwsMetricExporter extends BaseOtlpAwsExporter implements 
   }
 
   @Override
-  public String serviceName() {
-    return "monitoring";
-  }
-
-  @Override
   public String toString() {
     StringJoiner joiner = new StringJoiner(", ", "OtlpAwsMetricExporter{", "}");
-    joiner.add(this.parentExporterBuilder.toString());
+    joiner.add("endpoint=" + this.endpoint);
+    joiner.add("awsRegion=" + this.awsRegion);
+    joiner.add("awsService=" + serviceName());
+    joiner.add("compression=" + getCompression());
     joiner.add("memoryMode=" + getMemoryMode());
     return joiner.toString();
   }

@@ -1,1 +1,2 @@
 software.amazon.opentelemetry.javaagent.providers.AwsEmfMetricExporterProvider
+software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporterProvider

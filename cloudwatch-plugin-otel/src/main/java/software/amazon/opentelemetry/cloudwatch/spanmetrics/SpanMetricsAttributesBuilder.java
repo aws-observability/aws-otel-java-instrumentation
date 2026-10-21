@@ -18,6 +18,7 @@ package software.amazon.opentelemetry.cloudwatch.spanmetrics;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.util.Arrays;
 import java.util.List;
@@ -94,9 +95,24 @@ final class SpanMetricsAttributesBuilder {
           new LegacyFallback<>(
               AttributeKey.stringKey("db.operation.name"), AttributeKey.stringKey("db.operation")),
           new LegacyFallback<>(
-              AttributeKey.stringKey("db.collection.name"), AttributeKey.stringKey("db.sql.table")),
-          // Peer network attributes renamed from net.peer.*/net.host.* to server.* in newer
-          // semconv.
+              AttributeKey.stringKey("db.collection.name"),
+              AttributeKey.stringKey("db.sql.table")));
+
+  // Peer network attributes renamed from net.peer.*/net.host.* to server.* in newer semconv.
+  // server.* always describes the server, but the legacy net.* fallback depends on span kind:
+  // net.peer.* is the remote end of the connection and net.host.* the local end. On SERVER spans
+  // the server is therefore net.host.*, while net.peer.* is the client (net.peer.port is its
+  // ephemeral port), which must never become a dimension. See the HTTP semconv migration guide:
+  // https://opentelemetry.io/docs/specs/semconv/non-normative/http-migration/
+  private static final List<LegacyFallback<?>> SERVER_SPAN_PEER_FALLBACKS =
+      Arrays.asList(
+          new LegacyFallback<>(
+              AttributeKey.stringKey("server.address"), AttributeKey.stringKey("net.host.name")),
+          new LegacyFallback<>(
+              AttributeKey.longKey("server.port"), AttributeKey.longKey("net.host.port")));
+
+  private static final List<LegacyFallback<?>> PEER_FALLBACKS =
+      Arrays.asList(
           new LegacyFallback<>(
               AttributeKey.stringKey("server.address"),
               AttributeKey.stringKey("net.peer.name"),
@@ -133,7 +149,11 @@ final class SpanMetricsAttributesBuilder {
     for (AttributeKey<?> key : ALLOWLIST) {
       copyIfPresent(builder, spanAttributes, key);
     }
-    applyLegacyFallbacks(builder, spanAttributes);
+    applyLegacyFallbacks(builder, spanAttributes, LEGACY_FALLBACKS);
+    applyLegacyFallbacks(
+        builder,
+        spanAttributes,
+        span.getKind() == SpanKind.SERVER ? SERVER_SPAN_PEER_FALLBACKS : PEER_FALLBACKS);
     copyDestinationIfNamed(builder, spanAttributes);
     return builder.build();
   }
@@ -149,8 +169,9 @@ final class SpanMetricsAttributesBuilder {
 
   // When the current key is absent, pass the legacy key and value through unchanged (no value
   // translation) so we never emit a value the instrumentation did not produce.
-  private static void applyLegacyFallbacks(AttributesBuilder builder, Attributes source) {
-    for (LegacyFallback<?> fallback : LEGACY_FALLBACKS) {
+  private static void applyLegacyFallbacks(
+      AttributesBuilder builder, Attributes source, List<LegacyFallback<?>> fallbacks) {
+    for (LegacyFallback<?> fallback : fallbacks) {
       fallback.apply(builder, source);
     }
   }

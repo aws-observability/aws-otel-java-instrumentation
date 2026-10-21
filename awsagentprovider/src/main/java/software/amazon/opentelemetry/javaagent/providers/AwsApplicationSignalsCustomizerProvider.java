@@ -296,6 +296,15 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
+    // ADOT loads its own JMX rules for the target systems it ships (see AwsJmxRulesInstaller), the
+    // other target systems are left to the upstream installer.
+    String overriddenTargets = propsOverride.get(OTEL_JMX_TARGET_SYSTEM_CONFIG);
+    List<String> jmxTargets =
+        overriddenTargets != null
+            ? Arrays.asList(overriddenTargets.split(","))
+            : configProps.getList(OTEL_JMX_TARGET_SYSTEM_CONFIG);
+    propsOverride.putAll(AwsJmxRulesInstaller.splitTargetSystems(jmxTargets));
+
     return propsOverride;
   }
 
@@ -491,12 +500,8 @@ public final class AwsApplicationSignalsCustomizerProvider
       }
     }
 
-    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)) {
-      // can cast here since we've checked that the configuration for OTEL_TRACES_EXPORTER is otlp
-      // and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL is http/protobuf
-      // so the given spanExporter will be an instance of OtlpHttpSpanExporter
-
-      // get compression method from environment
+    if (AwsApplicationSignalsConfigUtils.isSigV4EnabledTraces(configProps)
+        && spanExporter instanceof OtlpHttpSpanExporter) {
       String compression =
           configProps.getString(
               OTEL_EXPORTER_OTLP_TRACES_COMPRESSION_CONFIG,
