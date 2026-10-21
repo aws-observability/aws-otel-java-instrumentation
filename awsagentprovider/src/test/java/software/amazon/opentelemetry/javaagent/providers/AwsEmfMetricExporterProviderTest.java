@@ -16,18 +16,17 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
-import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -167,11 +166,19 @@ class AwsEmfMetricExporterProviderTest {
 
   @ParameterizedTest
   @MethodSource("invalidConfigs")
-  void testCreateExporterInvalidConfiguration(
-      Map<String, String> properties, String expectedMessage) {
-    assertThatThrownBy(() -> createExporter(properties))
-        .isInstanceOf(ConfigurationException.class)
-        .hasMessageContaining(expectedMessage);
+  void testCreateExporterInvalidConfiguration(Map<String, String> properties) {
+    MetricExporter exporter = createExporter(properties);
+    try {
+      assertThat(exporter).isNotInstanceOf(AwsCloudWatchEmfExporter.class);
+      assertThat(exporter).isNotInstanceOf(ConsoleEmfExporter.class);
+      assertThat(exporter).isNotInstanceOf(OtlpHttpMetricExporter.class);
+      assertThat(exporter.getDefaultAggregation(InstrumentType.COUNTER))
+          .isEqualTo(Aggregation.drop());
+      assertThat(exporter.export(Collections.emptyList()).isSuccess()).isTrue();
+      assertThat(exporter.flush().isSuccess()).isTrue();
+    } finally {
+      assertThat(exporter.shutdown().isSuccess()).isTrue();
+    }
   }
 
   @ParameterizedTest
@@ -264,14 +271,14 @@ class AwsEmfMetricExporterProviderTest {
     Map<String, String> malformedHeaders = properties();
     malformedHeaders.put("otel.exporter.otlp.logs.headers", "x-aws-log-group");
     return Stream.of(
-        Arguments.of(missingRegion, "AWS_REGION or AWS_DEFAULT_REGION"),
-        Arguments.of(missingLambdaRegion, "AWS_REGION or AWS_DEFAULT_REGION"),
-        Arguments.of(emptyRegion, "AWS_REGION or AWS_DEFAULT_REGION"),
-        Arguments.of(missingHeaders, "x-aws-log-group and x-aws-log-stream"),
-        Arguments.of(missingLogGroup, "x-aws-log-group and x-aws-log-stream"),
-        Arguments.of(missingLogStream, "x-aws-log-group and x-aws-log-stream"),
-        Arguments.of(emptyLogGroup, "x-aws-log-group and x-aws-log-stream"),
-        Arguments.of(emptyLogStream, "x-aws-log-group and x-aws-log-stream"),
-        Arguments.of(malformedHeaders, "otel.exporter.otlp.logs.headers"));
+        Arguments.of(missingRegion),
+        Arguments.of(missingLambdaRegion),
+        Arguments.of(emptyRegion),
+        Arguments.of(missingHeaders),
+        Arguments.of(missingLogGroup),
+        Arguments.of(missingLogStream),
+        Arguments.of(emptyLogGroup),
+        Arguments.of(emptyLogStream),
+        Arguments.of(malformedHeaders));
   }
 }

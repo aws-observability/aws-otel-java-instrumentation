@@ -18,7 +18,13 @@ package software.amazon.opentelemetry.javaagent.providers;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider;
+import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.Aggregation;
+import io.opentelemetry.sdk.metrics.InstrumentType;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import java.util.Collection;
 import java.util.Map;
 import java.util.logging.Logger;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
@@ -39,16 +45,23 @@ public final class AwsEmfMetricExporterProvider implements ConfigurableMetricExp
 
   @Override
   public MetricExporter createExporter(ConfigProperties config) {
-    Map<String, String> headers = config.getMap("otel.exporter.otlp.logs.headers");
+    Map<String, String> headers;
+    try {
+      headers = config.getMap("otel.exporter.otlp.logs.headers");
+    } catch (ConfigurationException e) {
+      logger.warning("Improper EMF Exporter configuration: " + e.getMessage());
+      return DisabledEmfExporter.INSTANCE;
+    }
     String region = config.getString("aws.region", config.getString("aws.default.region"));
     String namespace = headers.get(METRICS_NAMESPACE_HEADER);
     boolean addApplicationSignalsDimensions =
         config.getBoolean("otel.metrics.add.application.signals.dimensions", true);
 
     if (region == null || region.trim().isEmpty()) {
-      throw new ConfigurationException(
+      logger.warning(
           "awsemf requires an AWS region. Set AWS_REGION or AWS_DEFAULT_REGION "
               + "(aws.region or aws.default.region).");
+      return DisabledEmfExporter.INSTANCE;
     }
 
     if (headers.containsKey(LOG_GROUP_HEADER) && headers.containsKey(LOG_STREAM_HEADER)) {
@@ -70,11 +83,41 @@ public final class AwsEmfMetricExporterProvider implements ConfigurableMetricExp
           .build();
     }
 
-    throw new ConfigurationException(
+    logger.warning(
         "awsemf requires "
             + LOG_GROUP_HEADER
             + " and "
             + LOG_STREAM_HEADER
             + " in OTEL_EXPORTER_OTLP_LOGS_HEADERS (otel.exporter.otlp.logs.headers) outside Lambda.");
+    return DisabledEmfExporter.INSTANCE;
+  }
+
+  private enum DisabledEmfExporter implements MetricExporter {
+    INSTANCE;
+
+    @Override
+    public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
+      return AggregationTemporality.DELTA;
+    }
+
+    @Override
+    public Aggregation getDefaultAggregation(InstrumentType instrumentType) {
+      return Aggregation.drop();
+    }
+
+    @Override
+    public CompletableResultCode export(Collection<MetricData> metrics) {
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode flush() {
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode shutdown() {
+      return CompletableResultCode.ofSuccess();
+    }
   }
 }
