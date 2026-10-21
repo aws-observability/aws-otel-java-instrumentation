@@ -151,12 +151,17 @@ public abstract class SpanMetricsContractTestBase {
   }
 
   protected WebClient getApplicationClient() {
-    return WebClient.of("http://localhost:" + application.getMappedPort(APPLICATION_PORT));
+    return WebClient.of(
+        "http://" + application.getHost() + ":" + application.getMappedPort(APPLICATION_PORT));
   }
 
   protected MockCollectorClient getMockCollectorClient() {
     return new MockCollectorClient(
-        WebClient.of("http://localhost:" + mockCollector.getMappedPort(COLLECTOR_PORT)));
+        WebClient.of(
+            "http://"
+                + mockCollector.getHost()
+                + ":"
+                + mockCollector.getMappedPort(COLLECTOR_PORT)));
   }
 
   private GenericContainer<?> buildApplicationContainer() {
