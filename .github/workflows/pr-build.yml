@@ -294,10 +294,16 @@ jobs:
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     timeout-minutes: 10
     steps:
+      # Anonymous pulls from ECR Public are throttled on shared GitHub-hosted runner IPs
+      # ("toomanyrequests: Data limit exceeded"), so pull the same official images from Docker Hub
+      # and tag them with the ECR names the Jib builds use (they read the local Docker daemon).
       - name: Pull and export base images
         run: |
-          docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
-          docker pull public.ecr.aws/docker/library/amazoncorretto:17-alpine
+          for image in public.ecr.aws/docker/library/amazoncorretto:23-alpine \
+                       public.ecr.aws/docker/library/amazoncorretto:17-alpine; do
+            docker pull "${image#public.ecr.aws/docker/library/}"
+            docker tag "${image#public.ecr.aws/docker/library/}" "$image"
+          done
           docker save \
             public.ecr.aws/docker/library/amazoncorretto:23-alpine \
             public.ecr.aws/docker/library/amazoncorretto:17-alpine \
