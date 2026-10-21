@@ -39,6 +39,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.AwsCloudWatchEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.ConsoleEmfExporter;
+import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.NoOpEmfExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.CloudWatchLogsClientEmitter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.aws.metrics.common.emitter.ConsoleEmitter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.metrics.OtlpAwsMetricExporter;
@@ -169,9 +170,7 @@ class AwsEmfMetricExporterProviderTest {
   void testCreateExporterInvalidConfiguration(Map<String, String> properties) {
     MetricExporter exporter = createExporter(properties);
     try {
-      assertThat(exporter).isNotInstanceOf(AwsCloudWatchEmfExporter.class);
-      assertThat(exporter).isNotInstanceOf(ConsoleEmfExporter.class);
-      assertThat(exporter).isNotInstanceOf(OtlpHttpMetricExporter.class);
+      assertThat(exporter).isSameAs(NoOpEmfExporter.INSTANCE);
       assertThat(exporter.getDefaultAggregation(InstrumentType.COUNTER))
           .isEqualTo(Aggregation.drop());
       assertThat(exporter.export(Collections.emptyList()).isSuccess()).isTrue();
