@@ -21,7 +21,7 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
   previous default, every raw sample is its own OTLP sample, so a 60 s wall window easily exceeds
   CloudWatch Profiles' 16,000-samples-per-profile limit and is rejected. `none` and `sum` are still
   available.
-  (PR_LINK)
+  ([#1481](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1481))
 - feat: register OTLP SigV4 exporters with Java SPI
   SigV4 region detection checks `aws.region` / `AWS_REGION`, then
   `aws.default.region` / `AWS_DEFAULT_REGION`. If neither is configured, it falls back to
