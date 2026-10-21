@@ -16,18 +16,18 @@
 package software.amazon.opentelemetry.javaagent.providers;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static software.amazon.opentelemetry.javaagent.providers.AwsApplicationSignalsCustomizerProvider.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigurationException;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,16 +86,16 @@ class AwsEmfMetricExporterProviderTest {
   void testCreateExporterCloudWatchWithConfiguration(
       String regionKey, boolean lambda, boolean addApplicationSignalsDimensions) {
     Map<String, String> properties = properties();
-    properties.remove(AWS_REGION);
+    properties.remove("aws.region");
     properties.put(regionKey, "us-west-2");
     properties.put(
-        OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+        "otel.exporter.otlp.logs.headers",
         "x-aws-log-group=another-group,x-aws-log-stream=another-stream,x-aws-metric-namespace=another-namespace");
     properties.put(
-        OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS,
+        "otel.metrics.add.application.signals.dimensions",
         Boolean.toString(addApplicationSignalsDimensions));
     if (lambda) {
-      properties.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+      properties.put("aws.lambda.function.name", "test-function");
     }
     MetricExporter exporter = createExporter(properties);
     try {
@@ -116,7 +116,7 @@ class AwsEmfMetricExporterProviderTest {
   @Test
   void testCreateExporterAwsRegionPrecedence() {
     Map<String, String> properties = properties();
-    properties.put(AWS_DEFAULT_REGION, "us-west-2");
+    properties.put("aws.default.region", "us-west-2");
     MetricExporter exporter = createExporter(properties);
     try {
       assertThat(exporter).extracting("emitter").extracting("awsRegion").isEqualTo("us-east-1");
@@ -128,8 +128,8 @@ class AwsEmfMetricExporterProviderTest {
   @Test
   void testCreateExporterConsoleDefaults() {
     Map<String, String> properties = properties();
-    properties.remove(OTEL_EXPORTER_OTLP_LOGS_HEADERS);
-    properties.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+    properties.remove("otel.exporter.otlp.logs.headers");
+    properties.put("aws.lambda.function.name", "test-function");
     MetricExporter exporter = createExporter(properties);
     try {
       assertThat(exporter).isExactlyInstanceOf(ConsoleEmfExporter.class);
@@ -146,12 +146,12 @@ class AwsEmfMetricExporterProviderTest {
   void testCreateExporterConsoleWithConfiguration(
       String regionKey, boolean addApplicationSignalsDimensions) {
     Map<String, String> properties = properties();
-    properties.remove(AWS_REGION);
+    properties.remove("aws.region");
     properties.put(regionKey, "us-west-2");
-    properties.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
-    properties.put(OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-metric-namespace=another-namespace");
+    properties.put("aws.lambda.function.name", "test-function");
+    properties.put("otel.exporter.otlp.logs.headers", "x-aws-metric-namespace=another-namespace");
     properties.put(
-        OTEL_METRICS_ADD_APPLICATION_SIGNALS_DIMENSIONS,
+        "otel.metrics.add.application.signals.dimensions",
         Boolean.toString(addApplicationSignalsDimensions));
     MetricExporter exporter = createExporter(properties);
     try {
@@ -167,19 +167,11 @@ class AwsEmfMetricExporterProviderTest {
 
   @ParameterizedTest
   @MethodSource("invalidConfigs")
-  void testCreateExporterInvalidConfiguration(Map<String, String> properties) {
-    MetricExporter exporter = createExporter(properties);
-    try {
-      assertThat(exporter).isNotInstanceOf(AwsCloudWatchEmfExporter.class);
-      assertThat(exporter).isNotInstanceOf(ConsoleEmfExporter.class);
-      assertThat(exporter).isNotInstanceOf(OtlpHttpMetricExporter.class);
-      assertThat(exporter.getDefaultAggregation(InstrumentType.COUNTER))
-          .isEqualTo(Aggregation.drop());
-      assertThat(exporter.export(Collections.emptyList()).isSuccess()).isTrue();
-      assertThat(exporter.flush().isSuccess()).isTrue();
-    } finally {
-      assertThat(exporter.shutdown().isSuccess()).isTrue();
-    }
+  void testCreateExporterInvalidConfiguration(
+      Map<String, String> properties, String expectedMessage) {
+    assertThatThrownBy(() -> createExporter(properties))
+        .isInstanceOf(ConfigurationException.class)
+        .hasMessageContaining(expectedMessage);
   }
 
   @ParameterizedTest
@@ -219,15 +211,15 @@ class AwsEmfMetricExporterProviderTest {
 
   private static OpenTelemetrySdk createSdk(String exporterNames, List<MetricExporter> exporters) {
     Map<String, String> properties = properties();
-    properties.put(APPLICATION_SIGNALS_ENABLED_CONFIG, "false");
+    properties.put("otel.aws.application.signals.enabled", "false");
     properties.put("otel.traces.sampler", "always_on");
     properties.put("otel.propagators", "tracecontext");
     properties.put(
         "otel.java.enabled.resource.providers",
         "io.opentelemetry.sdk.autoconfigure.EnvironmentResourceProvider");
-    properties.put(OTEL_METRICS_EXPORTER, exporterNames);
-    properties.put(OTEL_TRACES_EXPORTER, "none");
-    properties.put(OTEL_LOGS_EXPORTER, "none");
+    properties.put("otel.metrics.exporter", exporterNames);
+    properties.put("otel.traces.exporter", "none");
+    properties.put("otel.logs.exporter", "none");
     properties.put("otel.exporter.otlp.protocol", "http/protobuf");
     return AutoConfiguredOpenTelemetrySdk.builder()
         .disableShutdownHook()
@@ -247,25 +239,39 @@ class AwsEmfMetricExporterProviderTest {
 
   private static Map<String, String> properties() {
     return new HashMap<>(
-        Map.of(AWS_REGION, "us-east-1", OTEL_EXPORTER_OTLP_LOGS_HEADERS, CLOUDWATCH_HEADERS));
+        Map.of("aws.region", "us-east-1", "otel.exporter.otlp.logs.headers", CLOUDWATCH_HEADERS));
   }
 
   private static Stream<Arguments> invalidConfigs() {
     Map<String, String> missingRegion = properties();
-    missingRegion.remove(AWS_REGION);
+    missingRegion.remove("aws.region");
     Map<String, String> missingLambdaRegion = new HashMap<>(missingRegion);
-    missingLambdaRegion.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
+    missingLambdaRegion.put("aws.lambda.function.name", "test-function");
     Map<String, String> missingHeaders = properties();
-    missingHeaders.remove(OTEL_EXPORTER_OTLP_LOGS_HEADERS);
+    missingHeaders.remove("otel.exporter.otlp.logs.headers");
     Map<String, String> missingLogGroup = properties();
-    missingLogGroup.put(OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-log-stream=test-stream");
+    missingLogGroup.put("otel.exporter.otlp.logs.headers", "x-aws-log-stream=test-stream");
     Map<String, String> missingLogStream = properties();
-    missingLogStream.put(OTEL_EXPORTER_OTLP_LOGS_HEADERS, "x-aws-log-group=test-group");
+    missingLogStream.put("otel.exporter.otlp.logs.headers", "x-aws-log-group=test-group");
+    Map<String, String> emptyRegion = properties();
+    emptyRegion.put("aws.region", "");
+    Map<String, String> emptyLogGroup = properties();
+    emptyLogGroup.put(
+        "otel.exporter.otlp.logs.headers", "x-aws-log-group=,x-aws-log-stream=test-stream");
+    Map<String, String> emptyLogStream = properties();
+    emptyLogStream.put(
+        "otel.exporter.otlp.logs.headers", "x-aws-log-group=test-group,x-aws-log-stream=");
+    Map<String, String> malformedHeaders = properties();
+    malformedHeaders.put("otel.exporter.otlp.logs.headers", "x-aws-log-group");
     return Stream.of(
-        Arguments.of(missingRegion),
-        Arguments.of(missingLambdaRegion),
-        Arguments.of(missingHeaders),
-        Arguments.of(missingLogGroup),
-        Arguments.of(missingLogStream));
+        Arguments.of(missingRegion, "AWS_REGION or AWS_DEFAULT_REGION"),
+        Arguments.of(missingLambdaRegion, "AWS_REGION or AWS_DEFAULT_REGION"),
+        Arguments.of(emptyRegion, "AWS_REGION or AWS_DEFAULT_REGION"),
+        Arguments.of(missingHeaders, "x-aws-log-group and x-aws-log-stream"),
+        Arguments.of(missingLogGroup, "x-aws-log-group and x-aws-log-stream"),
+        Arguments.of(missingLogStream, "x-aws-log-group and x-aws-log-stream"),
+        Arguments.of(emptyLogGroup, "x-aws-log-group and x-aws-log-stream"),
+        Arguments.of(emptyLogStream, "x-aws-log-group and x-aws-log-stream"),
+        Arguments.of(malformedHeaders, "otel.exporter.otlp.logs.headers"));
   }
 }
