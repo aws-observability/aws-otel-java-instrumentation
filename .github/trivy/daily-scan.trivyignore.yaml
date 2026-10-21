@@ -37,3 +37,16 @@ vulnerabilities:
   - id: CVE-2026-56745
     statement: "Netty netty-codec-http vulnerability. Fix: bump netty to 4.1.136.Final. https://avd.aquasec.com/nvd/cve-2026-56745"
     expired_at: 2026-08-14
+
+  - id: CVE-2026-89407
+    statement: "jackson-core 2.22.2 in the published v2.31.0 image. Fixed in 2.22.3 on main (#1464), pending the next ADOT Java release. Remove once released. https://avd.aquasec.com/nvd/cve-2026-89407"
+    expired_at: 2026-10-26
+  - id: CVE-2026-89425
+    statement: "jackson-core 2.22.2 in the published v2.31.0 image. Fixed in 2.22.3 on main (#1464), pending the next ADOT Java release. Remove once released. https://avd.aquasec.com/nvd/cve-2026-89425"
+    expired_at: 2026-10-26
+  - id: CVE-2026-91776
+    statement: "jackson-databind 2.22.2 in the published v2.31.0 image. Fixed in 2.22.3 on main (#1464), pending the next ADOT Java release. Remove once released. https://avd.aquasec.com/nvd/cve-2026-91776"
+    expired_at: 2026-10-26
+  - id: CVE-2026-91777
+    statement: "jackson-databind 2.22.2 in the published v2.31.0 image. Fixed in 2.22.3 on main (#1464), pending the next ADOT Java release. Remove once released. https://avd.aquasec.com/nvd/cve-2026-91777"
+    expired_at: 2026-10-26
