@@ -13,13 +13,15 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.32.0 - 2026-10-21
+
 - feat: the continuous profiler now defaults to `full` sample aggregation
   (`OTEL_AWS_PROFILER_AGGREGATION_MODE`): samples with the same stack, trace link and attributes are
   merged into one OTLP sample that keeps every observation's value and timestamp. With `none`, the
   previous default, every raw sample is its own OTLP sample, so a 60 s wall window easily exceeds
   CloudWatch Profiles' 16,000-samples-per-profile limit and is rejected. `none` and `sum` are still
   available.
-  (PR_LINK)
+  ([#1481](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1481))
 - feat: register OTLP SigV4 exporters with Java SPI
   SigV4 region detection checks `aws.region` / `AWS_REGION`, then
   `aws.default.region` / `AWS_DEFAULT_REGION`. If neither is configured, it falls back to
