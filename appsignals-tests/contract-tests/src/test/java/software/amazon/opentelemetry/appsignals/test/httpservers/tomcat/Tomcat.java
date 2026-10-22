@@ -61,7 +61,7 @@ class Tomcat extends BaseHttpServerTest {
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
+              assertThat(attribute.getValue().getStringValue()).isEqualTo(application.getHost());
             })
         .satisfiesOnlyOnce(
             attribute -> {
