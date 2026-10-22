@@ -600,13 +600,22 @@ class AwsApplicationSignalsCustomizerProviderTest {
   @MethodSource("validCloudWatchEmfConfigProvider")
   void testShouldEnableCloudWatchEmfExporterIfConfigIsCorrect(Map<String, String> validEmfConfig) {
     DefaultConfigProperties configProps = DefaultConfigProperties.createFromMap(validEmfConfig);
-    this.provider.customizeProperties(configProps);
+    assertThat(this.provider.customizeProperties(configProps))
+        .doesNotContainKey(OTEL_METRICS_EXPORTER);
 
-    customizeExporterTest(
-        validEmfConfig,
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        AwsCloudWatchEmfExporter.class);
+    MetricExporter expectedExporter =
+        new AwsEmfMetricExporterProvider().createExporter(configProps);
+    try {
+      MetricExporter actualExporter =
+          customizeExporterTest(
+              validEmfConfig,
+              expectedExporter,
+              this.provider::customizeMetricExporter,
+              AwsCloudWatchEmfExporter.class);
+      assertSame(expectedExporter, actualExporter);
+    } finally {
+      expectedExporter.shutdown();
+    }
   }
 
   @ParameterizedTest
@@ -617,13 +626,22 @@ class AwsApplicationSignalsCustomizerProviderTest {
     lambdaCloudWatchEmfConfig.put(AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG, "test-function");
     DefaultConfigProperties configProps =
         DefaultConfigProperties.createFromMap(lambdaCloudWatchEmfConfig);
-    this.provider.customizeProperties(configProps);
+    assertThat(this.provider.customizeProperties(configProps))
+        .doesNotContainKey(OTEL_METRICS_EXPORTER);
 
-    customizeExporterTest(
-        lambdaCloudWatchEmfConfig,
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        AwsCloudWatchEmfExporter.class);
+    MetricExporter expectedExporter =
+        new AwsEmfMetricExporterProvider().createExporter(configProps);
+    try {
+      MetricExporter actualExporter =
+          customizeExporterTest(
+              lambdaCloudWatchEmfConfig,
+              expectedExporter,
+              this.provider::customizeMetricExporter,
+              AwsCloudWatchEmfExporter.class);
+      assertSame(expectedExporter, actualExporter);
+    } finally {
+      expectedExporter.shutdown();
+    }
   }
 
   @ParameterizedTest
@@ -632,13 +650,22 @@ class AwsApplicationSignalsCustomizerProviderTest {
       Map<String, String> lambdaConsoleEmfConfig) {
     DefaultConfigProperties configProps =
         DefaultConfigProperties.createFromMap(lambdaConsoleEmfConfig);
-    this.provider.customizeProperties(configProps);
+    assertThat(this.provider.customizeProperties(configProps))
+        .doesNotContainKey(OTEL_METRICS_EXPORTER);
 
-    customizeExporterTest(
-        lambdaConsoleEmfConfig,
-        defaultHttpMetricsExporter,
-        this.provider::customizeMetricExporter,
-        ConsoleEmfExporter.class);
+    MetricExporter expectedExporter =
+        new AwsEmfMetricExporterProvider().createExporter(configProps);
+    try {
+      MetricExporter actualExporter =
+          customizeExporterTest(
+              lambdaConsoleEmfConfig,
+              expectedExporter,
+              this.provider::customizeMetricExporter,
+              ConsoleEmfExporter.class);
+      assertSame(expectedExporter, actualExporter);
+    } finally {
+      expectedExporter.shutdown();
+    }
   }
 
   @ParameterizedTest
@@ -686,6 +713,46 @@ class AwsApplicationSignalsCustomizerProviderTest {
         defaultHttpMetricsExporter,
         this.provider::customizeMetricExporter,
         OtlpHttpMetricExporter.class);
+  }
+
+  @Test
+  void testMixedEmfAndOtlpExportersShouldApplySigV4OnlyToOtlp() {
+    Map<String, String> config =
+        Map.of(
+            OTEL_METRICS_EXPORTER,
+            "awsemf,otlp",
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            "http/protobuf",
+            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            "https://monitoring.us-east-1.amazonaws.com/v1/metrics",
+            AWS_REGION,
+            "us-east-1",
+            AWS_LAMBDA_FUNCTION_NAME_PROP_CONFIG,
+            "test-function");
+    MetricExporter emfExporter =
+        new AwsEmfMetricExporterProvider()
+            .createExporter(DefaultConfigProperties.createFromMap(config));
+    MetricExporter otlpExporter = null;
+    try {
+      assertSame(
+          emfExporter,
+          customizeExporterTest(
+              config,
+              emfExporter,
+              this.provider::customizeMetricExporter,
+              ConsoleEmfExporter.class));
+      otlpExporter =
+          customizeExporterTest(
+              config,
+              defaultHttpMetricsExporter,
+              this.provider::customizeMetricExporter,
+              OtlpAwsMetricExporter.class);
+    } finally {
+      emfExporter.shutdown();
+      if (otlpExporter != null) {
+        otlpExporter.shutdown();
+      }
+    }
   }
 
   @Test
