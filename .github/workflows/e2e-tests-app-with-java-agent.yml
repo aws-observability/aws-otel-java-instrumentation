@@ -22,7 +22,10 @@ env:
   
 jobs:
   build_Images_For_Testing_Sample_App_With_Java_Agent:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
       - name: Checkout Java Instrumentation repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
@@ -76,7 +79,10 @@ jobs:
   test_Spring_App_With_Java_Agent:
     name: Test Spring App with AWS OTel Java agent
     needs: [ build_Images_For_Testing_Sample_App_With_Java_Agent ]
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
@@ -107,7 +113,10 @@ jobs:
   test_Spark_App_With_Java_Agent:
     name: Test Spark App with AWS OTel Java agent
     needs: [ build_Images_For_Testing_Sample_App_With_Java_Agent ]
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
@@ -138,7 +147,10 @@ jobs:
   test_Spark_AWS_SDK_V1_App_With_Java_Agent:
     name: Test Spark App (AWS SDK v1) with AWS OTel Java agent
     needs: [ build_Images_For_Testing_Sample_App_With_Java_Agent ]
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0 

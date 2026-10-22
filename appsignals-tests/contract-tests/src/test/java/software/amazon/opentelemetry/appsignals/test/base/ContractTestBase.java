@@ -107,12 +107,13 @@ public abstract class ContractTestBase {
   }
 
   protected WebClient getApplicationClient() {
-    return WebClient.of("http://localhost:" + application.getMappedPort(8080));
+    return WebClient.of("http://" + application.getHost() + ":" + application.getMappedPort(8080));
   }
 
   protected MockCollectorClient getMockCollectorClient() {
     return new MockCollectorClient(
-        WebClient.of("http://localhost:" + mockCollector.getMappedPort(4317)));
+        WebClient.of(
+            "http://" + mockCollector.getHost() + ":" + mockCollector.getMappedPort(4317)));
   }
 
   protected GenericContainer<?> getApplicationContainer() {

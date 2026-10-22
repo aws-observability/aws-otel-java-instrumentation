@@ -22,7 +22,7 @@ concurrency:
 jobs:
   format-check:
     name: Format and style (spotless)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -36,7 +36,7 @@ jobs:
 
   unit-tests:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -50,7 +50,7 @@ jobs:
 
   java8-smoke-test:
     name: Java 8 runtime smoke test
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -72,7 +72,7 @@ jobs:
 
   compat-tests:
     name: Unit tests (OTel SDK ${{ matrix.otel-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     strategy:
       fail-fast: false
       matrix:
@@ -90,9 +90,16 @@ jobs:
 
   contract-tests:
     name: Contract tests (all modes)
-    runs-on: ubuntu-latest # provides a Docker daemon for Testcontainers + jib
+    # provides a Docker daemon for Testcontainers + jib
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:

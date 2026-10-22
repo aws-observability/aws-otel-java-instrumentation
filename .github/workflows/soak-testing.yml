@@ -37,7 +37,10 @@ env:
 jobs:
   test_apps_and_publish_results:
     name: Soak Performance Test - (${{ matrix.app-platform }}, ${{ matrix.instrumentation-type }})
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     permissions:
       contents: write
       id-token: write

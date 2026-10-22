@@ -115,10 +115,16 @@ public abstract class DIContractTestBase {
                     .withStartupTimeout(Duration.ofSeconds(90)));
     appContainer.start();
 
-    appClient = WebClient.of("http://127.0.0.1:" + appContainer.getMappedPort(APP_PORT));
+    appClient =
+        WebClient.of(
+            "http://" + appContainer.getHost() + ":" + appContainer.getMappedPort(APP_PORT));
     collectorClient =
         new MockCollectorClient(
-            WebClient.of("http://127.0.0.1:" + mockCollector.getMappedPort(MOCK_COLLECTOR_PORT)));
+            WebClient.of(
+                "http://"
+                    + mockCollector.getHost()
+                    + ":"
+                    + mockCollector.getMappedPort(MOCK_COLLECTOR_PORT)));
 
     // Wait for DI to poll and apply configs
     try {

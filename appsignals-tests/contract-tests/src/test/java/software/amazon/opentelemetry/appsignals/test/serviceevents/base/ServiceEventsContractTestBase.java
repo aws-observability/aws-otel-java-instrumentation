@@ -98,7 +98,10 @@ public abstract class ServiceEventsContractTestBase {
     mockCollectorClient =
         new MockCollectorClient(
             WebClient.builder(
-                    "http://localhost:" + mockCollector.getMappedPort(MOCK_COLLECTOR_PORT))
+                    "http://"
+                        + mockCollector.getHost()
+                        + ":"
+                        + mockCollector.getMappedPort(MOCK_COLLECTOR_PORT))
                 .maxResponseLength(0)
                 .build());
 
@@ -113,7 +116,12 @@ public abstract class ServiceEventsContractTestBase {
             .withEnv(getApplicationExtraEnvironmentVariables());
 
     application.start();
-    appClient = WebClient.of("http://localhost:" + application.getMappedPort(getApplicationPort()));
+    appClient =
+        WebClient.of(
+            "http://"
+                + application.getHost()
+                + ":"
+                + application.getMappedPort(getApplicationPort()));
 
     // Let serviceevents initialization complete
     Thread.sleep(500);

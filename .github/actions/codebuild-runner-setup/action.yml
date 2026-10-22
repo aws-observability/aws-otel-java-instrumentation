@@ -1,0 +1,147 @@
+name: CodeBuild runner setup
+description: >
+  Gives CodeBuild-hosted runners the tools and settings our workflows expect from GitHub-hosted images.
+  Only changes what is missing, so it is a no-op on GitHub-hosted runners.
+  Git long paths on Windows must already be enabled for checkout (see the GIT_CONFIG_* env in the
+  calling workflow), since this action is only available after checkout.
+inputs:
+  dockerhub-username:
+    description: Docker Hub username. With dockerhub-token, logs in on self-hosted (CodeBuild) runners to lift Docker Hub's anonymous pull limits.
+    required: false
+    default: ''
+  dockerhub-token:
+    description: Docker Hub access token (read-only scope is enough).
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    # CodeBuild's Windows workspace path is ~140 characters (GitHub's is ~70), which pushes build outputs
+    # past the 260-character MAX_PATH limit. GitHub's images enable long paths; CodeBuild's do not.
+    - name: Enable Windows long paths
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $key = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
+        if ((Get-ItemProperty $key -Name LongPathsEnabled -ErrorAction SilentlyContinue).LongPathsEnabled -ne 1) {
+          New-ItemProperty $key -Name LongPathsEnabled -Value 1 -PropertyType DWord -Force | Out-Null
+        }
+
+    - name: Put Git Bash on PATH
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
+          Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
+        }
+
+    - name: Install missing Windows CLIs
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        GH_VERSION: v2.102.0
+        GH_SHA256: ae64e556ecc240b200f7eba60d550e4bb60d78e860e69dd88c449405b86067f4
+        JQ_VERSION: jq-1.8.2
+        JQ_SHA256: a6fc67fedaf9128a3309a1e2ebb8b986aeccf70122ee46d2cb4849e423f0c627
+      # Pinned GitHub release downloads instead of Chocolatey, so versions are reproducible and bumpable.
+      run: |
+        $ProgressPreference = 'SilentlyContinue'
+        function Get-Verified($url, $path, $sha256) {
+          Invoke-WebRequest $url -OutFile $path -TimeoutSec 120 -MaximumRetryCount 3 -RetryIntervalSec 5
+          if ((Get-FileHash $path -Algorithm SHA256).Hash -ne $sha256) { throw "Checksum mismatch for $url" }
+        }
+        $bin = Join-Path $env:RUNNER_TEMP 'codebuild-runner-bin'
+        New-Item -ItemType Directory -Force $bin | Out-Null
+        $installed = $false
+        if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+          $zip = Join-Path $env:RUNNER_TEMP 'gh.zip'
+          Get-Verified "https://github.com/cli/cli/releases/download/$env:GH_VERSION/gh_$($env:GH_VERSION.TrimStart('v'))_windows_amd64.zip" $zip $env:GH_SHA256
+          Expand-Archive $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'gh') -Force
+          Copy-Item (Join-Path $env:RUNNER_TEMP 'gh\bin\gh.exe') $bin
+          $installed = $true
+        }
+        if (-not (Get-Command jq -ErrorAction SilentlyContinue)) {
+          Get-Verified "https://github.com/jqlang/jq/releases/download/$env:JQ_VERSION/jq-windows-amd64.exe" (Join-Path $bin 'jq.exe') $env:JQ_SHA256
+          $installed = $true
+        }
+        if ($installed) { Add-Content $env:GITHUB_PATH $bin }
+
+    - name: Install missing Linux CLIs
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        YQ_VERSION: v4.54.1
+        YQ_SHA256_AMD64: 8e34fc298390875de416e6a4afcb8cabeceb25d9aa8506c1a2f9353cf702ea5f
+        YQ_SHA256_ARM64: 189088da0c6429ec5178dfaab1a114805f6cab0b61b165ab236efedf1d57a71b
+      run: |
+        set -euo pipefail
+        packages=()
+        # GitHub's Ubuntu image ships GNU awk as `awk` (needed for `awk -i inplace`); CodeBuild's ships mawk.
+        # Installing gawk makes it the `awk` alternative.
+        awk --version 2>/dev/null | grep -q "GNU Awk" || packages+=(gawk)
+        # raven-actions/actionlint installs its helpers with pipx.
+        command -v pipx >/dev/null || packages+=(pipx)
+        if (( ${#packages[@]} )); then
+          if command -v apt-get >/dev/null; then
+            sudo apt-get install -y -qq "${packages[@]}" >/dev/null \
+              || { sudo apt-get update -qq && sudo apt-get install -y -qq "${packages[@]}" >/dev/null; }
+          else
+            sudo dnf install -y -q "${packages[@]}"
+          fi
+        fi
+        if ! yq --version 2>/dev/null | grep -q mikefarah; then
+          arch=$(dpkg --print-architecture 2>/dev/null || uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+          case "$arch" in
+            amd64) sha256=$YQ_SHA256_AMD64 ;;
+            arm64) sha256=$YQ_SHA256_ARM64 ;;
+            *) echo "No pinned yq checksum for $arch" >&2; exit 1 ;;
+          esac
+          curl -fsSL --retry 3 --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/yq" "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${arch}"
+          echo "$sha256  $RUNNER_TEMP/yq" | sha256sum -c --quiet
+          sudo install -m 0755 "$RUNNER_TEMP/yq" /usr/local/bin/yq
+        fi
+
+    # CodeBuild runs the job in a container (/.dockerenv exists) next to the Docker daemon, not on it.
+    # Testcontainers 3.x then resolves container addresses through Docker's default "bridge" network,
+    # which fails (KeyError: 'bridge') for containers on a custom network, as our contract tests use.
+    # Mapped ports are not reachable on localhost from the job container, only via its default gateway
+    # (the Docker host), so point Testcontainers there and drop the in-container detection.
+    # Testcontainers 3.x detects "in a container" only from /.dockerenv and has no setting to turn it off, so
+    # the file has to go. The job container is discarded after the job, so nothing outlives this change.
+    - name: Point Testcontainers at the Docker host
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if [ -f /.dockerenv ]; then
+          gateway=$(ip route 2>/dev/null | awk '/^default/ {print $3; exit}')
+          if [ -n "$gateway" ]; then
+            echo "TC_HOST=$gateway" >> "$GITHUB_ENV"
+            # Java Testcontainers reads TESTCONTAINERS_HOST_OVERRIDE. Its Ryuk cleanup container is unneeded on a
+            # machine discarded after the job, and its image comes from Docker Hub.
+            echo "TESTCONTAINERS_HOST_OVERRIDE=$gateway" >> "$GITHUB_ENV"
+            echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
+            sudo rm -f /.dockerenv
+          else
+            echo "::warning::In a container but found no default gateway; Testcontainers will not reach mapped ports and may fail with KeyError: 'bridge'."
+          fi
+        fi
+
+    # Docker Hub rate-limits anonymous pulls per IP, and CodeBuild shares AWS's egress IPs with other customers,
+    # so log in on self-hosted runners. GitHub-hosted runners (including fork PRs, which get no secrets) keep
+    # pulling anonymously, as they always have.
+    - name: Log in to Docker Hub (self-hosted runners only)
+      if: runner.os == 'Linux' && runner.environment == 'self-hosted'
+      shell: bash
+      env:
+        DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
+        DOCKERHUB_TOKEN: ${{ inputs.dockerhub-token }}
+      run: |
+        if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+          echo "::warning::No Docker Hub credentials passed; pulling anonymously (may hit Docker Hub rate limits on CodeBuild)."
+          exit 0
+        fi
+        for i in 1 2 3; do
+          if echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin; then exit 0; fi
+          sleep $((i * 5))
+        done
+        echo "::warning::Docker Hub login failed; pulling anonymously."

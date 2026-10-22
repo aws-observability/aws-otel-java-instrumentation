@@ -173,12 +173,13 @@ public class GrpcServerTest extends ContractTestBase {
 
     echoer =
         GrpcClients.newClient(
-            "gproto+" + "http://localhost:" + application.getMappedPort(50051),
+            "gproto+" + "http://" + application.getHost() + ":" + application.getMappedPort(50051),
             EchoerGrpc.EchoerBlockingStub.class);
 
     mockCollectorClient =
         new MockCollectorClient(
-            WebClient.of("http://localhost:" + mockCollector.getMappedPort(4317)));
+            WebClient.of(
+                "http://" + mockCollector.getHost() + ":" + mockCollector.getMappedPort(4317)));
   }
 
   @Override
@@ -285,7 +286,7 @@ public class GrpcServerTest extends ContractTestBase {
         .satisfiesOnlyOnce(
             attribute -> {
               assertThat(attribute.getKey()).isEqualTo(SemanticConventionsConstants.SERVER_ADDRESS);
-              assertThat(attribute.getValue().getStringValue()).isEqualTo("localhost");
+              assertThat(attribute.getValue().getStringValue()).isEqualTo(application.getHost());
             });
   }
 

@@ -31,7 +31,10 @@ on:
 
 jobs:
   publish-status:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     permissions:
       id-token: write
       contents: read

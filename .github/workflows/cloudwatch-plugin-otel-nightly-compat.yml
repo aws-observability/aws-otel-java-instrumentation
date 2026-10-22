@@ -24,7 +24,11 @@ concurrency:
 jobs:
   contract-tests:
     name: ${{ matrix.label }}
-    runs-on: ubuntu-latest # provides a Docker daemon for Testcontainers + jib
+    # provides a Docker daemon for Testcontainers + jib
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     strategy:
       fail-fast: false
       matrix:
@@ -61,6 +65,12 @@ jobs:
             args: -PotelInstrumentationVersion=latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
