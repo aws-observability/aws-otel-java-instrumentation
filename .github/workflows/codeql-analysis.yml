@@ -78,6 +78,9 @@ jobs:
       - name: Checkout to get workflow file
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
 
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+
       - name: Check all jobs succeeded and none missing
         run: |
           # Check if all needed jobs succeeded
@@ -88,7 +91,7 @@ jobs:
           fi
           
           # Extract all job names from workflow (excluding this gate job)
-          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/codeql.yml | grep -v "all-codeql-checks-pass" | sort)
+          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/codeql-analysis.yml | grep -v "all-codeql-checks-pass" | sort)
           
           # Extract job names from needs array
           needed_jobs='${{ toJSON(needs) }}'

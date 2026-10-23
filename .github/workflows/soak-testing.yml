@@ -115,6 +115,26 @@ jobs:
         run: |
           aws ecr-public get-login-password |
           docker login --username AWS --password-stdin public.ecr.aws
+      # Inline rather than ./.github/actions/codebuild-runner-setup, because TARGET_SHA may predate that action.
+      # CodeBuild's image defaults to Java 25, which Gradle 8.x cannot run on; GitHub's defaults to 17.
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 #v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+      # The load generator, alarm poller and collector images come from Docker Hub, which rate-limits
+      # CodeBuild's shared egress IPs for anonymous pulls.
+      - name: Log in to Docker Hub (self-hosted runners only)
+        if: runner.environment == 'self-hosted'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub credentials; pulling anonymously."
+            exit 0
+          fi
+          echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin \
+            || echo "::warning::Docker Hub login failed; pulling anonymously."
       - name: Build Sample App locally directly to the Docker daemon
         uses: burrunan/gradle-cache-action@4a07779efc8120348ea6dfd35314bc30a586eb0f #v3.0.1
         with:
