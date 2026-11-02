@@ -146,6 +146,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   private static final String OTEL_JMX_TARGET_SYSTEM_CONFIG = "otel.jmx.target.system";
   private static final String OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG =
       "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+  private static final String OTEL_EXPORTER_OTLP_ENDPOINT_CONFIG = "OTEL_EXPORTER_OTLP_ENDPOINT";
   static final String OTEL_EXPORTER_HTTP_PROTOBUF_PROTOCOL = "http/protobuf";
 
   private static final String AWS_XRAY_DAEMON_ADDRESS_CONFIG = "AWS_XRAY_DAEMON_ADDRESS";
@@ -221,6 +222,18 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   static boolean isLambdaEnvironment() {
     return System.getenv(AWS_LAMBDA_FUNCTION_NAME_CONFIG) != null;
+  }
+
+  static boolean hasCustomOtlpTracesEndpoint() {
+    return hasCustomOtlpTracesEndpoint(System.getenv());
+  }
+
+  // Per the OTLP exporter spec, OTEL_EXPORTER_OTLP_ENDPOINT is the fallback when the
+  // signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is not set, so either one counts as a
+  // custom traces endpoint.
+  static boolean hasCustomOtlpTracesEndpoint(Map<String, String> env) {
+    return env.get(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) != null
+        || env.get(OTEL_EXPORTER_OTLP_ENDPOINT_CONFIG) != null;
   }
 
   private boolean isApplicationSignalsEnabled(ConfigProperties configProps) {
@@ -399,8 +412,7 @@ public final class AwsApplicationSignalsCustomizerProvider
 
       // If running on Lambda, we just need to export 100% spans and skip generating any Application
       // Signals metrics.
-      if (isLambdaEnvironment()
-          && System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) == null) {
+      if (isLambdaEnvironment() && !hasCustomOtlpTracesEndpoint()) {
         String tracesEndpoint =
             Optional.ofNullable(System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG))
                 .orElse(DEFAULT_UDP_ENDPOINT);
@@ -487,8 +499,7 @@ public final class AwsApplicationSignalsCustomizerProvider
   SpanExporter customizeSpanExporter(SpanExporter spanExporter, ConfigProperties configProps) {
     // When running in Lambda, override the default OTLP exporter with UDP exporter
     if (isLambdaEnvironment()) {
-      if (isOtlpSpanExporter(spanExporter)
-          && System.getenv(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) == null) {
+      if (isOtlpSpanExporter(spanExporter) && !hasCustomOtlpTracesEndpoint()) {
         String tracesEndpoint =
             Optional.ofNullable(System.getenv(AWS_XRAY_DAEMON_ADDRESS_CONFIG))
                 .orElse(DEFAULT_UDP_ENDPOINT);
