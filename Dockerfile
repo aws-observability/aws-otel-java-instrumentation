@@ -52,3 +52,5 @@ COPY --from=builder /usr/src/cp-utility/bin/cp-utility /bin/cp
 
 
 COPY --chmod=go+r ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar /javaagent.jar
+
+USER 65534:65534
