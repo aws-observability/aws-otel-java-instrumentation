@@ -13,6 +13,11 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix: in Lambda, treat `OTEL_EXPORTER_OTLP_ENDPOINT` as a custom trace endpoint, as the OTLP exporter
+  spec requires. Setting only the generic endpoint previously fell back to the X-Ray UDP exporter, so
+  traces never reached the configured collector
+  ([#1486](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1486))
+
 ## v2.32.0 - 2026-10-21
 
 - feat: the continuous profiler now defaults to `full` sample aggregation

@@ -784,6 +784,28 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
+  void testHasCustomOtlpTracesEndpointWithTracesEndpoint() {
+    assertTrue(
+        AwsApplicationSignalsCustomizerProvider.hasCustomOtlpTracesEndpoint(
+            Map.of("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://my-collector:4318/v1/traces")));
+  }
+
+  @Test
+  void testHasCustomOtlpTracesEndpointWithGenericEndpoint() {
+    // Per the OTLP exporter spec, the generic endpoint is the fallback for traces
+    assertTrue(
+        AwsApplicationSignalsCustomizerProvider.hasCustomOtlpTracesEndpoint(
+            Map.of("OTEL_EXPORTER_OTLP_ENDPOINT", "http://my-collector:4318")));
+  }
+
+  @Test
+  void testHasCustomOtlpTracesEndpointWithNoEndpoint() {
+    assertFalse(
+        AwsApplicationSignalsCustomizerProvider.hasCustomOtlpTracesEndpoint(
+            Map.of("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://my-collector:4318/v1/logs")));
+  }
+
+  @Test
   void setAdaptiveSamplingConfigFromString_validConfig() throws JsonProcessingException {
     assertThat(AwsApplicationSignalsCustomizerProvider.parseConfigString("version: 1").getVersion())
         .isEqualTo(1);
