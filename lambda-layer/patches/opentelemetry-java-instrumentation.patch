@@ -746,16 +746,16 @@ index 99c3c924..aa856933 100644
            return null;
          }
 diff --git a/version.gradle.kts b/version.gradle.kts
-index b63dc1f9..af17dda1 100644
+index f0f1661c..03e191ec 100644
 --- a/version.gradle.kts
 +++ b/version.gradle.kts
 @@ -1,5 +1,5 @@
--val stableVersion = "2.32.0"
--val alphaVersion = "2.32.0-alpha"
-+val stableVersion = "2.32.0-adot-lambda1"
-+val alphaVersion = "2.32.0-adot-lambda1-alpha"
+-val stableVersion = "2.33.1"
+-val alphaVersion = "2.33.1-alpha"
++val stableVersion = "2.33.1-adot-lambda1"
++val alphaVersion = "2.33.1-adot-lambda1-alpha"
  
- val apidiffBaselineVersion = "2.31.1"
+ val apidiffBaselineVersion = "2.32.0"
  
 -- 
 2.45.1
