@@ -1,13 +1,13 @@
 diff --git a/dependencyManagement/build.gradle.kts b/dependencyManagement/build.gradle.kts
-index 6ca4ff5..97e211a 100644
+index f04a711..46447bf 100644
 --- a/dependencyManagement/build.gradle.kts
 +++ b/dependencyManagement/build.gradle.kts
 @@ -27,7 +27,7 @@ data class DependencySet(val group: String, val version: String, val modules: Li
  val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
  
  // This is the version of the upstream instrumentation BOM
--val otelVersion = "2.32.0"
-+val otelVersion = "2.32.0-adot-lambda1"
- val otelSnapshotVersion = "2.33.0"
+-val otelVersion = "2.33.1"
++val otelVersion = "2.33.1-adot-lambda1"
+ val otelSnapshotVersion = "2.34.0"
  val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
  val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
