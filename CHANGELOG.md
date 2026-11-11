@@ -15,6 +15,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## v2.33.0 - 2026-11-11
 
+- Nightly dependency update: OpenTelemetry 2.33.1/1.62.1
+  ([#1485](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1485))
 - fix: in Lambda, treat `OTEL_EXPORTER_OTLP_ENDPOINT` as a custom trace endpoint, as the OTLP exporter
   spec requires. Setting only the generic endpoint previously fell back to the X-Ray UDP exporter, so
   traces never reached the configured collector
