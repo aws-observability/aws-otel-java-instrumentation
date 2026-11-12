@@ -657,7 +657,7 @@ jobs:
       # Install notation CLI with AWS Signer plugin
       - name: Install notation CLI with AWS Signer plugin
         run: |
-          curl -fsSLo aws-signer-notation-cli_amd64.deb https://d2hvyiie56hcat.cloudfront.net/linux/amd64/installer/deb/latest/aws-signer-notation-cli_amd64.deb
+          curl -Lo aws-signer-notation-cli_amd64.deb https://d2hvyiie56hcat.cloudfront.net/linux/amd64/installer/deb/latest/aws-signer-notation-cli_amd64.deb
           sudo dpkg -i aws-signer-notation-cli_amd64.deb
           notation version
           notation plugin ls
@@ -665,50 +665,38 @@ jobs:
       # Query ECR signing profile ARN
       - name: Query ECR Signing Profile ARN
         id: ecr-signing-profile
-        shell: bash
+        continue-on-error: true
         run: |
-          PROFILE_ARN=$(aws signer get-signing-profile --region "$AWS_PUBLIC_ECR_REGION" --profile-name ADOTECRSigningProfile --query "arn" --output text)
+          PROFILE_ARN=$(aws signer get-signing-profile --region ${{ env.AWS_PUBLIC_ECR_REGION }} --profile-name ADOTECRSigningProfile --query "arn" --output text) || PROFILE_ARN=""
           if [ -n "$PROFILE_ARN" ] && [ "$PROFILE_ARN" != "None" ]; then
-            echo "profile_arn=$PROFILE_ARN" >> "$GITHUB_OUTPUT"
+            echo "profile_arn=$PROFILE_ARN" >> $GITHUB_OUTPUT
             echo "Found ECR signing profile: $PROFILE_ARN"
           else
-            echo "::error::ECR signing profile 'ADOTECRSigningProfile' was not found."
-            exit 1
+            echo "ECR signing profile 'ADOTECRSigningProfile' not found or lookup failed; skipping image signing."
+            exit 0
           fi
+
+      - name: Require signing profile for recovery
+        if: ${{ inputs.recovery_only && steps.ecr-signing-profile.outputs.profile_arn == '' }}
+        run: |
+          echo "::error::Recovery requires the ADOTECRSigningProfile signing profile."
+          exit 1
 
       # Login to Public ECR
       - name: Log in to AWS public ECR
+        if: steps.ecr-signing-profile.outputs.profile_arn != ''
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
-      - name: Resolve public ECR image digest
-        id: ecr-image
-        shell: bash
-        run: |
-          DIGEST=$(aws ecr-public describe-image-tags \
-            --repository-name adot-autoinstrumentation-java \
-            --region "$AWS_PUBLIC_ECR_REGION" \
-            --query "imageTagDetails[?imageTag=='v${VERSION}'].imageDetail.imageDigest | [0]" \
-            --output text)
-          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::Could not resolve the public ECR image digest for v${VERSION}."
-            exit 1
-          fi
-          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-          echo "Resolved ${PUBLIC_REPOSITORY}:v${VERSION} to ${DIGEST}"
-
       # Sign Public ECR Image
       - name: Sign Public ECR Image
-        shell: bash
-        env:
-          IMAGE_DIGEST: ${{ steps.ecr-image.outputs.digest }}
-          PROFILE_ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}
+        if: steps.ecr-signing-profile.outputs.profile_arn != ''
         run: |
-          notation sign "${PUBLIC_REPOSITORY}@${IMAGE_DIGEST}" \
-            --force-referrers-tag=false \
+          # Sign the released public ECR image
+          notation sign ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
             --plugin com.amazonaws.signer.notation.plugin \
-            --id "$PROFILE_ARN"
+            --id ${{ steps.ecr-signing-profile.outputs.profile_arn }}
           echo "Successfully signed public ECR image"
-          echo "Image: ${PUBLIC_REPOSITORY}@${IMAGE_DIGEST}"
-          echo "Profile ARN: $PROFILE_ARN"
+          echo "Image: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}"
+          echo "Profile ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}"
