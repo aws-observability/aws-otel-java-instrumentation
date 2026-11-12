@@ -5,6 +5,10 @@ on:
       version:
         description: The version to tag the release with, e.g., 1.2.0, 1.2.1-alpha.1
         required: true
+      recovery_only:
+        description: Validate Sonatype staging and sign the existing ECR image without publishing a release
+        type: boolean
+        default: false
       aws_region:
         description: 'Deploy lambda layer to aws regions'
         required: true
@@ -31,6 +35,7 @@ permissions:
 
 jobs:
   build-sdk:
+    if: ${{ !inputs.recovery_only }}
     environment: Release
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
@@ -91,6 +96,7 @@ jobs:
           path: otelagent/build/libs/aws-opentelemetry-agent-${{ env.VERSION }}.jar
 
   build-layer:
+    if: ${{ !inputs.recovery_only }}
     needs: build-sdk
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
@@ -134,6 +140,7 @@ jobs:
           path: lambda-layer/build/distributions/${{ env.LAYER_ARTIFACT_NAME }}
 
   publish-sdk:
+    if: ${{ !inputs.recovery_only }}
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
@@ -291,7 +298,54 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+  validate-sonatype:
+    if: ${{ inputs.recovery_only }}
+    environment: Release
+    permissions:
+      contents: read
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
+    steps:
+      - name: Check recovery target
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/release/v2.33.x" || "$VERSION" != "2.33.0" ]]; then
+            echo "::error::Recovery is restricted to version 2.33.0 on release/v2.33.x."
+            exit 1
+          fi
+
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: 'temurin'
+
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Upload and validate Sonatype staging repository
+        shell: bash
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew publishToSonatype closeSonatypeStagingRepository \
+            "-Prelease.version=$VERSION" --stacktrace
+
   publish-layer-prod:
+    if: ${{ !inputs.recovery_only }}
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
@@ -423,6 +477,7 @@ jobs:
           aws s3 rb --force s3://${{ env.BUCKET_NAME }}
 
   generate-lambda-release-note:
+    if: ${{ !inputs.recovery_only }}
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
@@ -492,6 +547,7 @@ jobs:
           cat ../layer_cdk
 
   publish-github:
+    if: ${{ !inputs.recovery_only }}
     needs: generate-lambda-release-note
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
@@ -586,7 +642,11 @@ jobs:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
       - instance-size:large
-    needs: publish-sdk
+    needs: [publish-sdk, validate-sonatype]
+    if: >-
+      ${{ !cancelled() &&
+          ((inputs.recovery_only && needs.validate-sonatype.result == 'success') ||
+           (!inputs.recovery_only && needs.publish-sdk.result == 'success')) }}
     steps:
       - name: Configure AWS Credentials for public ECR
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
@@ -597,7 +657,7 @@ jobs:
       # Install notation CLI with AWS Signer plugin
       - name: Install notation CLI with AWS Signer plugin
         run: |
-          curl -Lo aws-signer-notation-cli_amd64.deb https://d2hvyiie56hcat.cloudfront.net/linux/amd64/installer/deb/latest/aws-signer-notation-cli_amd64.deb
+          curl -fsSLo aws-signer-notation-cli_amd64.deb https://d2hvyiie56hcat.cloudfront.net/linux/amd64/installer/deb/latest/aws-signer-notation-cli_amd64.deb
           sudo dpkg -i aws-signer-notation-cli_amd64.deb
           notation version
           notation plugin ls
@@ -605,32 +665,50 @@ jobs:
       # Query ECR signing profile ARN
       - name: Query ECR Signing Profile ARN
         id: ecr-signing-profile
-        continue-on-error: true
+        shell: bash
         run: |
-          PROFILE_ARN=$(aws signer get-signing-profile --region ${{ env.AWS_PUBLIC_ECR_REGION }} --profile-name ADOTECRSigningProfile --query "arn" --output text) || PROFILE_ARN=""
+          PROFILE_ARN=$(aws signer get-signing-profile --region "$AWS_PUBLIC_ECR_REGION" --profile-name ADOTECRSigningProfile --query "arn" --output text)
           if [ -n "$PROFILE_ARN" ] && [ "$PROFILE_ARN" != "None" ]; then
-            echo "profile_arn=$PROFILE_ARN" >> $GITHUB_OUTPUT
+            echo "profile_arn=$PROFILE_ARN" >> "$GITHUB_OUTPUT"
             echo "Found ECR signing profile: $PROFILE_ARN"
           else
-            echo "ECR signing profile 'ADOTECRSigningProfile' not found or lookup failed; skipping image signing."
-            exit 0
+            echo "::error::ECR signing profile 'ADOTECRSigningProfile' was not found."
+            exit 1
           fi
 
       # Login to Public ECR
       - name: Log in to AWS public ECR
-        if: steps.ecr-signing-profile.outputs.profile_arn != ''
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
 
+      - name: Resolve public ECR image digest
+        id: ecr-image
+        shell: bash
+        run: |
+          DIGEST=$(aws ecr-public describe-image-tags \
+            --repository-name adot-autoinstrumentation-java \
+            --region "$AWS_PUBLIC_ECR_REGION" \
+            --query "imageTagDetails[?imageTag=='v${VERSION}'].imageDetail.imageDigest | [0]" \
+            --output text)
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not resolve the public ECR image digest for v${VERSION}."
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${PUBLIC_REPOSITORY}:v${VERSION} to ${DIGEST}"
+
       # Sign Public ECR Image
       - name: Sign Public ECR Image
-        if: steps.ecr-signing-profile.outputs.profile_arn != ''
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.ecr-image.outputs.digest }}
+          PROFILE_ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}
         run: |
-          # Sign the released public ECR image
-          notation sign ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
+          notation sign "${PUBLIC_REPOSITORY}@${IMAGE_DIGEST}" \
+            --force-referrers-tag=false \
             --plugin com.amazonaws.signer.notation.plugin \
-            --id ${{ steps.ecr-signing-profile.outputs.profile_arn }}
+            --id "$PROFILE_ARN"
           echo "Successfully signed public ECR image"
-          echo "Image: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}"
-          echo "Profile ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}"
+          echo "Image: ${PUBLIC_REPOSITORY}@${IMAGE_DIGEST}"
+          echo "Profile ARN: $PROFILE_ARN"
