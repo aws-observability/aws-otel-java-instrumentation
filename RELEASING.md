@@ -28,9 +28,33 @@ After the release branches have been created in this repository and the [aws-ote
 You will see a button that says "Run workflow". Press the button, enter the version number you want
 to release in the input field that pops up, and then press "Run workflow".
 
-This triggers the release process, which builds the artifacts, updates the README with the new
-version numbers, commits the change to the README, publishes the artifacts, creates and pushes
+This triggers the release process, which builds the artifacts, publishes them, creates and pushes
 a git tag with the version number, and drafts a release with the agent artifact attached.
+
+The workflow runs in this order so that a failure leaves as little as possible published:
+
+1. **Build and preflight** (in parallel). Preflight is read-only. It checks that the version is not already
+   released, the GPG signing key works and is on a public keyserver, the Maven Central token is valid,
+   ECR and the ECR signing profile are reachable, and the Lambda release role works in every region.
+2. **Approval** by the `Release` environment reviewers, after builds and preflight have passed.
+3. **Stage** (nothing public yet). Artifacts are uploaded to Maven Central and validated without being
+   published, and the Docker image is built and tested.
+4. **Commit**. Push and sign the ECR images, publish the validated Maven Central deployment, push the
+   git tag, then publish the Lambda layers and draft the GitHub release.
+
+### Rehearsing a release (dry run)
+
+Run the workflow with **dry_run** checked, ideally a day before the release. It runs steps 1–3, including
+the real Maven Central validation, then drops the staged deployment. Nothing is published and the
+version number is not used up. It still needs an approval from the `Release` environment.
+
+### Retrying a failed release
+
+Re-run the workflow with the same version. You do not need to edit it. ECR images, the Maven Central
+version and the git tag that already exist are detected and skipped. If only the Lambda layer job failed,
+use "Re-run failed jobs" instead, so regions that already succeeded do not publish a duplicate layer version.
+If a staged Maven Central deployment was left behind, the drop command is printed in the logs:
+`.github/scripts/maven-central-deployment.sh drop <repository_key> [deployment_id]`.
 
 ## Announcement
    
