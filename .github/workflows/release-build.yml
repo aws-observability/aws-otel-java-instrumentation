@@ -594,11 +594,14 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
-      # Install notation CLI
+      # Install notation CLI v1.3.2 from its official GitHub release, pinned by SHA256 checksum.
+      # notation-action v1.2.2 only knows notation CLI versions up to 1.3.1 via the 'version' input,
+      # so 'url' + 'checksum' are used instead.
       - name: Set up notation CLI
-        uses: notaryproject/notation-action/setup@b6fee73110795d6793253c673bd723f12bcf9bbb # v1.2.2
+        uses: notaryproject/notation-action/setup@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
         with:
-          version: "1.3.2"
+          url: https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_linux_amd64.tar.gz
+          checksum: e1a0f060308086bf8020b2d31defb7c5348f133ca0dba6a1a7820ef3cbb6dfe5
 
       # Query ECR signing profile ARN
       - name: Query ECR Signing Profile ARN
@@ -622,12 +625,12 @@ jobs:
           registry: public.ecr.aws
 
       # Sign Public ECR Image
-      # The AWS Signer plugin is only published at a "latest" URL, so it is pinned by its SHA256 checksum.
+      # The AWS Signer plugin (v1.0.2292) is only published at a "latest" URL, so it is pinned by its SHA256 checksum.
       # force_referrers_tag: 'false' stores the signature via the OCI Referrers API instead of creating a
       # "sha256-<digest>" tag, which would otherwise show up as the newest image in the ECR Public Gallery.
       - name: Sign Public ECR Image
         if: steps.ecr-signing-profile.outputs.profile_arn != ''
-        uses: notaryproject/notation-action/sign@b6fee73110795d6793253c673bd723f12bcf9bbb # v1.2.2
+        uses: notaryproject/notation-action/sign@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
         with:
           plugin_name: com.amazonaws.signer.notation.plugin
           plugin_url: https://d2hvyiie56hcat.cloudfront.net/linux/amd64/plugin/latest/notation-aws-signer-plugin.zip
