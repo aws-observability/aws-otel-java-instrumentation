@@ -13,6 +13,8 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+## v2.33.0 - 2026-11-11
+
 - Nightly dependency update: OpenTelemetry 2.33.1/1.62.1
   ([#1485](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1485))
 - fix: in Lambda, treat `OTEL_EXPORTER_OTLP_ENDPOINT` as a custom trace endpoint, as the OTLP exporter
