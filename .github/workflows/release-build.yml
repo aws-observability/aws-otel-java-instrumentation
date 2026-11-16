@@ -594,13 +594,11 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
-      # Install notation CLI with AWS Signer plugin
-      - name: Install notation CLI with AWS Signer plugin
-        run: |
-          curl -Lo aws-signer-notation-cli_amd64.deb https://d2hvyiie56hcat.cloudfront.net/linux/amd64/installer/deb/latest/aws-signer-notation-cli_amd64.deb
-          sudo dpkg -i aws-signer-notation-cli_amd64.deb
-          notation version
-          notation plugin ls
+      # Install notation CLI
+      - name: Set up notation CLI
+        uses: notaryproject/notation-action/setup@b6fee73110795d6793253c673bd723f12bcf9bbb # v1.2.2
+        with:
+          version: "1.3.2"
 
       # Query ECR signing profile ARN
       - name: Query ECR Signing Profile ARN
@@ -624,14 +622,16 @@ jobs:
           registry: public.ecr.aws
 
       # Sign Public ECR Image
+      # The AWS Signer plugin is only published at a "latest" URL, so it is pinned by its SHA256 checksum.
+      # force_referrers_tag: 'false' stores the signature via the OCI Referrers API instead of creating a
+      # "sha256-<digest>" tag, which would otherwise show up as the newest image in the ECR Public Gallery.
       - name: Sign Public ECR Image
         if: steps.ecr-signing-profile.outputs.profile_arn != ''
-        run: |
-          # Sign the released public ECR image
-          notation sign ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
-            --plugin com.amazonaws.signer.notation.plugin \
-            --id ${{ steps.ecr-signing-profile.outputs.profile_arn }} \
-            --force-referrers-tag=false
-          echo "Successfully signed public ECR image"
-          echo "Image: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}"
-          echo "Profile ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}"
+        uses: notaryproject/notation-action/sign@b6fee73110795d6793253c673bd723f12bcf9bbb # v1.2.2
+        with:
+          plugin_name: com.amazonaws.signer.notation.plugin
+          plugin_url: https://d2hvyiie56hcat.cloudfront.net/linux/amd64/plugin/latest/notation-aws-signer-plugin.zip
+          plugin_checksum: f8efa548932edc4851f4ba464496994bad753cdf21cd32baa575f7291a26c7b9
+          key_id: ${{ steps.ecr-signing-profile.outputs.profile_arn }}
+          target_artifact_reference: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
+          force_referrers_tag: 'false'
