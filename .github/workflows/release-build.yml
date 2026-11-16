@@ -630,7 +630,8 @@ jobs:
           # Sign the released public ECR image
           notation sign ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} \
             --plugin com.amazonaws.signer.notation.plugin \
-            --id ${{ steps.ecr-signing-profile.outputs.profile_arn }}
+            --id ${{ steps.ecr-signing-profile.outputs.profile_arn }} \
+            --force-referrers-tag=false
           echo "Successfully signed public ECR image"
           echo "Image: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}"
           echo "Profile ARN: ${{ steps.ecr-signing-profile.outputs.profile_arn }}"
