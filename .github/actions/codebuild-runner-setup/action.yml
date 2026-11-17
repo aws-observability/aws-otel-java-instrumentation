@@ -101,6 +101,19 @@ runs:
           sudo install -m 0755 "$RUNNER_TEMP/yq" /usr/local/bin/yq
         fi
 
+    # Testcontainers 1.21.3 (used by the contract tests) talks to Docker with API version 1.32 by default.
+    # Docker 29 (GitHub's ubuntu-26.04 image, used by `ubuntu-latest` for fork PRs) rejects anything below
+    # 1.40 ("client version 1.32 is too old"). CodeBuild's Docker 25 supports up to 1.44, so pin 1.44, which both
+    # accept. appsignals-tests/contract-tests forwards DOCKER_API_VERSION to Testcontainers as `api.version`.
+    - name: Pin Docker API version for Testcontainers
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if [ -z "${DOCKER_API_VERSION:-}" ]; then
+          echo "DOCKER_API_VERSION=1.44" >> "$GITHUB_ENV"
+        fi
+        DOCKER_API_VERSION="${DOCKER_API_VERSION:-1.44}" docker version --format 'Docker server {{.Server.Version}} (API {{.Server.APIVersion}}, min {{.Server.MinAPIVersion}})' || true
+
     # CodeBuild runs the job in a container (/.dockerenv exists) next to the Docker daemon, not on it.
     # Testcontainers 3.x then resolves container addresses through Docker's default "bridge" network,
     # which fails (KeyError: 'bridge') for containers on a custom network, as our contract tests use.
