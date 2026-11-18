@@ -28,9 +28,9 @@ dependencies {
   implementation("org.slf4j:slf4j-simple")
   implementation(project(":appsignals-tests:images:grpc:grpc-base"))
 
-  implementation("io.grpc:grpc-api:1.56.1")
-  implementation("io.grpc:grpc-protobuf:1.56.1")
-  implementation("io.grpc:grpc-stub:1.56.1")
+  implementation("io.grpc:grpc-api:1.75.0")
+  implementation("io.grpc:grpc-protobuf:1.75.0")
+  implementation("io.grpc:grpc-stub:1.75.0")
 
   runtimeOnly("io.grpc:grpc-netty-shaded")
 }
