@@ -230,10 +230,14 @@ public final class AwsApplicationSignalsCustomizerProvider
 
   // Per the OTLP exporter spec, OTEL_EXPORTER_OTLP_ENDPOINT is the fallback when the
   // signal-specific OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is not set, so either one counts as a
-  // custom traces endpoint.
+  // custom traces endpoint. Empty values are treated as unset.
   static boolean hasCustomOtlpTracesEndpoint(Map<String, String> env) {
-    return env.get(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG) != null
-        || env.get(OTEL_EXPORTER_OTLP_ENDPOINT_CONFIG) != null;
+    return isNonEmpty(env.get(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_CONFIG))
+        || isNonEmpty(env.get(OTEL_EXPORTER_OTLP_ENDPOINT_CONFIG));
+  }
+
+  private static boolean isNonEmpty(String value) {
+    return value != null && !value.isEmpty();
   }
 
   private boolean isApplicationSignalsEnabled(ConfigProperties configProps) {
