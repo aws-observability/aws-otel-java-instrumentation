@@ -9,6 +9,10 @@ on:
         description: 'Deploy lambda layer to aws regions'
         required: true
         default: 'us-east-1, us-east-2, us-west-1, us-west-2, ap-south-1, ap-northeast-3, ap-northeast-2, ap-southeast-1, ap-southeast-2, ap-northeast-1, ca-central-1, eu-central-1, eu-west-1, eu-west-2, eu-west-3, eu-north-1, sa-east-1, af-south-1, ap-east-1, ap-east-2, ap-south-2, ap-southeast-3, ap-southeast-4, ap-southeast-6, eu-central-2, eu-south-1, eu-south-2, il-central-1, me-central-1, ap-southeast-5, ap-southeast-7, mx-central-1, ca-west-1, cn-north-1, cn-northwest-1'
+      dry_run:
+        description: 'Dry run: build, test, validate Maven Central in staging (then drop it) and build the image. Publishes nothing.'
+        type: boolean
+        default: false
 
 env:
   AWS_PUBLIC_ECR_REGION: us-east-1
@@ -24,38 +28,90 @@ env:
   LAYER_NAME: AWSOpenTelemetryDistroJava
   VERSION: ${{ github.event.inputs.version }}
   AWS_REGION: ${{ github.event.inputs.aws_region }}
+  DRY_RUN: ${{ inputs.dry_run }}
+  IMAGE_ARCHIVE_NAME: adot-image-oci.tar
+  # crane pushes the OCI archive built in build-sdk. Pinned by version and SHA256 of the release tarball.
+  CRANE_VERSION: v0.22.1
+  CRANE_SHA256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
 
 permissions:
   id-token: write
   contents: write
 
+# Never run two releases (or a release and a dry run) at the same time.
+concurrency:
+  group: release-build
+  cancel-in-progress: false
+
 jobs:
+  # Phase 1: build-sdk does everything that builds, tests or stages, and nothing public.
+  # It builds the SDK ONCE, validates the Maven Central deployment in staging, and builds the
+  # multi-arch image ONCE as an OCI archive that publish-sdk pushes unchanged.
   build-sdk:
     environment: Release
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
       - instance-size:large
+    outputs:
+      tag_exists: ${{ steps.release-state.outputs.tag_exists }}
+      maven_published: ${{ steps.release-state.outputs.maven_published }}
+      public_ecr_exists: ${{ steps.release-state.outputs.public_ecr_exists }}
+      repository_key: ${{ steps.maven-stage.outputs.repository_key }}
+      deployment_id: ${{ steps.maven-stage.outputs.deployment_id }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - name: Check main build status
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
-          WORKFLOW_ID=$(gh api repos/${{ github.repository }}/actions/workflows --jq '.workflows[] | select(.name=="Java Agent Main Build") | .id')
-          LATEST_RUN=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs --jq '[.workflow_runs[] | select(.head_branch=="${{ github.ref_name }}")] | sort_by(.created_at) | .[-1] | {conclusion, status}')
+          WORKFLOW_ID=$(gh api "repos/$REPOSITORY/actions/workflows" --jq '.workflows[] | select(.name=="Java Agent Main Build") | .id')
+          # Require a successful main build for this exact commit, not just the latest run on the branch.
+          LATEST_RUN=$(gh api "repos/$REPOSITORY/actions/workflows/$WORKFLOW_ID/runs?head_sha=$SHA" --jq '.workflow_runs | sort_by(.created_at) | .[-1] | {conclusion, status}')
           STATUS=$(echo "$LATEST_RUN" | jq -r '.status')
           CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
-          
+
           if [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ]; then
-            echo "Main build is still running (status: $STATUS). Cannot proceed with release."
+            echo "Main build for $SHA is still running (status: $STATUS). Cannot proceed with release."
             exit 1
           elif [ "$CONCLUSION" != "success" ]; then
-            echo "Latest main build on branch ${{ github.ref_name }} conclusion: $CONCLUSION"
+            echo "Main build for $SHA conclusion: $CONCLUSION"
             exit 1
           fi
-          echo "Main build succeeded, proceeding with release"
+          echo "Main build succeeded for $SHA, proceeding with release"
+
+      # Read-only. Lets publish-sdk skip anything already published, so a retry never overwrites a
+      # published ECR tag and never re-runs Maven Central or the git tag.
+      # The private ECR repository is checked in publish-sdk, which already assumes the release role.
+      - name: Check release state
+        id: release-state
+        run: |
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" > /dev/null
+          TAG_RC=$?
+          .github/scripts/maven-central-deployment.sh is-published "$VERSION"
+          MAVEN_RC=$?
+          set -e
+          case "$TAG_RC" in 0) TAG_EXISTS=true ;; 2) TAG_EXISTS=false ;; *) echo "::error::Could not check git tag v${VERSION}"; exit 1 ;; esac
+          case "$MAVEN_RC" in 0) MAVEN_PUBLISHED=true ;; 1) MAVEN_PUBLISHED=false ;; *) echo "::error::Could not check Maven Central for ${VERSION}"; exit 1 ;; esac
+          PUBLIC_ECR_EXISTS=$(.github/scripts/ecr-tag-exists.sh public "v${VERSION}")
+
+          if [ "$TAG_EXISTS" = true ] && [ "$MAVEN_PUBLISHED" = true ] && [ "$PUBLIC_ECR_EXISTS" = true ]; then
+            echo "::error::v${VERSION} is already released (git tag, Maven Central and public ECR all exist)."
+            exit 1
+          fi
+          if [ "$MAVEN_PUBLISHED" = true ]; then echo "::warning::${VERSION} is already on Maven Central; Maven staging and publishing will be skipped."; fi
+          if [ "$TAG_EXISTS" = true ]; then echo "::warning::Git tag v${VERSION} already exists; the tag push will be skipped."; fi
+          if [ "$PUBLIC_ECR_EXISTS" = true ]; then echo "::warning::${PUBLIC_REPOSITORY}:v${VERSION} already exists; the image push will be skipped."; fi
+          {
+            echo "tag_exists=${TAG_EXISTS}"
+            echo "maven_published=${MAVEN_PUBLISHED}"
+            echo "public_ecr_exists=${PUBLIC_ECR_EXISTS}"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
@@ -79,6 +135,7 @@ jobs:
         with:
           registry: public.ecr.aws
 
+      # The only SDK build of the release. Its jar goes to Maven Central, into the image and to the GitHub release.
       - name: Build release with Gradle
         uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
         with:
@@ -89,6 +146,119 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: otelagent/build/libs/aws-opentelemetry-agent-${{ env.VERSION }}.jar
+
+      # Nebula refused to tag a dirty tree in v2.28.2. publish-sdk now tags with plain git, so this is a
+      # warning only: it surfaces unexpected build output without blocking the release.
+      - name: Check working tree is clean
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "::warning::The working tree has untracked or modified files after the build."
+          fi
+
+      # Signs and uploads to the OSSRH staging repository, then uploads it to the Central Portal as
+      # USER_MANAGED and waits for VALIDATED. Nothing is published here; publish-sdk publishes it.
+      # publishToSonatype and stage must run on the same runner (the staging search is scoped to the runner IP).
+      - name: Stage and validate Maven Central deployment
+        id: maven-stage
+        if: steps.release-state.outputs.maven_published != 'true'
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          for attempt in 1 2; do
+            ./gradlew publishToSonatype -Prelease.version="$VERSION" --stacktrace
+            STAGE_OUTPUT="$(mktemp)"
+            set +e
+            GITHUB_OUTPUT="$STAGE_OUTPUT" .github/scripts/maven-central-deployment.sh stage "$VERSION"
+            rc=$?
+            set -e
+            if [ "$rc" -eq 0 ]; then
+              cat "$STAGE_OUTPUT" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$rc" -eq 3 ] && [ "$attempt" -eq 1 ]; then
+              # The keyserver lookup is often transient (v2.33.0 passed ~4 h later with the same key).
+              KEY="$(sed -n 's/^repository_key=//p' "$STAGE_OUTPUT")"
+              echo "::warning::GPG public key not found during validation; dropping staging repository ${KEY} and retrying once in 120 s."
+              if [ -n "$KEY" ]; then .github/scripts/maven-central-deployment.sh drop "$KEY" || true; fi
+              sleep 120
+              continue
+            fi
+            cat "$STAGE_OUTPUT" >> "$GITHUB_OUTPUT"
+            exit "$rc"
+          done
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #3.6.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
+        with:
+          driver-opts: image=moby/buildkit:v0.15.1
+
+      # The release image, built once for both platforms. publish-sdk pushes this exact archive.
+      - name: Build release image (OCI archive)
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
+        with:
+          push: false
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
+          outputs: type=oci,dest=${{ runner.temp }}/${{ env.IMAGE_ARCHIVE_NAME }}
+
+      # Same Dockerfile, context and build args on the same builder, so the layers come from the build cache above.
+      - name: Build image for testing
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
+        with:
+          push: false
+          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
+          context: .
+          platforms: linux/amd64
+          tags: ${{ env.TEST_TAG }}
+          load: true
+
+      - name: Test docker image
+        shell: bash
+        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "$VERSION"
+
+      # Installs the pinned tools publish-sdk uses, so a dry run catches a broken download or checksum.
+      - name: Install pinned crane
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/crane.tar.gz" "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz"
+          echo "${CRANE_SHA256}  $RUNNER_TEMP/crane.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/crane.tar.gz" -C "$RUNNER_TEMP" crane
+          "$RUNNER_TEMP/crane" version
+          # Lists the archive contents: one image index with both platforms (and attestations).
+          mkdir -p "$RUNNER_TEMP/oci-layout"
+          tar -xf "$RUNNER_TEMP/$IMAGE_ARCHIVE_NAME" -C "$RUNNER_TEMP/oci-layout"
+          jq . "$RUNNER_TEMP/oci-layout/index.json"
+
+      - name: Set up notation CLI
+        uses: notaryproject/notation-action/setup@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
+        with:
+          url: https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_linux_amd64.tar.gz
+          checksum: e1a0f060308086bf8020b2d31defb7c5348f133ca0dba6a1a7820ef3cbb6dfe5
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: ${{ env.IMAGE_ARCHIVE_NAME }}
+          path: ${{ runner.temp }}/${{ env.IMAGE_ARCHIVE_NAME }}
+
+      # A dry run never publishes, so drop the staged deployment. Also drop it if this job fails after staging,
+      # because publish-sdk will not run.
+      - name: Drop staged Maven Central deployment
+        if: ${{ always() && steps.maven-stage.outputs.repository_key != '' && (inputs.dry_run || failure() || cancelled()) }}
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          REPOSITORY_KEY: ${{ steps.maven-stage.outputs.repository_key }}
+          DEPLOYMENT_ID: ${{ steps.maven-stage.outputs.deployment_id }}
+        run: .github/scripts/maven-central-deployment.sh drop "$REPOSITORY_KEY" "$DEPLOYMENT_ID"
 
   build-layer:
     needs: build-sdk
@@ -133,7 +303,11 @@ jobs:
           name: layer.zip
           path: lambda-layer/build/distributions/${{ env.LAYER_ARTIFACT_NAME }}
 
+  # Phase 1: publish-sdk only does production writes, in this order: ECR image -> private platform tags ->
+  # ECR signature -> Maven Central -> git tag. Each write is skipped if it is already done, so the job can be
+  # re-run after a partial failure without editing the workflow.
   publish-sdk:
+    if: ${{ !inputs.dry_run }}
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
@@ -142,34 +316,19 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
-      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+      - name: Download image artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
         with:
-          java-version-file: .java-version
-          distribution: 'temurin'
-      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-      
-      - name: Publish patched dependencies to maven local
-        uses: ./.github/actions/patch-dependencies
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg_password: ${{ secrets.GPG_PASSPHRASE }}
+          name: ${{ env.IMAGE_ARCHIVE_NAME }}
+          path: ${{ runner.temp }}
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
-          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
-
-      - name: Log in to AWS ECR
-        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
-        with:
-          registry: public.ecr.aws
-
-      # build the artifact again so that its in the output path expected for building the docker image.
-      - name: Build release with Gradle
-        uses: gradle/gradle-build-action@a8f75513eafdebd8141bd1cd4e30fcd194af8dfa #v2
-        with:
-          arguments: build integrationTests -PlocalDocker=true -Prelease.version=${{ env.VERSION }} --stacktrace
+      - name: Install pinned crane
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/crane.tar.gz" "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz"
+          echo "${CRANE_SHA256}  $RUNNER_TEMP/crane.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/crane.tar.gz" -C "$RUNNER_TEMP" crane
+          mkdir -p "$RUNNER_TEMP/oci-layout"
+          tar -xf "$RUNNER_TEMP/$IMAGE_ARCHIVE_NAME" -C "$RUNNER_TEMP/oci-layout"
 
       - name: Configure AWS Credentials for public ECR
         uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
@@ -177,7 +336,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
 
-      - name: Log in to AWS ECR
+      - name: Log in to AWS public ECR
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
         with:
           registry: public.ecr.aws
@@ -193,40 +352,30 @@ jobs:
         with:
           registry: ${{ env.PRIVATE_REGISTRY }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 #3.6.0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
-        with:
-          driver-opts: image=moby/buildkit:v0.15.1
-
-      - name: Build image for testing
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
-        with:
-          push: false
-          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
-          context: .
-          platforms: linux/amd64
-          tags: ${{ env.TEST_TAG }}
-          load: true
-
-      - name: Test docker image
+      - name: Check for existing images in ECR
+        id: ecr-check
         env:
-          VERSION: ${{ env.VERSION }}
-        shell: bash
-        run: .github/scripts/test-adot-javaagent-image.sh "${{ env.TEST_TAG }}" "$VERSION"
+          PUBLIC_EXISTS: ${{ needs.build-sdk.outputs.public_ecr_exists }}
+        run: |
+          PUBLIC=$(.github/scripts/ecr-tag-exists.sh public "v${VERSION}")
+          PRIVATE=$(.github/scripts/ecr-tag-exists.sh private "v${VERSION}")
+          if [ "$PUBLIC" != "$PRIVATE" ]; then
+            echo "::error::v${VERSION} exists in only one ECR repository (public=${PUBLIC}, private=${PRIVATE}). Resolve manually before retrying."
+            exit 1
+          fi
+          if [ "$PUBLIC" = true ]; then
+            echo "::warning::v${VERSION} already exists in public and private ECR; skipping the image push (build-sdk saw public=${PUBLIC_EXISTS})."
+          fi
+          echo "exists=${PUBLIC}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
-        with:
-          push: true
-          build-args: "ADOT_JAVA_VERSION=${{ env.VERSION }}"
-          context: .
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
-            ${{ env.PRIVATE_REPOSITORY }}:v${{ env.VERSION }}
+      # Pushes the exact multi-arch archive that build-sdk built and tested. Never overwrites a published tag.
+      - name: Push image to public and private ECR
+        if: steps.ecr-check.outputs.exists != 'true'
+        run: |
+          "$RUNNER_TEMP/crane" push "$RUNNER_TEMP/oci-layout" "${PUBLIC_REPOSITORY}:v${VERSION}"
+          "$RUNNER_TEMP/crane" push "$RUNNER_TEMP/oci-layout" "${PRIVATE_REPOSITORY}:v${VERSION}"
+          "$RUNNER_TEMP/crane" digest "${PUBLIC_REPOSITORY}:v${VERSION}"
+          "$RUNNER_TEMP/crane" digest "${PRIVATE_REPOSITORY}:v${VERSION}"
 
       - name: Tag platform images in private ECR
         env:
@@ -234,7 +383,18 @@ jobs:
         run: |
           VERSION="${{ env.VERSION }}"
           REGION="${{ env.AWS_PRIVATE_ECR_REGION }}"
-          # Read the manifest index for the multi-arch tag we just pushed
+          # Idempotent: re-tagging an image with the same tag and manifest is treated as success.
+          put_image() {
+            if ! OUT=$(aws ecr put-image --repository-name "${REPO_NAME}" --image-tag "$1" --image-manifest "$2" --region "${REGION}" 2>&1 > /dev/null); then
+              if echo "$OUT" | grep -q ImageAlreadyExistsException; then
+                echo "$1 already tagged"
+              else
+                echo "$OUT"
+                return 1
+              fi
+            fi
+          }
+          # Read the manifest index for the multi-arch tag
           MANIFEST_INDEX=$(aws ecr batch-get-image \
             --repository-name "${REPO_NAME}" \
             --image-ids imageTag="v${VERSION}" \
@@ -255,11 +415,7 @@ jobs:
               --region "${REGION}" \
               --query 'images[0].imageManifest' \
               --output text)
-            aws ecr put-image \
-              --repository-name "${REPO_NAME}" \
-              --image-tag "v${VERSION}-${arch}" \
-              --image-manifest "$MANIFEST" \
-              --region "${REGION}" > /dev/null
+            put_image "v${VERSION}-${arch}" "$MANIFEST"
             echo "Tagged ${DIGEST} as v${VERSION}-${arch}"
           done
 
@@ -272,24 +428,79 @@ jobs:
               --region "${REGION}" \
               --query 'images[0].imageManifest' \
               --output text)
-            aws ecr put-image \
-              --repository-name "${REPO_NAME}" \
-              --image-tag "${SHA_HEX}" \
-              --image-manifest "$MANIFEST" \
-              --region "${REGION}" > /dev/null
+            put_image "${SHA_HEX}" "$MANIFEST"
             echo "Tagged ${DIGEST} as ${SHA_HEX} (attestation)"
           done
 
-      - name: Build and Publish release with Gradle
-        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+      # Signing is required: a missing profile or a failed signature fails the release (previously best effort,
+      # which left four public tags unsigned). Re-running adds another signature, which is harmless.
+      - name: Set up notation CLI
+        uses: notaryproject/notation-action/setup@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
         with:
-          arguments: build final closeAndReleaseSonatypeStagingRepository -Prelease.version=${{ env.VERSION }} --stacktrace
+          url: https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_linux_amd64.tar.gz
+          checksum: e1a0f060308086bf8020b2d31defb7c5348f133ca0dba6a1a7820ef3cbb6dfe5
+
+      - name: Query ECR Signing Profile ARN
+        id: ecr-signing-profile
+        run: |
+          PROFILE_ARN=$(aws signer get-signing-profile --region ${{ env.AWS_PUBLIC_ECR_REGION }} --profile-name ADOTECRSigningProfile --query "arn" --output text)
+          echo "profile_arn=$PROFILE_ARN" >> "$GITHUB_OUTPUT"
+          echo "Found ECR signing profile: $PROFILE_ARN"
+
+      # The AWS Signer plugin (v1.0.2292) is only published at a "latest" URL, so it is pinned by its SHA256 checksum.
+      # force_referrers_tag: 'false' stores the signature via the OCI Referrers API instead of a "sha256-<digest>" tag.
+      - name: Sign public ECR image
+        uses: notaryproject/notation-action/sign@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
+        with:
+          plugin_name: com.amazonaws.signer.notation.plugin
+          plugin_url: https://d2hvyiie56hcat.cloudfront.net/linux/amd64/plugin/latest/notation-aws-signer-plugin.zip
+          plugin_checksum: f8efa548932edc4851f4ba464496994bad753cdf21cd32baa575f7291a26c7b9
+          key_id: ${{ steps.ecr-signing-profile.outputs.profile_arn }}
+          target_artifact_reference: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
+          force_referrers_tag: 'false'
+
+      - name: Publish Maven Central deployment
+        id: maven-publish
+        if: needs.build-sdk.outputs.maven_published != 'true'
         env:
           PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
           PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
-          GRGIT_USER: ${{ secrets.GITHUB_TOKEN }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          DEPLOYMENT_ID: ${{ needs.build-sdk.outputs.deployment_id }}
+        run: .github/scripts/maven-central-deployment.sh publish "$DEPLOYMENT_ID"
+
+      # Plain git instead of Nebula `final`: in this build `release` depends on assemble and check, so `final`
+      # would rebuild and re-test the SDK. The tag format matches earlier releases ("Release of X.Y.Z").
+      - name: Push git tag v${{ env.VERSION }}
+        if: needs.build-sdk.outputs.tag_exists != 'true'
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          git -c user.name="ADOT Patch workflow" -c user.email="adot-patch-workflow@github.com" \
+            tag -a "v${VERSION}" -m "Release of ${VERSION}" "$SHA"
+          git push origin "refs/tags/v${VERSION}"
+
+      # A tag push can be rejected without failing the job (seen in the v2.28.2 retry). Verify it.
+      - name: Verify git tag v${{ env.VERSION }}
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          TAGGED=$(git ls-remote --tags origin "refs/tags/v${VERSION}^{}" | cut -f1)
+          [ -n "$TAGGED" ] || TAGGED=$(git ls-remote --tags origin "refs/tags/v${VERSION}" | cut -f1)
+          if [ "$TAGGED" != "$SHA" ]; then
+            echo "::error::Tag v${VERSION} points at '${TAGGED}', expected ${SHA}."
+            exit 1
+          fi
+          echo "Tag v${VERSION} points at ${SHA}"
+
+      # Covers a failure or cancel inside this job before the Maven Central publish.
+      - name: Drop unpublished Maven Central deployment
+        if: ${{ always() && needs.build-sdk.outputs.repository_key != '' && steps.maven-publish.outcome != 'success' }}
+        env:
+          PUBLISH_TOKEN_USERNAME: ${{ secrets.PUBLISH_TOKEN_USERNAME }}
+          PUBLISH_TOKEN_PASSWORD: ${{ secrets.PUBLISH_TOKEN_PASSWORD }}
+          REPOSITORY_KEY: ${{ needs.build-sdk.outputs.repository_key }}
+          DEPLOYMENT_ID: ${{ needs.build-sdk.outputs.deployment_id }}
+        run: .github/scripts/maven-central-deployment.sh drop "$REPOSITORY_KEY" "$DEPLOYMENT_ID"
 
   publish-layer-prod:
     runs-on:
@@ -297,6 +508,7 @@ jobs:
       - image:ubuntu-8.0
       - instance-size:large
     needs: [build-layer, publish-sdk]
+    if: ${{ !inputs.dry_run }}
     strategy:
       matrix:
         aws_region: ${{ fromJson(needs.build-layer.outputs.aws_regions_json) }}
@@ -428,6 +640,7 @@ jobs:
       - image:ubuntu-8.0
       - instance-size:large
     needs: publish-layer-prod
+    if: ${{ !inputs.dry_run }}
     outputs:
       layer-note: ${{ steps.layer-note.outputs.layer-note }}
     steps:
@@ -493,6 +706,7 @@ jobs:
 
   publish-github:
     needs: generate-lambda-release-note
+    if: ${{ !inputs.dry_run }}
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
@@ -581,76 +795,28 @@ jobs:
              layer.zip \
              layer.zip.sha256
 
-  # Best-effort signing of the released public ECR image. Runs last, after all
-  # publishing is done, and every step is continue-on-error so a signing failure
-  # never fails the release run or affects already-published artifacts.
+  # Phase 1: signing now happens (required) in publish-sdk. This job keeps its place in the workflow as a
+  # read-only check that the released public image has a signature.
   sign-public-ecr-image:
+    if: ${{ !inputs.dry_run }}
     runs-on:
       - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
       - image:ubuntu-8.0
       - instance-size:large
     needs: publish-github
     steps:
-      - name: Configure AWS Credentials for public ECR
-        continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
-        with:
-          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
-          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
-
-      # Install notation CLI v1.3.2 from its official GitHub release, pinned by SHA256 checksum.
-      # notation-action v1.2.2 only knows notation CLI versions up to 1.3.1 via the 'version' input,
-      # so 'url' + 'checksum' are used instead.
       - name: Set up notation CLI
-        id: setup-notation
-        continue-on-error: true
         uses: notaryproject/notation-action/setup@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
         with:
           url: https://github.com/notaryproject/notation/releases/download/v1.3.2/notation_1.3.2_linux_amd64.tar.gz
           checksum: e1a0f060308086bf8020b2d31defb7c5348f133ca0dba6a1a7820ef3cbb6dfe5
 
-      # Query ECR signing profile ARN
-      - name: Query ECR Signing Profile ARN
-        id: ecr-signing-profile
-        continue-on-error: true
+      # Lists the signatures attached to the image through the OCI Referrers API (public read, no credentials).
+      - name: Verify public ECR image is signed
         run: |
-          PROFILE_ARN=$(aws signer get-signing-profile --region ${{ env.AWS_PUBLIC_ECR_REGION }} --profile-name ADOTECRSigningProfile --query "arn" --output text) || PROFILE_ARN=""
-          if [ -n "$PROFILE_ARN" ] && [ "$PROFILE_ARN" != "None" ]; then
-            echo "profile_arn=$PROFILE_ARN" >> $GITHUB_OUTPUT
-            echo "Found ECR signing profile: $PROFILE_ARN"
-          else
-            echo "ECR signing profile 'ADOTECRSigningProfile' not found or lookup failed; skipping image signing."
-            exit 0
+          OUT=$(notation ls "${PUBLIC_REPOSITORY}:v${VERSION}")
+          echo "$OUT"
+          if ! echo "$OUT" | grep -q "application/vnd.cncf.notary.signature"; then
+            echo "::error::${PUBLIC_REPOSITORY}:v${VERSION} has no notation signature."
+            exit 1
           fi
-
-      # Login to Public ECR
-      - name: Log in to AWS public ECR
-        if: steps.ecr-signing-profile.outputs.profile_arn != ''
-        continue-on-error: true
-        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 #v3.5.0
-        with:
-          registry: public.ecr.aws
-
-      # Sign Public ECR Image
-      # The AWS Signer plugin (v1.0.2292) is only published at a "latest" URL, so it is pinned by its SHA256 checksum.
-      # force_referrers_tag: 'false' stores the signature via the OCI Referrers API instead of creating a
-      # "sha256-<digest>" tag, which would otherwise show up as the newest image in the ECR Public Gallery.
-      # notation resolves the tag to its digest once and signs that digest.
-      - name: Sign Public ECR Image
-        id: sign
-        if: steps.ecr-signing-profile.outputs.profile_arn != ''
-        continue-on-error: true
-        uses: notaryproject/notation-action/sign@b6fee73110795d6793253c673bd723f12bcf9bbb # notation-action v1.2.2
-        with:
-          plugin_name: com.amazonaws.signer.notation.plugin
-          plugin_url: https://d2hvyiie56hcat.cloudfront.net/linux/amd64/plugin/latest/notation-aws-signer-plugin.zip
-          plugin_checksum: f8efa548932edc4851f4ba464496994bad753cdf21cd32baa575f7291a26c7b9
-          key_id: ${{ steps.ecr-signing-profile.outputs.profile_arn }}
-          target_artifact_reference: ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }}
-          force_referrers_tag: 'false'
-
-      # Surface a failed best-effort signing on the run summary instead of hiding it behind continue-on-error,
-      # e.g. when AWS updates the "latest" Signer plugin and plugin_checksum must be updated.
-      - name: Report image signing failure
-        if: always() && (steps.setup-notation.outcome == 'failure' || steps.sign.outcome == 'failure')
-        run: echo "::warning::Signing ${{ env.PUBLIC_REPOSITORY }}:v${{ env.VERSION }} failed. If the AWS Signer plugin was updated, update plugin_checksum."
