@@ -806,6 +806,20 @@ class AwsApplicationSignalsCustomizerProviderTest {
   }
 
   @Test
+  void testHasCustomOtlpTracesEndpointWithEmptyEndpoints() {
+    // Per the OTel spec, empty values are treated as unset
+    assertFalse(
+        AwsApplicationSignalsCustomizerProvider.hasCustomOtlpTracesEndpoint(
+            Map.of("OTEL_EXPORTER_OTLP_ENDPOINT", "")));
+    assertFalse(
+        AwsApplicationSignalsCustomizerProvider.hasCustomOtlpTracesEndpoint(
+            Map.of("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")));
+    assertFalse(
+        AwsApplicationSignalsCustomizerProvider.hasCustomOtlpTracesEndpoint(
+            Map.of("OTEL_EXPORTER_OTLP_ENDPOINT", "", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")));
+  }
+
+  @Test
   void setAdaptiveSamplingConfigFromString_validConfig() throws JsonProcessingException {
     assertThat(AwsApplicationSignalsCustomizerProvider.parseConfigString("version: 1").getVersion())
         .isEqualTo(1);

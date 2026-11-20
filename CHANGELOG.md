@@ -13,6 +13,10 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix: in Lambda, treat empty `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` values as
+  unset, so traces fall back to the X-Ray UDP exporter again instead of being dropped
+  ([#PR_NUMBER](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/PR_NUMBER))
+
 ## v2.33.0 - 2026-11-11
 
 - Nightly dependency update: OpenTelemetry 2.33.1/1.62.1
