@@ -28,9 +28,28 @@ After the release branches have been created in this repository and the [aws-ote
 You will see a button that says "Run workflow". Press the button, enter the version number you want
 to release in the input field that pops up, and then press "Run workflow".
 
-This triggers the release process, which builds the artifacts, updates the README with the new
-version numbers, commits the change to the README, publishes the artifacts, creates and pushes
-a git tag with the version number, and drafts a release with the agent artifact attached.
+To rehearse a release first, check the **dry run** checkbox (it is unchecked by default). A dry run needs the `Release` approval and then runs
+`build-sdk` and `build-layer` only:
+- builds and tests the agent and the Lambda layer
+- signs and uploads the Maven Central deployment to staging, waits until Sonatype reports it
+  `VALIDATED`, then drops it
+- builds the multi-arch image as an OCI archive and tests it
+
+It publishes nothing: no ECR image, Maven Central version, git tag, Lambda layer or GitHub release.
+We recommend a dry run before each release. When it passes, run the workflow again with **dry run** unchecked.
+
+A real release builds and validates everything in `build-sdk` first. Only then does `publish-sdk`
+push the tested image to ECR, sign it, publish the validated Maven Central deployment and push the
+git tag. After that, the Lambda layer is published and the GitHub release is drafted.
+
+**Retries:** if a real release fails partway, run the workflow again with the same version.
+- Anything already published is detected and skipped: the ECR image, the Maven Central version and
+  the git tag.
+- An ECR tag that already exists is never overwritten.
+- A staged Maven Central deployment that wasn't published is dropped automatically.
+
+  If a run is cancelled between `build-sdk` and `publish-sdk`, drop the leftover staging repository
+  by hand: `.github/scripts/maven-central-deployment.sh drop <repository_key>`.
 
 ## Announcement
    
