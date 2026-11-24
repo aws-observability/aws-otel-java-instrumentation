@@ -43,6 +43,9 @@ RUN if [ $TARGETARCH = "amd64" ]; then export ARCH="x86_64" ; \
     && cargo test  --target ${ARCH}-unknown-linux-musl \
     && cargo install --target ${ARCH}-unknown-linux-musl --path . --root .
 
+# Empty mount path for the shared volume; the scratch stage below has no shell to create it.
+RUN mkdir -p /otel-auto-instrumentation
+
 # Stage 2: Create distribution
 FROM scratch
 
@@ -52,3 +55,8 @@ COPY --from=builder /usr/src/cp-utility/bin/cp-utility /bin/cp
 
 
 COPY --chmod=go+r ./otelagent/build/libs/aws-opentelemetry-agent-${ADOT_JAVA_VERSION}.jar /javaagent.jar
+
+# Pre-own the mount path so an empty Docker/ECS volume mounted there inherits non-root ownership.
+COPY --from=builder --chown=65534:65534 /otel-auto-instrumentation /otel-auto-instrumentation
+USER 65534:65534
+VOLUME ["/otel-auto-instrumentation"]
