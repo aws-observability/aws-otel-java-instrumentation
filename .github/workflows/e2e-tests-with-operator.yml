@@ -32,7 +32,10 @@ permissions:
 jobs:
   # job to build testbatches for e2e integration test
   build-sample-app:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
         with:
@@ -79,7 +82,10 @@ jobs:
           COMMIT_HASH: ${{ inputs.image_tag }}
 
   get-testing-suites:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     outputs:
       test-case-batch-key: ${{ steps.set-batches.outputs.batch-keys }}
       test-case-batch-value: ${{ steps.set-batches.outputs.batch-values }}
@@ -118,7 +124,10 @@ jobs:
 
   # job to run the e2e integration tests
   run-batch-job:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     needs: [ build-sample-app, get-testing-suites ]
     strategy:
       fail-fast: false

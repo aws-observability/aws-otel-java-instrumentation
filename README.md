@@ -21,6 +21,12 @@ As of Mar 16, 2026, we are no longer supporting 1.x releases, please migrate to 
 
 Check out the [getting started documentation](https://aws-otel.github.io/docs/getting-started/java-sdk/auto-instr).
 
+## Dynamic Instrumentation (Preview)
+
+The agent can capture additional runtime telemetry from a running application without a restart or
+redeploy. This feature is opt-in and disabled by default. See the
+[Dynamic Instrumentation documentation](docs/dynamic-instrumentation.md) for details.
+
 ## Supported Java libraries and frameworks
 
 For the complete list of supported frameworks, please refer to the [OpenTelemetry for Java documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/master/README.md#supported-java-libraries-and-frameworks).

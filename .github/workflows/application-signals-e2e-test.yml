@@ -11,6 +11,13 @@ on:
       adot-image-name:
         required: true
         type: string
+      # Ordered set of Java versions the parallel EKS jobs cover — the single source of truth. The
+      # framework derives each job's NodePort from a version's index here (and service-events derives
+      # its port from the length), so adding a version is a one-line edit to this default.
+      java-versions:
+        required: false
+        type: string
+        default: '["8","11","17","21","25"]'
 
 permissions:
   id-token: write
@@ -23,7 +30,10 @@ concurrency:
 
 jobs:
   upload-main-build:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
 
@@ -98,6 +108,20 @@ jobs:
       java-version: '25'
       cpu-architecture: 'x86_64'
 
+  adot-di:
+    needs: [ upload-main-build ]
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ '8', '11', '17', '21', '25' ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-di-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+      java-version: ${{ matrix.java-version }}
+      cpu-architecture: 'x86_64'
+
   java-ec2-adot-sigv4-test:
     needs: [ upload-main-build ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-adot-sigv4-test.yml@main
@@ -116,8 +140,31 @@ jobs:
   # DEFAULT SETTING: {Java Version}, EKS, AMD64, AL2
   #
 
+  # --- Parallel Java EKS pipeline -------------------------------------------------------------
+  # Shape: metric-limiter -> eks-setup -> [eks-v8..v25 + service-events-eks concurrently] -> eks-cleanup
+
+  eks-setup:
+    needs: [ metric-limiter-v11-amd64 ]
+    if: ${{ always() }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-setup-app-signals.yml@main
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
+
+  eks-patch-java-operator:
+    needs: eks-setup
+    if: ${{ always() && needs.eks-setup.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-patch-java-operator.yml@main
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
+      adot-image-name: ${{ inputs.adot-image-name }}
+
   eks-v8-amd64:
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -125,10 +172,11 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '8'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v11-amd64:
-    needs: eks-v8-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -136,10 +184,11 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '11'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v17-amd64:
-    needs: eks-v11-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -147,10 +196,11 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '17'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v21-amd64:
-    needs: eks-v17-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    needs: [ eks-setup, eks-patch-java-operator ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -158,10 +208,14 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '21'
+      java-versions: ${{ inputs.java-versions }}
 
   eks-v25-amd64:
-    needs: eks-v21-amd64
-    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-test.yml@main
+    # eks-v8-amd64 is ordering-only: it caps peak concurrency at 4 version jobs,
+    # since 5 concurrent pod-sets exceed node capacity.
+    needs: [ eks-setup, eks-patch-java-operator, eks-v8-amd64 ]
+    if: ${{ always() && needs.eks-patch-java-operator.result == 'success' }}
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-shared-cluster-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
@@ -169,6 +223,16 @@ jobs:
       adot-image-name: ${{ inputs.adot-image-name }}
       caller-workflow-name: 'main-build'
       java-version: '25'
+      java-versions: ${{ inputs.java-versions }}
+
+  eks-cleanup:
+    if: ${{ always() }}
+    needs: [ eks-setup, eks-v8-amd64, eks-v11-amd64, eks-v17-amd64, eks-v21-amd64, eks-v25-amd64, service-events-eks ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/eks-cleanup-app-signals.yml@main
+    secrets: inherit
+    with:
+      test-cluster-name: 'e2e-adot-test'
+      aws-region: us-east-1
 
   #
   # PACKAGED DISTRIBUTION PLATFORM COVERAGE
@@ -241,7 +305,6 @@ jobs:
   #
 
   metric-limiter-v11-amd64:
-    needs: [ eks-v25-amd64 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/metric-limiter-test.yml@main
     secrets: inherit
     with:
@@ -252,11 +315,38 @@ jobs:
       java-version: '11'
 
   java-lambda-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [ java11, java17, java21, java25 ]
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-lambda-test.yml@main
     secrets: inherit
     with:
       aws-region: us-east-1
+      runtime: ${{ matrix.runtime }}
       caller-workflow-name: 'main-build'
+
+  service-events-ec2:
+    needs: [ upload-main-build ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-ec2-service-events-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      caller-workflow-name: 'main-build'
+
+  service-events-eks:
+    needs: [ eks-setup, eks-patch-java-operator ]
+    uses: aws-observability/aws-application-signals-test-framework/.github/workflows/java-eks-service-events-shared-cluster-test.yml@main
+    secrets: inherit
+    with:
+      aws-region: us-east-1
+      test-cluster-name: 'e2e-adot-test'
+      adot-image-name: ${{ inputs.adot-image-name }}
+      caller-workflow-name: 'main-build'
+      java-version: '11'
+      # Same list the eks-v* jobs pass; SE derives its NodePort as 30100 + length*2 (one slot above
+      # the version block) so it can't collide even when a version is added.
+      java-versions: ${{ inputs.java-versions }}
 
   # This validation is to ensure that all test workflows relevant to this repo are actually
   # being used in this repo, which is referring to all the other jobs in this file.
@@ -273,3 +363,5 @@ jobs:
   #   (see: https://github.com/aws-observability/aws-application-signals-test-framework/blob/main/.github/workflows/validate-e2e-tests-are-accounted-for.yml)
   validate-all-tests-are-accounted-for:
     uses: aws-observability/aws-application-signals-test-framework/.github/workflows/validate-e2e-tests-are-accounted-for.yml@main
+    with:
+      exclusions: 'java-eks-test.yml,java-eks-service-events-test.yml,eks-setup-app-signals.yml,eks-cleanup-app-signals.yml,java-eks-patch-java-operator.yml'

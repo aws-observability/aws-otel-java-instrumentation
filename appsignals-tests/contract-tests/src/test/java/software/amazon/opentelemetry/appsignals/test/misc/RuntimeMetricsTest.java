@@ -19,7 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.opentelemetry.proto.metrics.v1.Metric;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -70,6 +72,7 @@ public class RuntimeMetricsTest {
                   AppSignalsConstants.FAULT_METRIC));
 
       testResourceAttributes(metrics);
+      testApplicationSignalsConsoleMetrics(metrics);
       for (String metricName : List.of(AppSignalsConstants.JVM_POOL_USED)) {
         testGaugeMetrics(metrics, metricName, "name");
       }
@@ -138,6 +141,67 @@ public class RuntimeMetricsTest {
                   });
         }
       }
+    }
+
+    // The CloudWatch agent turns these metrics into the Application Signals runtime metrics shown
+    // in
+    // the console (JVMGCDuration, JVMMemoryOldGenUsed, ...), keeping their units and matching on
+    // their "name" attribute. Other metrics may be added, but these must not change.
+    private void testApplicationSignalsConsoleMetrics(
+        List<ResourceScopeMetric> resourceScopeMetrics) {
+      Map<String, String> expectedUnits =
+          Map.of(
+              AppSignalsConstants.JVM_GC_DURATION, "ms",
+              AppSignalsConstants.JVM_GC_COUNT, "1",
+              AppSignalsConstants.JVM_HEAP_USED, "By",
+              AppSignalsConstants.JVM_NON_HEAP_USED, "By",
+              AppSignalsConstants.JVM_AFTER_GC, "By",
+              AppSignalsConstants.JVM_POOL_USED, "By",
+              AppSignalsConstants.JVM_THREAD_COUNT, "1",
+              AppSignalsConstants.JVM_CLASS_LOADED, "1",
+              AppSignalsConstants.JVM_CPU_TIME, "ns",
+              AppSignalsConstants.JVM_CPU_UTILIZATION, "1");
+      for (ResourceScopeMetric rsm : resourceScopeMetrics) {
+        Metric metric = rsm.getMetric();
+        if (expectedUnits.containsKey(metric.getName())) {
+          assertThat(metric.getUnit())
+              .as(metric.getName() + " unit")
+              .isEqualTo(expectedUnits.get(metric.getName()));
+        }
+      }
+
+      // JVMMemoryOldGenUsed, JVMMemoryEdenSpaceUsed, and JVMMemorySurvivorSpaceUsed
+      assertThat(nameAttributeValues(resourceScopeMetrics, AppSignalsConstants.JVM_POOL_USED))
+          .anyMatch(name -> name.matches(".*Old\\sGen$"))
+          .anyMatch(name -> name.matches(".*Eden\\sSpace$"))
+          .anyMatch(name -> name.matches(".*Survivor\\sSpace$"));
+      // JVMGCOldGen* and JVMGCYoungGen*, available only in G1
+      for (String metricName :
+          List.of(AppSignalsConstants.JVM_GC_DURATION, AppSignalsConstants.JVM_GC_COUNT)) {
+        Set<String> gcNames = nameAttributeValues(resourceScopeMetrics, metricName);
+        if (gcNames.stream().anyMatch(name -> name.startsWith("G1 "))) {
+          assertThat(gcNames)
+              .as(metricName + " G1 collectors")
+              .contains("G1 Young Generation", "G1 Old Generation");
+        }
+      }
+    }
+
+    private Set<String> nameAttributeValues(
+        List<ResourceScopeMetric> resourceScopeMetrics, String metricName) {
+      return resourceScopeMetrics.stream()
+          .map(ResourceScopeMetric::getMetric)
+          .filter(metric -> metric.getName().equals(metricName))
+          .flatMap(
+              metric ->
+                  metric.hasSum()
+                      ? metric.getSum().getDataPointsList().stream()
+                          .flatMap(dp -> dp.getAttributesList().stream())
+                      : metric.getGauge().getDataPointsList().stream()
+                          .flatMap(dp -> dp.getAttributesList().stream()))
+          .filter(attribute -> attribute.getKey().equals("name"))
+          .map(attribute -> attribute.getValue().getStringValue())
+          .collect(Collectors.toSet());
     }
 
     private void testResourceAttributes(List<ResourceScopeMetric> resourceScopeMetrics) {

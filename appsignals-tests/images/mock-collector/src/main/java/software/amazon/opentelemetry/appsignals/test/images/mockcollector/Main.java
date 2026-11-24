@@ -25,12 +25,14 @@ import com.linecorp.armeria.common.HttpData;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
+import com.linecorp.armeria.common.ResponseHeaders;
 import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.server.healthcheck.HealthCheckService;
 import io.netty.buffer.ByteBufOutputStream;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
+import io.opentelemetry.proto.collector.profiles.v1development.ExportProfilesServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -46,6 +48,7 @@ public class Main {
             .register(ExportTraceServiceRequest.getDefaultInstance())
             .register(ExportMetricsServiceRequest.getDefaultInstance())
             .register(ExportLogsServiceRequest.getDefaultInstance())
+            .register(ExportProfilesServiceRequest.getDefaultInstance())
             .build();
 
     var mapper = JsonMapper.builder();
@@ -78,6 +81,15 @@ public class Main {
             marshaller.writeValue(value, gen);
           }
         });
+    serializers.addSerializer(
+        new StdSerializer<>(ExportProfilesServiceRequest.class) {
+          @Override
+          public void serialize(
+              ExportProfilesServiceRequest value, JsonGenerator gen, SerializerProvider provider)
+              throws IOException {
+            marshaller.writeValue(value, gen);
+          }
+        });
     module.setSerializers(serializers);
     mapper.addModule(module);
     OBJECT_MAPPER = mapper.build();
@@ -86,9 +98,12 @@ public class Main {
   public static void main(String[] args) {
     var traceCollector = new MockCollectorTraceService();
     var metricsCollector = new MockCollectorMetricsService();
+    var logsCollector = new MockCollectorLogsService();
+    var profilesCollector = new MockCollectorProfilesService();
     var server =
         Server.builder()
             .http(4317)
+            .maxRequestLength(0)
             .service(
                 GrpcService.builder()
                     .addService(traceCollector)
@@ -99,6 +114,8 @@ public class Main {
                 (ctx, req) -> {
                   traceCollector.clearRequests();
                   metricsCollector.clearRequests();
+                  logsCollector.clearRequests();
+                  profilesCollector.clearRequests();
                   return HttpResponse.of(HttpStatus.OK);
                 })
             .service(
@@ -119,8 +136,51 @@ public class Main {
                   return HttpResponse.of(
                       HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
                 })
+            .service(
+                "/get-logs",
+                (ctx, req) -> {
+                  var requests = logsCollector.getRequests();
+                  var buf = new ByteBufOutputStream(ctx.alloc().buffer());
+                  OBJECT_MAPPER.writeValue((OutputStream) buf, requests);
+                  return HttpResponse.of(
+                      HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
+                })
+            .service(
+                "/get-profiles",
+                (ctx, req) -> {
+                  var requests = profilesCollector.getRequests();
+                  var buf = new ByteBufOutputStream(ctx.alloc().buffer());
+                  OBJECT_MAPPER.writeValue((OutputStream) buf, requests);
+                  return HttpResponse.of(
+                      HttpStatus.OK, MediaType.JSON, HttpData.wrap(buf.buffer()));
+                })
+            .service(
+                // Unary gRPC ProfilesService/Export. No generated ProfilesServiceGrpc stub exists,
+                // so handle the gRPC wire format directly: de-frame + store, then reply
+                // Trailers-Only with grpc-status (0 OK / 2 UNKNOWN on parse failure), which the
+                // agent's OtlpGrpcProfilesExporter reads from the initial headers.
+                MockCollectorProfilesService.GRPC_EXPORT_PATH,
+                (ctx, req) ->
+                    HttpResponse.of(
+                        req.aggregate()
+                            .thenApply(
+                                agg -> {
+                                  String grpcStatus = "0";
+                                  try {
+                                    profilesCollector.consumeGrpcFramed(agg.content().array());
+                                  } catch (Exception e) {
+                                    grpcStatus = "2";
+                                  }
+                                  return HttpResponse.of(
+                                      ResponseHeaders.builder(HttpStatus.OK)
+                                          .contentType(MediaType.parse("application/grpc"))
+                                          .add("grpc-status", grpcStatus)
+                                          .build());
+                                })))
             .service("/health", HealthCheckService.of())
             .annotatedService(metricsCollector.HTTP_INSTANCE)
+            .annotatedService(logsCollector.HTTP_INSTANCE)
+            .annotatedService(profilesCollector.HTTP_INSTANCE)
             .build();
 
     server.start().join();

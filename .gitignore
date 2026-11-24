@@ -2,6 +2,9 @@
 .gradle
 build/
 
+# Kotlin Gradle plugin build cache (created during builds, e.g. buildSrc/.kotlin/)
+.kotlin/
+
 .DS_Store
 
 .vscode

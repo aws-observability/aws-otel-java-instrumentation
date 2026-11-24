@@ -70,7 +70,7 @@ class LogInjectionTest {
 
   @Test
   void log4j() {
-    WebClient.of("http://localhost:" + log4jApp.getMappedPort(4567))
+    WebClient.of("http://" + log4jApp.getHost() + ":" + log4jApp.getMappedPort(4567))
         .get("/outgoing-http-call")
         .aggregate()
         .join();
@@ -84,7 +84,7 @@ class LogInjectionTest {
 
   @Test
   void logback() {
-    WebClient.of("http://localhost:" + logbackApp.getMappedPort(8080))
+    WebClient.of("http://" + logbackApp.getHost() + ":" + logbackApp.getMappedPort(8080))
         .get("/outgoing-http-call")
         .aggregate()
         .join();

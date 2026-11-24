@@ -27,23 +27,20 @@ data class DependencySet(val group: String, val version: String, val modules: Li
 val testSnapshots = rootProject.findProperty("testUpstreamSnapshots") == "true"
 
 // This is the version of the upstream instrumentation BOM
-val otelVersion = "2.26.1"
-val otelSnapshotVersion = "2.27.0"
+val otelVersion = "2.33.1"
+val otelSnapshotVersion = "2.34.0"
 val otelAlphaVersion = if (!testSnapshots) "$otelVersion-alpha" else "$otelSnapshotVersion-alpha-SNAPSHOT"
 val otelJavaAgentVersion = if (!testSnapshots) otelVersion else "$otelSnapshotVersion-SNAPSHOT"
 // All versions below are only used in testing and do not affect the released artifact.
 
 val dependencyBoms = listOf(
   "com.amazonaws:aws-java-sdk-bom:1.12.599",
-  "com.fasterxml.jackson:jackson-bom:2.21.1",
+  "com.fasterxml.jackson:jackson-bom:2.22.3",
   "com.google.guava:guava-bom:33.0.0-jre",
   "com.google.protobuf:protobuf-bom:3.25.1",
   "com.linecorp.armeria:armeria-bom:1.26.4",
   "io.grpc:grpc-bom:1.59.1",
-  // netty-bom pins to fix CVE-2026-33870 and CVE-2026-33871.
-  // Remove once https://github.com/aws/aws-sdk-java-v2/pull/6635 is released and
-  // AWS SDK for Java (v1) is upgraded to 1.12.796 at least.
-  "io.netty:netty-bom:4.1.132.Final",
+  "io.netty:netty-bom:4.1.137.Final",
   "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$otelAlphaVersion",
   "org.apache.logging.log4j:log4j-bom:2.21.1",
   "org.junit:junit-bom:5.10.1",
@@ -77,12 +74,14 @@ val dependencyLists = listOf(
   "commons-logging:commons-logging:1.2",
   "com.sparkjava:spark-core:2.9.4",
   "com.squareup.okhttp3:okhttp:4.12.0",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.54.0-adot1",
-  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.54.0-alpha",
+  "io.opentelemetry.contrib:opentelemetry-aws-xray:1.62.1-adot1",
+  "io.opentelemetry.contrib:opentelemetry-aws-resources:1.62.1-alpha",
   "io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha",
   "io.opentelemetry.javaagent:opentelemetry-javaagent:$otelJavaAgentVersion",
   "io.opentelemetry:opentelemetry-extension-aws:1.20.1",
   "net.bytebuddy:byte-buddy:1.14.10",
+  "tools.profiler:async-profiler:4.5",
+  "tools.profiler:jfr-converter:4.5",
 )
 
 javaPlatform {

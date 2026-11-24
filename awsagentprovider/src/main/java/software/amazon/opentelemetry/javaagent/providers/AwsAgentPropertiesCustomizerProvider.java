@@ -20,6 +20,21 @@ import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvide
 import java.util.HashMap;
 
 public class AwsAgentPropertiesCustomizerProvider implements AutoConfigurationCustomizerProvider {
+
+  static final String SENSITIVE_QUERY_PARAMETERS_CONFIG =
+      "otel.instrumentation.sanitization.url.experimental.sensitive-query-parameters";
+
+  static final String AWS_SENSITIVE_QUERY_PARAMETERS =
+      String.join(
+          ",",
+          "AWSAccessKeyId",
+          "Signature",
+          "sig",
+          "X-Goog-Signature",
+          "X-Amz-Signature",
+          "X-Amz-Credential",
+          "X-Amz-Security-Token");
+
   @Override
   public void customize(AutoConfigurationCustomizer autoConfiguration) {
     autoConfiguration.addPropertiesSupplier(
@@ -31,6 +46,7 @@ public class AwsAgentPropertiesCustomizerProvider implements AutoConfigurationCu
                 put(
                     "otel.instrumentation.aws-sdk.experimental-record-individual-http-error",
                     "true");
+                put(SENSITIVE_QUERY_PARAMETERS_CONFIG, AWS_SENSITIVE_QUERY_PARAMETERS);
               }
             });
   }

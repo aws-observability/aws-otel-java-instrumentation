@@ -10,6 +10,13 @@ on:
     branches:
       - main
       - "release/v*"
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 env:
   TEST_TAG: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:test-v2
   USER: ${{ github.event.pull_request.user.login }}
@@ -17,11 +24,17 @@ env:
 
 jobs:
   static-code-checks:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # This action wrapper by raven-actions provides cross-platform support and caching
       # Catches the same issues as GitHub's web editor: syntax errors, type mismatches,
@@ -126,7 +139,7 @@ jobs:
 
   testpatch:
     name: Test patches applied to dependencies
-    runs-on: aws-otel-java-instrumentation_ubuntu-latest_32-core
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:xlarge"]', github.run_id, github.run_attempt)) }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -155,7 +168,16 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}      
+    # Fork PRs and macOS run on GitHub-hosted runners (matrix.os); Linux and Windows run on CodeBuild, where only the image
+    # differs. The labels are chosen in the expression rather than via matrix.include, because include entries are applied
+    # after exclude and would re-add the Windows leg excluded on release branches.
+    runs-on: >-
+      ${{
+        (github.event.pull_request.head.repo.fork || matrix.os == 'macos-latest') && matrix.os
+        || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "{2}", "instance-size:large"]',
+          github.run_id, github.run_attempt,
+          startsWith(matrix.os, 'windows') && 'image:windows-ec2-2022' || 'image:ubuntu-8.0'))
+      }}
     strategy:
       matrix:
         os:
@@ -169,8 +191,20 @@ jobs:
           # https://github.com/square/wire/issues/2188
           # https://github.com/open-telemetry/opentelemetry-java/issues/4560
           - os: ${{ startsWith(github.event.pull_request.base.ref, 'release/v') && 'windows-latest' || '' }}
+    env:
+      # CodeBuild Windows images do not enable git long paths like GitHub's images do, and checkout fails
+      # without them. Set through env because checkout runs before any setup step can.
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: true
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -192,7 +226,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/io/opentelemetry/
-          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch') }}
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch', '.github/patches/versions') }}
 
       - name: Publish patched dependencies to maven local
         uses: ./.github/actions/patch-dependencies
@@ -207,28 +241,6 @@ jobs:
       - name: Build and Test UDP exporter
         run: |
           ./gradlew build -p exporters/aws-distro-opentelemetry-xray-udp-span-exporter
-
-      - name: Set up Java version for tests
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
-        with:
-          java-version: 23
-          distribution: temurin
-
-      - name: Pull base image of Contract Tests Sample Apps
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: docker pull public.ecr.aws/docker/library/amazoncorretto:23-alpine
-
-      - name: Run contract tests
-        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        with:
-          arguments: contractTests -PlocalDocker=true -i
-
-      - name: Set up Java version for image build
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
-        with:
-          java-version-file: .java-version
-          distribution: temurin
 
       - name: Get current version
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -278,8 +290,94 @@ jobs:
           arguments: build --stacktrace -PenableCoverage=true
       - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
 
+  pull-base-images:
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
+    timeout-minutes: 10
+    steps:
+      # Anonymous pulls from ECR Public are throttled on shared GitHub-hosted runner IPs
+      # ("toomanyrequests: Data limit exceeded"), so pull the same official images from Docker Hub
+      # and tag them with the ECR names the Jib builds use (they read the local Docker daemon).
+      - name: Pull and export base images
+        run: |
+          for image in public.ecr.aws/docker/library/amazoncorretto:23-alpine \
+                       public.ecr.aws/docker/library/amazoncorretto:17-alpine; do
+            docker pull "${image#public.ecr.aws/docker/library/}"
+            docker tag "${image#public.ecr.aws/docker/library/}" "$image"
+          done
+          docker save \
+            public.ecr.aws/docker/library/amazoncorretto:23-alpine \
+            public.ecr.aws/docker/library/amazoncorretto:17-alpine \
+            -o base-images.tar
+      - name: Upload base images
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4.6.2
+        with:
+          name: contract-test-base-images
+          path: base-images.tar
+          retention-days: 1
+
+  contract-tests:
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
+    needs: pull-base-images
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - { name: contract-tests, task: contractTests }
+          - { name: di-contract-tests, task: diContractTests }
+          - { name: serviceevents-contract-tests, task: serviceeventsContractTests }
+    name: ${{ matrix.suite.name }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version-file: .java-version
+          distribution: temurin
+
+      - uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: Clean up old installations
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+
+      - name: Cache local Maven repository
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 #v4.2.4
+        with:
+          path: |
+            ~/.m2/repository/io/opentelemetry/
+          key: ${{ runner.os }}-maven-local-${{ hashFiles('.github/patches/opentelemetry-java*.patch', '.github/patches/versions') }}
+
+      - name: Publish patched dependencies to maven local
+        uses: ./.github/actions/patch-dependencies
+
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: 23
+          distribution: temurin
+
+      - name: Download base images
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 #v5.0.0
+        with:
+          name: contract-test-base-images
+      - name: Load base images
+        run: docker load -i base-images.tar
+
+      - name: Run ${{ matrix.suite.name }}
+        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 #v3.5.0
+        with:
+          arguments: ${{ matrix.suite.task }} -PlocalDocker=true -i
+
   build-lambda:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
+    timeout-minutes: 45
     steps:
       - name: Checkout Repo @ SHA - ${{ github.sha }}
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
@@ -290,13 +388,12 @@ jobs:
           java-version-file: .java-version
           distribution: temurin
 
-      - name: Build layer
-        working-directory: lambda-layer
-        run: ./build-layer.sh
+      - name: Build lambda layer
+        uses: ./.github/actions/build-lambda-layer
 
   all-pr-checks-pass:
-    runs-on: ubuntu-latest
-    needs: [static-code-checks, testpatch, build, build-lambda]
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:small"]', github.run_id, github.run_attempt)) }}
+    needs: [static-code-checks, testpatch, build, pull-base-images, contract-tests, build-lambda]
     if: always()
     steps:
       - name: Checkout to get workflow file

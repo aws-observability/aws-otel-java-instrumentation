@@ -17,7 +17,10 @@ permissions:
 
 jobs:
   update-dependencies:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     outputs:
       has_changes: ${{ steps.check_changes.outputs.has_changes }}
       otel_java_instrumentation_version: ${{ steps.get_versions.outputs.otel_java_instrumentation_version }}
@@ -102,7 +105,10 @@ jobs:
   create-pr:
     needs: [update-dependencies, build-and-test]
     if: always() && needs.update-dependencies.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     steps:
     - name: Configure AWS credentials for BOT secrets
       uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 #v5.0.0
@@ -161,7 +167,10 @@ jobs:
   publish-nightly-build-status:
     name: "Publish Nightly Build Status"
     needs: [update-dependencies, build-and-test, create-pr]
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
     if: always()
     steps:
       - name: Configure AWS Credentials for emitting metrics
