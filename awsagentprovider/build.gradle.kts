@@ -25,6 +25,10 @@ base {
 }
 
 dependencies {
+  // Dynamic Instrumentation bootstrap bridge (compileOnly: it is embedded in the agent JAR root by
+  // the otelagent module and loaded via the bootstrap classloader at runtime).
+  compileOnly(project(":di-bootstrap-bridge"))
+  testImplementation(project(":di-bootstrap-bridge"))
   compileOnly("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api")
   compileOnly("io.opentelemetry.semconv:opentelemetry-semconv")
   compileOnly("io.opentelemetry.semconv:opentelemetry-semconv-incubating")
@@ -33,6 +37,16 @@ dependencies {
   compileOnly("com.google.errorprone:error_prone_annotations:2.19.1")
   compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   compileOnly("org.slf4j:slf4j-api")
+  // JMX Metric Insight library and SDK autoconfigure, bundled in the agent, used to load the ADOT
+  // JMX rules
+  compileOnly("io.opentelemetry.instrumentation:opentelemetry-jmx-metrics")
+  compileOnly("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
+  // byte-buddy-dep from the extension API conflicts with Mockito's byte-buddy
+  testImplementation("io.opentelemetry.javaagent:opentelemetry-javaagent-extension-api") {
+    exclude(group = "net.bytebuddy")
+  }
+  testImplementation("io.opentelemetry.instrumentation:opentelemetry-jmx-metrics")
+  testImplementation(project(":instrumentation:jmx-metrics"))
 
   // Trace ID Generation and Sampling Rules
   implementation("io.opentelemetry.contrib:opentelemetry-aws-xray")
@@ -42,8 +56,13 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
   // YAML file reader
   implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
-  // Import AWS SDK v1 core for ARN parsing utilities
-  implementation("com.amazonaws:aws-java-sdk-core:1.12.773")
+  // HTTP client for dynamic instrumentation configuration polling
+  implementation("com.squareup.okhttp3:okhttp")
+  // ASM for line-level instrumentation (relocated/shaded at build time)
+  implementation("org.ow2.asm:asm:9.7")
+  implementation("org.ow2.asm:asm-tree:9.7")
+  // ARN parsing utilities
+  implementation("software.amazon.awssdk:arns")
   // Export configuration
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
   // For Udp emitter
@@ -53,6 +72,7 @@ dependencies {
   runtimeOnly("software.amazon.awssdk:sts")
   implementation("software.amazon.awssdk:auth")
   implementation("software.amazon.awssdk:http-auth-aws")
+  implementation("software.amazon.awssdk:regions")
   // For EMF exporter
   implementation("software.amazon.awssdk:cloudwatchlogs")
 
@@ -63,14 +83,27 @@ dependencies {
   testImplementation("com.google.guava:guava")
   testRuntimeOnly("io.opentelemetry:opentelemetry-exporter-otlp-common")
   testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
+  testImplementation("io.opentelemetry.proto:opentelemetry-proto")
 
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
   testImplementation("org.mockito:mockito-core:5.14.2")
   testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+  testImplementation("software.amazon.awssdk:sts")
+  testImplementation("software.amazon.awssdk:sso")
+  testImplementation("software.amazon.awssdk:ssooidc")
 }
 
 tasks {
   val shadowJar by existing(ShadowJar::class) {
     archiveClassifier.set("")
+
+    // We use io.opentelemetry.common for ComponentLoader, which discovers OTLP HTTP senders and
+    // compressors. Match OTel's agent package names so our providers and its builders use the same
+    // ComponentLoader type. OTel uses the same relocation:
+    // https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/7b5713f7905abe16c80110c21992d7db998e7c35/conventions/src/main/kotlin/io.opentelemetry.instrumentation.javaagent-shadowing.gradle.kts#L44
+    relocate("io.opentelemetry.common", "io.opentelemetry.javaagent.shaded.io.opentelemetry.common")
+
+    // Relocate ASM to avoid conflicts with the application's ASM or ByteBuddy's internal ASM.
+    relocate("org.objectweb.asm", "software.amazon.opentelemetry.javaagent.shaded.org.objectweb.asm")
   }
 }

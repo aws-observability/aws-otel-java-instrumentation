@@ -74,7 +74,10 @@ class MockCollectorMetricsService extends MetricsServiceGrpc.MetricsServiceImplB
         throws Exception {
       if (expectedResultType == ExportMetricsServiceRequest.class) {
         try (var content = request.content()) {
-          return ExportMetricsServiceRequest.parseFrom(content.array());
+          byte[] payload =
+              MockCollectorHttpUtil.decodeIfCompressed(
+                  content.array(), request.headers().get("content-encoding"));
+          return ExportMetricsServiceRequest.parseFrom(payload);
         }
       }
       return RequestConverterFunction.fallthrough();

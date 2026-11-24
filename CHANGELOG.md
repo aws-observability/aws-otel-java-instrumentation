@@ -13,10 +13,135 @@ If your change does not need a CHANGELOG entry, add the "skip changelog" label t
 
 ## Unreleased
 
+- fix: in Lambda, treat empty `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` values as
+  unset, so traces fall back to the X-Ray UDP exporter again instead of being dropped
+  ([#1500](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1500))
+
+## v2.33.0 - 2026-11-11
+
+- Nightly dependency update: OpenTelemetry 2.33.1/1.62.1
+  ([#1485](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1485))
+- fix: in Lambda, treat `OTEL_EXPORTER_OTLP_ENDPOINT` as a custom trace endpoint, as the OTLP exporter
+  spec requires. Setting only the generic endpoint previously fell back to the X-Ray UDP exporter, so
+  traces never reached the configured collector
+  ([#1486](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1486))
+
+## v2.32.0 - 2026-10-21
+
+- feat: the continuous profiler now defaults to `full` sample aggregation
+  (`OTEL_AWS_PROFILER_AGGREGATION_MODE`): samples with the same stack, trace link and attributes are
+  merged into one OTLP sample that keeps every observation's value and timestamp. With `none`, the
+  previous default, every raw sample is its own OTLP sample, so a 60 s wall window easily exceeds
+  CloudWatch Profiles' 16,000-samples-per-profile limit and is rejected. `none` and `sum` are still
+  available.
+  ([#1481](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1481))
+- feat: register OTLP SigV4 exporters with Java SPI
+  SigV4 region detection checks `aws.region` / `AWS_REGION`, then
+  `aws.default.region` / `AWS_DEFAULT_REGION`. If neither is configured, it falls back to
+  the endpoint region, then the default AWS SDK region provider chain.
+  ([#1475](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1475))
+
+- feat: add an experimental, opt-in continuous code profiler (async-profiler based) that exports
+  native OTLP profiles. It uses the OTLP `v1development` profiles schema, which is not yet stable
+  and may change in incompatible ways. Enabled with `OTEL_AWS_PROFILER_ENABLED=true`; supports
+  `wall` (default) and `cpu` modes (`OTEL_AWS_PROFILER_MODE`), optional allocation profiling
+  (`OTEL_AWS_PROFILER_MEMORY_ENABLED`), a per-sample `thread.state` attribute on wall profiles, and
+  per-sample span correlation (`operation` attribute + trace/span link). Exports over OTLP/HTTP
+  protobuf (default) or OTLP/gRPC, selected by `OTEL_EXPORTER_OTLP_PROTOCOL`. Off by default; no
+  behavior change unless enabled.
+  ([#1457](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1457))
+- fix: with `OTEL_AWS_HTTP_OPERATION_PATHS` set, child spans now inherit the overridden operation
+  from their server span, so dependency metrics are reported under the same operation as the
+  service metrics instead of the original span name.
+  ([#1471](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1471))
+- Bump jackson-bom to 2.22.3 to fix CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, and
+  CVE-2026-91777
+  ([#1464](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1464))
+- fix: recognize AWS China (`.amazonaws.com.cn`) CloudWatch OTLP endpoints and apply SigV4 to
+  direct traces, logs, and metrics export, including Dynamic Instrumentation and Service Events
+  logs.
+  ([#1460](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1460))
+- feat: add INFO logs identifying the selected metrics exporter, destination, and authentication
+  mode for CloudWatch EMF, console EMF, and direct CloudWatch OTLP metrics export.
+  ([#1456](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1456))
+- feat: add SigV4 authentication for collector-less OTLP metrics export to the CloudWatch metrics
+  endpoint (`https://monitoring.<region>.amazonaws.com/v1/metrics`, SigV4 service `monitoring`),
+  matching the existing direct traces and logs behavior. Requires
+  `OTEL_METRICS_EXPORTER=otlp`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf`, and
+  `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` set to the CloudWatch metrics endpoint. An explicitly
+  configured OTLP metrics `Authorization` header (bearer token) is preserved and takes precedence
+  over SigV4. Upstream metric settings, including temporality and aggregation, are unchanged.
+  ([#1455](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1455))
+- fix: an explicitly configured OTLP `Authorization` header (bearer token) now also takes precedence
+  over SigV4 for direct traces and logs export, matching the new metrics behavior. Previously both
+  values were sent on the same request. Only the signal-specific variable
+  (`OTEL_EXPORTER_OTLP_TRACES_HEADERS`, `OTEL_EXPORTER_OTLP_LOGS_HEADERS`,
+  `OTEL_EXPORTER_OTLP_METRICS_HEADERS`) selects bearer authentication; a global
+  `OTEL_EXPORTER_OTLP_HEADERS` does not disable SigV4.
+  ([#1455](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1455))
+- Update OpenTelemetry dependencies to 2.32.0 (contrib 1.61.0)
+  ([#1462](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1462))
+
+## v2.31.0 - 2026-09-17
+
+- Bump Netty to 4.1.137.Final to fix CVE-2026-59903 and CVE-2026-75595
+  ([#1440](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1440))
+- Update OpenTelemetry dependencies to 2.31.1 (contrib 1.60.0)
+  ([#1449](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1449))
+
+## v2.30.0 - 2026-08-18
+
+- feat: attribute presigned S3 URLs as `AWS::S3` dependencies in Application Signals, opt-in via
+  `otel.aws.application.signals.presigned-url-attribution.enabled`
+  ([#1423](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1423))
+- Update Lambda layer compatible runtimes to include java25
+  ([#1407](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1407))
+- fix(serviceevents): fold throw-site origin (`class.method`) into the incident-snapshot dedup hash
+  ([#1422](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1422))
+- fix(serviceevents): preserve map key order in OTLP log body so incident snapshot fields
+  (e.g. `exception_info`) serialize in schema order instead of reversed
+  ([#1421](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1421))
+- fix(serviceevents): gate incident correlation on SAMPLED + per-collector fault isolation
+  ([#1416](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1416))
+- fix: redact AWS presigned URL credentials from span attributes
+  ([#1419](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1419))
+
+## v2.29.0 - 2026-07-02
+
+- fix: remove EOL AWS SDK v1 dependency for ARN parsing
+  ([#1401](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1401))
+
+## v2.28.2 - 2026-06-18
+
+- Add Dynamic Instrumentation (Preview): capture additional runtime telemetry from a running
+  application without a restart or redeploy. Opt-in and disabled by default via
+  `OTEL_AWS_DYNAMIC_INSTRUMENTATION_ENABLED`. See `docs/dynamic-instrumentation.md`.
+  ([#1384](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1384))
+- Add ServiceEvents instrumentation: emit endpoint summaries, function-call duration metrics,
+  deployment events, and incident snapshots to CloudWatch Application Signals via OTLP.
+  ([#1386](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1386))
+- Bump Netty to 4.1.135.Final to fix CVE-2026-45416 and CVE-2026-44249
+  ([#1389](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1389))
+- ServiceEvents: parse `OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS` as a comma-separated list to
+  match the Python and JS SDKs (was pipe-separated). Routes containing a literal comma must now be
+  matched with a glob, e.g. `GET /search*:750`.
+  ([#1393](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1393))
+- fix(lambda-layer): Standardize CompactConsoleLogRecordExporter output with CloudWatch OTLP backend schema.
+  ([#1358](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1358))
+
+## v2.28.1 - 2026-05-26
+
+- Bump Netty to 4.1.133.Final to fix CVE-2026-41417
+  ([#1374](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1374))
+
+## v2.26.2 - 2026-04-20
+
 - Support environment-configured endpoint visibility for HTTP operation names
   ([#1352](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1352))
 - Bump Netty to 4.1.132.Final to fix CVE-2026-33870 and CVE-2026-33871
   ([#1348](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1348))
+ - fix(lambda-layer): Standardize CompactConsoleLogRecordExporter output with CloudWatch OTLP backend schema.
+  ([#1358](https://github.com/aws-observability/aws-otel-java-instrumentation/pull/1358))
 
 ## v2.26.1 - 2026-03-27
 

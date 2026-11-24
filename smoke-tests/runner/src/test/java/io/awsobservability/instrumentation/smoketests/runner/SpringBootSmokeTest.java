@@ -149,8 +149,9 @@ class SpringBootSmokeTest {
 
   @BeforeEach
   void setUp() {
-    appClient = WebClient.of("http://localhost:" + application.getMappedPort(8080));
-    backendClient = WebClient.of("http://localhost:" + backend.getMappedPort(8080));
+    appClient =
+        WebClient.of("http://" + application.getHost() + ":" + application.getMappedPort(8080));
+    backendClient = WebClient.of("http://" + backend.getHost() + ":" + backend.getMappedPort(8080));
   }
 
   @AfterEach
@@ -221,7 +222,11 @@ class SpringBootSmokeTest {
     // We just want to make sure OTEL_TRACES_SAMPLER=xray is using the XRay sampler. It will fail to
     // fetch rules and fallback to the default, which will not sample all requests.
     WebClient client =
-        WebClient.of("http://localhost:" + applicationXraySampler.getMappedPort(8080));
+        WebClient.of(
+            "http://"
+                + applicationXraySampler.getHost()
+                + ":"
+                + applicationXraySampler.getMappedPort(8080));
     int numRequests = 100;
     for (int i = 0; i < numRequests; i++) {
       client.get("/hello").aggregate().join();

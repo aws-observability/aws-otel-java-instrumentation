@@ -1,0 +1,35 @@
+# Changelog
+
+### Unreleased
+
+* Fix unbounded span metrics cardinality on SERVER spans: the legacy fallback for
+  `server.address`/`server.port` now uses `net.host.name`/`net.host.port` on SERVER spans instead
+  of `net.peer.name`/`net.peer.port`, which describe the client (including its ephemeral port).
+
+### v0.1.1 / 2026-09-18
+
+* Added peer, GenAI, AWS resource-identity, FaaS, and messaging derived metric dimensions, with
+  legacy `net.peer.*`/`net.host.*` fallbacks for `server.address`/`server.port`.
+* Fix `aws.otel.extension.lib.version` emitted as `"unknown"` in javaagent mode: the version is
+  now baked in at build time instead of resolved from the jar manifest at runtime.
+* `service.name` is no longer emitted as a metric datapoint attribute; it is carried by the
+  metric's resource (the host SDK's resource). Consumers reading `service.name` from datapoint
+  dimensions must read it from the resource instead.
+* The `traces.span.metrics.calls` counter now uses the `{call}` unit (UCUM annotation) instead of
+  an unset unit.
+
+### v0.1.0 / 2026-08-14
+
+* Initial release of the CloudWatch Plugin for OpenTelemetry (Java).
+* Generates span-derived request metrics `traces.span.metrics.calls` (counter) and
+  `traces.span.metrics.duration` (histogram, seconds) inside the OpenTelemetry Java SDK, from 100%
+  of spans, before trace sampling.
+* Record-forcing sampler (`DROP` -> `RECORD_ONLY`) so metrics reflect every span while trace export
+  still honors the configured sampling rate.
+* Low-cardinality metric dimensions: base attributes (`service.name`, `span.name`, `span.kind`,
+  `status.code`) plus allowlisted HTTP / RPC / database / messaging semantic-convention attributes
+  present on the span, with pass-through of recognized legacy database keys.
+* Four wiring modes with zero plugin configuration: Java agent extension, Spring Boot starter,
+  plain SDK autoconfigure, and manual SDK (`SpanMetrics.bind`).
+* Metrics emitted under instrumentation scope `cloudwatch.plugin.otel.span_metrics`.
+* Compatible with OpenTelemetry Java SDK 1.32.0 or later.

@@ -28,8 +28,20 @@ java {
 
 dependencies {
   implementation("com.linecorp.armeria:armeria-grpc")
-  implementation("io.opentelemetry.proto:opentelemetry-proto")
-  implementation("org.curioswitch.curiostack:protobuf-jackson")
+  // Bumped to 1.10.0-alpha (from the shared platform's 1.0.0-alpha) for the
+  // profiles.v1development.* schema — specifically ExportProfilesServiceRequest, captured over HTTP
+  // by MockCollectorProfilesService. 1.10.0-alpha still carries the trace/logs/metrics v1 packages
+  // (and gRPC service stubs) the existing trace/metrics/logs services use, so they are unaffected.
+  // protobuf-java is bumped to 4.34.0 to match the 1.10.0-alpha gencode (overrides the shared
+  // protobuf-bom 3.25.1 constraint); scoped to this module only.
+  implementation("io.opentelemetry.proto:opentelemetry-proto:1.10.0-alpha")
+  implementation("com.google.protobuf:protobuf-java:4.34.0")
+  // protobuf-jackson 2.2.0 (the shared platform pin) is protobuf-java 3.x only — its
+  // ProtoFieldInfo.isInOneof calls Descriptors.FieldDescriptor.hasOptionalKeyword(), which is
+  // inaccessible in protobuf-java 4.x (IllegalAccessError at marshaller-build time). 2.8.1 targets
+  // protobuf-java 4.x, so it works with the 4.34.0 runtime the profiles gencode requires. Scoped to
+  // this module (overrides the platform 2.2.0); the smoke-tests stay on 2.2.0 + protobuf-java 3.x.
+  implementation("org.curioswitch.curiostack:protobuf-jackson:2.8.1")
   implementation("org.slf4j:slf4j-simple")
 }
 

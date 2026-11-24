@@ -1,0 +1,1118 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+package software.amazon.opentelemetry.javaagent.instrumentation.serviceevents;
+
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.sdk.logs.SdkLoggerProvider;
+import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
+import io.opentelemetry.sdk.metrics.Aggregation;
+import io.opentelemetry.sdk.metrics.InstrumentSelector;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.SdkMeterProviderBuilder;
+import io.opentelemetry.sdk.metrics.View;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.resources.Resource;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.BaseCollector;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.DeploymentEventCollector;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.EndpointCollector;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.FunctionCallCollector;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.collectors.RotationBoundaryProcessor;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.config.ServiceEventsConfig;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.FunctionMetricsBridgeImpl;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.OtlpGrpcProfilesExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.OtlpHttpProfilesExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ProfilesExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsCloudWatchLogFileExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsCloudWatchMetricFileExporter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter.ServiceEventsOtlpEmitter;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.AsyncProfilerWrapper;
+import software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProfilerDataDir;
+import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.logs.OtlpAwsLogRecordExporterBuilder;
+
+/**
+ * Main entry point for ServiceEvents instrumentation.
+ *
+ * <p>Manages lifecycle of bytecode instrumentation, monitors, and framework instrumentations.
+ */
+public class ServiceEventsInstrumentation {
+
+  // Lazy logger: this class is loaded during agent init (from ServiceEventsInstrumentationModule's
+  // static block), before the OTel agent's InternalLogger is initialized.
+  private static volatile Logger logger;
+
+  private static Logger logger() {
+    Logger local = logger;
+    if (local == null) {
+      local = Logger.getLogger(ServiceEventsInstrumentation.class.getName());
+      logger = local;
+    }
+    return local;
+  }
+
+  private static final String AWS_OTLP_LOGS_ENDPOINT_PATTERN =
+      "^https://logs\\.([a-z0-9-]+)\\.amazonaws\\.com(?:\\.cn)?/v1/logs$";
+
+  static boolean isAwsOtlpLogsEndpoint(String endpoint) {
+    return endpoint.matches(AWS_OTLP_LOGS_ENDPOINT_PATTERN);
+  }
+
+  private final ServiceEventsConfig config;
+  private ServiceEventsOtlpEmitter otlpEmitter;
+  private AsyncProfilerWrapper asyncProfilerWrapper;
+  private ProfilesExporter profilesExporter;
+  private RotationBoundaryProcessor rotationProcessor;
+  // Per-PID profiler data dir this instance created, deleted on shutdown; null when the configured
+  // dir is used as is (PID unknown), which is never deleted.
+  private java.io.File createdProfilerDataDir;
+  private Thread shutdownHook;
+  private final List<BaseCollector> collectors = new ArrayList<>();
+  private boolean initialized = false;
+
+  // Singleton instance for easy access
+  private static ServiceEventsInstrumentation instance;
+
+  /**
+   * Initialize ServiceEvents instrumentation with configuration.
+   *
+   * @param config ServiceEventsConfig instance with all settings
+   */
+  public ServiceEventsInstrumentation(ServiceEventsConfig config) {
+    this.config = config;
+  }
+
+  /** Get or create the default instance. */
+  public static synchronized ServiceEventsInstrumentation getInstance() {
+    if (instance == null) {
+      instance = new ServiceEventsInstrumentation(ServiceEventsConfig.fromEnv());
+    }
+    return instance;
+  }
+
+  /**
+   * Initialize with custom config. If the singleton already exists, the supplied {@code config} is
+   * ignored (the existing instance is returned); a warning is logged so the no-op is visible rather
+   * than silent.
+   */
+  public static synchronized ServiceEventsInstrumentation getInstance(ServiceEventsConfig config) {
+    if (instance == null) {
+      instance = new ServiceEventsInstrumentation(config);
+    } else {
+      logger()
+          .warning("ServiceEventsInstrumentation already initialized; ignoring supplied config");
+    }
+    return instance;
+  }
+
+  /** Reset the singleton (for testing). */
+  public static synchronized void reset() {
+    if (instance != null) {
+      instance.shutdown();
+      instance = null;
+    }
+  }
+
+  /**
+   * Initialize ServiceEvents instrumentation.
+   *
+   * <p>Steps: 1. Configure logging level from config 2. Initialize monitor state (singleton for
+   * aggregation) 3. Initialize framework instrumentations 4. Start periodic collectors
+   */
+  public synchronized void initialize() {
+    if (initialized) {
+      logger().warning("ServiceEvents instrumentation already initialized, skipping");
+      return;
+    }
+
+    // Feature flags are independent: ServiceEvents is gated on isEnabled(), the profiler on
+    // isProfilerEnabled(). Only bail entirely when BOTH are off. Below, the ServiceEvents
+    // emitters/collectors are guarded by isEnabled() and the profiler pieces by isProfilerEnabled()
+    // so the profiler can run on its own even when ServiceEvents / App Signals is disabled.
+    if (!config.isEnabled() && !config.isProfilerEnabled()) {
+      logger().info("ServiceEvents instrumentation and profiler both disabled via configuration");
+      return;
+    }
+
+    try {
+      logger().info("Initializing ServiceEvents instrumentation");
+
+      // Initialize dedicated OTLP providers. Created whenever ServiceEvents OR the profiler is
+      // enabled: the ServiceEvents collectors and the profiler's RotationBoundaryProcessor both
+      // emit through this emitter.
+      // Fully isolated from OTel application logs/metrics and Application Signals.
+      // When OUTPUT_FILE is set, exporters are file-backed (CloudWatch-faithful NDJSON)
+      // instead of OTLP HTTP; LOGS_ENDPOINT + METRICS_ENDPOINT are ignored for the duration.
+      if (config.getOutputFile() != null && !config.getOutputFile().isEmpty()) {
+        logger()
+            .info(
+                "ServiceEvents OUTPUT_FILE mode: "
+                    + config.getOutputFile()
+                    + " (LOGS_ENDPOINT and METRICS_ENDPOINT ignored)");
+      }
+      otlpEmitter = createOtlpEmitter();
+
+      if (config.isEnabled()) {
+        initializeServiceEventsSignals();
+      } else {
+        logger()
+            .info(
+                "ServiceEvents signals disabled (profiler-only mode: OTEL_AWS_PROFILER_ENABLED is"
+                    + " on but ServiceEvents is off)");
+      }
+
+      // Initialize the profiler independently of ServiceEvents enablement.
+      initializeProfiler();
+
+      initialized = true;
+      if (asyncProfilerWrapper != null) {
+        registerShutdownHook();
+      }
+      logger()
+          .info(
+              "ServiceEvents instrumentation initialized successfully (service="
+                  + config.getServiceName()
+                  + ", serviceEvents="
+                  + config.isEnabled()
+                  + ", profiler="
+                  + config.isProfilerEnabled()
+                  + ")");
+
+    } catch (Exception e) {
+      logger().log(Level.SEVERE, "Failed to initialize ServiceEvents instrumentation", e);
+      // Don't crash application - graceful degradation
+      initialized = false;
+    }
+  }
+
+  /**
+   * Initialize the ServiceEvents-only telemetry pipeline: OTLP emitter wiring, deployment /
+   * function / endpoint collectors, latency-threshold + incident-snapshot bridges. Only invoked
+   * when {@code config.isEnabled()}.
+   */
+  private void initializeServiceEventsSignals() {
+    {
+      // Initialize DeploymentEventCollector (emits once at startup, then every 24h).
+      DeploymentEventCollector deploymentEventCollector =
+          new DeploymentEventCollector(
+              config.getDeploymentEventFlushInterval(),
+              config.getEnvironment(),
+              config.getServiceName(),
+              config.getDeploymentId(),
+              config.getDeploymentTimestamp(),
+              config.getDeploymentUrl(),
+              config.getGitCommitSha(),
+              config.getGitRepoUrl(),
+              otlpEmitter);
+      collectors.add(deploymentEventCollector);
+      deploymentEventCollector.start();
+      logger()
+          .info(
+              "Started DeploymentEventCollector (interval: "
+                  + config.getDeploymentEventFlushInterval()
+                  + "ms)");
+
+      // Initialize FunctionCallCollector (only when bytecode instrumentation is enabled,
+      // since FunctionCallCollector processes data from MethodAdvice — without it there
+      // is no function call data to collect)
+      FunctionCallCollector functionCallCollector = null;
+      if (config.isBytecodeEnabled()) {
+        // Apply sampling startup defaults from env BEFORE the collector begins
+        // ticking — ensures the very first flush already reflects the configured
+        // mode and (for "auto") the tier thresholds.
+        software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.setSamplingMode(
+            config.getSamplingMode());
+        software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.setSamplingThresholds(
+            config.getSampleTier1Threshold(),
+            config.getSampleTier2Threshold(),
+            config.getSampleTier2Rate(),
+            config.getSampleTier3Rate());
+        // Read back the effective mode after setSamplingMode's internal
+        // validation. If the operator-supplied value was rejected (e.g. the
+        // removed "adaptive", or OTEL_AWS_SERVICE_EVENTS_SAMPLING_MODE=fast),
+        // the effective mode falls back to the default ("always"); surfacing the
+        // mismatch here helps operators debug misconfiguration.
+        String requestedMode = config.getSamplingMode();
+        String effectiveMode =
+            software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore.getSamplingMode();
+        String modeReport =
+            requestedMode != null && requestedMode.equalsIgnoreCase(effectiveMode)
+                ? effectiveMode
+                : effectiveMode + " (config requested '" + requestedMode + "', invalid)";
+        logger()
+            .info(
+                "ServiceEvents sampling: mode="
+                    + modeReport
+                    + ", tier1="
+                    + config.getSampleTier1Threshold()
+                    + ", tier2="
+                    + config.getSampleTier2Threshold()
+                    + ", tier2Rate="
+                    + config.getSampleTier2Rate()
+                    + ", tier3Rate="
+                    + config.getSampleTier3Rate());
+
+        // Wire the OTel histogram bridge for direct in-line metric recording at
+        // __exit__. Gated on `otlpEmitter != null && !output_file` (network OTLP
+        // mode only). In `output_file` mode, the CloudWatch metric file exporter
+        // only serializes Sum metrics — histogram data points would be silently
+        // dropped; the SEH → FunctionCallCollector path still writes
+        // `aws.service_events.function_call` LogRecords to the same file via the
+        // OTLP log exporter (CloudWatch-faithful local mirror), so this is the
+        // correct boundary.
+        //
+        // Per-data-point base attributes are intentionally minimal:
+        //   - service.name, environment, aws.service_events.version,
+        //     aws.service_events.deployment.id, vcs.ref.head.revision,
+        //     vcs.repository.url.full
+        // are all process-constants and ride on the dedicated MeterProvider's
+        // Resource (sent once per OTLP batch). This shrinks per-call attribute
+        // building on the hot path and avoids redundant wire bytes.
+        // Wired in BOTH network and output_file mode: the file metric exporter now emits
+        // canonical OTLP metrics JSON (incl. ExponentialHistogram), so the histogram is no
+        // longer dropped locally. With the bridge wired, methodExit records into the
+        // histogram and feeds the (now-empty) MethodAggregationStore, so FunctionCallCollector
+        // no-ops automatically (same as network mode). The aws.service_events.function_call
+        // LogRecord therefore no longer appears in either mode; service.function.duration is
+        // the single source of truth.
+        if (otlpEmitter != null) {
+          try {
+            Attributes baseAttrs =
+                Attributes.builder().put("Telemetry.Source", "ServiceEvents").build();
+            FunctionMetricsBridgeImpl bridge = otlpEmitter.buildFunctionMetricsBridge(baseAttrs);
+            software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
+                .setFunctionMetricsBridge(bridge);
+            logger()
+                .info(
+                    "Wired FunctionMetricsBridge: service.function.duration (ExponentialHistogram) "
+                        + "records directly from methodExit");
+          } catch (Throwable e) {
+            logger()
+                .log(
+                    Level.WARNING,
+                    "Failed to wire FunctionMetricsBridge — falling back to FunctionCallCollector "
+                        + "(aws.service_events.function_call LogRecord) path",
+                    e);
+          }
+        }
+
+        functionCallCollector =
+            new FunctionCallCollector(
+                config.getFunctionCallFlushInterval(),
+                config.getEnvironment(),
+                config.getServiceName(),
+                config.getDeploymentId(),
+                config.getDeploymentTimestamp(),
+                config.getDeploymentUrl(),
+                config.getGitCommitSha(),
+                config.getGitRepoUrl(),
+                otlpEmitter);
+        collectors.add(functionCallCollector);
+        functionCallCollector.start();
+        logger()
+            .info(
+                "Started FunctionCallCollector (interval: "
+                    + config.getFunctionCallFlushInterval()
+                    + "ms)");
+      } else {
+        logger().info("FunctionCallCollector disabled (BYTECODE_ENABLED=false)");
+      }
+
+      // Initialize EndpointCollector. suppressEndpointSummary mirrors
+      // OTEL_AWS_APPLICATION_SIGNALS_ENABLED: when App Signals is on, skip emitting
+      // EndpointSummary LogRecords (App Signals carries equivalent data). The collector
+      // still runs so latency histograms feed IncidentSnapshot triggers.
+      EndpointCollector endpointCollector =
+          new EndpointCollector(
+              config.getEndpointFlushInterval(),
+              config.getEnvironment(),
+              config.getServiceName(),
+              config.getDeploymentId(),
+              config.getDeploymentTimestamp(),
+              config.getDeploymentUrl(),
+              config.getGitCommitSha(),
+              config.getGitRepoUrl(),
+              otlpEmitter,
+              config.isApplicationSignalsEnabled());
+      collectors.add(endpointCollector);
+      endpointCollector.start();
+      logger()
+          .info(
+              "Started EndpointMetricCollector (interval: "
+                  + config.getEndpointFlushInterval()
+                  + "ms)");
+
+      // Install the per-endpoint latency threshold resolver if the env var is set. Malformed
+      // entries are logged at SEVERE and skipped inside the resolver constructor, so startup
+      // continues regardless. The bridge stays null if zero good entries survived — the
+      // global threshold then applies to every request.
+      if (!config.getLatencyThresholds().isEmpty()) {
+        software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
+                .LatencyThresholdResolver
+            thresholdResolver =
+                new software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
+                    .LatencyThresholdResolver(config.getLatencyThresholds());
+        if (thresholdResolver.size() > 0) {
+          software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
+              .setLatencyThresholdBridge(thresholdResolver);
+          logger()
+              .info(
+                  "Installed LatencyThresholdResolver with "
+                      + thresholdResolver.size()
+                      + " per-endpoint threshold pattern(s)");
+        } else {
+          logger()
+              .warning(
+                  "OTEL_AWS_SERVICE_EVENTS_LATENCY_THRESHOLDS produced zero valid entries; "
+                      + "falling back to the global threshold for all endpoints");
+        }
+      }
+
+      // Build the shared IncidentSnapshotRecordBuilder for the synchronous IncidentSnapshotEmitter
+      // (used in both bytecode and lite mode; lite mode simply omits the call_path).
+      software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
+              .IncidentSnapshotRecordBuilder
+          incidentRecordBuilder =
+              new software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
+                  .IncidentSnapshotRecordBuilder(
+                  config.getServiceName(),
+                  config.getEnvironment(),
+                  config.getDeploymentId(),
+                  config.getDeploymentTimestamp(),
+                  config.getDeploymentUrl(),
+                  config.getGitCommitSha(),
+                  config.getGitRepoUrl(),
+                  software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils
+                      .ProcessUtils.currentPid());
+
+      // Apply incident-snapshot rate-limit startup defaults from env. Applied for any mode
+      // that emits IncidentSnapshots (bytecode + lite). The rate-limit window is fixed at 1 minute.
+      software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
+          .setIncidentSnapshotMaxPerMinute(config.getIncidentSnapshotMaxPerMinute());
+      software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
+          .setIncidentSnapshotMaxSameError(config.getIncidentSnapshotMaxSameError());
+      logger()
+          .info(
+              "Incident rate-limit startup defaults: maxPerMinute="
+                  + config.getIncidentSnapshotMaxPerMinute()
+                  + ", maxSameError="
+                  + config.getIncidentSnapshotMaxSameError());
+
+      // Install the direct-emit IncidentSnapshot bridge so incidents emit synchronously in both
+      // modes. Call path is only captured when bytecode instrumentation is enabled; in lite mode
+      // the
+      // snapshot carries exception_info.stack_trace but no call_path (matches Python lite-mode
+      // shape).
+      software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter
+              .IncidentSnapshotEmitter
+          incidentEmitter =
+              new software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.exporter
+                  .IncidentSnapshotEmitter(incidentRecordBuilder, otlpEmitter);
+      software.amazon.opentelemetry.serviceevents.ServiceEventsDataStore
+          .setIncidentSnapshotEmitterBridge(incidentEmitter);
+      logger().info("Installed IncidentSnapshotEmitter: incidents emit synchronously");
+    }
+  }
+
+  /**
+   * Initialize the profiler pieces (AsyncProfilerWrapper + RotationBoundaryProcessor). Gated
+   * independently on {@code config.isProfilerEnabled()}, so the profiler runs even when
+   * ServiceEvents / App Signals is disabled. Correlation uses async-profiler's Span API: the {@code
+   * ServiceEventsSpanProcessor} writes {@code profiler.Span} markers into the JFR and the {@code
+   * RotationBoundaryProcessor} reads them back from the same JFR (a single clock).
+   *
+   * <p>Before starting async-profiler, proactive runtime gates ({@link
+   * #profilerUnsupportedReason()} — not Lambda, not Windows) turn unsupported runtimes into a clean
+   * no-op with a clear INFO log. This method never throws: any failure degrades to a disabled
+   * profiler.
+   */
+  private void initializeProfiler() {
+    if (!config.isProfilerEnabled()) {
+      logger().info("Profiler is disabled via configuration");
+      return;
+    }
+    try {
+      // Proactive platform / runtime gate. The AsyncProfilerWrapper available=false native-lib
+      // load-failure path remains the backstop; this just avoids attempting it on runtimes we
+      // already know are unsupported.
+      String unsupported = profilerUnsupportedReason();
+      if (unsupported != null) {
+        logger()
+            .info(
+                "Profiler enabled but not started: "
+                    + unsupported
+                    + ". Profiler is a clean no-op on this runtime.");
+        return;
+      }
+
+      logger()
+          .info(
+              "Profiler config: enabled=true, cpuInterval="
+                  + config.getAsyncProfilerCpuIntervalMs()
+                  + "ms, wallInterval="
+                  + config.getAsyncProfilerWallIntervalMs()
+                  + "ms, memory="
+                  + config.isProfilerMemoryEnabled()
+                  + ", allocInterval="
+                  + config.getProfilerAllocIntervalBytes()
+                  + "B, jfrPath="
+                  + config.getAsyncProfilerJfrFilePath());
+
+      // Per-PID storage isolation: namespace the profiler data dir by PID so multiple JVMs on one
+      // host don't collide on JFR files, and each RotationBoundaryProcessor scans only its own
+      // JVM's files. The per-PID dir is passed to the AsyncProfilerWrapper.
+      String pidDataDir = resolvePerPidProfilerDataDir(config.getProfilerDataDir());
+      if (!pidDataDir.equals(config.getProfilerDataDir())
+          && !pidDataDir.equals(defaultProfilerDataDirBase())) {
+        createdProfilerDataDir = new java.io.File(pidDataDir);
+      }
+
+      // Operational-safety pre-flight on the resolved data dir: a writability probe so an
+      // unwritable dir becomes a clean "disabled" no-op instead of a SEVERE on every rotation
+      // later.
+      java.io.File dataDirFile = new java.io.File(pidDataDir);
+      if (!ProfilerDataDir.probeWritable(dataDirFile)) {
+        logger()
+            .warning(
+                "Profiler enabled but its data dir is not writable: "
+                    + pidDataDir
+                    + " — set OTEL_AWS_PROFILER_DATA_DIR to a writable path."
+                    + " Profiler disabled (clean no-op).");
+        return;
+      }
+
+      asyncProfilerWrapper =
+          new AsyncProfilerWrapper(
+              config.getAsyncProfilerCpuIntervalMs(),
+              config.getAsyncProfilerWallIntervalMs(),
+              config.getAsyncProfilerJfrFilePath(),
+              pidDataDir,
+              config.isProfilerMemoryEnabled(),
+              config.getProfilerAllocIntervalBytes(),
+              config.getProfilerWindowSeconds(),
+              // Explicit translation: ServiceEventsConfig.PROFILER_MODE_* and
+              // AsyncProfilerWrapper's MODE_* are independent constant sets — map them rather than
+              // rely on coincidental values, so a future renumber can't silently swap cpu/wall.
+              config.getProfilerMode() == ServiceEventsConfig.PROFILER_MODE_CPU
+                  ? AsyncProfilerWrapper.MODE_CPU
+                  : AsyncProfilerWrapper.MODE_WALL);
+
+      if (asyncProfilerWrapper.isAvailable()) {
+        // Clean all existing JFR files from previous runs before starting
+        asyncProfilerWrapper.deleteAllJfrFiles();
+
+        // Start the profiler (single session in the configured wall/cpu mode + JFR output).
+        // Correlation is driven by the ServiceEventsSpanProcessor writing profiler.Span markers
+        // into this JFR session — a single JFR carries both the samples and the correlation
+        // markers.
+        //
+        // Native OTLP profiles exporter: sends the ExportProfilesServiceRequest protobuf
+        // to the resolved profiles endpoint. Transport is chosen once here from the resolved
+        // protocol (OTEL_EXPORTER_OTLP_PROTOCOL) — gRPC or HTTP/protobuf. Constructed from config
+        // and drained in shutdown().
+        boolean grpc = config.getProfilerProtocol() == ServiceEventsConfig.PROFILER_PROTOCOL_GRPC;
+        AsyncProfilerWrapper wrapper = asyncProfilerWrapper;
+        ProfilerPipeline pipeline =
+            startProfilerPipeline(
+                wrapper,
+                () ->
+                    grpc
+                        ? new OtlpGrpcProfilesExporter(
+                            config.getProfilerEndpoint(),
+                            config.getProfilerExportCompression(),
+                            config.getProfilerExportTimeoutMs(),
+                            config.getProfilerMaxPayloadBytes(),
+                            config.getProfilerHeaders())
+                        : new OtlpHttpProfilesExporter(
+                            config.getProfilerEndpoint(),
+                            config.getProfilerExportCompression(),
+                            config.getProfilerExportTimeoutMs(),
+                            config.getProfilerMaxPayloadBytes(),
+                            config.getProfilerHeaders()),
+                exporter ->
+                    new RotationBoundaryProcessor(
+                        10000, // check every 10s for new rotated files
+                        wrapper,
+                        config.getProfilerWindowSeconds(), // must match the wrapper's loop=
+                        otlpEmitter,
+                        exporter,
+                        config.getProfilerAggregationMode()),
+                collectors);
+        profilesExporter = pipeline.exporter;
+        rotationProcessor = pipeline.processor;
+        logger()
+            .info(
+                "ServiceEvents profiles exporter: "
+                    + config.getProfilerEndpoint()
+                    + " (protocol="
+                    + (grpc ? "grpc" : "http/protobuf")
+                    + ", compression="
+                    + config.getProfilerExportCompression()
+                    + ", timeoutMs="
+                    + config.getProfilerExportTimeoutMs()
+                    + ", maxPayloadBytes="
+                    + config.getProfilerMaxPayloadBytes()
+                    + ")");
+
+        logger().info("Started RotationBoundaryProcessor (checkInterval: 10000ms)");
+
+        boolean cpuMode = config.getProfilerMode() == ServiceEventsConfig.PROFILER_MODE_CPU;
+        logger()
+            .info(
+                "Started async-profiler (mode="
+                    + (cpuMode ? "cpu" : "wall")
+                    + ", interval="
+                    + (cpuMode
+                        ? config.getAsyncProfilerCpuIntervalMs()
+                        : config.getAsyncProfilerWallIntervalMs())
+                    + "ms, memory="
+                    + config.isProfilerMemoryEnabled()
+                    + ", JFR: "
+                    + config.getAsyncProfilerJfrFilePath()
+                    + ", dataDir: "
+                    + pidDataDir
+                    + ")");
+      } else {
+        logger().warning("async-profiler native library not available, profiling disabled");
+        asyncProfilerWrapper = null;
+      }
+    } catch (Throwable e) {
+      // startProfilerPipeline already undid a partial start; whatever started before it (nothing
+      // that needs stopping) or after it (only logging) leaves nothing running.
+      logger().log(Level.WARNING, "Failed to initialize async-profiler: " + e.getMessage(), e);
+      rotationProcessor = null;
+      asyncProfilerWrapper = null;
+      profilesExporter = null;
+    }
+  }
+
+  /** The exporter and rotation processor of a successfully started profiler. */
+  static final class ProfilerPipeline {
+    final ProfilesExporter exporter;
+    final RotationBoundaryProcessor processor;
+
+    ProfilerPipeline(ProfilesExporter exporter, RotationBoundaryProcessor processor) {
+      this.exporter = exporter;
+      this.processor = processor;
+    }
+  }
+
+  /**
+   * Start async-profiler, then create the exporter and start the rotation processor. If any step
+   * fails, the steps already done are undone ({@link #cleanupFailedProfilerStart}) before the
+   * failure is rethrown, so a failed start never leaves async-profiler writing JFR files that
+   * nothing deletes. Package-private for unit testing.
+   */
+  static ProfilerPipeline startProfilerPipeline(
+      AsyncProfilerWrapper wrapper,
+      java.util.function.Supplier<ProfilesExporter> exporterFactory,
+      java.util.function.Function<ProfilesExporter, RotationBoundaryProcessor> processorFactory,
+      List<BaseCollector> collectors) {
+    ProfilesExporter exporter = null;
+    RotationBoundaryProcessor processor = null;
+    try {
+      wrapper.startProfiling();
+      exporter = exporterFactory.get();
+      processor = processorFactory.apply(exporter);
+      collectors.add(processor);
+      processor.start();
+      return new ProfilerPipeline(exporter, processor);
+    } catch (Throwable t) {
+      cleanupFailedProfilerStart(collectors, processor, wrapper, exporter);
+      throw t;
+    }
+  }
+
+  /**
+   * Undo a partly completed profiler start, so a failed initialization leaves nothing running: stop
+   * and drop the rotation processor, stop async-profiler (it would otherwise keep writing JFR files
+   * that nothing deletes), delete its JFR files and close the exporter. Any argument may be null.
+   * Never throws. Package-private for unit testing.
+   */
+  static void cleanupFailedProfilerStart(
+      List<BaseCollector> collectors,
+      RotationBoundaryProcessor processor,
+      AsyncProfilerWrapper wrapper,
+      ProfilesExporter exporter) {
+    if (processor != null) {
+      collectors.remove(processor);
+      try {
+        processor.stop();
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error stopping RotationBoundaryProcessor after failed start", t);
+      }
+    }
+    if (wrapper != null) {
+      try {
+        wrapper.shutdown();
+        wrapper.deleteAllJfrFiles();
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error stopping async-profiler after failed start", t);
+      }
+    }
+    if (exporter != null) {
+      try {
+        exporter.shutdown();
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error closing profiles exporter after failed start", t);
+      }
+    }
+  }
+
+  /**
+   * How long JVM shutdown waits for the last profile windows to be exported. Bounds the delay when
+   * the profiles endpoint is slow or unreachable (each export attempt can otherwise block for the
+   * full export timeout), and stays well inside common container stop grace periods.
+   */
+  static final long FINAL_EXPORT_TIMEOUT_MS = 5_000;
+
+  /**
+   * Export the windows not exported yet on a separate daemon thread, waiting at most {@code
+   * timeoutMs}. If the export does not finish in time it is abandoned and shutdown continues.
+   * Returns whether it finished. Never throws. Package-private for unit testing.
+   */
+  static boolean exportFinalWindows(RotationBoundaryProcessor processor, long timeoutMs) {
+    Thread exporter =
+        new Thread(
+            () -> {
+              try {
+                processor.flushRemainingWindows();
+              } catch (Throwable t) {
+                logger().log(Level.WARNING, "Error exporting the final profile window", t);
+              }
+            },
+            "aws-profiler-final-export");
+    exporter.setDaemon(true);
+    try {
+      exporter.start();
+      exporter.join(timeoutMs);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (Throwable t) {
+      logger().log(Level.WARNING, "Could not export the final profile window", t);
+      return false;
+    }
+    if (exporter.isAlive()) {
+      logger()
+          .warning(
+              "Final profile export did not finish within "
+                  + timeoutMs
+                  + "ms; skipping it so the JVM can exit");
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Run {@link #shutdownProfiler()} when the JVM exits, so the last profile window is exported and
+   * the profiler's data dir is removed. Only the profiler is shut down there; the ServiceEvents
+   * signals keep their existing exit behavior. Removed again when the profiler is shut down
+   * directly.
+   */
+  private void registerShutdownHook() {
+    try {
+      Thread hook = new Thread(this::shutdownProfiler, "aws-profiler-shutdown");
+      Runtime.getRuntime().addShutdownHook(hook);
+      shutdownHook = hook;
+    } catch (Throwable t) {
+      // IllegalStateException when the JVM is already shutting down; SecurityException if denied.
+      logger().log(Level.WARNING, "Could not register profiler shutdown hook", t);
+    }
+  }
+
+  /**
+   * Resolve a per-PID profiler data directory so multiple JVMs on one host keep their JFR files
+   * isolated (and each RotationBoundaryProcessor scans only its own files). Base = the configured
+   * data dir, or {@code <java.io.tmpdir>/aws-serviceevents-profiler} when unset; the current PID is
+   * appended and the dir created. Returns the base unchanged if the PID is unknown.
+   */
+  private static String resolvePerPidProfilerDataDir(String configuredDataDir) {
+    String base =
+        (configuredDataDir != null && !configuredDataDir.isEmpty())
+            ? configuredDataDir
+            : defaultProfilerDataDirBase();
+    long pid =
+        software.amazon.opentelemetry.javaagent.instrumentation.serviceevents.utils.ProcessUtils
+            .currentPid();
+    if (pid < 0) {
+      return base;
+    }
+    java.io.File dir = new java.io.File(base, Long.toString(pid));
+    dir.mkdirs();
+    // Owner-only (0700): the per-PID dir holds JFR recordings with stack traces, operation names,
+    // thread names, and trace/span ids — keep other local users from reading them on a shared host.
+    ProfilerDataDir.restrictToOwner(dir);
+    return dir.getPath();
+  }
+
+  /**
+   * Default base of the per-PID profiler data dirs: {@code
+   * <java.io.tmpdir>/aws-serviceevents-profiler}.
+   */
+  private static String defaultProfilerDataDirBase() {
+    return new java.io.File(
+            System.getProperty("java.io.tmpdir", "/tmp"), "aws-serviceevents-profiler")
+        .getPath();
+  }
+
+  /**
+   * Proactive profiler runtime/platform gate. Returns {@code null} when the profiler may start, or
+   * a short human-readable reason string when it must no-op.
+   *
+   * <p>async-profiler has no Windows build and the profiler is not supported on AWS Lambda, so it
+   * is skipped there. It runs on Java 8+ on glibc and musl Linux. Never throws — on any unexpected
+   * error it returns {@code null} (don't block) and lets the {@code AsyncProfilerWrapper}
+   * load-failure backstop handle it.
+   */
+  private static String profilerUnsupportedReason() {
+    try {
+      if (ServiceEventsConfig.isLambdaEnvironment()) {
+        return "AWS Lambda (profiler unsupported on this platform)";
+      }
+      String osName = System.getProperty("os.name");
+      if (osName != null && osName.toLowerCase(java.util.Locale.ROOT).startsWith("windows")) {
+        return "Windows (profiler unsupported on this platform)";
+      }
+      return null;
+    } catch (Throwable t) {
+      // Never let the gate itself break init — fall through to the load-failure backstop.
+      return null;
+    }
+  }
+
+  /**
+   * Stop the profiler: stop its collector, stop async-profiler, export the windows not exported yet
+   * (bounded by {@link #FINAL_EXPORT_TIMEOUT_MS}), delete this JVM's JFR files and data dir, and
+   * close the profiles exporter. Run at JVM exit by the shutdown hook, which touches nothing but
+   * the profiler, and by {@link #shutdown()}. Safe to call more than once.
+   */
+  synchronized void shutdownProfiler() {
+    if (rotationProcessor != null) {
+      collectors.remove(rotationProcessor);
+      try {
+        rotationProcessor.stop();
+      } catch (Exception e) {
+        logger().log(Level.WARNING, "Error stopping RotationBoundaryProcessor", e);
+      }
+    }
+    // Stop async-profiler, then export what is left. Stopping completes the JFR file it was
+    // writing; the collectors only ever read completed files, so without this the last window
+    // would be lost. Then delete this JVM's JFR files and data dir.
+    if (asyncProfilerWrapper != null) {
+      try {
+        asyncProfilerWrapper.shutdown();
+        logger().fine("Shut down async-profiler");
+      } catch (Exception e) {
+        logger().log(Level.WARNING, "Error shutting down async-profiler", e);
+      }
+      if (rotationProcessor != null) {
+        exportFinalWindows(rotationProcessor, FINAL_EXPORT_TIMEOUT_MS);
+      }
+      try {
+        asyncProfilerWrapper.deleteAllJfrFiles();
+        if (createdProfilerDataDir != null && !createdProfilerDataDir.delete()) {
+          logger().fine("Profiler data dir not removed (not empty): " + createdProfilerDataDir);
+        }
+      } catch (Throwable t) {
+        logger().log(Level.FINE, "Error removing profiler data dir", t);
+      }
+      asyncProfilerWrapper = null;
+      rotationProcessor = null;
+    }
+
+    // Drain the native OTLP profiles exporter's OkHttp pool.
+    if (profilesExporter != null) {
+      try {
+        profilesExporter.shutdown();
+        logger().fine("Shut down profiles exporter");
+      } catch (Exception e) {
+        logger().log(Level.WARNING, "Error shutting down profiles exporter", e);
+      }
+      profilesExporter = null;
+    }
+
+    if (shutdownHook != null && Thread.currentThread() != shutdownHook) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+      } catch (IllegalStateException e) {
+        // The JVM is already shutting down; the hook will find nothing left to do.
+      }
+    }
+    shutdownHook = null;
+  }
+
+  /**
+   * Stop all collectors and cleanup resources.
+   *
+   * <p>This should be called during application shutdown to ensure proper cleanup.
+   */
+  public synchronized void shutdown() {
+    if (!initialized) {
+      return;
+    }
+
+    try {
+      logger().info("Shutting down ServiceEvents instrumentation");
+
+      shutdownProfiler();
+
+      // Stop all collectors
+      for (BaseCollector collector : collectors) {
+        try {
+          collector.stop();
+          logger().fine("Stopped collector: " + collector.getClass().getSimpleName());
+        } catch (Exception e) {
+          logger().log(Level.WARNING, "Error stopping collector", e);
+        }
+      }
+      collectors.clear();
+
+      // Shutdown dedicated OTLP providers (owned by the emitter via lazy init)
+      if (otlpEmitter != null) {
+        SdkLoggerProvider logProvider = otlpEmitter.getLoggerProvider();
+        if (logProvider != null) {
+          try {
+            logProvider.forceFlush().join(10, TimeUnit.SECONDS);
+            logProvider.shutdown().join(10, TimeUnit.SECONDS);
+            logger().fine("Shut down ServiceEvents LoggerProvider");
+          } catch (Exception e) {
+            logger().log(Level.WARNING, "Error shutting down ServiceEvents LoggerProvider", e);
+          }
+        }
+        SdkMeterProvider meterProvider = otlpEmitter.getMeterProvider();
+        if (meterProvider != null) {
+          try {
+            meterProvider.forceFlush().join(10, TimeUnit.SECONDS);
+            meterProvider.shutdown().join(10, TimeUnit.SECONDS);
+            logger().fine("Shut down ServiceEvents MeterProvider");
+          } catch (Exception e) {
+            logger().log(Level.WARNING, "Error shutting down ServiceEvents MeterProvider", e);
+          }
+        }
+        otlpEmitter = null;
+      }
+
+      initialized = false;
+      logger().info("ServiceEvents instrumentation shut down successfully");
+
+    } catch (Exception e) {
+      logger().log(Level.SEVERE, "Error during ServiceEvents shutdown", e);
+    }
+  }
+
+  /** Check if initialized. */
+  public boolean isInitialized() {
+    return initialized;
+  }
+
+  /** Get configuration. */
+  public ServiceEventsConfig getConfig() {
+    return config;
+  }
+
+  /**
+   * Create dedicated OTLP providers and the ServiceEventsOtlpEmitter.
+   *
+   * <p>Creates a dedicated SdkLoggerProvider (for 4 log signals) and SdkMeterProvider (for
+   * EndpointErrorMetrics counter), fully isolated from OTel application signals. Applies SigV4
+   * wrapping when the logs endpoint matches the CloudWatch OTLP URL pattern.
+   *
+   * @return ServiceEventsOtlpEmitter, or null if provider creation fails
+   */
+  private ServiceEventsOtlpEmitter createOtlpEmitter() {
+    try {
+      // Resource supplier: defers reading ResourceHolder until first emit, when
+      // OTel autoconfiguration has populated it with the full resource. Uses the
+      // complete Resource (same as Application Signals log exporter) — resource
+      // attributes are sent once per OTLP batch, not per record, so the overhead
+      // is negligible while providing valuable debugging context.
+      // deployment.environment is omitted when environment is unset (no sentinel).
+      io.opentelemetry.api.common.AttributesBuilder fallbackAttrs =
+          Attributes.builder().put(AttributeKey.stringKey("service.name"), config.getServiceName());
+      String resolvedEnvironment = config.getEnvironment();
+      if (resolvedEnvironment != null && !resolvedEnvironment.isEmpty()) {
+        fallbackAttrs.put(AttributeKey.stringKey("deployment.environment"), resolvedEnvironment);
+      }
+      Resource fallbackResource = Resource.create(fallbackAttrs.build());
+
+      java.util.function.Supplier<Resource> resourceSupplier =
+          () -> {
+            try {
+              Class<?> holderClass =
+                  Class.forName("io.opentelemetry.contrib.awsxray.ResourceHolder");
+              java.lang.reflect.Method getResource = holderClass.getMethod("getResource");
+              Resource holderResource = (Resource) getResource.invoke(null);
+              if (holderResource != null && !holderResource.equals(Resource.getDefault())) {
+                return holderResource;
+              }
+            } catch (Throwable ignored) {
+              // ResourceHolder not available or not yet populated — use fallback
+            }
+            return fallbackResource;
+          };
+
+      // Log the endpoint mode now (before lazy init)
+      String logsEndpoint = config.getLogsEndpoint();
+      if (isAwsOtlpLogsEndpoint(logsEndpoint)) {
+        logger().info("ServiceEvents OTLP logs: SigV4 direct-to-CloudWatch (" + logsEndpoint + ")");
+      } else {
+        logger().info("ServiceEvents OTLP logs: collector-proxied (" + logsEndpoint + ")");
+      }
+      String metricsEndpoint = config.getMetricsEndpoint();
+      logger().info("ServiceEvents OTLP metrics: " + metricsEndpoint);
+
+      // File-export mode: when OUTPUT_FILE is set, all three providers use
+      // CloudWatch-faithful file exporters in place of the OTLP HTTP exporters.
+      String outputFile = config.getOutputFile();
+      boolean useFileExport = outputFile != null && !outputFile.isEmpty();
+
+      // LoggerProvider factory: creates the dedicated provider on first use
+      java.util.function.Supplier<SdkLoggerProvider> loggerProviderFactory =
+          () -> {
+            io.opentelemetry.sdk.logs.export.LogRecordExporter logExporter;
+            if (useFileExport) {
+              logExporter = new ServiceEventsCloudWatchLogFileExporter(outputFile);
+            } else {
+              OtlpHttpLogRecordExporter plainLogExporter =
+                  OtlpHttpLogRecordExporter.builder()
+                      .setEndpoint(logsEndpoint)
+                      .addHeader("x-aws-log-group", config.getLogGroup())
+                      .addHeader("x-aws-log-stream", config.getLogStream())
+                      .build();
+
+              if (isAwsOtlpLogsEndpoint(logsEndpoint)) {
+                logExporter =
+                    OtlpAwsLogRecordExporterBuilder.create(plainLogExporter, logsEndpoint).build();
+              } else {
+                logExporter = plainLogExporter;
+              }
+            }
+
+            return SdkLoggerProvider.builder()
+                .setResource(resourceSupplier.get())
+                .addLogRecordProcessor(BatchLogRecordProcessor.builder(logExporter).build())
+                .build();
+          };
+
+      // MeterProvider factory: creates the dedicated provider on first use.
+      // File-export mode writes EMF envelopes to the same file as logs.
+      java.util.function.Supplier<SdkMeterProvider> meterProviderFactory =
+          () -> {
+            io.opentelemetry.sdk.metrics.export.MetricExporter metricExporter;
+            if (useFileExport) {
+              metricExporter = new ServiceEventsCloudWatchMetricFileExporter(outputFile);
+            } else {
+              metricExporter =
+                  OtlpHttpMetricExporter.builder()
+                      .setEndpoint(metricsEndpoint)
+                      .setAggregationTemporalitySelector(
+                          instrumentType -> AggregationTemporality.DELTA)
+                      .build();
+            }
+
+            // Build the metric Resource by layering the 4 process-constant
+            // ServiceEvents attributes on top of the shared Resource. These ride at
+            // the resource level so they're sent once per OTLP batch instead of
+            // duplicated on every data point. service.name and environment
+            // (deployment.environment) already live on the shared resource via
+            // OTel autoconfiguration.
+            Resource sharedResource = dropArrayResourceAttributes(resourceSupplier.get());
+            io.opentelemetry.api.common.AttributesBuilder metricResAttrs =
+                io.opentelemetry.api.common.Attributes.builder();
+            metricResAttrs.put("aws.service_events.version", "1");
+            if (config.getDeploymentId() != null && !config.getDeploymentId().isEmpty()) {
+              metricResAttrs.put("aws.service_events.deployment.id", config.getDeploymentId());
+            }
+            if (config.getGitCommitSha() != null && !config.getGitCommitSha().isEmpty()) {
+              metricResAttrs.put("vcs.ref.head.revision", config.getGitCommitSha());
+            }
+            if (config.getGitRepoUrl() != null && !config.getGitRepoUrl().isEmpty()) {
+              metricResAttrs.put("vcs.repository.url.full", config.getGitRepoUrl());
+            }
+            Resource metricResource = sharedResource.merge(Resource.create(metricResAttrs.build()));
+
+            SdkMeterProviderBuilder builder =
+                SdkMeterProvider.builder()
+                    .setResource(metricResource)
+                    .registerMetricReader(
+                        PeriodicMetricReader.builder(metricExporter)
+                            .setInterval(Duration.ofSeconds(60))
+                            .build());
+
+            // Register a base-2 exponential histogram view for the
+            // service.function.duration metric so the exporter emits an
+            // ExponentialHistogram (matching the Python ExponentialBucketHistogramAggregation).
+            // Registered in BOTH modes: the file metric exporter now serializes histograms as
+            // OTLP JSON, so this View must apply in file mode too — otherwise the histogram
+            // would fall back to the SDK default explicit-bucket shape locally.
+            builder.registerView(
+                InstrumentSelector.builder().setName("service.function.duration").build(),
+                View.builder()
+                    .setAggregation(Aggregation.base2ExponentialBucketHistogram())
+                    .build());
+
+            return builder.build();
+          };
+
+      ServiceEventsOtlpEmitter emitter =
+          new ServiceEventsOtlpEmitter(
+              resourceSupplier,
+              loggerProviderFactory,
+              meterProviderFactory,
+              config.getDeploymentId(),
+              config.getGitCommitSha(),
+              config.getGitRepoUrl(),
+              config.getServiceCodeNamespace());
+
+      logger().info("ServiceEvents OTLP emitter initialized (providers deferred until first emit)");
+      return emitter;
+
+    } catch (Throwable e) {
+      logger()
+          .log(
+              Level.WARNING,
+              "Failed to create OTLP emitter, falling back to file/console export",
+              e);
+      return null;
+    }
+  }
+
+  /**
+   * Drops array-type resource attributes. The CW OTLP metrics endpoint only accepts primitive
+   * attribute types; array attributes like process.command_args cause a 400 rejection.
+   */
+  @SuppressWarnings("unchecked")
+  private static Resource dropArrayResourceAttributes(Resource resource) {
+    io.opentelemetry.api.common.AttributesBuilder builder = Attributes.builder();
+    resource
+        .getAttributes()
+        .forEach(
+            (key, value) -> {
+              if (!(value instanceof java.util.List)) {
+                builder.put((AttributeKey<Object>) key, value);
+              }
+            });
+    return Resource.create(builder.build(), resource.getSchemaUrl());
+  }
+}

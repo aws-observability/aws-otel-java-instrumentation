@@ -45,7 +45,11 @@ class ApacheHttpClientTest extends BaseHttpClientTest {
 
   @Override
   protected String getApplicationWaitPattern() {
-    return ".*Started .*";
+    // Match Jetty's port-bind log (the Spark app runs on embedded Jetty), NOT the looser
+    // ".*Started .*" — otherwise the wait can match an unrelated agent startup line (e.g.
+    // ServiceEvents' "Started DeploymentEventCollector") and declare readiness before the
+    // HTTP server has bound its port, causing connection-reset/broken-pipe test failures.
+    return ".*Started ServerConnector.*";
   }
 
   @Test

@@ -22,7 +22,10 @@ jobs:
   analyze:
     # This repository only have Java and Rust code. Rust is not supported currently.
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:large
 
     steps:
     - name: Checkout repository
@@ -65,12 +68,18 @@ jobs:
       uses: github/codeql-action/analyze@16df4fbc19aea13d921737861d6c622bf3cefe23 #v3.30.3
 
   all-codeql-checks-pass:
-    runs-on: ubuntu-latest
+    runs-on:
+      - codebuild-adot-java-runner-${{ github.run_id }}-${{ github.run_attempt }}
+      - image:ubuntu-8.0
+      - instance-size:small
     needs: [analyze]
     if: always()
     steps:
       - name: Checkout to get workflow file
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
 
       - name: Check all jobs succeeded and none missing
         run: |
@@ -82,7 +91,7 @@ jobs:
           fi
           
           # Extract all job names from workflow (excluding this gate job)
-          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/codeql.yml | grep -v "all-codeql-checks-pass" | sort)
+          all_jobs=$(yq eval '.jobs | keys | .[]' .github/workflows/codeql-analysis.yml | grep -v "all-codeql-checks-pass" | sort)
           
           # Extract job names from needs array
           needed_jobs='${{ toJSON(needs) }}'

@@ -27,13 +27,15 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.StringJoiner;
 import javax.annotation.Nonnull;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.BaseOtlpAwsExporter;
 import software.amazon.opentelemetry.javaagent.providers.exporter.otlp.aws.common.CompressionMethod;
 
 /**
  * This exporter extends the functionality of the OtlpHttpSpanExporter to allow spans to be exported
- * to the XRay OTLP endpoint https://xray.[AWSRegion].amazonaws.com/v1/traces. Utilizes the AWSSDK
- * library to sign and directly inject SigV4 Authentication to the exported request's headers. <a
+ * to the X-Ray OTLP endpoint ({@code https://xray.[AWSRegion].amazonaws.com/v1/traces} or {@code
+ * https://xray.[AWSRegion].amazonaws.com.cn/v1/traces}). Utilizes the AWS SDK library to sign and
+ * directly inject SigV4 Authentication to the exported request's headers. <a
  * href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html">...</a>
  */
 public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements SpanExporter {
@@ -41,21 +43,31 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
   private final OtlpHttpSpanExporter parentExporter;
 
   static OtlpAwsSpanExporter getDefault(String endpoint) {
-    return new OtlpAwsSpanExporter(
-        OtlpHttpSpanExporter.getDefault(), endpoint, CompressionMethod.NONE);
+    return OtlpAwsSpanExporterBuilder.create(OtlpHttpSpanExporter.builder(), endpoint).build();
   }
 
   static OtlpAwsSpanExporter create(
-      OtlpHttpSpanExporter parent, String endpoint, CompressionMethod compression) {
-    return new OtlpAwsSpanExporter(parent, endpoint, compression);
+      OtlpHttpSpanExporterBuilder parent,
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    return new OtlpAwsSpanExporter(
+        parent, endpoint, compression, awsRegion, awsService, credentialsProvider);
   }
 
   private OtlpAwsSpanExporter(
-      OtlpHttpSpanExporter parentExporter, String endpoint, CompressionMethod compression) {
-    super(endpoint, compression);
+      OtlpHttpSpanExporterBuilder parentExporterBuilder,
+      String endpoint,
+      CompressionMethod compression,
+      String awsRegion,
+      String awsService,
+      AwsCredentialsProvider credentialsProvider) {
+    super(endpoint, compression, awsRegion, awsService, credentialsProvider);
 
     this.parentExporterBuilder =
-        parentExporter.toBuilder()
+        parentExporterBuilder
             .setMemoryMode(MemoryMode.IMMUTABLE_DATA)
             .setEndpoint(endpoint)
             .setHeaders(this.headerSupplier);
@@ -63,11 +75,7 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
     this.parentExporter = this.parentExporterBuilder.build();
   }
 
-  /**
-   * Overrides the upstream implementation of export. All behaviors are the same except if the
-   * endpoint is an XRay OTLP endpoint, we will sign the request with SigV4 in headers before
-   * sending it to the endpoint. Otherwise, we will skip signing.
-   */
+  /** Signs each OTLP/HTTP request with AWS SigV4 before exporting it. */
   @Override
   public CompletableResultCode export(@Nonnull Collection<SpanData> spans) {
     try {
@@ -91,14 +99,12 @@ public final class OtlpAwsSpanExporter extends BaseOtlpAwsExporter implements Sp
   }
 
   @Override
-  public String serviceName() {
-    return "xray";
-  }
-
-  @Override
   public String toString() {
     StringJoiner joiner = new StringJoiner(", ", "OtlpAwsSpanExporter{", "}");
-    joiner.add(this.parentExporterBuilder.toString());
+    joiner.add("endpoint=" + this.endpoint);
+    joiner.add("awsRegion=" + this.awsRegion);
+    joiner.add("awsService=" + serviceName());
+    joiner.add("compression=" + getCompression());
     joiner.add("memoryMode=" + MemoryMode.IMMUTABLE_DATA);
     return joiner.toString();
   }
