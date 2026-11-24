@@ -69,6 +69,14 @@ jobs:
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release-branch-name }}
 
+      # Release branches cut before the CodeBuild migration (v2.32.x and older) don't have this action.
+      - name: Set up CodeBuild runner
+        if: hashFiles('.github/actions/codebuild-runner-setup/action.yml') != ''
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           java-version-file: .java-version
