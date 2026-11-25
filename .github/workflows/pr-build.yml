@@ -294,6 +294,16 @@ jobs:
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON(format('["codebuild-adot-java-runner-{0}-{1}", "image:ubuntu-8.0", "instance-size:large"]', github.run_id, github.run_attempt)) }}
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        with:
+          sparse-checkout: .github/actions
+
+      - name: Set up CodeBuild runner
+        uses: ./.github/actions/codebuild-runner-setup
+        with:
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+
       # Anonymous pulls from ECR Public are throttled on shared GitHub-hosted runner IPs
       # ("toomanyrequests: Data limit exceeded"), so pull the same official images from Docker Hub
       # and tag them with the ECR names the Jib builds use (they read the local Docker daemon).
