@@ -10,7 +10,7 @@ jdk.dynalink,jdk.httpserver,jdk.jsobject,jdk.localedata,jdk.naming.dns,jdk.secur
 jdk.jcmd,jdk.jfr" \
             --no-man-pages --no-header-files --strip-debug --output /temp/java-17-amazon-corretto
 
-FROM public.ecr.aws/docker/library/alpine:3.14
+FROM public.ecr.aws/docker/library/alpine:3.24
 
 COPY --from=0 /temp/java-17-amazon-corretto /usr/lib/jvm/java-17-amazon-corretto
 COPY --from=0 /licenses /licenses
